@@ -27,12 +27,12 @@ tank has to keep earning.
 | Temperature | <Badge text="settled" variant="success" /> | One Q10 factor across oxidation, growth and decay, because they are one metabolism. |
 | Guild seeding | <Badge text="settled" variant="success" /> | A trickle per litre of water that never stops, so a guild is always present and grows the moment it has feedstock — no concentration gate. |
 | Mineralization rate | <Badge text="scaffolding" variant="caution" /> | A flat fraction of standing waste with no temperature and no oxygen term, in the one aerobic step of the chain that has neither. |
-| N mass conservation | <Badge text="scaffolding" variant="caution" /> | Water, organics and plant tissue conserve N per atom: plants draw it as they grow and return it as waste when tissue is shed or dies. A hypoxic fish's undeaminated N is the one untracked sink. |
+| N mass conservation | <Badge text="scaffolding" variant="caution" /> | Water, organics and plant tissue conserve N per atom. A hypoxic fish's undeaminated N is the one untracked sink. |
 | Colony sizing on inert beds | <Badge text="settled" variant="success" /> | A colony grows to the load it is fed, not to the surface under it, so an inert bed's smaller surface lowers the ceiling without setting the cycling clock. |
 | Cycled seed | <Badge text="settled" variant="success" /> | A `'cycled'` colony is the one the tank's load sustains at rest — its fish fed to satiety and its bed's leach — floored at a fishless month's share of the surface ceiling. A seeded colony already clears its resting load at the trace line, so a stocked setup opens without a spike; food fed past satiety is outside that load, so an overfed tank's colony grows on from the seed. |
 | Nitrogen alerts | <Badge text="settled" variant="success" /> | Free NH₃, nitrite and nitrate alert at the shared `*_EDGE`s, the lines every fish's own edge is read off. |
 | Bed disturbance | <Badge text="scaffolding" variant="caution" /> | Lifting hardscape stirs one slot's share of the bed per piece, and uprooting a plant its own patch: that share of the reserve comes loose as waste and its biofilm is scraped off. The bed holds only about a day of the tank's waste, so a rescape shows as a small, short blip. |
-| Denitrification | <Badge text="missing" variant="danger" /> | Nitrate has no biological sink. It leaves only into growing plant tissue and through water changes, so an unplanted tank accumulates it without bound. |
+| Denitrification | <Badge text="missing" variant="danger" /> | Nitrate has no biological sink. It leaves only through plant growth and water changes, so an unplanted tank accumulates it without bound. |
 | Nitrification acidity | <Badge text="settled" variant="success" /> | The 2 H⁺ each NH₄⁺ releases spend KH at 7.14 mg CaCO₃ per mg of nitrogen, so a tank that nitrifies without water changes loses its buffer and its pH. |
 
 ## How it works
@@ -65,7 +65,7 @@ separately. A tank that cannot run the reaction does not pay for it.
 
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
-| `waste` | Food decay, fish feces, fish death, shed and dead plant tissue, substrate leaching | Mineralization to ammonia; settling into the bed | g |
+| `waste` | Food decay, fish feces, fish death, plant tissue loss, substrate leaching | Mineralization to ammonia; settling into the bed | g |
 | `ammonia` | Mineralization; fish gill excretion; the oxidised share of decaying food | AOB oxidation; water change removes proportional mass | mg |
 | `phosphate` · `potassium` · `iron` | Mineralization, at `foodMineralContent` beside the ammonia; fish excretion; the oxidised share of decaying food; fertilizer dosing | Plant growth; water change | mg |
 | `nitrite` | AOB oxidation, × 2.702 | NOB oxidation; water change | mg |

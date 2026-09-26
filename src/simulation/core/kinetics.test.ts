@@ -1,12 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  lightSaturationFactor,
-  monodEndStock,
-  monodFactor,
-  monodUptake,
-  q10Factor,
-  type MonodConsumer,
-} from './kinetics.js';
+import { lightSaturationFactor, monodFactor, monodUptake, q10Factor } from './kinetics.js';
 
 describe('q10Factor', () => {
   it('leaves a rate alone at the temperature it is quoted at', () => {
@@ -94,62 +87,6 @@ describe('monodUptake', () => {
   it('draws nothing from an empty stock or with no capacity', () => {
     expect(monodUptake(0, 1, 0.5)).toBe(0);
     expect(monodUptake(1, 0, 0.5)).toBe(0);
-  });
-});
-
-describe('monodEndStock', () => {
-  const drawnAt = (end: number, consumers: readonly MonodConsumer[]): number =>
-    consumers.reduce((sum, c) => sum + c.capacity * monodFactor(end, c.halfSaturation), 0);
-
-  it('is monodUptake for a single consumer', () => {
-    for (const [stock, capacity, k] of [
-      [1, 0.2, 0.5],
-      [10, 3, 0.5],
-      [0.01, 50, 2],
-    ]) {
-      const end = monodEndStock(stock, [{ capacity, halfSaturation: k }]);
-      expect(stock - end).toBeCloseTo(monodUptake(stock, capacity, k), 12);
-    }
-  });
-
-  it('balances what left the pool against every consumer read where the tick ends', () => {
-    const consumers = [
-      { capacity: 2, halfSaturation: 0.1 },
-      { capacity: 5, halfSaturation: 3 },
-      { capacity: 0.5, halfSaturation: 20 },
-    ];
-    for (const stock of [0.05, 1, 10, 1000]) {
-      const end = monodEndStock(stock, consumers);
-      expect(stock - end).toBeCloseTo(drawnAt(end, consumers), 12);
-    }
-  });
-
-  it('never lets the draws sum past the stock, however many consumers crowd it', () => {
-    for (const count of [1, 10, 1000]) {
-      const consumers = Array.from({ length: count }, (_, i) => ({
-        capacity: 1e3,
-        halfSaturation: 1e-3 * (i + 1),
-      }));
-      for (const stock of [1e-9, 0.1, 50]) {
-        const end = monodEndStock(stock, consumers);
-        expect(end).toBeGreaterThanOrEqual(0);
-        expect(end + drawnAt(end, consumers)).toBeLessThanOrEqual(stock);
-      }
-    }
-  });
-
-  it('gives the consumer with the lower half-saturation the larger share of its capacity', () => {
-    const end = monodEndStock(1, [
-      { capacity: 1, halfSaturation: 0.1 },
-      { capacity: 1, halfSaturation: 2 },
-    ]);
-    expect(monodFactor(end, 0.1)).toBeGreaterThan(monodFactor(end, 2));
-  });
-
-  it('leaves the stock whole with no capacity, and an empty stock empty', () => {
-    expect(monodEndStock(3, [])).toBe(3);
-    expect(monodEndStock(3, [{ capacity: 0, halfSaturation: 1 }])).toBe(3);
-    expect(monodEndStock(0, [{ capacity: 1, halfSaturation: 1 }])).toBe(0);
   });
 });
 

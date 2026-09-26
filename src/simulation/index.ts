@@ -348,6 +348,7 @@ export {
   speciesDemand,
   speciesHalfSaturation,
   nutrientShare,
+  nutrientShares,
   organicNutrients,
   drawTissue,
   tissueMass,

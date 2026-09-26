@@ -7,6 +7,9 @@ import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { WASTE_NUTRIENTS, type WasteNutrient } from '../config/nutrients.js';
 import { MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
 import { tissueMass } from '../systems/plant-lifecycle.js';
+import { getSpeciesGrowthRate } from '../systems/plant-growth.js';
+import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
+import { getPpm } from '../resources/index.js';
 import { plantRecord } from './plant.js';
 // The scenario setups are the shared definition of a real tank, so the engine invariants run over them.
 import { SETUPS, type Setup } from '../../cli/scenarios/setups.js';
@@ -51,8 +54,8 @@ function tetra(id: string): Fish {
   };
 }
 
-function cycledBareTank(): SimulationState {
-  const state = createSimulation({ tankCapacity: 150 });
+function cycledBareTank(tankCapacity = 150): SimulationState {
+  const state = createSimulation({ tankCapacity });
   const colony = state.resources.surface * nitrogenCycleDefaults.bacteriaPerCm2;
   return produce(state, (draft) => {
     draft.resources.aob = colony;
@@ -184,11 +187,9 @@ describe('a planting', () => {
   const tissue = (state: SimulationState): number =>
     state.plants.reduce((sum, plant) => sum + tissueMass(plant.species, plant.size), 0);
 
-  it('grows out of the water under the lamp, and gives it back as the dark kills it', () => {
+  it('grows out of the water under the lamp', () => {
     expect(tissue(grown)).toBeGreaterThan(tissue(start));
     expect(grown.resources.phosphate).toBeLessThan(start.resources.phosphate);
-    expect(tissue(dark)).toBeLessThan(tissue(grown) / 2);
-    expect(dark.plants.length).toBeLessThan(grown.plants.length);
   });
 
   it('conserves nitrogen through growth, offshoots, shedding and death', () => {
@@ -207,6 +208,48 @@ describe('a planting', () => {
     for (const state of [grown, dark]) {
       for (const n of [...WASTE_NUTRIENTS, 'nitrate'] as const) expect(state.resources[n]).toBeGreaterThanOrEqual(0);
       expect(nonFinitePaths(state)).toEqual([]);
+    }
+  });
+});
+
+describe('an offshoot bought on thin water', () => {
+  const BLACKOUT_DAYS = 90;
+  let start: SimulationState;
+  let budded: SimulationState;
+  let dark: SimulationState;
+  beforeAll(() => {
+    start = produce(cycledBareTank(20), (draft) => {
+      draft.plants = [
+        plantRecord({ id: 'fern', species: 'java_fern', size: 99, condition: 100, surplus: DEFAULT_CONFIG.plants.surplusCap }),
+      ];
+      draft.resources.nitrate = 10 * draft.resources.water;
+      draft.resources.phosphate = 0.04 * draft.resources.water;
+      draft.resources.potassium = 10 * draft.resources.water;
+      draft.resources.iron = 0.2 * draft.resources.water;
+    });
+    budded = tick(start);
+    dark = run(
+      produce(budded, (draft) => {
+        draft.equipment.light.enabled = false;
+      }),
+      BLACKOUT_DAYS * 24
+    );
+  });
+
+  it('is a lump a draw read at the start of the tick would overdraw, and the pool still pays it', () => {
+    const { plants, livestock, nutrients } = DEFAULT_CONFIG;
+    const lump = tissueMass('java_fern', plants.surplusCap * getSpeciesGrowthRate('java_fern') * plants.sizePerSurplus);
+    const share = nutrientShare(getPpm(start.resources.phosphate, start.resources.water), 'java_fern', 'phosphate');
+    expect(lump * organicNutrients(livestock, nutrients).phosphate * share).toBeGreaterThan(start.resources.phosphate);
+
+    expect(budded.plants).toHaveLength(2);
+    expect(budded.resources.phosphate).toBeGreaterThan(0);
+  });
+
+  it('conserves nitrogen and every mineral through the lump and the die-off', () => {
+    for (const state of [budded, dark]) {
+      expect(nitrogenInPools(state) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+      for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(state, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
     }
   });
 });

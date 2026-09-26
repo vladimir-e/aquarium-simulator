@@ -4,8 +4,8 @@
  * Pipeline:
  * 1. The canopy: each plant's light at its own height, read by photosynthesis
  *    and vitality and handed back as the light the tick ran on.
- * 2. Each plant's Liebig sufficiency, once: photosynthesis and vitality both
- *    run on it.
+ * 2. Each plant's share of every nutrient, read once: its Liebig sufficiency
+ *    runs photosynthesis and vitality, and the shares request its tissue.
  * 3. Photosynthesis: O2 production and CO2 uptake only. Light-gated: zero
  *    output at night.
  * 4. Respiration: O2/CO2 effects, 24/7.
@@ -13,8 +13,8 @@
  *    income at full condition banks, the bank heals condition below it.
  * 6. What each bank buys at full supply: a full bank's offshoot, then growth
  *    at `growthDrawRate` of what is left, day and night.
- * 7. The water supplies that tissue: one draw for the planting, and each
- *    plant gets the share of its purchase the draw allows.
+ * 7. The water supplies that tissue: each pool delivers on the planting's
+ *    requests, and each plant gets the share of its purchase they allow.
  * 8. Shedding + death (lifecycle module) — low condition sheds tissue, and
  *    condition 0 removes the plant. Both return it as waste.
  * 9. Survivors age a tick; offshoots join the end of the list at age 0.
@@ -35,11 +35,7 @@ import {
 import type { Effect } from '../core/effects.js';
 import { NUTRIENTS, type Nutrient, type TunableConfig } from '../config/index.js';
 import { calculatePhotosynthesis } from '../systems/photosynthesis.js';
-import {
-  calculateNutrientSufficiency,
-  drawTissue,
-  organicNutrients,
-} from '../systems/nutrients.js';
+import { drawTissue, liebig, nutrientShares, organicNutrients } from '../systems/nutrients.js';
 import { calculateRespiration } from '../systems/respiration.js';
 import { purchase, sizeBought, supply } from '../systems/plant-growth.js';
 import { createOffshoot } from './create-plant.js';
@@ -100,11 +96,11 @@ export function processPlants(
   // 1. The canopy, and each plant's light in it.
   const light = lightOf(state, canopyOf(state, config));
 
-  // 2. Liebig sufficiency, once per plant: photosynthesis fixes carbon and
-  //    draws on it, and vitality earns and charges on it.
-  const sufficiency = state.plants.map((plant) =>
-    calculateNutrientSufficiency(state.resources, state.resources.water, plant.species, nutrientsConfig)
+  // 2. Nutrient shares, once per plant: vitality and the tissue draw both run on them.
+  const shares = state.plants.map((plant) =>
+    nutrientShares(state.resources, state.resources.water, plant.species, nutrientsConfig)
   );
+  const sufficiency = shares.map(liebig);
 
   // 3. Photosynthesis: the gases only.
   const photosynthesisResult = calculatePhotosynthesis(
@@ -176,13 +172,12 @@ export function processPlants(
 
   // 7. The water supplies the tissue.
   const tissue = drawTissue(
-    purchases.map((bought) => ({
-      species: bought.before.species,
+    purchases.map((bought, i) => ({
       grams: tissueMass(bought.before.species, sizeBought(bought), plantsConfig),
+      shares: shares[i],
     })),
     state.resources,
-    organicNutrients(config.livestock, nutrientsConfig),
-    nutrientsConfig
+    organicNutrients(config.livestock, nutrientsConfig)
   );
   for (const n of NUTRIENTS) pushDelta(n, -tissue.drawn[n], 'plant-growth');
   pushDelta('gh', -tissue.drawn.gh, 'plant-growth');
@@ -290,6 +285,7 @@ export {
   speciesDemand,
   speciesHalfSaturation,
   nutrientShare,
+  nutrientShares,
   organicNutrients,
   drawTissue,
 } from '../systems/nutrients.js';

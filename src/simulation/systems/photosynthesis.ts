@@ -60,10 +60,6 @@ export function calculatePhotosynthesis(
   sufficiencyByPlant: readonly number[],
   plantsConfig: PlantsConfig = plantsDefaults
 ): PhotosynthesisResult {
-  if (waterVolume <= 0) {
-    return { oxygenProducedMg: 0, co2ConsumedMg: 0 };
-  }
-
   let carbonCapacity = 0;
   let carbonHalfSaturationWeight = 0;
   plants.forEach((plant, i) => {

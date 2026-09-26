@@ -13,8 +13,7 @@ clump — with a size, a condition and a bank, on the
 whatever crowns stand above it: that light drives everything it earns, and the
 day of it decides whether it starves. Income at full condition banks; the bank
 heals the plant, grows it toward a full unit and then buys an offshoot of its
-family. Low condition sheds tissue. A plant is made of its nutrients: new tissue
-takes them out of the water, and shed or dead tissue gives them back.
+family. Low condition sheds tissue.
 
 ## Status
 
@@ -205,18 +204,22 @@ of the rest. N:P ≈ 7 by mass is Redfield, so one recipe serves food, waste and
 tissue.
 
 ```
-grams_i  = (size bought_i + offshoot_i) × fullRateUnits × wastePerSize
-end_n    = the pool where Σ grams_i × recipe_n × end_n / (K_i,n + end_n) = pool_n − end_n
-supply_i = min over n of end_n / (K_i,n + end_n)
-drawn_n  = Σ grams_i × supply_i × recipe_n
+grams_i     = (size bought_i + offshoot_i) × fullRateUnits × wastePerSize
+requested_n = Σ grams_i × share_i,n × recipe_n
+delivered_n = monodUptake(pool_n, Σ grams_i × recipe_n, K_n)
+              // K_n: one consumer requesting requested_n at the tick's start
+met_n       = delivered_n / requested_n
+supply_i    = min over n of share_i,n × met_n
+drawn_n     = Σ grams_i × supply_i × recipe_n
 ```
 
-The bank asks; the water decides how much arrives. Each nutrient's pool ends the
-tick where every plant's Monod draw on it balances what left it, and a plant
-gets the share its scarcest nutrient allows there, of everything its recipe
-carries. Short water slows growth rather than stopping it, a lean species holds
-on where a hungry one starves, and no pool goes below zero. The bank pays only
-for what arrived.
+The bank asks; the water decides how much arrives. Each plant requests its
+tissue at its own share of each nutrient — the reading its sufficiency is made
+of — and each pool delivers through the same end-of-tick Monod the planting's
+CO₂ draw runs on. In an ordinary hour the pool meets every request and a plant
+grows at its sufficiency; an offshoot's lump on thin water is met in part, and
+no pool goes below zero. A lean species holds on where a hungry one starves.
+The bank pays only for what arrived.
 
 Shedding and death hand the same grams back as waste, which mineralizes beside
 its ammonia ([Nitrogen cycle](/subsystems/nitrogen-cycle/)). A tank that dies
@@ -403,9 +406,8 @@ than as fuel — a failing plant drops its oldest leaves rather than digesting
 them, which is why melting plants foul the water.
 
 A plant dies at condition 0, as a fish does. What remains becomes waste, at
-`size × fullRateUnits × wastePerSize`, and it leaves the array. Waste is the
-tissue growth drew for, gram for gram, so a melting sword fouls the water more
-than a carpet patch of the same size and neither returns more than it took.
+`size × fullRateUnits × wastePerSize`, and it leaves the array, so a melting
+sword fouls the water more than a carpet patch of the same size.
 
 ## Key tunables
 

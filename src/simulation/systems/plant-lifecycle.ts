@@ -3,8 +3,7 @@
  *
  * - Shedding is what low condition does to a plant: it drops a share of
  *   itself every hour that grows with the square of its condition deficit,
- *   and the tissue leaves as waste — melting plants foul the water. It is
- *   the organic matter growth drew from the water, handed back.
+ *   and the tissue leaves as waste — melting plants foul the water.
  * - Death comes at condition 0, as it does for a fish.
  */
 

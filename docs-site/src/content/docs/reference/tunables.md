@@ -164,7 +164,7 @@ density you can look up rather than a score.
 | `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of bloom past the threshold, and the mass above which algae shades plants | %/algae/hr · — |
 | `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on the light term times the Liebig sufficiency | %/hr |
 | `maxSheddingRate` | Share of itself a plant sheds per hour at condition 0, falling with the square of the deficit | /hr |
-| `wastePerSize` | Organic matter in a % of a rate unit of tissue — what growth draws the recipe for and shedding and death return as waste, so a unit weighs by its leaf, not its size | g/% |
+| `wastePerSize` | Organic matter in a % of a rate unit of tissue, so a unit weighs by its leaf, not its size | g/% |
 
 Every severity above is pre-hardiness. The species' own hardiness scales every
 channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
@@ -185,7 +185,7 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `baseFoodRate` | Food a fish ingests per gram of body mass per hour | g/g/hr |
 | `baseRespirationRate` | Oxygen a fish draws per gram per hour — a Monod maximum | mg O₂/g/hr |
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales gill ammonia too | mg/L |
-| `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, mineralized as waste, or grown into plant tissue | g N/g food |
+| `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, or mineralized as waste | g N/g food |
 | `gillNFraction` | Share of ingested nitrogen excreted straight through the gills; the rest leaves as feces | — |
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |
 | `satiationDecayRate` | Satiation lost per hour, feeding or not | %/hr |

@@ -38,7 +38,8 @@ export function getPlantsToTrimCount(state: SimulationState, targetSize: number)
  * If `action.plantId` is set, trims only that plant down to `targetSize` (no-op if
  * the plant is missing or already at/below target). Otherwise, reduces every plant
  * above `targetSize` to the target — every plant of `action.familyId` when that is
- * set. Trimmed material exits the system — the waste pool is untouched.
+ * set. Trimmed material exits the system — the waste pool is untouched. A target
+ * under `MIN_PLANTABLE_SIZE` is refused.
  */
 export function trimPlants(state: SimulationState, action: TrimPlantsAction): ActionResult {
   const { targetSize, plantId, familyId } = action;

@@ -12,11 +12,6 @@
  * Nothing clamps growth: within the tunables' bounds and the roster's growth
  * rates one tick buys at most 0.72 of what is left to 100, so the taper keeps
  * every plant below it.
- *
- * The bank sets what a plant asks for; the water decides how much of it
- * arrives. An hour's purchase — the offshoot, then growth — is new tissue, and
- * it is bought at the share the water supplied: size, offshoot and the bank's
- * price all scale together, so the bank pays for exactly the tissue it got.
  */
 
 import type { Plant } from '../state.js';

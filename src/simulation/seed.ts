@@ -189,10 +189,11 @@ export function cycledKhReserve(type: SubstrateType, capacity: number): number {
 /**
  * Share of the nitrate a cycled bed leached that is still in the water.
  * Nothing in a fishless tank consumes nitrate, so a month of leaching left
- * alone reads 9.7 ppm over aqua soil — but a keeper changes water: the same month measures 0.37 of it under
- * a weekly 30 % change and 0.17 under a weekly 50 %. A quarter sits between
- * them, rounded to the low side because nitrate is a stressor and the tank a
- * keeper hands over has just been changed, not left to load.
+ * alone reads 9.7 ppm over aqua soil — but a keeper changes water: the same
+ * month measures 0.37 of it under a weekly 30 % change and 0.17 under a
+ * weekly 50 %. A quarter sits between them, rounded to the low side because
+ * nitrate is a stressor and the tank a keeper hands over has just been
+ * changed, not left to load.
  */
 const CYCLED_NITRATE_RETAINED = 0.25;
 
