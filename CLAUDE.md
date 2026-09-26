@@ -28,7 +28,7 @@ This project follows documentation-driven development:
 
 ## One abstraction
 
-Every organism with a condition runs one vitality model. Condition is the buffer between dying and thriving, normal at 100: benefit rates raise it, damage rates lower it, so nothing dies or heals instantly. Income banks only at 100; the bank heals condition at a species rate and buys what the organism makes — a plant's growth, a fish's brood. Low condition has effects — a plant sheds tissue; any organism dies at 0. Sickness is not a separate mechanic: an organism is sick while damage outruns its healing — the damage rate is the sickness, and the bank's healing is its immunity.
+Every organism with a condition runs one vitality model. Condition is the buffer between dying and thriving, normal at 100: benefit rates raise it, damage rates lower it, so nothing dies or heals instantly. Income banks only at 100; the bank heals condition at a species rate and buys what the organism makes — a plant's growth and offshoots, a fish's brood. Low condition has effects — a plant sheds tissue; any organism dies at 0. Sickness is not a separate mechanic: an organism is sick while damage outruns its healing — the damage rate is the sickness, and the bank's healing is its immunity.
 
 Designing a mechanic is choosing rates of benefit and harm. A new stock, clock or special path for one organism leaves the model — stop and raise it instead of building it. A threshold that switches a mechanism on or off, or a clamp standing in for kinetics, is a defect; a rate that starts at a tolerance edge is not. Algae keeps no condition and runs its own bank.
 
@@ -70,7 +70,7 @@ Task briefs are provided by the maintainer or orchestrator per task — there's 
 
 ## Gotchas
 
-- **A plant's offshoot runs before its growth** — `processPlants` lets a full bank buy the offshoot before the tick's draw; drawn first, the bank sits a hair under the cap and no plant ever buds.
+- **A plant's offshoot runs before its growth** — `processPlants` lets a full bank buy the offshoot before the tick's draw; drawn first, the bank sits a hair under the cap and a growing plant never buds.
 - **The canopy is one O(N²) pass a tick** — `processPlants` builds `canopyLight` once, off the start-of-tick planting; photosynthesis and vitality both read it, and a reader outside the tick builds its own once. Never build it per plant.
 - **Ids are tank-unique, not process-unique** — two tanks emit the same id sequence, so UI state keyed by organism id must reset when the tank is replaced (`useExpandedRows` is the pattern). A tank's UI identity is `tankId`; seeds are nameable and two tanks can share one.
 - **Config bounds live in the `*ConfigMeta`, not the save schema** — CLI `applyConfigSet` and the tunables drawer both validate against `configRange(path)`; the persistence schema bounds only a handful of leaves (the surplus caps, the two attenuations, the water-chemistry rate floors, the nutrient demand floors), each equal to or looser than meta, so there is no second set to keep in step.

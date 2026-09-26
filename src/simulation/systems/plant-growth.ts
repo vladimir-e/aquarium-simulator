@@ -7,10 +7,9 @@
  * `1 − size/100`, which closes the draw down as its unit fills. Only what
  * becomes size leaves the bank, so a filling unit keeps income banked against
  * a bad spell — and a nearly full one banks up to the cap, where the bank buys
- * a new unit of its family instead. That purchase runs before the tick's draw:
- * drawn first, the bank would sit a hair under the cap for good.
+ * a new unit of its family instead.
  *
- * Nothing clamps size: within the tunables' bounds and the roster's growth
+ * Nothing clamps growth: within the tunables' bounds and the roster's growth
  * rates one tick buys at most 0.72 of what is left to 100, so the taper keeps
  * every plant below it.
  */
@@ -20,6 +19,7 @@ import type { PlantSpecies } from '../plants/species.js';
 import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
+import { isPlantableSize } from './plant-lifecycle.js';
 
 /**
  * Get the growth rate for a plant species. Per-species multiplier on
@@ -59,18 +59,24 @@ export interface Propagation {
 }
 
 /**
- * A full bank buys an offshoot and resets — the fish spawn rule. The offshoot
+ * A full bank buys an offshoot, as a full bank buys a fish a brood. The offshoot
  * is the bank at the growth conversion, untapered, one full unit at most, and
  * the parent pays for exactly what it bought. Null while the bank is short of
- * the cap, and at a cap of 0, where every bank would read full.
+ * the cap, at a cap of 0, where every bank would read full, and when the bank
+ * would buy a unit under `deathSizeThreshold`: a bank too small to buy a unit
+ * that lives buys nothing, and healing and growth keep drawing on it.
  */
 export function propagate(plant: Plant, config: PlantsConfig = plantsDefaults): Propagation | null {
   if (!(config.surplusCap > 0 && plant.surplus >= config.surplusCap)) return null;
 
   const conversion = sizePerBank(plant, config);
   const spent = Math.min(plant.surplus, 100 / conversion);
+  // (100 / c) · c can land a hair over 100.
+  const offshootSize = Math.min(100, spent * conversion);
+  if (!isPlantableSize(offshootSize, config)) return null;
+
   return {
     parent: { ...plant, surplus: plant.surplus - spent },
-    offshootSize: spent * conversion,
+    offshootSize,
   };
 }

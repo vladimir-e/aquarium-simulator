@@ -23,7 +23,7 @@ import { NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { CARE_SHEET_PHOTOPERIOD, PLANT_SPECIES_DATA, dailyLightEdge } from './species.js';
 import { plantRecord } from '../tests/plant.js';
 import { VIGOUR_SPAN } from './create-plant.js';
-import { createRng } from '../core/rng.js';
+import { createRng, type RngState } from '../core/rng.js';
 
 const sizePerBank = (species: PlantSpecies): number =>
   PLANT_SPECIES_DATA[species].growthRate * plantsDefaults.sizePerSurplus;
@@ -523,9 +523,9 @@ describe('processPlants', () => {
     const CAP = plantsDefaults.surplusCap;
 
     /** A night after a good day: nothing earned, nothing lost, so the bank stands as given. */
-    const night = (plants: Plant[], rng = createSimulation({ tankCapacity: 100 }).rng): SimulationState =>
+    const night = (plants: Plant[], rng?: RngState): SimulationState =>
       produce(createTestState({ plants, light: 0, lightByHour: LIT_DAY, water: 100 }), (draft) => {
-        draft.rng = rng;
+        if (rng) draft.rng = rng;
       });
 
     const mother = (surplus: number, fields: Partial<Plant> = {}): Plant =>
@@ -544,6 +544,16 @@ describe('processPlants', () => {
     it('buys nothing at a cap of 0', () => {
       const capless = { ...DEFAULT_CONFIG, plants: { ...plantsDefaults, surplusCap: 0 } };
       expect(processPlants(night([mother(0)]), capless).state.plants).toHaveLength(1);
+    });
+
+    it('buys no unit that could not live, and grows on the bank instead', () => {
+      const deathSizeThreshold = 1.01 * CAP * sizePerBank('amazon_sword');
+      const lean = { ...DEFAULT_CONFIG, plants: { ...plantsDefaults, deathSizeThreshold } };
+      const [kept, ...born] = processPlants(night([mother(CAP)]), lean).state.plants;
+      expect(born).toHaveLength(0);
+      expect(kept.size).toBeGreaterThan(90);
+      expect(kept.surplus).toBeLessThan(CAP);
+      expect(kept.surplus).toBeGreaterThan(0);
     });
 
     it('turns the whole bank into the offshoot at the growth conversion', () => {

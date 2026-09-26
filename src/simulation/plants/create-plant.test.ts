@@ -56,13 +56,12 @@ describe('createPlant', () => {
 describe('createOffshoot', () => {
   const rng = createRng(5);
   const founder = createPlant({ species: 'amazon_sword', size: 90, age: 1000, rng });
-  const parent = { ...founder, condition: 100, surplus: 0 };
-  const child = createOffshoot(parent, 20, rng);
+  const child = createOffshoot(founder, 20, rng);
   const grandchild = createOffshoot(child, 20, rng);
 
   it('is a new unit of its parent\'s species at the size its bank bought, full on an empty bank', () => {
-    expect(child.id).not.toBe(parent.id);
-    expect(child.species).toBe(parent.species);
+    expect(child.id).not.toBe(founder.id);
+    expect(child.species).toBe(founder.species);
     expect(child.size).toBe(20);
     expect(child.condition).toBe(100);
     expect(child.surplus).toBe(0);
@@ -77,7 +76,7 @@ describe('createOffshoot', () => {
   });
 
   it('draws a vigour of its own inside the span', () => {
-    expect(child.vigour).not.toBe(parent.vigour);
+    expect(child.vigour).not.toBe(founder.vigour);
     expect(Math.abs(child.vigour)).toBeLessThanOrEqual(VIGOUR_SPAN);
   });
 });

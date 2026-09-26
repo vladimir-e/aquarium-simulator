@@ -12,8 +12,7 @@
  * 4. Respiration: O2/CO2 effects, 24/7.
  * 5. Vitality per plant: the new condition and `Plant.surplus` bank —
  *    income at full condition banks, the bank heals condition below it.
- * 6. Offshoot: a full bank buys a new unit of the family and resets, the
- *    fish spawn rule, before growth can draw on it.
+ * 6. Offshoot: a full bank buys a new unit of the family, before growth.
  * 7. Growth: the bank buys size at `growthDrawRate` of itself, day and night.
  * 8. Shedding + death (lifecycle module) — low condition sheds tissue, and
  *    condition 0 or too little size left removes the plant.
@@ -235,7 +234,7 @@ export function processPlants(
         surplus: vitalities[i].surplus,
       };
 
-      // 6. A full bank buys an offshoot, before growth can draw on it.
+      // 6. A full bank buys an offshoot.
       const propagation = propagate(plant, plantsConfig);
       if (propagation) {
         plant = propagation.parent;

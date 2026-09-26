@@ -67,7 +67,9 @@ export interface PlantsConfig {
    */
   sizePerSurplus: number;
   /**
-   * Ceiling on the bank. Income past full condition banks up to it.
+   * Ceiling on the bank. Income past full condition banks up to it, and a full
+   * bank buys an offshoot — nothing when that would be a unit under
+   * `deathSizeThreshold` (see `propagate`).
    * Shared default across organism types — see `SURPLUS_CAP_DEFAULT`.
    */
   surplusCap: number;
@@ -176,8 +178,9 @@ export const plantsDefaults: PlantsConfig = {
   //
   // 2 %/h is a ~50-hour time constant, two days: how long a cutting takes to
   // stop sulking and start growing. The bank settles near a day or two of
-  // income, well under `surplusCap` until the taper closes the draw down, and
-  // that is what a plant carries into a bad spell.
+  // income, what a plant carries into a bad spell, and stays well under
+  // `surplusCap` until the taper closes the draw down and it fills to buy an
+  // offshoot.
   growthDrawRate: 0.02,
   // 5 %/h at growth rate 1: a sword spends a bank on repair with a ~20 h time
   // constant, a monte carlo in half that, an anubias over three days.

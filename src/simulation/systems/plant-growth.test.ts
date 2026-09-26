@@ -196,10 +196,32 @@ describe('propagate', () => {
     expect(parent.surplus + offshootSize / conversion('monte_carlo', rich)).toBeCloseTo(plant.surplus, 10);
   });
 
-  it('stays finite when the conversion buys nothing', () => {
-    const barren = { ...plantsDefaults, sizePerSurplus: 0 };
-    const { parent, offshootSize } = propagate(makePlant('anubias', { surplus: CAP }), barren)!;
-    expect(offshootSize).toBe(0);
-    expect(parent.surplus).toBe(0);
+  it('buys a full unit at most, never overdrawing the bank, anywhere on the drawer grid', () => {
+    const { min, max, step } = plantsConfigMeta.find((knob) => knob.key === 'sizePerSurplus')!;
+    const grid = Array.from({ length: Math.round((max - min) / step) + 1 }, (_, i) =>
+      Number((min + i * step).toFixed(6))
+    );
+    for (const species of Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]) {
+      for (const sizePerSurplus of grid) {
+        const config = { ...plantsDefaults, sizePerSurplus };
+        const worth = CAP * conversion(species, config);
+        const bought = propagate(makePlant(species, { surplus: CAP }), config);
+        if (worth < config.deathSizeThreshold) {
+          expect(bought).toBeNull();
+          continue;
+        }
+        expect(bought!.offshootSize).toBeLessThanOrEqual(100);
+        expect(bought!.offshootSize).toBeCloseTo(Math.min(100, worth), 9);
+        expect(bought!.parent.surplus).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it('buys nothing a unit could not live at, and leaves the bank to heal and grow on', () => {
+    const plant = makePlant('anubias', { surplus: CAP });
+    const threshold = CAP * conversion('anubias');
+    expect(propagate(plant, { ...plantsDefaults, deathSizeThreshold: threshold })).not.toBeNull();
+    expect(propagate(plant, { ...plantsDefaults, deathSizeThreshold: threshold * 1.01 })).toBeNull();
+    expect(propagate(plant, { ...plantsDefaults, sizePerSurplus: 0 })).toBeNull();
   });
 });

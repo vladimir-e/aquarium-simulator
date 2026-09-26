@@ -12,10 +12,7 @@ import type { PlantSpecies } from './species.js';
 /** Size a plant goes in at when the caller doesn't say — a young specimen. */
 export const DEFAULT_PLANT_SIZE = 50;
 
-/**
- * Vigour span either side of 0, the fish hardiness offset's: clonal ramets
- * differ in growth by 10–20 %.
- */
+/** Vigour span either side of 0: clonal ramets differ in growth by 10–20 %. */
 export const VIGOUR_SPAN = 0.15;
 
 function drawVigour(rng: RngState): number {

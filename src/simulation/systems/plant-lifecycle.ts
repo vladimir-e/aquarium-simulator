@@ -31,7 +31,7 @@ export function shouldPlantDie(plant: Plant, config: PlantsConfig = plantsDefaul
   return plant.condition <= 0 || plant.size < config.deathSizeThreshold;
 }
 
-/** A size a keeper can plant or trim to: no bigger than a full unit, and none the next tick retires. */
+/** A size a unit can be planted, trimmed or bought at: at most a full unit, and none the next tick retires. */
 export function isPlantableSize(size: number, config: PlantsConfig): boolean {
   return size > 0 && size >= config.deathSizeThreshold && size <= 100;
 }
