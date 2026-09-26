@@ -461,9 +461,9 @@ function bedView(bed: BedReading | null): NeedView {
 export function readTank({ state, config, history, units }: TankInput): ReadingBook {
   const tape = tapeOf(state, history, units);
   const ahead = readHourAhead(state, config);
-  const yardstick = nutrientProbe(state, config);
-  const nutrients = nutrientReadings(state, config, yardstick);
-  const bed = bedReading(state, config, yardstick);
+  const probe = nutrientProbe(state, config);
+  const nutrients = nutrientReadings(state, config, probe);
+  const bed = bedReading(state, config, probe);
   const nitrate = nutrients.find((n) => n.key === 'nitrate')!;
   const water = waterReadings(state, config, units, nitrate);
   const gases = gasReadings(state);

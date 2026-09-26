@@ -86,17 +86,22 @@ interface Sheet {
   bed: BedReading | null;
 }
 
-function sheetOf(state: SimulationState, config: TunableConfig, units: UnitSystem): Sheet {
-  const yardstick = nutrientProbe(state, config);
+function sheetOf(
+  state: SimulationState,
+  config: TunableConfig,
+  units: UnitSystem,
+  bedOn?: Nutrient | null
+): Sheet {
+  const probe = nutrientProbe(state, config);
   const nutrients = {} as Record<Nutrient, NutrientReading>;
-  for (const reading of nutrientReadings(state, config, yardstick)) nutrients[reading.key] = reading;
+  for (const reading of nutrientReadings(state, config, probe)) nutrients[reading.key] = reading;
 
   const water = {} as Record<WaterKey, WaterReading>;
   for (const reading of waterReadings(state, config, units, nutrients.nitrate)) {
     water[reading.key] = reading;
   }
 
-  return { state, config, units, water, nutrients, bed: bedReading(state, config, yardstick) };
+  return { state, config, units, water, nutrients, bed: bedReading(state, config, probe, bedOn) };
 }
 
 function temperatureNote(value: number, _before: number, { state, units }: Sheet): string | null {
@@ -396,7 +401,7 @@ export interface PreviewInput {
  */
 export function previewRows({ before, outcomes, config, units }: PreviewInput): PreviewRow[] {
   const standing = sheetOf(before, config, units);
-  const sheets = outcomes.map((state) => sheetOf(state, config, units));
+  const sheets = outcomes.map((state) => sheetOf(state, config, units, standing.bed?.nutrient));
   const rows: PreviewRow[] = [];
 
   for (const reading of READINGS) {

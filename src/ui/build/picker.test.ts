@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   applyAction,
   createSimulation,
+  DEFAULT_CONFIG,
   FISH_SPECIES_DATA,
   getMaxFishMass,
   calculateFloorArea,
@@ -15,7 +16,6 @@ import { getGhMass } from '../../simulation/resources/index.js';
 import { pickerOptions, type PickerOption } from './picker';
 import { bioload } from './stocking';
 import { bedReading, type BedReading } from '../run';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 
 function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
   return {
@@ -193,6 +193,13 @@ describe('plant options', () => {
     expect(option(empty, 'amazon_sword')).toMatchObject({ note: 'Its roots need tabs — the bed is empty.', refusal: null });
     expect(option(empty, 'java_fern').note).toBeNull();
     expect(option(plants(tabbed, bedReading(tabbed, DEFAULT_CONFIG)), 'amazon_sword').note).toBeNull();
+  });
+
+  it('tells a root feeder over a bare bottom that its roots have no bed', () => {
+    const bare = tank(200);
+    expect(bedReading(bare, DEFAULT_CONFIG)).toBeNull();
+    expect(option(plants(bare, null), 'amazon_sword')).toMatchObject({ note: 'Its roots have no bed to feed from.', refusal: null });
+    expect(option(plants(bare, null), 'monte_carlo').note).toBeNull();
   });
 
   it('refuses in the action’s own words once the floor is taken', () => {

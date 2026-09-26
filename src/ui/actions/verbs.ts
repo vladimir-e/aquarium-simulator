@@ -25,7 +25,14 @@ import {
 } from '../../simulation/index.js';
 import { FoodResource, getPpm, NitrateResource } from '../../simulation/resources/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { bedReading, doseToCover, nutrientReadings, plantLabels, TRIM_TARGETS } from '../run';
+import {
+  bedReading,
+  doseToCover,
+  nutrientReadings,
+  plantLabels,
+  TRIM_TARGETS,
+  type BedReading,
+} from '../run';
 import { formatVolume, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
 
@@ -387,19 +394,15 @@ function rungsFor(
       };
     }
     case 'rootTab': {
-      const advised = advisedRungs(
-        ROOT_TAB_PRESETS,
-        bedReading(state, config)?.advice ?? null,
-        MAX_ROOT_TABS,
-        'tabs'
-      );
+      const bed = bedReading(state, config);
+      const advised = advisedRungs(ROOT_TAB_PRESETS, bed?.advice ?? null, MAX_ROOT_TABS, 'tabs');
       const tabbable = canRootTab(state);
       return {
         values: advised.values,
         rung: (count) => ({
           value: count,
           label: String(count),
-          hint: advised.hint(count) ?? (tabbable ? `bed ${bedAfter(state, count, config)}` : '—'),
+          hint: advised.hint(count) ?? (tabbable && bed ? `bed ${bedAfter(state, count, config, bed)}` : '—'),
           disabled: !tabbable,
         }),
       };
@@ -440,9 +443,9 @@ function advisedRungs(
   };
 }
 
-function bedAfter(state: SimulationState, count: number, config: TunableConfig): string {
+function bedAfter(state: SimulationState, count: number, config: TunableConfig, bed: BedReading): string {
   const after = applyAction(state, { type: 'rootTab', count }, config).state;
-  return bedReading(after, config)?.text ?? '—';
+  return bedReading(after, config, undefined, bed.nutrient)?.text ?? '—';
 }
 
 function nitrateRise(state: SimulationState, ml: number, config: TunableConfig): number {

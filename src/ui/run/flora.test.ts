@@ -15,7 +15,8 @@ import {
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG, MAX_SUFFICIENCY_EDGE, NUTRIENTS } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, mapNutrients, MAX_SUFFICIENCY_EDGE, NUTRIENTS, type Nutrient } from '../../simulation/config/index.js';
+import { getMassFromPpm } from '../../simulation/resources/index.js';
 import { speciesHalfSaturation } from '../../simulation/systems/nutrients.js';
 import { MAX_DOSE_ML } from '../../simulation/actions/dose.js';
 import { produce } from 'immer';
@@ -28,6 +29,7 @@ import {
   floorPlanted,
   formatDose,
   nutrientAlert,
+  nutrientProbe,
   nutrientReadings,
   groupPlantsBySpecies,
   plantLabels,
@@ -484,19 +486,43 @@ describe('bedReading', () => {
   });
 
   it('reads value and band on one nutrient, so the marker sits in the band exactly when the bed reads met', () => {
+    const state = fed(planted(['amazon_sword'], 75.7));
+    const tab = DEFAULT_CONFIG.nutrients.rootTab;
+    const need = mapNutrients((n) => getMassFromPpm(nutrientProbe(state, DEFAULT_CONFIG).need.bed[n], 75.7));
+    const inTabs = (mg: number, n: Nutrient): number => mg / tab[n];
+    expect(inTabs(need.phosphate, 'phosphate')).toBeLessThan(inTabs(need.nitrate, 'nitrate'));
+
     const bedded = (nitrate: number): SimulationState =>
-      produce(fed(planted(['amazon_sword'], 75.7)), (draft) => {
-        draft.equipment.substrate.nutrients = { ...draft.equipment.substrate.nutrients, nitrate, phosphate: 118, potassium: 1500, iron: 75 };
+      produce(state, (draft) => {
+        draft.equipment.substrate.nutrients = {
+          nitrate,
+          phosphate: 1.1 * ((need.phosphate + (need.nitrate * tab.phosphate) / tab.nitrate) / 2),
+          potassium: 3 * need.potassium,
+          iron: 3 * need.iron,
+        };
       });
 
-    const met = bedReading(bedded(912), DEFAULT_CONFIG)!;
-    expect(met.status).toBe('ok');
+    const met = bedReading(bedded(1.1 * need.nitrate), DEFAULT_CONFIG)!;
+    expect(met).toMatchObject({ nutrient: 'nitrate', status: 'ok' });
     expect(met.tabs).toBeGreaterThanOrEqual(met.needed);
     expect(met.tabs).toBeLessThanOrEqual(met.scale);
 
-    const short = bedReading(bedded(500), DEFAULT_CONFIG)!;
+    const short = bedReading(bedded(0.5 * need.nitrate), DEFAULT_CONFIG)!;
     expect(short.status).toBe('warn');
     expect(short.tabs).toBeLessThan(short.needed);
+  });
+
+  it('needs what its advice covers: the advised tabs lift the reading past every nutrient’s need', () => {
+    const state = produce(sword(), (draft) => {
+      draft.equipment.substrate.nutrients = { nitrate: 800, phosphate: 5, potassium: 0, iron: 0 };
+    });
+    const bed = bedReading(state, DEFAULT_CONFIG)!;
+    const tabbed = bedReading(tab(state, bed.advice!), DEFAULT_CONFIG, undefined, bed.nutrient)!;
+
+    expect(bed.tabs + bed.advice!).toBeGreaterThanOrEqual(bed.needed);
+    expect(bed.tabs + bed.advice! - 1).toBeLessThan(bed.needed);
+    expect(tabbed).toMatchObject({ nutrient: bed.nutrient, status: 'ok' });
+    expect(tabbed.needed).toBeCloseTo(bed.needed, 10);
   });
 
   it('asks nothing of the bed where nothing roots in it', () => {

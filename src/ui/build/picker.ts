@@ -10,7 +10,6 @@ import {
   checkPlantFootprint,
   FISH_SPECIES_DATA,
   getDgh,
-  growthFormOf,
   getMaxFishMass,
   getPh,
   PLANT_SPECIES_DATA,
@@ -20,7 +19,7 @@ import {
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
-import { printsAsZero, TAB_DECIMALS, type BedReading, type Status } from '../run';
+import { feedsFromBed, printsAsZero, TAB_DECIMALS, type BedReading, type Status } from '../run';
 import { bioload } from './stocking.js';
 import { lightTier } from './scape.js';
 import {
@@ -132,7 +131,7 @@ function fishOption(
 
 /** A root feeder's word on a bed with nothing in it for its roots. */
 function rootNote(species: PlantSpecies, bed: BedReading | null): string | null {
-  if (growthFormOf(species).rootShare === 0) return null;
+  if (!feedsFromBed(species)) return null;
   if (bed === null) return 'Its roots have no bed to feed from.';
   return printsAsZero(bed.tabs, TAB_DECIMALS) ? 'Its roots need tabs — the bed is empty.' : null;
 }

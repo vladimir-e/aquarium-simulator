@@ -284,12 +284,9 @@ export {
 export {
   spendSurplus,
   propagate,
-  purchase,
-  sizeBought,
-  supply,
   getSpeciesGrowthRate,
 } from '../systems/plant-growth.js';
-export type { Propagation, Purchase } from '../systems/plant-growth.js';
+export type { Propagation } from '../systems/plant-growth.js';
 export { VIGOUR_SPAN, MIN_PLANTABLE_SIZE, isPlantableSize } from './create-plant.js';
 export {
   calculateNutrientSufficiency,
@@ -301,10 +298,8 @@ export {
   poolDraws,
   plantShares,
   organicNutrients,
-  drawTissue,
-  ghDrawn,
 } from '../systems/nutrients.js';
-export type { NutrientPool, TankPools, PerPool, PoolDraw, TissueNeed, TissueDraw } from '../systems/nutrients.js';
+export type { NutrientPool, TankPools, PoolDraw } from '../systems/nutrients.js';
 export { tissueMass } from '../systems/plant-lifecycle.js';
 export {
   computePlantVitality,

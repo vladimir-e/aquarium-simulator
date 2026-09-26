@@ -249,6 +249,22 @@ describe('the seven verbs', () => {
     expect(sheet.preview[0]).toMatchObject({ before: '0.0', after: '1.0', unit: 'tabs' });
   });
 
+  it('offers the most tabs the engine takes where a starved bed asks for more, and says it is capped', () => {
+    const big = createSimulation({ tankCapacity: 400 });
+    big.equipment.substrate.type = 'gravel';
+    const swords = ['amazon_sword', 'amazon_sword'] as const;
+    const state = swords.reduce(
+      (current, species) => applyAction(current, { type: 'addPlant', species }).state,
+      big
+    );
+    const { advice } = bedReading(state, DEFAULT_CONFIG)!;
+    const options = detail(state, 'rootTab').options;
+
+    expect(advice).toBeGreaterThan(MAX_ROOT_TABS);
+    expect(options.map((o) => o.value)).toEqual([...ROOT_TAB_PRESETS, MAX_ROOT_TABS]);
+    expect(options.find((o) => o.value === MAX_ROOT_TABS)?.hint).toBe(`capped at ${MAX_ROOT_TABS} tabs`);
+  });
+
   it('blocks a trim rung by rung, not once for the verb', () => {
     const state = planted([80, 60]);
 
