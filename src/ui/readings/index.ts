@@ -516,7 +516,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       band: { from: oxygenAt(OXYGEN_EDGE), to: 1 },
       tone: toneOf(gas('oxygen').status),
       trend: trendOf(tape, 'oxygen'),
-      sentence: `Under ${said('oxygen', OXYGEN_EDGE)} mg/L the engine alerts and fish start paying for it.`,
+      sentence: `Under ${said('oxygen', OXYGEN_EDGE)} mg/L the engine alerts, before any fish is harmed; a mid-hardiness fish starts lower.`,
       net: null,
       fills: [],
       drains: [],

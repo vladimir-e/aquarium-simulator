@@ -5,7 +5,7 @@
  */
 
 import { HIGH_CO2_THRESHOLD, WATER_LEVEL_CRITICAL_THRESHOLD } from '../../simulation/alerts/index.js';
-import { NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
+import { NITRATE_EDGE, NITRITE_EDGE, OXYGEN_COMFORT, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
 import type { Status } from './status.js';
 
 export type VitalKey =
@@ -22,8 +22,6 @@ export type VitalKey =
 
 /** Nitrate below this (ppm) reads as depleted plant food. */
 export const NITRATE_LOW_PPM = 5;
-/** Dissolved oxygen at or above this (mg/L) reads as comfortable. */
-const OXYGEN_OK_MGL = 6;
 /** Water level below this (% of capacity) is the engine's critical threshold. */
 const WATER_LOW_PCT = WATER_LEVEL_CRITICAL_THRESHOLD * 100;
 
@@ -51,7 +49,7 @@ export function classifyVital(key: Exclude<VitalKey, 'ammonia'>, value: number):
       return value < NITRATE_LOW_PPM ? 'warn' : 'ok';
     case 'oxygen':
       if (value < OXYGEN_EDGE) return 'warn';
-      return value >= OXYGEN_OK_MGL ? 'ok' : 'neutral';
+      return value >= OXYGEN_COMFORT ? 'ok' : 'neutral';
     case 'co2':
       return value > HIGH_CO2_THRESHOLD ? 'alert' : 'neutral';
     case 'water':

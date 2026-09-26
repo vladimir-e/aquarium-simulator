@@ -9,7 +9,7 @@
  * recalibration pass.
  *
  * Severities are pre-hardiness; `computeAlgaePopulation` multiplies
- * by `(1 - hardiness)` centrally. Algae has a single `hardiness`
+ * them by `(1 - hardiness)`. Algae has a single `hardiness`
  * value (no per-species variation yet) — pick it modestly so a single
  * full-grown plant does not zero out the bloom path.
  */
@@ -17,7 +17,7 @@
 import { SURPLUS_CAP_DEFAULT } from './vitality.js';
 
 export interface AlgaeVitalityConfig {
-  /** Hardiness 0–1 — multiplied centrally by `computeAlgaePopulation`. */
+  /** Hardiness 0–1; every stressor is scaled by `1 − hardiness`. */
   hardiness: number;
 
   // Stressors --------------------------------------------------------

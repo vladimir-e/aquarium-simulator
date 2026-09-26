@@ -41,6 +41,7 @@ import { getRespirationTemperatureFactor } from './respiration.js';
 import {
   bandComfort,
   computeVitality,
+  hardened,
   outsideBand,
   type VitalityFactor,
   type VitalityResult,
@@ -75,7 +76,7 @@ function lightSaturation({ plant, resources, plantsConfig }: PlantVitalityContex
 /**
  * Build the upkeep list for a plant — what it owes for being alive,
  * charged against income before anything else. Pre-hardiness, like the
- * stressors; `computeVitality` applies the species factor centrally.
+ * stressors.
  */
 export function buildPlantUpkeep(ctx: PlantVitalityContext): VitalityFactor[] {
   const { resources, plantsConfig } = ctx;
@@ -91,11 +92,7 @@ export function buildPlantUpkeep(ctx: PlantVitalityContext): VitalityFactor[] {
   ];
 }
 
-/**
- * Build the stressor list for a plant. Severities are pre-hardiness;
- * the species `hardiness` factor is applied centrally inside
- * `computeVitality`.
- */
+/** Build the stressor list for a plant, pre-hardiness. */
 export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[] {
   const { plant, resources, waterVolume, plantsConfig, nutrientSufficiency, algaeMass } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
@@ -221,13 +218,12 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
  * (trend arrows, breakdown lists) and for tests. Stateless.
  */
 export function computePlantVitality(ctx: PlantVitalityContext): VitalityResult {
-  const species = PLANT_SPECIES_DATA[ctx.plant.species];
+  const { hardiness } = PLANT_SPECIES_DATA[ctx.plant.species];
   return computeVitality({
-    stressors: buildPlantStressors(ctx),
-    upkeep: buildPlantUpkeep(ctx),
+    stressors: hardened(buildPlantStressors(ctx), hardiness),
+    upkeep: hardened(buildPlantUpkeep(ctx), hardiness),
     upkeepReserveHours: ctx.plantsConfig.upkeepReserveHours,
     benefits: buildPlantBenefits(ctx),
-    hardiness: species.hardiness,
     condition: ctx.plant.condition,
     surplus: ctx.plant.surplus,
     surplusCap: ctx.plantsConfig.surplusCap,

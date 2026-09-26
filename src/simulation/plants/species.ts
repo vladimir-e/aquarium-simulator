@@ -47,8 +47,8 @@ export interface PlantSpeciesData {
    */
   maxSize: number;
   /**
-   * Hardiness 0–1. Multiplies all stressor severities through the
-   * vitality engine — higher = species tolerates poor conditions
+   * Hardiness 0–1. Scales every stressor and the upkeep by
+   * `1 − hardiness` — higher = species tolerates poor conditions
    * better. Mirrors `FishSpeciesData.hardiness`. Anubias / Java Fern
    * sit at 0.7 (forgiving), high-tech carpet species at 0.3 (fussy).
    */

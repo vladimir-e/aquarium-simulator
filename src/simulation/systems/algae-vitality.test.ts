@@ -200,7 +200,7 @@ describe('computeAlgaePopulation (aggregate)', () => {
     expect(result.net).toBeGreaterThan(0);
   });
 
-  it('applies hardiness centrally to stressors but not benefits', () => {
+  it('applies hardiness to stressors but not benefits', () => {
     const plants = [
       makePlant('amazon_sword', { size: 100, condition: 100 }),
       makePlant('monte_carlo', { size: 100, condition: 100 }),

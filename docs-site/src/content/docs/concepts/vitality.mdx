@@ -14,7 +14,7 @@ reserve. Species configs decide which resources map to which factors — the
 arithmetic is identical across lifeforms.
 
 ```
-net = Σbenefits − (Σupkeep + Σstressors) × (1 − hardiness)
+net = Σbenefits − Σupkeep − Σstressors
 ```
 
 | Term | Is | Scaled by hardiness |
@@ -24,8 +24,10 @@ net = Σbenefits − (Σupkeep + Σstressors) × (1 − hardiness)
 | Stressors | Damage done *to* the organism, in %/h | Yes |
 | Hardiness | Species tolerance plus a per-individual offset, `0`–`1` | — |
 
-Hardiness scales the charged side only. A hardy fish tolerates bad water; it is
-not more energised by good water.
+Hardiness scales the charged side only, and each organism hardens its own
+charges before the shared module weighs them: `× (1 − hardiness)` by default,
+or, for fish water quality, by moving where harm starts. A hardy fish tolerates
+bad water; it is not more energised by good water.
 
 ## The two ledgers
 
@@ -92,7 +94,7 @@ Three things are missing on purpose, and each has been re-proposed before.
 
 | Mechanic | Status | Why |
 |---|---|---|
-| The balance | <Badge text="settled" variant="success" /> | One formula for every organism, with hardiness applied centrally rather than by each caller |
+| The balance | <Badge text="settled" variant="success" /> | One formula for every organism; hardiness is applied by each organism, so a channel can move its tolerance instead of scaling its charge |
 | The two ledgers | <Badge text="settled" variant="success" /> | Energy deficits are paid in tissue, environmental stress in condition |
 | The bank and its reserved depth | <Badge text="settled" variant="success" /> | One definition of the floor, subtracted once, so no claimant can forget it |
 | Recover-then-grow | <Badge text="settled" variant="success" /> | No middle-parking; the missing equilibrium term is a decision, not a gap |

@@ -71,8 +71,8 @@ export interface PlantsConfig {
   surplusCap: number;
 
   // Vitality stressor severities — see systems/plant-vitality.ts. Each is
-  // a pre-hardiness damage rate (%/h per unit deviation); the species
-  // hardiness multiplies the sum centrally.
+  // a pre-hardiness damage rate (%/h per unit deviation), scaled by
+  // `1 − hardiness` for the species.
   /** Damage per PAR unit below the species' tolerable lower bound. */
   lightInsufficientSeverity: number;
   /** Damage per PAR unit above the species' tolerable upper bound. */
@@ -124,11 +124,12 @@ export interface PlantsConfig {
    */
   upkeepReserveHours: number;
 
-  // Vitality benefit peaks (%/h), each at the best its factor gets. Every one of them is realised through photosynthesis, so
-  // all four are multiplied by the light term `tanh(PAR / Ik)`: the budget is
-  // the plant's income, and good water is worth nothing at midnight. Sum at
-  // saturating light ≈ 0.5 %/h — the calibration budget the plant recovery
-  // curves were pinned against.
+  // Vitality benefit peaks (%/h), each at the best its factor gets. Every one
+  // of them is realised through photosynthesis, so all four are multiplied by
+  // the light term `tanh(PAR / Ik)`: the budget is the plant's income, and
+  // good water is worth nothing at midnight. Sum at saturating light and band
+  // centre ≈ 0.5 %/h — the calibration budget the plant recovery curves were
+  // pinned against.
   /** CO2, earned in proportion to the species' carbon Monod. */
   co2BenefitPeak: number;
   /** Temperature at the centre of the tolerable band, falling to 0 at its edges. */
@@ -211,8 +212,8 @@ export const plantsDefaults: PlantsConfig = {
   sizePerSurplus: 0.4, // size % per (surplus × growthRate) unit converted
   surplusCap: SURPLUS_CAP_DEFAULT,
 
-  // Vitality stressor severities (pre-hardiness; the species hardiness
-  // factor multiplies damage centrally inside `computeVitality`).
+  // Vitality stressor severities (pre-hardiness; the plant's builder
+  // scales them by `1 − hardiness` for the species).
   //
   // %/h per PAR unit outside the species band, against a 0.5 %/h benefit
   // budget: 10 PAR short costs 0.20 %/h pre-hardiness, 10 PAR over 0.15 %/h.
@@ -252,7 +253,7 @@ export const plantsDefaults: PlantsConfig = {
   upkeepReserveHours: 100,
 
   // Vitality benefit peaks. Four channels at 0.125 sum to the 0.5 %/h budget
-  // at saturating light, and the light term takes the whole of it down
+  // at saturating light and band centre, and the light term takes the whole of it down
   // together: a monte carlo at 30 PAR earns 0.46 of the budget, and every
   // plant earns none of it in the dark. With a healthy lit tank the plant
   // heals to 100 in a few sim days, then surplus drives growth.

@@ -3,7 +3,7 @@
  *
  * Pipeline:
  * 1. Compute net rate via `computeAlgaePopulation` (sum benefits −
- *    sum stressors, with hardiness applied centrally).
+ *    sum hardened stressors).
  * 2. Fold the net rate into the surplus reserve bank via `bankSurplus`
  *    (the shared vitality primitive): positive net accrues (capped,
  *    photoperiod-gated), negative net drains the bank before it touches

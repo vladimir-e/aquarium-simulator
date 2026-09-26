@@ -8,10 +8,9 @@
  * health falls and fuels reproduction — the breeding system spends it on
  * spawning (see `livestock/breeding.ts`).
  *
- * Stressors (raw severities; the vitality module applies hardiness
- * scaling centrally as `(1 - effectiveHardiness)`):
+ * Stressors, hardened here before they reach the vitality engine:
  * - Temperature, pH, GH, satiation (hunger side), water level, flow, age
- *   (past species `maxAge`).
+ *   (past species `maxAge`) are scaled by `1 − effectiveHardiness`.
  * - Free NH3, nitrite, nitrate and oxygen instead carry hardiness on the
  *   concentration axis: it moves where harm starts, not how steeply it grows.
  *
@@ -22,8 +21,8 @@
  * - Oxygen, rising from `OXYGEN_EDGE` to full at `OXYGEN_COMFORT`
  * - Plant presence (saturating at `plantBenefitSaturationPoint`)
  *
- * At default calibration the abiotic three sum to ≈ 1.0 %/h and the
- * plant benefit adds up to 0.2 %/h on top.
+ * At default calibration, pH at its band centre, the abiotic three sum
+ * to ≈ 1.0 %/h and the plant benefit adds up to 0.2 %/h on top.
  *
  * Temperature is not a separate benefit: inside the species range
  * temperature stress is zero and the other benefits cover recovery;
@@ -47,7 +46,7 @@ import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';
 import { getPlantPower } from './plant-power.js';
 import {
-  eFoldsUnder,
+  ANOXIA,
   FREE_AMMONIA_EDGE,
   NITRATE_EDGE,
   NITRITE_EDGE,
@@ -59,6 +58,8 @@ import {
   bandComfort,
   computeVitality,
   eFoldsPast,
+  eFoldsUnder,
+  hardened,
   outsideBand,
   type VitalityFactor,
   type VitalityResult,
@@ -120,11 +121,10 @@ function plantBenefitAmount(plants: Plant[], config: LivestockConfig): number {
 }
 
 /**
- * Build the stressor list for a fish, with raw severities (hardiness is
- * applied inside `computeVitality`, or here on the water-quality edges and
- * flagged so). Inactive stressors
- * are emitted with `amount: 0` so the breakdown shape stays stable for
- * downstream UI / tests that look up by name.
+ * Build the hardened stressor list for a fish: water-quality channels move
+ * their edge by hardiness, the rest are scaled by it. Inactive stressors are
+ * emitted with `amount: 0` so the breakdown shape stays stable for downstream
+ * UI / tests that look up by name.
  */
 function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   const { fish, resources, waterVolume, tankCapacity, config } = ctx;
@@ -169,7 +169,8 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
       ? SATIATION_BAND_LABEL[satiation.band]
       : 'Satiation';
 
-  const oxygenStress = config.oxygenStressSeverity * eFoldsUnder(resources.oxygen, OXYGEN_EDGE / tolerance);
+  const oxygenStress =
+    config.oxygenStressSeverity * eFoldsUnder(resources.oxygen, OXYGEN_EDGE / tolerance, ANOXIA);
 
   // Water level stress (below the configured threshold of capacity)
   let waterLevelStress = 0;
@@ -200,17 +201,22 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   }
 
   return [
-    { key: 'temperature', label: 'Temperature', amount: tempStress },
-    { key: 'ph', label: 'pH', amount: phStress },
-    { key: 'gh', label: 'GH', amount: ghStress },
-    { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress, hardinessApplied: true },
-    { key: 'nitrite', label: 'Nitrite', amount: nitriteStress, hardinessApplied: true },
-    { key: 'nitrate', label: 'Nitrate', amount: nitrateStress, hardinessApplied: true },
-    { key: 'satiation', label: satiationStressLabel, amount: satiation.stressor },
-    { key: 'oxygen', label: 'Oxygen', amount: oxygenStress, hardinessApplied: true },
-    { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
-    { key: 'flow', label: 'Flow', amount: flowStress },
-    { key: 'age', label: 'Age', amount: ageStress },
+    ...hardened(
+      [
+        { key: 'temperature', label: 'Temperature', amount: tempStress },
+        { key: 'ph', label: 'pH', amount: phStress },
+        { key: 'gh', label: 'GH', amount: ghStress },
+        { key: 'satiation', label: satiationStressLabel, amount: satiation.stressor },
+        { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
+        { key: 'flow', label: 'Flow', amount: flowStress },
+        { key: 'age', label: 'Age', amount: ageStress },
+      ],
+      ctx.hardiness
+    ),
+    { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
+    { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
+    { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
+    { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
   ];
 }
 
@@ -270,7 +276,6 @@ export function computeFishVitality(
   return computeVitality({
     stressors: buildStressors(ctx),
     benefits: buildBenefits(ctx),
-    hardiness,
     condition: fish.health,
     surplus: fish.surplus,
     surplusCap: config.surplusCap,

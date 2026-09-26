@@ -4,6 +4,8 @@ import {
   computeVitality,
   bankSurplus,
   eFoldsPast,
+  eFoldsUnder,
+  hardened,
   type VitalityFactor,
   type VitalityInput,
 } from './vitality.js';
@@ -18,7 +20,7 @@ function benefit(key: string, amount: number, label = key): VitalityFactor {
 
 const CAP = 50;
 
-function input(partial: Partial<VitalityInput> & Pick<VitalityInput, 'hardiness' | 'condition'>): VitalityInput {
+function input(partial: Partial<VitalityInput> & Pick<VitalityInput, 'condition'>): VitalityInput {
   return {
     stressors: [],
     benefits: [],
@@ -31,7 +33,7 @@ function input(partial: Partial<VitalityInput> & Pick<VitalityInput, 'hardiness'
 describe('computeVitality', () => {
   describe('empty input', () => {
     it('returns condition unchanged with zero surplus when nothing is happening', () => {
-      const result = computeVitality(input({ hardiness: 0.5, condition: 80 }));
+      const result = computeVitality(input({ condition: 80 }));
       expect(result.newCondition).toBe(80);
       expect(result.surplus).toBe(0);
       expect(result.breakdown.damageRate).toBe(0);
@@ -41,7 +43,7 @@ describe('computeVitality', () => {
     });
 
     it('keeps full-condition organism at 100 with no surplus when idle', () => {
-      const result = computeVitality(input({ hardiness: 0.5, condition: 100 }));
+      const result = computeVitality(input({ condition: 100 }));
       expect(result.newCondition).toBe(100);
       expect(result.surplus).toBe(0);
     });
@@ -51,9 +53,8 @@ describe('computeVitality', () => {
     it('subtracts damage from condition when stressors dominate and the bank is empty', () => {
       const result = computeVitality(
         input({
-          stressors: [stressor('temp', 2.0)],
+          stressors: [stressor('temp', 1.0)],
           benefits: [benefit('food', 0.5)],
-          hardiness: 0.5,
           condition: 80,
         })
       );
@@ -67,7 +68,7 @@ describe('computeVitality', () => {
 
     it('clamps newCondition at 0 when damage would push it below zero', () => {
       const result = computeVitality(
-        input({ stressors: [stressor('lethal', 50)], hardiness: 0, condition: 5 })
+        input({ stressors: [stressor('lethal', 50)], condition: 5 })
       );
       expect(result.newCondition).toBe(0);
       expect(result.surplus).toBe(0);
@@ -80,7 +81,6 @@ describe('computeVitality', () => {
       const result = computeVitality(
         input({
           stressors: [stressor('temp', 2.0)],
-          hardiness: 0,
           condition: 100,
           surplus: 10,
         })
@@ -93,7 +93,7 @@ describe('computeVitality', () => {
 
     it('splits the hit when the bank is smaller than the damage', () => {
       const result = computeVitality(
-        input({ stressors: [stressor('a', 3)], hardiness: 0, condition: 80, surplus: 1 })
+        input({ stressors: [stressor('a', 3)], condition: 80, surplus: 1 })
       );
       expect(result.breakdown.drained).toBe(1);
       expect(result.surplus).toBe(0);
@@ -102,13 +102,13 @@ describe('computeVitality', () => {
 
     it('decline resumes exactly when the bank empties', () => {
       const tick1 = computeVitality(
-        input({ stressors: [stressor('a', 1)], hardiness: 0, condition: 100, surplus: 1 })
+        input({ stressors: [stressor('a', 1)], condition: 100, surplus: 1 })
       );
       expect(tick1.newCondition).toBe(100);
       expect(tick1.surplus).toBe(0);
 
       const tick2 = computeVitality(
-        input({ stressors: [stressor('a', 1)], hardiness: 0, condition: 100, surplus: tick1.surplus })
+        input({ stressors: [stressor('a', 1)], condition: 100, surplus: tick1.surplus })
       );
       expect(tick2.newCondition).toBeCloseTo(99, 6);
       expect(tick2.breakdown.drained).toBe(0);
@@ -116,7 +116,7 @@ describe('computeVitality', () => {
 
     it('a sub-100 organism with reserves has its condition protected too', () => {
       const result = computeVitality(
-        input({ stressors: [stressor('a', 2)], hardiness: 0, condition: 60, surplus: 5 })
+        input({ stressors: [stressor('a', 2)], condition: 60, surplus: 5 })
       );
       expect(result.newCondition).toBe(60);
       expect(result.surplus).toBe(3);
@@ -127,7 +127,7 @@ describe('computeVitality', () => {
   describe('saturation cap', () => {
     it('accrues up to the cap then discards the overflow', () => {
       const result = computeVitality(
-        input({ benefits: [benefit('great', 5)], hardiness: 0.5, condition: 100, surplus: 49 })
+        input({ benefits: [benefit('great', 5)], condition: 100, surplus: 49 })
       );
       expect(result.newCondition).toBe(100);
       expect(result.surplus).toBe(CAP);
@@ -136,9 +136,8 @@ describe('computeVitality', () => {
     it('accrues the full net when it fits under the cap', () => {
       const result = computeVitality(
         input({
-          stressors: [stressor('mild', 0.5)],
+          stressors: [stressor('mild', 0.2)],
           benefits: [benefit('great', 2.5)],
-          hardiness: 0.6,
           condition: 100,
           surplus: 0,
         })
@@ -150,9 +149,8 @@ describe('computeVitality', () => {
     it('surplus is unchanged when at 100% but net is non-positive', () => {
       const result = computeVitality(
         input({
-          stressors: [stressor('a', 1)],
+          stressors: [stressor('a', 0.5)],
           benefits: [benefit('b', 0.5)],
-          hardiness: 0.5,
           condition: 100,
           surplus: 4,
         })
@@ -165,14 +163,14 @@ describe('computeVitality', () => {
 
   describe('self-heal clamp on oversized banks', () => {
     it('clamps an over-cap bank down to the cap on an idle tick', () => {
-      const result = computeVitality(input({ hardiness: 0.5, condition: 90, surplus: 80 }));
+      const result = computeVitality(input({ condition: 90, surplus: 80 }));
       expect(result.surplus).toBe(CAP);
       expect(result.newCondition).toBe(90);
     });
 
     it('clamps an over-cap bank while healing sub-100', () => {
       const result = computeVitality(
-        input({ benefits: [benefit('boost', 3)], hardiness: 0.5, condition: 90, surplus: 200 })
+        input({ benefits: [benefit('boost', 3)], condition: 90, surplus: 200 })
       );
       expect(result.newCondition).toBe(93);
       expect(result.surplus).toBe(CAP);
@@ -183,9 +181,8 @@ describe('computeVitality', () => {
     it('adds net to condition when below 100, bank idle', () => {
       const result = computeVitality(
         input({
-          stressors: [stressor('temp', 0.5)],
+          stressors: [stressor('temp', 0.3)],
           benefits: [benefit('food', 1.5), benefit('oxygen', 0.5)],
-          hardiness: 0.4,
           condition: 60,
           surplus: 7,
         })
@@ -197,7 +194,7 @@ describe('computeVitality', () => {
 
     it('clamps to 100 when recovery would overshoot; overshoot is not banked', () => {
       const result = computeVitality(
-        input({ benefits: [benefit('all', 5)], hardiness: 0.5, condition: 99, surplus: 0 })
+        input({ benefits: [benefit('all', 5)], condition: 99, surplus: 0 })
       );
       expect(result.newCondition).toBe(100);
       expect(result.surplus).toBe(0);
@@ -205,7 +202,7 @@ describe('computeVitality', () => {
 
     it('does not accrue surplus while sub-100 even with strong benefits', () => {
       const result = computeVitality(
-        input({ benefits: [benefit('boost', 3)], hardiness: 0.5, condition: 90, surplus: 2 })
+        input({ benefits: [benefit('boost', 3)], condition: 90, surplus: 2 })
       );
       expect(result.newCondition).toBe(93);
       expect(result.surplus).toBe(2);
@@ -217,7 +214,6 @@ describe('computeVitality', () => {
       const result = computeVitality(
         input({
           benefits: [benefit('great', 3)],
-          hardiness: 0.5,
           condition: 100,
           surplus: 10,
           accrueSurplus: false,
@@ -231,7 +227,6 @@ describe('computeVitality', () => {
       const result = computeVitality(
         input({
           stressors: [stressor('a', 2)],
-          hardiness: 0,
           condition: 100,
           surplus: 5,
           accrueSurplus: false,
@@ -250,7 +245,6 @@ describe('computeVitality', () => {
       input({
         upkeep: [stressor('alive', 1)],
         upkeepReserveHours: 5,
-        hardiness: 0,
         surplus: 20,
         ...partial,
       });
@@ -325,59 +319,10 @@ describe('computeVitality', () => {
       }
 
       const noLedger = computeVitality(
-        input({ ...earning, upkeepReserveHours: 5, hardiness: 0, surplus: 20 })
+        input({ ...earning, upkeepReserveHours: 5, surplus: 20 })
       );
       expect(noLedger.newCondition).toBe(44);
       expect(noLedger.surplus).toBe(20);
-    });
-  });
-
-  describe('hardiness scaling', () => {
-    it('halves stressor impact at hardiness 0.5', () => {
-      const result = computeVitality(
-        input({ stressors: [stressor('temp', 4)], hardiness: 0.5, condition: 50 })
-      );
-      expect(result.breakdown.damageRate).toBe(2);
-      expect(result.newCondition).toBe(48);
-    });
-
-    it('hardiness 1.0 nullifies all stressor damage', () => {
-      const result = computeVitality(
-        input({ stressors: [stressor('temp', 100)], hardiness: 1.0, condition: 50 })
-      );
-      expect(result.breakdown.damageRate).toBe(0);
-      expect(result.newCondition).toBe(50);
-    });
-
-    it('hardiness 0 leaves stressors unscaled', () => {
-      const result = computeVitality(
-        input({ stressors: [stressor('temp', 4)], hardiness: 0, condition: 50 })
-      );
-      expect(result.breakdown.damageRate).toBe(4);
-      expect(result.newCondition).toBe(46);
-    });
-
-    it('benefits do not scale with hardiness', () => {
-      const r1 = computeVitality(input({ benefits: [benefit('food', 2)], hardiness: 0.1, condition: 80 }));
-      const r2 = computeVitality(input({ benefits: [benefit('food', 2)], hardiness: 0.9, condition: 80 }));
-      expect(r1.breakdown.benefitRate).toBe(2);
-      expect(r2.breakdown.benefitRate).toBe(2);
-      expect(r1.newCondition).toBe(82);
-      expect(r2.newCondition).toBe(82);
-    });
-
-    it('clamps hardiness above 1 to 1', () => {
-      const result = computeVitality(
-        input({ stressors: [stressor('temp', 4)], hardiness: 1.5, condition: 50 })
-      );
-      expect(result.breakdown.damageRate).toBe(0);
-    });
-
-    it('clamps hardiness below 0 to 0', () => {
-      const result = computeVitality(
-        input({ stressors: [stressor('temp', 4)], hardiness: -0.5, condition: 50 })
-      );
-      expect(result.breakdown.damageRate).toBe(4);
     });
   });
 
@@ -385,11 +330,11 @@ describe('computeVitality', () => {
     it('preserves all factors in the breakdown for UI rendering', () => {
       const stressors = [stressor('a', 1), stressor('b', 2)];
       const benefits = [benefit('c', 3), benefit('d', 0.5)];
-      const result = computeVitality(input({ stressors, benefits, hardiness: 0.5, condition: 80 }));
+      const result = computeVitality(input({ stressors, benefits, condition: 80 }));
       expect(result.breakdown.stressors).toHaveLength(2);
       expect(result.breakdown.benefits).toHaveLength(2);
-      expect(result.breakdown.stressors[0].amount).toBe(0.5);
-      expect(result.breakdown.stressors[1].amount).toBe(1);
+      expect(result.breakdown.stressors[0].amount).toBe(1);
+      expect(result.breakdown.stressors[1].amount).toBe(2);
       expect(result.breakdown.benefits[0].amount).toBe(3);
       expect(result.breakdown.benefits[1].amount).toBe(0.5);
       expect(result.breakdown.stressors[0].key).toBe('a');
@@ -397,11 +342,26 @@ describe('computeVitality', () => {
 
     it('keeps zero-amount factors faithfully (caller decides filtering)', () => {
       const result = computeVitality(
-        input({ stressors: [stressor('quiet', 0)], hardiness: 0.5, condition: 100 })
+        input({ stressors: [stressor('quiet', 0)], condition: 100 })
       );
       expect(result.breakdown.stressors).toHaveLength(1);
       expect(result.breakdown.stressors[0].amount).toBe(0);
     });
+  });
+});
+
+describe('hardened', () => {
+  const temp = [stressor('temp', 4)];
+
+  it('scales every factor by one minus hardiness', () => {
+    expect(hardened(temp, 0)[0].amount).toBe(4);
+    expect(hardened(temp, 0.5)[0].amount).toBe(2);
+    expect(hardened(temp, 1)[0].amount).toBe(0);
+  });
+
+  it('clamps hardiness into [0, 1]', () => {
+    expect(hardened(temp, 1.5)[0].amount).toBe(0);
+    expect(hardened(temp, -0.5)[0].amount).toBe(4);
   });
 });
 
@@ -485,6 +445,18 @@ describe('eFoldsPast', () => {
 
   it('adds the same amount for every doubling, wherever it starts', () => {
     expect(eFoldsPast(160, 80) - eFoldsPast(80, 80)).toBeCloseTo(eFoldsPast(640, 80) - eFoldsPast(320, 80), 12);
+  });
+});
+
+describe('eFoldsUnder', () => {
+  it('is zero at or above the edge and the log of the ratio under it', () => {
+    expect(eFoldsUnder(5, 4, 0.1)).toBe(0);
+    expect(eFoldsUnder(4, 4, 0.1)).toBe(0);
+    expect(eFoldsUnder(4 / Math.E, 4, 0.1)).toBeCloseTo(1, 12);
+  });
+
+  it('reads anything under the floor as the floor', () => {
+    expect(eFoldsUnder(0, 4, 0.1)).toBe(eFoldsUnder(0.1, 4, 0.1));
   });
 });
 

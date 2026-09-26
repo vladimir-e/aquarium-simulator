@@ -19,7 +19,7 @@ a reader would want to see afterwards.
 |---|---|---|
 | The latch | <Badge text="settled" variant="success" /> | One line per crossing, a flag that lives in state, and no repetition while the condition holds. It does exactly what it says. |
 | Log entry shape | <Badge text="settled" variant="success" /> | Free text for humans, a typed `event` discriminator for code, and a `count` wherever an entry accounts for more than one organism. |
-| Water-quality thresholds | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen alert on the edge their fish stressors grow from — where the frailest fish starts to suffer, before any hardier one does. Ammonia reads the free fraction, so the total it takes moves with pH and temperature. |
+| Water-quality thresholds | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen alert on the edge each fish's own stressor edge is moved out from by hardiness, so they fire before any fish takes damage. Ammonia reads the free fraction, so the total it takes moves with pH and temperature. |
 | Algae · water-level thresholds | <Badge text="scaffolding" variant="caution" /> | The same shape one layer out: algae alerts at 80 where it starts shading plants at 30, and water level at a fifth of capacity where fish start suffering at half. |
 | CO₂ threshold | <Badge text="scaffolding" variant="caution" /> | The alert with nothing behind it — no organism in the engine reads dissolved CO₂ as a stressor, so it warns about a harm that is never inflicted. |
 | Behaviour on a drained tank | <Badge text="scaffolding" variant="caution" /> | Concentrations read 0 when there is no water and the water-level check requires `water > 0`, so the alert layer goes silent exactly when the tank is empty — while fish health reads the same ammonia as 100 ppm. |
@@ -45,7 +45,7 @@ the transition into trouble.
 | Alert | Fires when | Where damage actually starts |
 |---|---|---|
 | Water level critical | below 20 % of capacity, and only while some water remains | fish take water-level damage below 50 % |
-| High ammonia | free NH₃ above 0.02 ppm | at the line for the frailest fish, further out for hardier ones |
+| High ammonia | free NH₃ above 0.02 ppm | past the line for every fish, further out the hardier it is |
 | High nitrite | above 0.5 ppm | the same |
 | High nitrate | above 80 ppm | the same |
 | Low oxygen | below 4 mg/L | the same, below the line |

@@ -56,23 +56,19 @@ export interface VitalityFactor {
   label: string;
   /** Magnitude in %/h. Always non-negative; direction comes from the array. */
   amount: number;
-  /** The caller already moved this factor's tolerance by hardiness, so it is charged as given. */
-  hardinessApplied?: boolean;
 }
 
 /** Inputs to a vitality computation. */
 export interface VitalityInput {
   /**
-   * Stressor factors (units: %/h). Severities are pre-multiplied by the
-   * caller (e.g., temperature gap × severity), but **not** by hardiness —
-   * the module applies the hardiness factor centrally.
+   * Stressor factors (units: %/h), charged as given: the caller has
+   * already folded in severity and hardiness (see {@link hardened}).
    */
   stressors: VitalityFactor[];
   /**
-   * Cost-of-living factors (units: %/h), charged against `benefits`
-   * before anything else and hardiness-scaled like stressors. Unpaid
-   * upkeep drains the bank and then leaves the balance as `starved`;
-   * it never reaches condition.
+   * Cost-of-living factors (units: %/h), charged as given against
+   * `benefits` before anything else. Unpaid upkeep drains the bank and
+   * then leaves the balance as `starved`; it never reaches condition.
    *
    * The array's presence is what declares the energy ledger, not what it
    * sums to: an array summing to zero — empty, or the all-zero factors a
@@ -93,18 +89,10 @@ export interface VitalityInput {
    */
   upkeepReserveHours?: number;
   /**
-   * Benefit factors (units: %/h). Caller-provided severities exactly as
-   * with stressors. Hardiness does not scale benefits — a hardy organism
-   * is damaged less, not energised more.
+   * Benefit factors (units: %/h). Hardiness never scales benefits — a
+   * hardy organism is damaged less, not energised more.
    */
   benefits: VitalityFactor[];
-  /**
-   * Effective hardiness (0–1). The caller is responsible for clamping /
-   * applying species + per-individual offsets before passing in. The
-   * module multiplies stressor totals by `(1 - hardiness)`, except factors
-   * flagged `hardinessApplied`.
-   */
-  hardiness: number;
   /** Current condition (0–100). */
   condition: number;
   /**
@@ -131,15 +119,12 @@ export interface VitalityInput {
 
 /** Per-factor breakdown plus aggregated rates, for UI / debug. */
 export interface VitalityBreakdown {
-  /** Stressor factors with hardiness already applied to `amount`. */
   stressors: VitalityFactor[];
-  /** Upkeep factors with hardiness already applied to `amount`. */
   upkeep: VitalityFactor[];
-  /** Benefit factors (unchanged from input). */
   benefits: VitalityFactor[];
-  /** Total damage rate (%/h), post-hardiness. */
+  /** Total damage rate (%/h). */
   damageRate: number;
-  /** Total cost of living (%/h), post-hardiness. */
+  /** Total cost of living (%/h). */
   upkeepRate: number;
   /**
    * Depth of the bank upkeep has spoken for — `upkeepRate ×
@@ -259,12 +244,22 @@ export function bankSurplus(
 }
 
 /**
+ * Scale damage factors by `1 − hardiness`, hardiness clamped to [0, 1].
+ * The default way an organism's builder hardens what it charges; a channel
+ * whose hardiness moves its tolerance instead is charged as built.
+ */
+export function hardened(factors: VitalityFactor[], hardiness: number): VitalityFactor[] {
+  const factor = 1 - Math.max(0, Math.min(1, hardiness));
+  return factors.map((f) => ({ ...f, amount: f.amount * factor }));
+}
+
+/**
  * Compute one tick of vitality for an organism.
  *
  * Algorithm:
- * 1. upkeepRate = Σ upkeep.amount × (1 - hardiness)
- * 2. damageRate = Σ stressor.amount × (1 - hardiness)
- * 3. benefitRate = Σ benefit.amount  (no hardiness scaling)
+ * 1. upkeepRate = Σ upkeep.amount
+ * 2. damageRate = Σ stressor.amount
+ * 3. benefitRate = Σ benefit.amount
  * 4. Energy ledger — `benefitRate − upkeepRate`. A deficit drains the
  *    bank to the last unit; what the bank can't cover is reported as
  *    `starved` and reaches no stock here. A surplus is the income
@@ -299,25 +294,12 @@ export function bankSurplus(
  * until the deficit is paid down — the same ladder from the other end.
  */
 export function computeVitality(input: VitalityInput): VitalityResult {
-  // Clamp hardiness to [0, 1]; out-of-range values shouldn't poison the
-  // arithmetic. Callers may legitimately produce ≥ 0.95 or ≤ 0.1 via
-  // species + offset clamping; we just guarantee the multiplier stays
-  // sane here.
-  const clampedHardiness = Math.max(0, Math.min(1, input.hardiness));
-  const hardinessFactor = 1 - clampedHardiness;
-
-  // Apply hardiness to each charged factor so the breakdown the UI shows
-  // matches the actual damage being inflicted.
-  const scale = (factor: VitalityFactor): VitalityFactor =>
-    factor.hardinessApplied === true ? factor : { ...factor, amount: factor.amount * hardinessFactor };
   const sum = (factors: VitalityFactor[]): number =>
     factors.reduce((total, factor) => total + factor.amount, 0);
 
-  const scaledUpkeep = (input.upkeep ?? []).map(scale);
-  const scaledStressors = input.stressors.map(scale);
-
-  const upkeepRate = sum(scaledUpkeep);
-  const damageRate = sum(scaledStressors);
+  const upkeep = input.upkeep ?? [];
+  const upkeepRate = sum(upkeep);
+  const damageRate = sum(input.stressors);
   const benefitRate = sum(input.benefits);
 
   const condition = Math.max(0, Math.min(100, input.condition));
@@ -382,8 +364,8 @@ export function computeVitality(input: VitalityInput): VitalityResult {
     newCondition,
     surplus,
     breakdown: {
-      stressors: scaledStressors,
-      upkeep: scaledUpkeep,
+      stressors: input.stressors,
+      upkeep,
       benefits: input.benefits,
       damageRate,
       upkeepRate,
@@ -399,7 +381,7 @@ export function computeVitality(input: VitalityInput): VitalityResult {
 /**
  * Share of a tolerance band's benefit earned at `value`: 1 at the band's
  * centre, falling to 0 at either edge, where the matching stressor starts
- * from 0. The cardinal model with its optimum at the midpoint.
+ * from 0 — a symmetric parabola.
  */
 export function bandComfort(value: number, [lo, hi]: readonly [number, number]): number {
   const width = hi - lo;
@@ -417,4 +399,12 @@ export function outsideBand(value: number, [lo, hi]: readonly [number, number]):
  */
 export function eFoldsPast(value: number, edge: number): number {
   return value > edge ? Math.log(value / edge) : 0;
+}
+
+/**
+ * How many e-folds `value` stands under `edge`, zero at or over it. A reading
+ * under `floor` counts as the floor, which keeps the log finite at zero.
+ */
+export function eFoldsUnder(value: number, edge: number, floor: number): number {
+  return eFoldsPast(edge, Math.max(value, floor));
 }

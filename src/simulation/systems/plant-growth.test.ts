@@ -167,7 +167,6 @@ describe('the reserved depth, against repair and growth', () => {
       upkeepReserveHours: RESERVE_HOURS,
       stressors: [{ key: 'stress', label: 'Stress', amount: 0.5 }],
       benefits: [{ key: 'light', label: 'Light', amount: UPKEEP_RATE }],
-      hardiness: 0,
       condition: plant.condition,
       surplus: plant.surplus,
       surplusCap: plantsDefaults.surplusCap,

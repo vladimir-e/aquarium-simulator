@@ -37,7 +37,7 @@ releases no oxygen, and draws no nutrient out of the water it is fed by.
 
 Four steps every tick, in order:
 
-1. Sum the benefits, sum the stressors, apply hardiness centrally — that is the net rate.
+1. Sum the benefits, sum the stressors scaled by `1 − hardiness` — that is the net rate.
 2. Fold the net into the bank. Negative drains it; positive accrues it, capped, and only while the lamp is on.
 3. Shrink mass by whatever damage the bank could not cover. This runs 24 hours a day — a hostile bloom dies back at night too.
 4. Spend the bank on mass, while lit, through the asymptotic factor.

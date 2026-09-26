@@ -365,6 +365,7 @@ export {
 // Vitality
 export {
   computeVitality,
+  hardened,
   bankSurplus,
   spendableSurplus,
   type VitalityFactor,

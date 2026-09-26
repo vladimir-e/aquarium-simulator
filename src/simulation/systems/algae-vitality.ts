@@ -39,7 +39,7 @@ import type { Plant, Resources } from '../state.js';
 import type { AlgaeVitalityConfig } from '../config/algae-vitality.js';
 import { getPpm } from '../resources/index.js';
 import { getPlantPower } from './plant-power.js';
-import type { VitalityFactor } from './vitality.js';
+import { hardened, type VitalityFactor } from './vitality.js';
 
 export interface AlgaeVitalityContext {
   plants: readonly Plant[];
@@ -84,9 +84,7 @@ function cappedAmount(deviation: number, severity: number, peak: number): number
 }
 
 /**
- * Build the stressor list for algae. Severities are pre-hardiness;
- * `computeAlgaePopulation` applies the central `(1 - hardiness)`
- * scaling.
+ * Build the stressor list for algae, pre-hardiness.
  *
  * Inactive stressors are emitted with `amount: 0` so the breakdown
  * shape stays stable for UI / tests that look up by key.
@@ -164,33 +162,22 @@ export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] 
  * and tests call this directly; the orchestrator calls it as part of
  * the full tick pipeline.
  *
- * Applies the central `(1 - hardiness)` factor to stressors, sums
- * both arrays, and returns the net rate plus the bundled breakdown.
+ * Hardens the stressors, sums both arrays, and returns the net rate plus the bundled breakdown.
  * Net is the rate at which mass changes (positive → growth via
  * surplus, negative → direct shrinkage).
  */
 export function computeAlgaePopulation(ctx: AlgaeVitalityContext): AlgaePopulationResult {
-  const stressors = buildAlgaeStressors(ctx);
+  const stressors = hardened(buildAlgaeStressors(ctx), ctx.algaeConfig.hardiness);
   const benefits = buildAlgaeBenefits(ctx);
 
-  // Match the central engine's hardiness clamp so out-of-range
-  // values can't produce negative multipliers.
-  const clampedHardiness = Math.max(0, Math.min(1, ctx.algaeConfig.hardiness));
-  const hardinessFactor = 1 - clampedHardiness;
-
-  const scaledStressors = stressors.map((s) => ({
-    ...s,
-    amount: s.amount * hardinessFactor,
-  }));
-
-  const damageRate = scaledStressors.reduce((sum, s) => sum + s.amount, 0);
+  const damageRate = stressors.reduce((sum, s) => sum + s.amount, 0);
   const benefitRate = benefits.reduce((sum, b) => sum + b.amount, 0);
   const net = benefitRate - damageRate;
 
   return {
     net,
     breakdown: {
-      stressors: scaledStressors,
+      stressors,
       benefits,
       damageRate,
       benefitRate,

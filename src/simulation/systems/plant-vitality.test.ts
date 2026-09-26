@@ -276,14 +276,14 @@ describe('buildPlantBenefits', () => {
   const PEAKS = Object.values(PEAK).reduce((sum, peak) => sum + peak, 0);
 
   const centre = ([lo, hi]: readonly [number, number]): number => (lo + hi) / 2;
-  const anubiasAtCentre = {
-    temperature: centre(PLANT_SPECIES_DATA.anubias.tolerableTemp),
-    ph: centre(PLANT_SPECIES_DATA.anubias.tolerablePH),
-  };
+  const atCentre = (species: PlantSpecies): ResourceOverrides => ({
+    temperature: centre(PLANT_SPECIES_DATA[species].tolerableTemp),
+    ph: centre(PLANT_SPECIES_DATA[species].tolerablePH),
+  });
 
   it('emits all four channels at their peak share of the light term', () => {
     const plant = makePlant('anubias');
-    const resources = makeResources({ light: 30, co2: 5, ...anubiasAtCentre });
+    const resources = makeResources({ light: 30, co2: 5, ...atCentre('anubias') });
     const context = ctx(plant, resources);
     const benefits = buildPlantBenefits(context);
     const keys = benefits.map((b) => b.key).sort();
@@ -339,7 +339,7 @@ describe('buildPlantBenefits', () => {
 
   describe('the budget is income realised through photosynthesis', () => {
     const earned = (species: PlantSpecies, light: number): number =>
-      budget(species, makeResources({ light }));
+      budget(species, makeResources({ light, ...atCentre(species) }));
 
     it('pays a brighter plant more than a dim one, both inside the band', () => {
       expect(earned('anubias', 60)).toBeGreaterThan(earned('anubias', 12));
@@ -389,7 +389,7 @@ describe('buildPlantBenefits', () => {
 
     it('reads Ik off the tuned factor rather than a constant of its own', () => {
       const atFactor = (saturationIrradianceFactor: number): number =>
-        budget('anubias', makeResources({ light: 20, ...anubiasAtCentre }), {
+        budget('anubias', makeResources({ light: 20, ...atCentre('anubias') }), {
           ...plantsDefaults,
           saturationIrradianceFactor,
         });
@@ -397,7 +397,7 @@ describe('buildPlantBenefits', () => {
       expect(atFactor(4)).toBeLessThan(atFactor(2));
       expect(atFactor(2)).toBeLessThan(atFactor(1));
       const carbonShort = PEAK.co2! * (1 - calculateCo2Factor(20, 'anubias'));
-      const resources = makeResources({ light: 20, ...anubiasAtCentre });
+      const resources = makeResources({ light: 20, ...atCentre('anubias') });
       const nutrientShort =
         PEAK.nutrients! *
         (1 - calculateNutrientSufficiency(resources, resources.water, 'anubias', nutrientsDefaults));

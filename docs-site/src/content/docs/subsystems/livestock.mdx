@@ -21,7 +21,7 @@ in, and the bank that health leaves over is what pays for the next spawn.
 | Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces-bound N come out of one food-nitrogen budget, so the waste mass is derived rather than a free parameter. |
 | Satiation | <Badge text="settled" variant="success" /> | One continuous piecewise curve producing both a stressor and a benefit, zero at every band edge. This is what the rest of the engine's bands should look like. |
 | Water quality | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen harm on log dose from each fish's own edge, which hardiness moves out from the alert's. Chloride, which blunts nitrite, is not modelled. |
-| Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits — centrally for most, and on the concentration axis for water quality. A hardy fish tolerates bad water but isn't more energised by good. |
+| Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits — as `1 − hardiness` for most, and on the concentration axis for water quality. A hardy fish tolerates bad water but isn't more energised by good. |
 | Age | <Badge text="settled" variant="success" /> | A linear stressor ramp past the species lifespan, through the same channel as every other stressor. No probabilistic cliff. |
 | Staging and fry growth | <Badge text="settled" variant="success" /> | Mass is re-derived from age each tick and the fry flips to adult at `maturityAge`. Stage and age are stored independently, so the spawn gate asks both. |
 | Breeding gate | <Badge text="settled" variant="success" /> | Banks plus a live-trend check, no husbandry re-tests — the husbandry is already priced into how the bank filled. |
@@ -149,7 +149,8 @@ over.
 | Well fed | satiation 75–99 | `satiationWellFedPeak` |
 | Plants | plant power, saturating at `plantBenefitSaturationPoint` | `plantBenefitPeak` |
 
-The three non-plant channels sum to 1.0 %/h in a clean tank; a saturated
+The three non-plant channels sum to 1.0 %/h in a clean tank with pH at the
+band's centre; a saturated
 planting lifts the budget to 1.2. That headroom over zero is the whole point — a
 healthy planted tank sits at full health with a positive net rate, banking the
 reserve breeding spends.
@@ -159,10 +160,11 @@ reserve breeding spends.
 Each water-quality stressor is its severity times the e-folds past the fish's
 own edge — `ln(reading ⁄ edge)`, or `ln(edge ⁄ reading)` for oxygen, read no
 lower than anoxia at 0.1 mg/L — because toxicity runs on log dose: every
-doubling costs the same. The alert's edge is where a fish of hardiness 0 starts
-to suffer. Hardiness moves a fish's edge out by `2^hardiness` — twice the
-alert's at hardiness 1, and down by the same factor for oxygen — so a hardy species differs in where
-harm starts, not in how steeply it grows, and still dies at the lethal levels.
+doubling costs the same. Hardiness moves a fish's edge out from the alert's by
+`2^hardiness`, and down by the same factor for oxygen. Effective hardiness is
+clamped to [0.1, 0.95], so the alert fires before any fish takes damage and no
+fish's edge reaches twice the alert's. A hardy species differs in where harm
+starts, not in how steeply it grows, and still dies at the lethal levels.
 Each severity puts a mid-hardiness fish at its 96-hour LC50 one %/h past what a
 clean tank gives back, so it dies in about four days.
 

@@ -67,6 +67,7 @@ have been written to do.
 | Q10 | `q10 ^ ((T − Tref) / 10)` | Temperature, on anything enzymatic |
 | Jassby–Platt | `tanh(PAR / Ik)` | Light. Nothing can overdraw it, so the curve comes from the leaf rather than from the pool |
 | Piecewise anchors | Linear ramps between named points, continuous at every crossing | A tolerance axis, where the real response has inflections but no cliffs |
+| Band comfort | Symmetric parabola `4(x − lo)(hi − x) ⁄ w²` | The in-band benefit of a tolerance band — full at the centre, zero at each edge where the band's damage starts |
 
 ## The canonical curve
 

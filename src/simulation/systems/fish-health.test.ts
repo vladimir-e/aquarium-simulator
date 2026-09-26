@@ -192,24 +192,24 @@ describe('stressors', () => {
 
 describe('water quality', () => {
   const neonTolerance = toleranceFactor(FISH_SPECIES_DATA.neon_tetra.hardiness);
-  const [phLo, phHi] = FISH_SPECIES_DATA.neon_tetra.phRange;
-  const comfortablePh = (phLo + phHi) / 2;
-  const freeFraction = (): number => freeAmmoniaPpm(makeResources({ ammonia: 100, ph: comfortablePh }));
-  const at: Record<string, (reading: number) => ResourceOverrides> = {
-    ammonia: (free) => ({ ammonia: (100 * free) / freeFraction() }),
+  const at: Record<string, (reading: number, ph: number) => ResourceOverrides> = {
+    ammonia: (free, ph) => ({ ammonia: (100 * free) / freeAmmoniaPpm(makeResources({ ammonia: 100, ph })) }),
     nitrite: (ppm) => ({ nitrite: ppm * 100 }),
     nitrate: (ppm) => ({ nitrate: ppm * 100 }),
     oxygen: (oxygen) => ({ oxygen }),
   };
-  const netAt = (key: string, reading: number, fish: Partial<Fish> = {}): number =>
-    vitality(fish, { ph: comfortablePh, ...at[key](reading) }).breakdown.net;
+  const atBandCentre = (key: string, reading: number, fish: Partial<Fish> = {}): VitalityResult => {
+    const [lo, hi] = FISH_SPECIES_DATA[fish.species ?? 'neon_tetra'].phRange;
+    const ph = (lo + hi) / 2;
+    return vitality(fish, { ph, ...at[key](reading, ph) });
+  };
 
   it.each<[string, number]>([
     ['nitrite', NITRITE_EDGE],
     ['nitrate', NITRATE_EDGE],
   ])('grows %s harm from the fish’s own edge by the same step per doubling', (key, edge) => {
     const own = edge * neonTolerance;
-    const charge = (ppm: number): number => stressorAmount(vitality({}, at[key](ppm)), key);
+    const charge = (ppm: number): number => stressorAmount(atBandCentre(key, ppm), key);
     expect(charge(own)).toBe(0);
     expect(charge(own * 2)).toBeGreaterThan(0);
     expect(charge(own * 4)).toBeCloseTo(2 * charge(own * 2), 10);
@@ -253,16 +253,25 @@ describe('water quality', () => {
     ['oxygen', 2.2, 1.5],
   ];
 
+  const budget = (key: string): number =>
+    livestockDefaults.phBenefitPeak +
+    livestockDefaults.satiationWellFedPeak +
+    (key === 'oxygen' ? 0 : livestockDefaults.oxygenBenefitPeak);
+
   it.each(anchors)('breaks a mid-hardiness fish even on %s at %s', (key, breakEven) => {
-    expect(netAt(key, breakEven)).toBeCloseTo(0, 1);
+    const v = atBandCentre(key, breakEven);
+    expect(v.breakdown.benefitRate).toBeCloseTo(budget(key), 10);
+    expect(v.breakdown.net).toBeCloseTo(0, 1);
   });
 
   it.each(anchors)('kills a mid-hardiness fish on %s at its LC50 in about four days', (key, _, lc50) => {
-    expect(netAt(key, lc50)).toBeCloseTo(-1, 1);
+    const v = atBandCentre(key, lc50);
+    expect(v.breakdown.benefitRate).toBeCloseTo(budget(key), 10);
+    expect(v.breakdown.net).toBeCloseTo(-1, 1);
   });
 
   it.each(anchors)('still harms the hardiest fish on %s at the LC50', (key, _, lc50) => {
-    expect(netAt(key, lc50, { species: 'guppy', hardinessOffset: 1 })).toBeLessThan(0);
+    expect(atBandCentre(key, lc50, { species: 'guppy', hardinessOffset: 1 }).breakdown.net).toBeLessThan(0);
   });
 });
 

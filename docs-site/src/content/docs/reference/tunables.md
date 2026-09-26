@@ -111,7 +111,7 @@ density you can look up rather than a score.
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `hardiness` | Tolerance factor multiplied through every stressor centrally | — |
+| `hardiness` | Tolerance factor, every stressor scaled by `1 − hardiness` | — |
 | `suppressionThreshold` | Plant power above which established plants push the bloom back | power |
 | `plantSuppressionSeverity` | Damage per unit of plant power above that threshold | %/power/hr |
 | `weaknessThreshold` | Plant power below which a weak planting becomes a benefit to algae | power |
@@ -166,8 +166,8 @@ density you can look up rather than a score.
 | `wastePerShedSize` · `wastePerPlantDeath` | Waste produced per unit of size shed, and per unit of size on death | g/% |
 | `deathConditionThreshold` · `deathSizeThreshold` | Condition and size below which a plant dies | % |
 
-Every severity above is pre-hardiness. The species' own hardiness multiplies the
-sum once, centrally, rather than each channel scaling itself.
+Every severity above is pre-hardiness. The species' own hardiness scales every
+channel alike, `× (1 − hardiness)`.
 
 ## Nutrients
 

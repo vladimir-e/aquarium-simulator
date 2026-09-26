@@ -180,7 +180,7 @@ export const livestockDefaults: LivestockConfig = {
   // the draw — deamination is the same metabolism — so this one constant sets
   // both what a roster breathes and what it loads the water with.
   //
-  // Damage is a separate reading: `OXYGEN_EDGE` still charges a fish
+  // Damage is a separate reading: each fish's own oxygen edge still charges it
   // for the water it is in, so a suffocating fish draws less and suffers more.
   respirationOxygenHalfSaturation: 1.0,
   // 5 % N in food — conservative; typical flake is 6–8 % N.
@@ -282,7 +282,8 @@ export const livestockDefaults: LivestockConfig = {
   satiationStarvingSeverity: 6.0,
 
   // Benefit peaks (%/h) for the non-satiation channels. Sum at
-  // all-good in a bare tank: pH 0.4 + well-fed 0.3 + O2 0.3 = 1.0 %/h
+  // all-good in a bare tank, pH at its band centre: pH 0.4 + well-fed 0.3 +
+  // O2 0.3 = 1.0 %/h
   // (matches the legacy budget). With three full-grown healthy plants
   // (saturated): +0.2 → 1.2 %/h.
   phBenefitPeak: 0.4,

@@ -1,10 +1,8 @@
 /**
- * Where water quality starts to harm a fish. Each edge is where the frailest
- * fish starts to suffer and where the matching alert fires; hardiness moves a
- * fish's own edge out along the concentration axis.
+ * Where water quality starts to harm a fish. Each edge is where the matching
+ * alert fires; hardiness moves a fish's own edge out from it along the
+ * concentration axis, so the alert leads every fish.
  */
-
-import { eFoldsPast } from '../systems/vitality.js';
 
 /** Free (unionized) NH₃, ppm. */
 export const FREE_AMMONIA_EDGE = 0.02;
@@ -27,11 +25,7 @@ export const ANOXIA = 0.1;
 /** How far past the edge a fish of hardiness 1 tolerates. */
 export const HARDY_TOLERANCE = 2;
 
+/** How far out a fish of this hardiness carries each edge: × for a toxin, ÷ for oxygen. */
 export function toleranceFactor(hardiness: number): number {
   return HARDY_TOLERANCE ** hardiness;
-}
-
-/** How many e-folds `value` stands under `edge`, the reading floored at anoxia. */
-export function eFoldsUnder(value: number, edge: number): number {
-  return eFoldsPast(edge, Math.max(value, ANOXIA));
 }
