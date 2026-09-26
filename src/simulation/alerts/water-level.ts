@@ -13,6 +13,10 @@ export function waterLevelAlertLine(config: TunableConfig): number {
   return config.livestock.waterLevelStressThreshold;
 }
 
+function floored(value: number): string {
+  return (Math.floor(value * 10) / 10).toFixed(1);
+}
+
 export const waterLevelAlert: Alert = {
   id: 'water-level-critical',
 
@@ -32,7 +36,7 @@ export const waterLevelAlert: Alert = {
         state.tick,
         'evaporation',
         'warning',
-        `Water level low: ${waterLevel.toFixed(1)}L (${percent.toFixed(1)}% of capacity) - fish take harm under ${line}%`
+        `Water level low: ${floored(waterLevel)}L (${floored(percent)}% of capacity) - fish take harm under ${line}%`
       ),
       alertState: { waterLevelCritical: true },
     };

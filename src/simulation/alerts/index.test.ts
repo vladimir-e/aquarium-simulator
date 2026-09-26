@@ -178,6 +178,11 @@ describe('waterLevelAlert', () => {
     expect(message).toContain('15.0%');
   });
 
+  it('never reports a level rounded up to the line it is under', () => {
+    const message = waterLevelAlert.check(tank(CASES[0]!, LEVEL_LINE - 0.01), config).log!.message;
+    expect(message).toContain(`${(LEVEL_LINE - 0.1).toFixed(1)}%`);
+  });
+
   it('fires exactly where the water starts to harm fish, wherever that is tuned', () => {
     for (const line of [30, 50, 70]) {
       const at = tuned(line, ALGAE_LINE);
@@ -201,6 +206,11 @@ describe('waterLevelAlert', () => {
 });
 
 describe('highAlgaeAlert', () => {
+  it('never reports a bloom rounded down to the line it is over', () => {
+    const message = highAlgaeAlert.check(tank(CASES[1]!, ALGAE_LINE + 0.01), config).log!.message;
+    expect(message).toContain(`${(ALGAE_LINE + 0.1).toFixed(1)}`);
+  });
+
   it('fires exactly where the bloom starts to shade plants, wherever that is tuned', () => {
     for (const line of [20, 30, 50]) {
       const at = tuned(LEVEL_LINE, line);

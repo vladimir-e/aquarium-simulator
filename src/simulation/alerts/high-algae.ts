@@ -33,7 +33,7 @@ export const highAlgaeAlert: Alert = {
         state.tick,
         'algae',
         'warning',
-        `High algae level: ${algaeMass.toFixed(1)} - shading plants, consider reducing light or scrubbing`
+        `High algae level: ${(Math.ceil(algaeMass * 10) / 10).toFixed(1)} - shading plants, consider reducing light or scrubbing`
       ),
       alertState: { highAlgae: true },
     };
