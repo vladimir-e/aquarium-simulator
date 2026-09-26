@@ -26,8 +26,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * On version mismatch, stored data is discarded.
  *
  * v32: One plant death, at condition 0. `PlantsConfig` drops
- *      `deathSizeThreshold`; the least a plant is planted or trimmed to is
- *      the engine's `MIN_PLANTABLE_SIZE`. `NutrientsConfig` drops
+ *      `deathSizeThreshold` and renames `wastePerSize` to `tissuePerSize`;
+ *      the least a plant is planted or trimmed to is the engine's
+ *      `MIN_PLANTABLE_SIZE`. `NutrientsConfig` drops
  *      `uptakePerRateUnit` and gains `rootTab` and `bedLeakRate`; `Substrate`
  *      gains `nutrients`, the bed's store; the verb settings gain `rootTab`.
  * v31: Plants are sized and lit at their own height, and propagate. `Plant.size`

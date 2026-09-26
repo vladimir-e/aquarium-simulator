@@ -92,7 +92,7 @@ again the way it first was: a retuned tap re-resolves KH and GH through it
 | Seedable | Accepts |
 |---|---|
 | `bacteria` | Absolute AOB and NOB counts, or the literal `'cycled'` |
-| `substrate` | The bed's remaining organic and KH reserves |
+| `substrate` | The bed's remaining organic and KH reserves, and its nutrient store |
 | `resources` | The three nitrogen compounds, the four nutrients, KH, GH, and both dissolved gases |
 | `fish` | Groups of species, count, age, sex and stage |
 | `plants` | Groups of species, count, size and age |
@@ -159,6 +159,7 @@ browser storage.
 | `CYCLED_AOB_COVERAGE` | Share of its surface ceiling a `'cycled'` AOB colony covers, rounded up off fishless soil tanks on day 30 (1.3–1.8 %, a 5 gal sponge to a 150 gal canister) | `0.02` |
 | `CYCLED_NOB_COVERAGE` | NOB coverage, off the same measurement (0.7–0.9 %) and rounded the same way | `0.01` |
 | `CYCLED_RESERVE_FRACTION` | Share of a fresh bed's organics still in it on day 30 — one curve every bed type follows | `0.1` |
+| `CYCLED_BED_NUTRIENT_FRACTION` | Share of a fresh bed's nutrient store left on day 30 — a plantless month of the leak, rounded down | `0.85` |
 | `CYCLED_SOIL_KH_RESERVE_FRACTION` | Share of a fresh soil bed's KH reserve left on day 30 under weekly 25 % changes | `0.8` |
 | `CYCLED_SOIL_KH_RETAINED` | Share of the tap's KH an aqua soil tank holds a month in, under weekly 25 % changes; inert beds keep all of it | `0.15` |
 | `CYCLED_NITRATE_RETAINED` | Share of the leached nitrogen still in the water, rounded to the low side because the handed-over tank has just been changed | `0.25` |

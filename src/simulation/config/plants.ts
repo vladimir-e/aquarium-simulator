@@ -72,6 +72,11 @@ export interface PlantsConfig {
    * Shared default across organism types — see `SURPLUS_CAP_DEFAULT`.
    */
   surplusCap: number;
+  /**
+   * Organic matter in a % of a rate unit of tissue (g): what growth draws the
+   * recipe for, and shedding and death return as waste.
+   */
+  tissuePerSize: number;
 
   // Vitality stressor severities — see systems/plant-vitality.ts. Each is
   // a pre-hardiness damage rate (%/h per unit deviation), scaled by
@@ -128,8 +133,6 @@ export interface PlantsConfig {
    * square of the condition deficit to nothing at 100.
    */
   maxSheddingRate: number;
-  /** Waste per % of a rate unit of tissue lost, shed or dead (g). */
-  wastePerSize: number;
 }
 
 export const plantsDefaults: PlantsConfig = {
@@ -185,6 +188,7 @@ export const plantsDefaults: PlantsConfig = {
   healingDrawRate: 0.05,
   sizePerSurplus: 0.4, // size % per (surplus × growthRate) unit converted
   surplusCap: SURPLUS_CAP_DEFAULT,
+  tissuePerSize: 0.01,
 
   // Vitality stressor severities (pre-hardiness; the plant's builder
   // scales them by `1 − hardiness` for the species, except nitrate, whose edge
@@ -228,7 +232,6 @@ export const plantsDefaults: PlantsConfig = {
   // Squared in the deficit it is 0.5 %/h at condition 50 and 0.08 %/h at 80,
   // so a plant relit before its condition collapses keeps most of itself.
   maxSheddingRate: 0.02,
-  wastePerSize: 0.01,
 };
 
 /**
@@ -301,6 +304,7 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'healingDrawRate', label: 'Healing Draw Rate', unit: '/hr per growth rate', min: 0.005, max: 0.5, step: 0.005 },
   { key: 'sizePerSurplus', label: 'Size per Bank Point', unit: '%/pt', min: 0.01, max: 2.0, step: 0.01 },
   { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: 100, step: 5 },
+  { key: 'tissuePerSize', label: 'Tissue per Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
 
   // Vitality stressor severities
   { key: 'lightStarvationSeverity', label: 'Light Starvation Severity', unit: '%/hr', min: 0.05, max: 2, step: 0.05 },
@@ -322,5 +326,4 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
 
   // Lifecycle (shedding + death)
   { key: 'maxSheddingRate', label: 'Max Shedding Rate', unit: '/hr', min: 0.005, max: 0.1, step: 0.005 },
-  { key: 'wastePerSize', label: 'Waste per Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
 ];

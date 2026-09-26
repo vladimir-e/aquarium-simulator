@@ -179,7 +179,8 @@ export function cycledReserve(type: SubstrateType, capacity: number): number {
 
 /**
  * Share of a fresh bed's nutrient store still in it on day 30: a plantless
- * month of the leak leaves 0.866, rounded down for the same reason.
+ * month of the leak leaves 0.866, rounded down so a scenario that says
+ * "cycled" is never handed a richer bed than one that waited.
  */
 const CYCLED_BED_NUTRIENT_FRACTION = 0.85;
 

@@ -147,7 +147,7 @@ export const demandMeta: NutrientVectorMeta[] = [
 ];
 
 export const foodMineralContentMeta: NutrientVectorMeta[] = [
-  { key: 'phosphate', label: 'Phosphate in food', unit: 'mg/g', min: 0, max: 100, step: 1 },
-  { key: 'potassium', label: 'Potassium in food', unit: 'mg/g', min: 0, max: 50, step: 0.5 },
-  { key: 'iron', label: 'Iron in food', unit: 'mg/g', min: 0, max: 2, step: 0.01 },
+  { key: 'phosphate', label: 'Phosphate in food and tissue', unit: 'mg/g', min: 0, max: 100, step: 1 },
+  { key: 'potassium', label: 'Potassium in food and tissue', unit: 'mg/g', min: 0, max: 50, step: 0.5 },
+  { key: 'iron', label: 'Iron in food and tissue', unit: 'mg/g', min: 0, max: 2, step: 0.01 },
 ];

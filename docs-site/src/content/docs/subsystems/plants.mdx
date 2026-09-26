@@ -116,7 +116,8 @@ water.
 // PAR_i at the plant's mean leaf; K_i by the species' CO₂ need
 lightResponse_i = tanh(PAR_i / Ik_i)
 carbon_i        = rateUnits_i × lightResponse_i × sufficiency_i
-co2Factor_i     = CO₂ / (K_i + CO₂)      // applied once, in the planting's draw
+K               = Σ carbon_i × K_i / Σ carbon_i
+co2 drawn       = monodUptake(CO₂, Σ carbon_i × basePhotosynthesisRate × co2PerRateUnit, K)
 ```
 
 Carbon saturates like every other limit in the engine. Species differ in how
@@ -133,14 +134,15 @@ sword or an epiphyte hardly notices the injector.
 
 Photosynthesis moves the gases and nothing else. The carbon curve is applied
 once, as a draw: the planting takes CO₂ on an end-of-tick Monod at the
-capacity-weighted mean of its CO₂ half-saturations, so a dense planting slows
+carbon-weighted mean of its CO₂ half-saturations, so a dense planting slows
 its own draw and never takes the water's last milligram. The drive is summed
 across the planting and multiplied by `basePhotosynthesisRate` to give the
 tank's rate in rate units, where one rate unit is an hour of 500 cm² of leaf at
 saturating carbon and light.
 
 It never adds size: growth flows through the bank, and the nutrients new tissue
-needs come out of the water where the bank buys it ([Nutrition](#nutrition)).
+needs come out of the water and the bed where the bank buys it
+([Nutrition](#nutrition)).
 
 ### The carbon–oxygen exchange
 
@@ -209,13 +211,13 @@ tank goes a long way for it. No nutrient ever reads quite 100 %.
 ### A plant is made of its nutrients
 
 Tissue is the organic matter it rots into. A size point of a species is
-`fullRateUnits × wastePerSize` grams of it, carrying food's recipe: the nitrogen
+`fullRateUnits × tissuePerSize` grams of it, carrying food's recipe: the nitrogen
 of `foodNitrogenFraction`, as the nitrate it ends up as, and `foodMineralContent`
 of the rest. N:P ≈ 7 by mass is Redfield, so one recipe serves food, waste and
 tissue.
 
 ```
-grams_i       = (size bought_i + offshoot_i) × fullRateUnits × wastePerSize
+grams_i       = (size bought_i + offshoot_i) × fullRateUnits × tissuePerSize
 w_i,p         = 1 − r_i from the water, r_i from the bed
 grams_p       = Σ w_i,p × grams_i
 requested_p,n = Σ w_i,p × grams_i × share_i,p,n
@@ -312,7 +314,7 @@ java fern, hardier and needing less light, lasts about five.
 | Banking | income past full condition, up to `surplusCap` | condition at 100 |
 | Healing | `healingDrawRate × growthRate` of the bank, up to the deficit | condition under 100 |
 | Offshoot | what the new unit's size costs at the growth conversion | the bank full |
-| Growth | `growthDrawRate × (1 − size / 100)` of the bank, at the share the water supplies | every hour, day and night |
+| Growth | `growthDrawRate × (1 − size / 100)` of the bank, at the share the water and the bed supply | every hour, day and night |
 
 A plant arrives at full condition with an empty bank, as a fish does. It heals
 at the pace it grows: under heavy damage a carpet draws its bank down on repair
@@ -326,7 +328,7 @@ size += drawn × growthRate × sizePerSurplus
 bank −= drawn
 ```
 
-`supply` is the share of the hour's tissue the water delivers
+`supply` is the share of the hour's tissue the water and the bed deliver
 ([A plant is made of its nutrients](#a-plant-is-made-of-its-nutrients)). The
 taper closes the draw as a unit fills. A young unit spends its bank on
 tissue; a nearly full one draws almost nothing, so size approaches 100 and never
@@ -414,7 +416,7 @@ choice. The verbs are on [Actions](/subsystems/actions/).
 ```
 deficit   = 1 − condition / 100
 sizeLost  = maxSheddingRate × deficit² × size
-waste    += sizeLost × fullRateUnits × wastePerSize
+waste    += sizeLost × fullRateUnits × tissuePerSize
 ```
 
 Shedding is what low condition does to a plant. Squared in the deficit it is
@@ -424,7 +426,7 @@ than as fuel — a failing plant drops its oldest leaves rather than digesting
 them, which is why melting plants foul the water.
 
 A plant dies at condition 0, as a fish does. What remains becomes waste, at
-`size × fullRateUnits × wastePerSize`, and it leaves the array, so a melting
+`size × fullRateUnits × tissuePerSize`, and it leaves the array, so a melting
 sword fouls the water more than a carpet patch of the same size.
 
 ## Key tunables
@@ -444,11 +446,11 @@ sword fouls the water more than a carpet patch of the same size.
 | `healingDrawRate` | Share of the bank that heals condition each hour, per unit of species growth rate | `0.05` /hr |
 | `growthDrawRate` | Share of the bank drawn toward new tissue each hour, before the taper | `0.02` /hr |
 | `sizePerSurplus` | Size gained per bank point converted, before the species growth rate — the conversion growth and offshoots share | `0.4` %/pt |
+| `tissuePerSize` | Organic matter in a % of a rate unit of tissue — what growth draws the recipe for, and shedding and death return as waste | `0.01` g |
 | `lightStarvationSeverity` | Damage in a day without light, at the reference temperature | `0.3` %/hr |
 | `lightExcessiveSeverity` | Damage per PAR over the species band | `0.015` %/PAR/hr |
 | `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the edge, and where a hardiness-0 plant's edge sits | `1.0` %/e-fold/hr · `100` ppm |
 | `maxSheddingRate` | Share of itself a plant drops per hour at condition 0 | `0.02` /hr |
-| `wastePerSize` | Organic matter in a % of a rate unit of tissue — what growth draws the recipe for, and shedding and death return as waste | `0.01` g |
 | `nutrientDeficiencySeverity` · `sufficiencyEdge` | Damage at a sufficiency of 0 under saturating light, falling to nothing at the edge; and the sufficiency a plant counts as fed | `0.3` %/hr · `0.9` |
 | `ghStressSeverity` | Damage per dGH outside the species' band | `0.1` %/dGH/hr |
 | GH per nitrate drawn | Calcium and magnesium taken up per mg of nitrate actually drawn, off leaf-tissue ratios; a constant | `0.28` mg CaCO₃/mg |

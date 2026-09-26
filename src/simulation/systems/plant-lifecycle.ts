@@ -41,5 +41,5 @@ export function tissueMass(
   size: number,
   config: PlantsConfig = plantsDefaults
 ): number {
-  return size * fullRateUnits(species) * config.wastePerSize;
+  return size * fullRateUnits(species) * config.tissuePerSize;
 }

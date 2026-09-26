@@ -77,14 +77,11 @@ export function calculatePhotosynthesis(
     carbonHalfSaturationWeight += carbon * getCo2HalfSaturation(plant.species, plantsConfig);
   });
 
-  const co2ConsumedMg =
-    carbonCapacity > 0
-      ? monodUptake(
-          getMassFromPpm(co2, waterVolume),
-          carbonCapacity,
-          getMassFromPpm(carbonHalfSaturationWeight / carbonCapacity, waterVolume)
-        )
-      : 0;
+  const co2ConsumedMg = monodUptake(
+    getMassFromPpm(co2, waterVolume),
+    carbonCapacity,
+    getMassFromPpm(carbonHalfSaturationWeight / carbonCapacity, waterVolume)
+  );
 
   return {
     oxygenProducedMg: co2ConsumedMg * CO2_TO_O2_MASS_RATIO,

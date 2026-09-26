@@ -18,7 +18,6 @@ export * from './scrub-algae.js';
 export * from './water-change.js';
 export * from './trim-plants.js';
 export * from './plant-management.js';
-export { MIN_PLANTABLE_SIZE, isPlantableSize } from '../plants/create-plant.js';
 export * from './dose.js';
 export * from './root-tab.js';
 export * from './fish-management.js';

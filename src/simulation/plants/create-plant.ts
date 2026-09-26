@@ -15,6 +15,7 @@ export const DEFAULT_PLANT_SIZE = 50;
 /** The least a plant is planted, seeded or trimmed to, % of one full unit. */
 export const MIN_PLANTABLE_SIZE = 1;
 
+/** Whether a unit can be planted, seeded or trimmed to this size. */
 export function isPlantableSize(size: number): boolean {
   return size >= MIN_PLANTABLE_SIZE && size <= 100;
 }

@@ -481,7 +481,7 @@ const PlantsConfigSchema = z
     temperatureBenefitPeak: z.number(),
     phBenefitPeak: z.number(),
     maxSheddingRate: z.number(),
-    wastePerSize: z.number(),
+    tissuePerSize: z.number(),
   })
   .strict();
 

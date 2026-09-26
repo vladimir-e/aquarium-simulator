@@ -104,7 +104,7 @@ export {
 } from './presets.js';
 
 // Configuration
-export type { TunableConfig, FertilizerFormula } from './config/index.js';
+export type { TunableConfig, FertilizerFormula, NutrientVector } from './config/index.js';
 export { DEFAULT_CONFIG } from './config/index.js';
 
 // Resources
@@ -303,8 +303,6 @@ export {
   MIN_SCRUB_PERCENT,
   MAX_SCRUB_PERCENT,
   MIN_ALGAE_TO_SCRUB,
-  MIN_PLANTABLE_SIZE,
-  isPlantableSize,
   waterChange,
   WATER_CHANGE_AMOUNTS,
   trimPlants,
@@ -359,18 +357,15 @@ export {
   poolDraws,
   plantShares,
   organicNutrients,
-  drawTissue,
-  ghDrawn,
   tissueMass,
   calculateCo2Factor,
   calculateRespiration,
   getRespirationTemperatureFactor,
   spendSurplus,
   propagate,
-  purchase,
-  sizeBought,
-  supply,
   VIGOUR_SPAN,
+  MIN_PLANTABLE_SIZE,
+  isPlantableSize,
   getSpeciesGrowthRate,
   computePlantVitality,
   plantHealingRate,
@@ -392,13 +387,9 @@ export type {
   PlantLight,
   CanopyLight,
   Propagation,
-  Purchase,
   NutrientPool,
   TankPools,
-  PerPool,
   PoolDraw,
-  TissueNeed,
-  TissueDraw,
 } from './plants/index.js';
 
 // Livestock

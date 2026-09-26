@@ -45,7 +45,7 @@ describe('calculateShedding', () => {
     const result = calculateShedding({ ...plant, condition: 20 });
 
     expect(result.wasteProduced).toBeCloseTo(
-      result.sizeReduction * fullRateUnits('java_fern') * plantsDefaults.wastePerSize,
+      result.sizeReduction * fullRateUnits('java_fern') * plantsDefaults.tissuePerSize,
       12
     );
   });

@@ -18,6 +18,12 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v16 made the bed a nutrient store and plants of their nutrients, and let a
+ *    plant die only at condition 0. `Substrate` gains `nutrients`;
+ *    `NutrientsConfig` drops `uptakePerRateUnit` and gains `rootTab` and
+ *    `bedLeakRate`; `PlantsConfig` drops `deathSizeThreshold` and renames
+ *    `wastePerSize` to `tissuePerSize`. A v15 session parses, and the first
+ *    tick leaks a bed store and draws tissue off keys it does not carry.
  * v15 sized plants against one full unit of their growth form, lit them at
  *    their own height and let a full bank buy an offshoot. `Plant.size` stops
  *    at 100, `Plant` gains `parentId`, `familyId`, `age` and `vigour`, and
@@ -124,7 +130,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 15;
+export const SESSION_VERSION = 16;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

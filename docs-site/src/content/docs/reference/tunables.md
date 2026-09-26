@@ -28,7 +28,7 @@ declared minimum of `0.1`.
 | Optics | `optics.` | What the water column and the leaves above take out of the light on the way down |
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, respiration, vitality, growth and offshoots, lifecycle |
-| Nutrients | `nutrients.` | Fertilizer formula, half-saturations, demand tiers, minerals in organic matter |
+| Nutrients | `nutrients.` | Fertilizer formula, root tab, the bed's leak, half-saturations, demand tiers, minerals in organic matter |
 | Livestock | `livestock.` | Metabolism, satiation, vitality, death |
 
 The values themselves are not repeated here. They move when the model is
@@ -156,6 +156,7 @@ density you can look up rather than a score.
 | `healingDrawRate` | Share of the bank that heals condition each hour, per unit of species growth rate | /hr per growth rate |
 | `sizePerSurplus` | Size gained per bank point converted, before the species growth multiplier — the conversion growth and offshoots share | %/pt |
 | `surplusCap` | Ceiling on the bank; a full one buys an offshoot | pts |
+| `tissuePerSize` | Organic matter in a % of a rate unit of tissue, so a unit weighs by its leaf, not its size — what growth draws the recipe for, and shedding and death return as waste | g/% |
 | `lightStarvationSeverity` | Damage in a day without light, falling to nothing at the species' daily light edge; quoted at the respiration reference temperature | %/hr |
 | `lightExcessiveSeverity` | Damage per PAR unit above the species' tolerable band | %/PAR/hr |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
@@ -164,7 +165,6 @@ density you can look up rather than a score.
 | `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of bloom past the threshold, and the mass above which algae shades plants | %/algae/hr · — |
 | `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on the light term times the Liebig sufficiency | %/hr |
 | `maxSheddingRate` | Share of itself a plant sheds per hour at condition 0, falling with the square of the deficit | /hr |
-| `wastePerSize` | Organic matter in a % of a rate unit of tissue, so a unit weighs by its leaf, not its size | g/% |
 
 Every severity above is pre-hardiness. The species' own hardiness scales every
 channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
@@ -214,9 +214,9 @@ can move them at runtime.
 |---|---|
 | Fish species | Per species: adult mass, lifespan, hardiness, temperature / pH / flow tolerance bands, and a full breeding block — mode, clutch size, hatch time, fry mass, maturity age |
 | Plant species | Per species: growth rate, growth form, hardiness, CO₂ requirement, nutrient demand tier, and the PAR band it tolerates, whose low end sets the daily light it starves under |
-| Growth forms | Per form: what one full unit is — its height and how height grows with size, its footprint, its leaf area index — and what its offshoot is called |
+| Growth forms | Per form: what one full unit is — its height and how height grows with size, its footprint, its leaf area index — the share of its food it draws through its roots, and what its offshoot is called |
 | Filters | Per type: biological surface, target turnover, flow ceiling, tank-size ceiling, and whether it is air-driven |
-| Substrates | Per type: colony surface per litre, and the organic and KH reserves a fresh bed holds per litre |
+| Substrates | Per type: colony surface per litre, and the organic and KH reserves and the nutrient charge a fresh bed holds per litre |
 | Hardscape | Per type: colony surface, and the tannins a fresh piece carries |
 | Lids | Per type: the multiplier applied to evaporation |
 | Fixtures and pumps | The catalog of ratings a device can be built with — heater wattages, light PAR ratings, powerhead flow rates, CO₂ bubble rates, doser amounts |

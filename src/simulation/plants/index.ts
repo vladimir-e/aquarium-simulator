@@ -290,7 +290,7 @@ export {
   getSpeciesGrowthRate,
 } from '../systems/plant-growth.js';
 export type { Propagation, Purchase } from '../systems/plant-growth.js';
-export { VIGOUR_SPAN } from './create-plant.js';
+export { VIGOUR_SPAN, MIN_PLANTABLE_SIZE, isPlantableSize } from './create-plant.js';
 export {
   calculateNutrientSufficiency,
   speciesDemand,
