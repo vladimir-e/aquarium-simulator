@@ -36,6 +36,7 @@ export {
   opticsDefaults,
   opticsConfigMeta,
   MAX_WATER_ATTENUATION_PER_CM,
+  MAX_LEAF_ATTENUATION_PER_LAI,
 } from './optics.js';
 export {
   type WaterChemistryConfig,

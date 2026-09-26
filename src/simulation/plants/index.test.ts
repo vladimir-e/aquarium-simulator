@@ -1,6 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { processPlants, readPlantVitality, plantHealingRate } from './index.js';
-import { createSimulation, type SimulationState, type Plant, type Resources } from '../state.js';
+import { processPlants, readPlantLight, readPlantVitality, plantHealingRate } from './index.js';
+import { canopyLight, floorCover, getTotalRateUnits, plantHeight } from './canopy.js';
+import { calculatePhotosynthesis } from '../systems/photosynthesis.js';
+import { calculateRespiration } from '../systems/respiration.js';
+import { calculateNutrientSufficiency } from '../systems/nutrients.js';
+import { getPpm } from '../resources/index.js';
+import {
+  calculateTankHeight,
+  createSimulation,
+  type SimulationState,
+  type Plant,
+  type Resources,
+} from '../state.js';
+import { dailyLightIntegral } from '../equipment/light.js';
 import type { PlantSpecies } from './species.js';
 import { produce } from 'immer';
 import { carbonateKh } from '../core/carbonate.js';
@@ -8,7 +20,13 @@ import { getKhMass } from '../resources/helpers.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
 import { NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
-import { CARE_SHEET_PHOTOPERIOD, PLANT_SPECIES_DATA } from './species.js';
+import { CARE_SHEET_PHOTOPERIOD, PLANT_SPECIES_DATA, dailyLightEdge } from './species.js';
+import { plantRecord } from '../tests/plant.js';
+import { VIGOUR_SPAN } from './create-plant.js';
+import { createRng, type RngState } from '../core/rng.js';
+
+const sizePerBank = (species: PlantSpecies): number =>
+  PLANT_SPECIES_DATA[species].growthRate * plantsDefaults.sizePerSurplus;
 
 const INJECTED_CO2 = 25;
 
@@ -70,7 +88,7 @@ describe('processPlants', () => {
 
   describe('with plants and lights on (photosynthesis + respiration)', () => {
     const defaultPlants: Plant[] = [
-      { id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 },
+      plantRecord({ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }),
     ];
 
     it('photosynthesises and respires as active effects', () => {
@@ -95,7 +113,7 @@ describe('processPlants', () => {
 
     it('updates plant sizes due to growth', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: BANK }],
+        plants: [plantRecord({ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: BANK })],
         light: 50,
         co2: INJECTED_CO2,
         nitrate: RICH_NITRATE_PPM * 100,
@@ -108,7 +126,7 @@ describe('processPlants', () => {
 
     it('heals a sub-100 plant on its income, banking none of it, while its bank still buys size', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 80, surplus: BANK }],
+        plants: [plantRecord({ id: 'p1', species: 'java_fern', size: 50, condition: 80, surplus: BANK })],
         light: 50,
         co2: INJECTED_CO2,
         nitrate: RICH_NITRATE_PPM * 100,
@@ -123,7 +141,7 @@ describe('processPlants', () => {
 
   describe('with lights off (respiration only)', () => {
     const defaultPlants: Plant[] = [
-      { id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 },
+      plantRecord({ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }),
     ];
 
     it('no photosynthesis effects when light is 0', () => {
@@ -156,7 +174,7 @@ describe('processPlants', () => {
   describe('round the clock', () => {
     it('banks while lit and grows off the bank day and night', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: BANK }],
+        plants: [plantRecord({ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: BANK })],
         co2: INJECTED_CO2,
         nitrate: RICH_NITRATE_PPM * 100,
         temperature: 25,
@@ -182,7 +200,7 @@ describe('processPlants', () => {
 
     it('costs a plant nothing but its growth through a scheduled night', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'monte_carlo', size: 50, condition: 100, surplus: 10 }],
+        plants: [plantRecord({ id: 'p1', species: 'monte_carlo', size: 50, condition: 100, surplus: 10 })],
         light: 0,
         lightByHour: LIT_DAY,
         water: 100,
@@ -198,7 +216,7 @@ describe('processPlants', () => {
     const netOxygen = (species: PlantSpecies, light: number): number =>
       processPlants(
         createTestState({
-          plants: [{ id: 'p1', species, size: 100, condition: C, surplus: 0 }],
+          plants: [plantRecord({ id: 'p1', species, size: 100, condition: C, surplus: 0 })],
           light,
           co2: INJECTED_CO2,
           water: 100,
@@ -234,7 +252,7 @@ describe('processPlants', () => {
 
   describe('the water the gases dissolve into', () => {
     const planting: Plant[] = [
-      { id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 },
+      plantRecord({ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }),
     ];
 
     const gasIn = (water: number, light: number): { oxygen: number; co2: number } => {
@@ -288,8 +306,8 @@ describe('processPlants', () => {
     it('sheds a plant in poor condition into waste and removes one at condition 0', () => {
       const state = createTestState({
         plants: [
-          { id: 'poorly', species: 'java_fern', size: 50, condition: 50, surplus: 0 },
-          { id: 'dead', species: 'java_fern', size: 50, condition: 0, surplus: 0 },
+          plantRecord({ id: 'poorly', species: 'java_fern', size: 50, condition: 50, surplus: 0 }),
+          plantRecord({ id: 'dead', species: 'java_fern', size: 50, condition: 0, surplus: 0 }),
         ],
         light: 0,
         temperature: 25,
@@ -307,7 +325,7 @@ describe('processPlants', () => {
 
     it('sheds nothing at full condition, bank or no bank', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
+        plants: [plantRecord({ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 })],
         light: 0,
         lightByHour: LIT_DAY,
         water: 100,
@@ -320,15 +338,9 @@ describe('processPlants', () => {
     it('processes multiple plants correctly', () => {
       const state = createTestState({
         plants: [
-          { id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: BANK },
-          { id: 'p2', species: 'anubias', size: 60, condition: C, surplus: BANK },
-          {
-            id: 'p3',
-            species: 'amazon_sword',
-            size: 70,
-            condition: C,
-            surplus: BANK,
-          },
+          plantRecord({ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: BANK }),
+          plantRecord({ id: 'p2', species: 'anubias', size: 60, condition: C, surplus: BANK }),
+          plantRecord({ id: 'p3', species: 'amazon_sword', size: 70, condition: C, surplus: BANK }),
         ],
         light: 50,
         co2: INJECTED_CO2,
@@ -347,7 +359,7 @@ describe('processPlants', () => {
   describe('immutability', () => {
     it('does not modify original state', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
+        plants: [plantRecord({ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 })],
         light: 50,
         co2: INJECTED_CO2,
         nitrate: RICH_NITRATE_PPM * 100,
@@ -361,6 +373,109 @@ describe('processPlants', () => {
     });
   });
 
+  describe('light at each plant\'s height', () => {
+    const planting: Plant[] = [
+      plantRecord({ id: 'sword', species: 'amazon_sword', size: 90, condition: C, surplus: 0 }),
+      plantRecord({ id: 'fern', species: 'java_fern', size: 40, condition: C, surplus: 0 }),
+      plantRecord({ id: 'carpet', species: 'monte_carlo', size: 60, condition: C, surplus: 0 }),
+    ];
+
+    it('reads PAR and the day at the mean leaf, and PAR at the crown top, off one canopy', () => {
+      const state = createTestState({ plants: planting, light: 70, lightByHour: LIT_DAY });
+      const canopy = canopyLight(planting, state.tank.capacity, DEFAULT_CONFIG.optics);
+      const substrateDay = dailyLightIntegral(LIT_DAY);
+
+      readPlantLight(state, DEFAULT_CONFIG).forEach((reading, i) => {
+        expect(reading.par).toBeCloseTo(70 * canopy[i].leaf, 12);
+        expect(reading.crownPar).toBeCloseTo(70 * canopy[i].top, 12);
+        expect(reading.dailyLight).toBeCloseTo(substrateDay * canopy[i].leaf, 12);
+        expect(reading.needShare).toBeCloseTo(reading.dailyLight / dailyLightEdge(planting[i].species), 12);
+        expect(reading.heightCm).toBe(plantHeight(planting[i], calculateTankHeight(state.tank.capacity)));
+      });
+    });
+
+    it('photosynthesises each plant on the PAR at its mean leaf, and respires the planting on its rate units', () => {
+      const state = createTestState({ plants: planting, light: 70, co2: INJECTED_CO2 });
+      const { resources } = state;
+      const { plants: plantsConfig, nutrients } = DEFAULT_CONFIG;
+      const { effects } = processPlants(state, DEFAULT_CONFIG);
+      const delta = (resource: string, source: string): number =>
+        effects.find((e) => e.resource === resource && e.source === source)?.delta ?? 0;
+
+      const photosynthesis = calculatePhotosynthesis(
+        planting,
+        canopyLight(planting, state.tank.capacity, DEFAULT_CONFIG.optics).map((c) => resources.light * c.leaf),
+        resources.co2,
+        resources,
+        resources.water,
+        new Map(
+          planting.map((p) => [p.id, calculateNutrientSufficiency(resources, resources.water, p.species, nutrients)])
+        ),
+        plantsConfig,
+        nutrients
+      );
+      expect(delta('oxygen', 'photosynthesis')).toBeCloseTo(getPpm(photosynthesis.oxygenProducedMg, resources.water), 12);
+      expect(delta('co2', 'photosynthesis')).toBeCloseTo(-getPpm(photosynthesis.co2ConsumedMg, resources.water), 12);
+      expect(delta('nitrate', 'photosynthesis')).toBeCloseTo(photosynthesis.nitrateDelta, 12);
+      expect(delta('phosphate', 'photosynthesis')).toBeCloseTo(photosynthesis.phosphateDelta, 12);
+      expect(delta('potassium', 'photosynthesis')).toBeCloseTo(photosynthesis.potassiumDelta, 12);
+      expect(delta('iron', 'photosynthesis')).toBeCloseTo(photosynthesis.ironDelta, 12);
+      expect(delta('gh', 'photosynthesis')).toBeCloseTo(photosynthesis.ghDelta, 12);
+
+      const respiration = calculateRespiration(
+        getTotalRateUnits(planting),
+        resources.temperature,
+        resources.oxygen,
+        plantsConfig
+      );
+      expect(delta('oxygen', 'respiration')).toBeCloseTo(-getPpm(respiration.oxygenConsumedMg, resources.water), 12);
+      expect(delta('co2', 'respiration')).toBeCloseTo(getPpm(respiration.co2ProducedMg, resources.water), 12);
+    });
+
+    it('burns a lone plant on its crown top only: never while the water over a full one keeps it under its edge', () => {
+      const edge = PLANT_SPECIES_DATA.java_fern.tolerableLight[1];
+      const fullTop = (capacity: number): number =>
+        Math.exp(
+          DEFAULT_CONFIG.optics.waterAttenuationPerCm *
+            plantHeight({ species: 'java_fern', size: 100 }, calculateTankHeight(capacity))
+        );
+      const burn = (size: number, light: number): number => {
+        const state = createTestState({
+          plants: [plantRecord({ id: 'fern', species: 'java_fern', size, condition: C, surplus: 0 })],
+          light,
+        });
+        return (
+          readPlantVitality(state, DEFAULT_CONFIG)[0].breakdown.stressors.find((s) => s.key === 'light')
+            ?.amount ?? 0
+        );
+      };
+      const atEdge = edge / fullTop(100);
+
+      for (const size of [1, 10, 50, 100]) expect(burn(size, atEdge)).toBe(0);
+      expect(burn(100, atEdge * 1.1)).toBeGreaterThan(0);
+    });
+
+    it('runs a size-0 unit, a dark tank and leaves that shade nothing without a NaN', () => {
+      const seedlings: Plant[] = [
+        ...planting,
+        plantRecord({ id: 'stub', species: 'amazon_sword', size: 0, condition: 50, surplus: 5 }),
+      ];
+      const clear = { ...DEFAULT_CONFIG, optics: { ...DEFAULT_CONFIG.optics, leafAttenuationPerLai: 0 } };
+      for (const config of [DEFAULT_CONFIG, clear]) {
+        for (const light of [0, 70]) {
+          const state = createTestState({ plants: seedlings, light, lightByHour: light > 0 ? LIT_DAY : new Array(24).fill(0) });
+          const result = processPlants(state, config);
+          for (const effect of result.effects) expect(Number.isFinite(effect.delta)).toBe(true);
+          for (const plant of result.state.plants) {
+            expect(Number.isFinite(plant.size)).toBe(true);
+            expect(Number.isFinite(plant.condition)).toBe(true);
+            expect(Number.isFinite(plant.surplus)).toBe(true);
+          }
+        }
+      }
+    });
+  });
+
   describe('the bank heals', () => {
     const hostilePh = (s: SimulationState): SimulationState =>
       produce(s, (draft) => {
@@ -369,7 +484,7 @@ describe('processPlants', () => {
     const sour = (surplus: number): SimulationState =>
       hostilePh(
         createTestState({
-          plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus }],
+          plants: [plantRecord({ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus })],
           light: 0,
           water: 100,
         })
@@ -391,15 +506,140 @@ describe('processPlants', () => {
       expect(banked.condition).toBeGreaterThan(bare.condition);
     });
 
-    it('self-heals an over-cap bank on the first tick', () => {
+    it('holds an over-cap bank to the cap before it buys anything', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 90 }],
+        plants: [plantRecord({ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 90 })],
         light: 0,
+        lightByHour: LIT_DAY,
         water: 100,
       });
-      const out = processPlants(state, DEFAULT_CONFIG).state.plants[0];
-      expect(out.surplus).toBeLessThanOrEqual(plantsDefaults.surplusCap);
-      expect(out.surplus).toBeGreaterThan(plantsDefaults.surplusCap * (1 - plantsDefaults.growthDrawRate));
+      const [parent, offshoot] = processPlants(state, DEFAULT_CONFIG).state.plants;
+      expect(offshoot.size).toBeCloseTo(plantsDefaults.surplusCap * sizePerBank('java_fern'), 12);
+      expect(parent.surplus).toBe(0);
+    });
+  });
+
+  describe('offshoots', () => {
+    const CAP = plantsDefaults.surplusCap;
+
+    /** A night after a good day: nothing earned, nothing lost, so the bank stands as given. */
+    const night = (plants: Plant[], rng?: RngState): SimulationState =>
+      produce(createTestState({ plants, light: 0, lightByHour: LIT_DAY, water: 100 }), (draft) => {
+        if (rng) draft.rng = rng;
+      });
+
+    const mother = (surplus: number, fields: Partial<Plant> = {}): Plant =>
+      plantRecord({ id: 'mother', species: 'amazon_sword', size: 90, condition: C, surplus, ...fields });
+
+    it('fires iff the bank is at the cap, and before growth can draw it under', () => {
+      const full = processPlants(night([mother(CAP)]), DEFAULT_CONFIG).state.plants;
+      expect(full).toHaveLength(2);
+      expect(full[0].size).toBe(90);
+
+      const short = processPlants(night([mother(CAP - 1e-6)]), DEFAULT_CONFIG).state.plants;
+      expect(short).toHaveLength(1);
+      expect(short[0].size).toBeGreaterThan(90);
+    });
+
+    it('buys nothing at a cap of 0', () => {
+      const capless = { ...DEFAULT_CONFIG, plants: { ...plantsDefaults, surplusCap: 0 } };
+      expect(processPlants(night([mother(0)]), capless).state.plants).toHaveLength(1);
+    });
+
+    it('buys no unit that could not live, and grows on the bank instead', () => {
+      const deathSizeThreshold = 1.01 * CAP * sizePerBank('amazon_sword');
+      const lean = { ...DEFAULT_CONFIG, plants: { ...plantsDefaults, deathSizeThreshold } };
+      const [kept, ...born] = processPlants(night([mother(CAP)]), lean).state.plants;
+      expect(born).toHaveLength(0);
+      expect(kept.size).toBeGreaterThan(90);
+      expect(kept.surplus).toBeLessThan(CAP);
+      expect(kept.surplus).toBeGreaterThan(0);
+    });
+
+    it('turns the whole bank into the offshoot at the growth conversion', () => {
+      const [parent, offshoot] = processPlants(night([mother(CAP)]), DEFAULT_CONFIG).state.plants;
+      expect(parent.surplus).toBe(0);
+      expect(offshoot.size).toBeCloseTo(CAP * sizePerBank('amazon_sword'), 12);
+    });
+
+    it('appends a full child on an empty bank to the family, at age 0, aging every survivor a tick', () => {
+      const state = night([
+        plantRecord({ id: 'aunt', species: 'java_fern', size: 60, condition: C, surplus: 0, age: 40 }),
+        mother(CAP, { parentId: 'founder', familyId: 'founder', age: 500, vigour: 0.1 }),
+      ]);
+      const [aunt, parent, child] = processPlants(state, DEFAULT_CONFIG).state.plants;
+
+      expect(aunt.age).toBe(41);
+      expect(parent.age).toBe(501);
+      expect(child).toMatchObject({
+        species: 'amazon_sword',
+        condition: 100,
+        surplus: 0,
+        age: 0,
+        parentId: 'mother',
+        familyId: 'founder',
+      });
+      expect(child.id).not.toBe('mother');
+      expect(Math.abs(child.vigour)).toBeLessThanOrEqual(VIGOUR_SPAN);
+    });
+
+    it('acts from the next tick: born at the size it was bought at, then living', () => {
+      const born = processPlants(night([mother(CAP)]), DEFAULT_CONFIG).state;
+      const child = born.plants[1];
+      const next = processPlants(born, DEFAULT_CONFIG).state.plants.find((p) => p.id === child.id)!;
+      expect(child.size).toBeCloseTo(CAP * sizePerBank('amazon_sword'), 12);
+      expect(next.age).toBe(1);
+    });
+
+    it("logs the growth form's verb", () => {
+      const logs = processPlants(
+        night([
+          mother(CAP),
+          plantRecord({ id: 'carpet', species: 'monte_carlo', size: 90, condition: C, surplus: CAP }),
+          plantRecord({ id: 'fern', species: 'java_fern', size: 90, condition: C, surplus: CAP }),
+        ]),
+        DEFAULT_CONFIG
+      ).state.logs.filter((log) => log.event === 'plant-propagated');
+      expect(logs.map((log) => log.message)).toEqual([
+        'Amazon Sword threw a plantlet',
+        'Monte Carlo sent a runner',
+        'Java Fern branched at the rhizome',
+      ]);
+    });
+
+    it('buys offshoots whatever the floor', () => {
+      const crammed = Array.from({ length: 12 }, (_, i) => mother(CAP, { id: `m${i}`, familyId: `m${i}` }));
+      const state = night(crammed);
+      expect(floorCover(state.plants, state.tank.capacity)).toBeGreaterThan(1);
+      expect(processPlants(state, DEFAULT_CONFIG).state.plants).toHaveLength(24);
+    });
+
+    it('draws ids and vigours in plant order, so one seed gives one lineage', () => {
+      const mothers = ['a', 'b', 'c'].map((id) => mother(CAP, { id, familyId: id }));
+      const born = (rngSeed: number): Plant[] =>
+        processPlants(night(mothers, createRng(rngSeed)), DEFAULT_CONFIG).state.plants.slice(3);
+      const lineage = (plants: Plant[]): unknown[] => plants.map(({ id, parentId, familyId, vigour }) => ({ id, parentId, familyId, vigour }));
+
+      expect(born(11).map((p) => p.parentId)).toEqual(['a', 'b', 'c']);
+      expect(lineage(born(11))).toEqual(lineage(born(11)));
+      expect(born(11).map((p) => p.vigour)).not.toEqual(born(12).map((p) => p.vigour));
+    });
+
+    it('keeps every field finite through a propagating month', () => {
+      let state = createTestState({
+        plants: [mother(CAP), plantRecord({ id: 'mc', species: 'monte_carlo', size: 95, condition: C, surplus: CAP })],
+        light: 80,
+        lightByHour: LIT_DAY,
+        co2: INJECTED_CO2,
+        water: 100,
+      });
+      for (let hour = 0; hour < 30 * 24; hour++) state = processPlants(state, DEFAULT_CONFIG).state;
+      expect(state.plants.length).toBeGreaterThan(2);
+      for (const plant of state.plants) {
+        for (const value of [plant.size, plant.condition, plant.surplus, plant.age, plant.vigour]) {
+          expect(Number.isFinite(value)).toBe(true);
+        }
+      }
     });
   });
 });

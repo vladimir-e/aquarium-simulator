@@ -39,6 +39,12 @@ function positive(raw: string | undefined, what: string): number {
   return value;
 }
 
+function plantSize(raw: string): number {
+  const value = positive(raw, 'plant size');
+  if (value > 100) throw new Error(`plant size is a % of one full unit, at most 100, got "${raw}".`);
+  return value;
+}
+
 function count(raw: string | undefined, what: string): number {
   const value = positive(raw ?? '1', what);
   if (!Number.isInteger(value)) throw new Error(`${what} must be a whole number, got "${raw}".`);
@@ -82,7 +88,7 @@ function tweakApply(flag: string, value: string | undefined): Tweak['apply'] {
       const group = {
         species: oneOf(name, PLANT_SPECIES_DATA, 'plant species'),
         count: count(n, 'plant count'),
-        size: size === undefined ? PLANTING_SIZE : positive(size, 'plant size'),
+        size: size === undefined ? PLANTING_SIZE : plantSize(size),
       };
       return onSetup((setup) => ({ ...setup, plants: [...setup.plants, group] }));
     }

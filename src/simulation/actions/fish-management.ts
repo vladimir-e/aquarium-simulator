@@ -61,7 +61,7 @@ export interface FishCapacityResult {
  * Single source of truth for the {@link addFish} stocking ceiling — the
  * cap comparison and its rejection message. Both the action (via
  * {@link canAddFish}) and the demo UI call this, so the math and the
- * message can't drift apart. Mirrors {@link canAddPlant}'s capacity gate.
+ * message can't drift apart. Mirrors {@link checkPlantFootprint}'s floor budget.
  */
 export function checkFishCapacity(
   fish: Fish[],

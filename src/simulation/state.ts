@@ -125,15 +125,30 @@ export interface Plant {
   id: string;
   /** Plant species type */
   species: PlantSpecies;
-  /** Size percentage (can exceed 100% up to species `maxSize`). */
+  /**
+   * How full its unit is, % of one grown unit of its growth form — a patch, a
+   * specimen, a clump. Growth tapers to nothing at 100, so it never grows past it.
+   */
   size: number;
   /** Condition/health percentage (0-100, plant dies at 0) */
   condition: number;
   /**
    * Vitality bank, in condition points. Fills with income at full condition,
-   * up to `PlantsConfig.surplusCap`; heals condition below 100 and buys size.
+   * up to `PlantsConfig.surplusCap`; heals condition below 100, buys size, and
+   * a full bank buys an offshoot.
    */
   surplus: number;
+  /** The plant whose offshoot this is; null for anything planted or seeded. */
+  parentId: string | null;
+  /** The founder's id, inherited by every offshoot, so a family outlives its founder. */
+  familyId: string;
+  /** Age in ticks (hours) in this tank. */
+  age: number;
+  /**
+   * Per-individual offset on everything the plant earns, drawn once at birth
+   * within ±`VIGOUR_SPAN`, so clones bud apart instead of in lockstep.
+   */
+  vigour: number;
 }
 
 export interface Tank {
@@ -420,6 +435,12 @@ export function calculateHardscapeSlots(capacityLiters: number): number {
  */
 export function calculateTankHeight(capacity: number): number {
   return Math.cbrt(capacity / 2) * 10;
+}
+
+/** Floor of the 2:1:1 box a capacity implies, cm². */
+export function calculateFloorArea(capacity: number): number {
+  const height = calculateTankHeight(capacity);
+  return 2 * height * height;
 }
 
 /** The light history of a tank that has run its fixture's schedule all along. */

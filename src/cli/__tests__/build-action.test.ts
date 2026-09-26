@@ -55,3 +55,12 @@ describe('buildAction sellFry', () => {
     expect(buildAction('sellFry', ['whatever'])).toEqual({ type: 'sellFry' });
   });
 });
+
+describe('buildAction trimPlants', () => {
+  it('cuts to 85 by default and passes any target on for trimPlants to judge', () => {
+    expect(buildAction('trimPlants', [])).toEqual({ type: 'trimPlants', targetSize: 85 });
+    for (const target of [75, 0, 150]) {
+      expect(buildAction('trimPlants', [String(target)])).toEqual({ type: 'trimPlants', targetSize: target });
+    }
+  });
+});

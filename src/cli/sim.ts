@@ -143,11 +143,7 @@ export function buildAction(type: string, args: string[]): Action {
       return { type: 'scrubAlgae', randomPercent: pct };
     }
     case 'trimPlants': {
-      const target = Number(args[0] ?? '85');
-      if (target !== 50 && target !== 85 && target !== 100) {
-        throw new Error('trimPlants target must be 50, 85, or 100.');
-      }
-      return { type: 'trimPlants', targetSize: target };
+      return { type: 'trimPlants', targetSize: Number(args[0] ?? '85') };
     }
     case 'sellFry': {
       return { type: 'sellFry' };

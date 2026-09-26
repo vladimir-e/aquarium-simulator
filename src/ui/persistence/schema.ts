@@ -4,8 +4,9 @@
  */
 
 import { z } from 'zod';
-import { MAX_LIGHT_PAR } from '../../simulation/index.js';
+import { MAX_LIGHT_PAR, VIGOUR_SPAN } from '../../simulation/index.js';
 import {
+  MAX_LEAF_ATTENUATION_PER_LAI,
   MAX_WATER_ATTENUATION_PER_CM,
   NUTRIENTS,
   WASTE_NUTRIENTS,
@@ -207,9 +208,13 @@ const PlantSchema = z
   .object({
     id: z.string(),
     species: z.enum(['java_fern', 'anubias', 'amazon_sword', 'dwarf_hairgrass', 'monte_carlo']),
-    size: z.number().min(0),
+    size: z.number().min(0).max(100),
     condition: z.number().min(0).max(100),
     surplus: z.number().min(0),
+    parentId: z.string().nullable(),
+    familyId: z.string(),
+    age: z.number().int().min(0),
+    vigour: z.number().min(-VIGOUR_SPAN).max(VIGOUR_SPAN),
   })
   .strict();
 
@@ -420,6 +425,7 @@ const AlgaeConfigSchema = z
 const OpticsConfigSchema = z
   .object({
     waterAttenuationPerCm: z.number().min(0).max(MAX_WATER_ATTENUATION_PER_CM),
+    leafAttenuationPerLai: z.number().min(0).max(MAX_LEAF_ATTENUATION_PER_LAI),
   })
   .strict();
 

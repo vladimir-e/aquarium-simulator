@@ -9,7 +9,6 @@ import {
   FISH_SPECIES_DATA,
   PLANT_SPECIES_DATA,
   SATIATION_BAND_LABEL,
-  spendSurplus,
   type SimulationState,
   type VitalityFactor,
 } from '../../simulation/index.js';
@@ -196,10 +195,7 @@ function plantLedger(
   const plant = state.plants[index];
   const vitality = ahead.plants[index];
   const { breakdown } = vitality;
-  const grown = spendSurplus(
-    { ...plant, condition: vitality.newCondition, surplus: vitality.surplus },
-    config.plants
-  );
+  const next = ahead.banks[index];
   const data = PLANT_SPECIES_DATA[plant.species];
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
@@ -227,10 +223,10 @@ function plantLedger(
     net: breakdown.net * PER_DAY,
     bank: bankOf({
       now: plant.surplus,
-      next: grown.surplus,
+      next,
       cap: config.plants.surplusCap,
       healed: breakdown.healed,
-      grown: vitality.surplus - grown.surplus,
+      grown: vitality.surplus - next,
     }),
     demand:
       `${data.nutrientDemand} demand · light ${lightLow}–${lightHigh} PAR · ${data.co2Requirement} CO₂`,

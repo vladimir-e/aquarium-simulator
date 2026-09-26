@@ -22,6 +22,8 @@ import type { TunableConfig } from '../../simulation/config/index.js';
 export interface HourAhead {
   /** In `state.plants` order. */
   plants: VitalityResult[];
+  /** Each plant's bank as the pass leaves it — offshoot and growth bought, 0 where it dies — in `state.plants` order. */
+  banks: number[];
   /** Grams of waste the plant pass sheds — its steady rate, apart from a death's one-off lump. */
   shedding: number;
   algae: AlgaePopulationResult;
@@ -40,9 +42,11 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     config.livestock,
     config.nutrients.foodMineralContent
   ).updatedFish;
+  const banks = new Map(plants.map((plant) => [plant.id, plant.surplus]));
 
   return {
     plants: readPlantVitality(settled, config),
+    banks: settled.plants.map((plant) => banks.get(plant.id) ?? 0),
     shedding: pass.effects
       .filter((effect) => effect.source === 'plant-shedding')
       .reduce((sum, effect) => sum + effect.delta, 0),

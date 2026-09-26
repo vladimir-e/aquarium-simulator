@@ -15,6 +15,8 @@ import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { getMassFromPpm } from '../resources/helpers.js';
 import type { Plant, Resources } from '../state.js';
+import type { CanopyLight } from '../plants/canopy.js';
+import type { VitalityFactor } from './vitality.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
 import { getGhMass } from '../resources/helpers.js';
 import {
@@ -25,16 +27,18 @@ import {
   type PlantSpecies,
 } from '../plants/species.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
+import { plantRecord } from '../tests/plant.js';
+import { VIGOUR_SPAN } from '../plants/create-plant.js';
 
 function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant {
-  return {
+  return plantRecord({
     id: `plant_${species}`,
     species,
     size: 50,
     condition: 100,
     surplus: 0,
     ...overrides,
-  };
+  });
 }
 
 /** A day of `hours` lit at `par`, the rest dark. */
@@ -72,7 +76,8 @@ function ctx(
   plant: Plant,
   resources: Resources,
   algaeMass: number = 0,
-  plantsConfig = plantsDefaults
+  plantsConfig = plantsDefaults,
+  canopy: CanopyLight = { leaf: 1, top: 1 }
 ): PlantVitalityContext {
   const nutrientSufficiency = calculateNutrientSufficiency(
     resources,
@@ -87,6 +92,7 @@ function ctx(
     plantsConfig,
     nutrientSufficiency,
     algaeMass,
+    canopy,
   };
 }
 
@@ -267,6 +273,22 @@ describe('buildPlantBenefits', () => {
     }
   });
 
+  it('scales every channel by 1 + vigour, and no stressor at all', () => {
+    const mild = makeResources({ light: 30, co2: 5, ...atCentre('anubias') });
+    const harsh = makeResources({ light: 200, co2: 1, temperature: 33, ph: 8.5 });
+    const at = (vigour: number, resources: Resources): PlantVitalityContext =>
+      ctx(makePlant('anubias', { vigour }), resources);
+
+    for (const vigour of [-VIGOUR_SPAN, 0.07, VIGOUR_SPAN]) {
+      const plain = buildPlantBenefits(at(0, mild));
+      buildPlantBenefits(at(vigour, mild)).forEach((benefit, i) => {
+        expect(benefit.amount).toBeGreaterThan(0);
+        expect(benefit.amount).toBeCloseTo(plain[i]!.amount * (1 + vigour), 12);
+      });
+      expect(buildPlantStressors(at(vigour, harsh))).toEqual(buildPlantStressors(at(0, harsh)));
+    }
+  });
+
   it('earns the CO2 channel on the species carbon Monod, so a carpet earns less of it', () => {
     const co2Benefit = (species: PlantSpecies, co2: number): number =>
       buildPlantBenefits(ctx(makePlant(species), makeResources({ co2 }))).find(
@@ -378,6 +400,47 @@ describe('lightShortfall', () => {
     expect(lightShortfall(1, 1)).toBe(0);
     expect(lightShortfall(0, 1)).toBe(1);
     expect(lightShortfall(0.25, 1)).toBeCloseTo(0.75, 12);
+  });
+});
+
+describe('light at the plant\'s own height', () => {
+  const plant = makePlant('amazon_sword');
+  const factor = (factors: VitalityFactor[], key: string): number =>
+    factors.find((f) => f.key === key)?.amount ?? 0;
+  const read = (resources: ResourceOverrides, canopy: CanopyLight): PlantVitalityContext =>
+    ctx(plant, makeResources({ potassium: 0, ...resources }), 0, plantsDefaults, canopy);
+
+  it('starves on the day at its mean leaf: the substrate day times its leaf scale', () => {
+    const day = litDay(15, CARE_SHEET_PHOTOPERIOD);
+    const shaded = read({ lightByHour: day }, { leaf: 0.6, top: 1 });
+    const dimmer = read({ lightByHour: day.map((par) => par * 0.6) }, { leaf: 1, top: 1 });
+
+    expect(factor(buildPlantStressors(shaded), 'lightStarvation')).toBeGreaterThan(0);
+    expect(factor(buildPlantStressors(shaded), 'lightStarvation')).toBeCloseTo(
+      factor(buildPlantStressors(dimmer), 'lightStarvation'),
+      12
+    );
+  });
+
+  it('earns, and asks for nutrients, on the PAR at its mean leaf', () => {
+    const shaded = read({ light: 50 }, { leaf: 0.4, top: 1 });
+    const dimmer = read({ light: 20 }, { leaf: 1, top: 1 });
+
+    expect(buildPlantBenefits(shaded)).toEqual(buildPlantBenefits(dimmer));
+    expect(factor(buildPlantStressors(shaded), 'nutrients')).toBeCloseTo(
+      factor(buildPlantStressors(dimmer), 'nutrients'),
+      12
+    );
+  });
+
+  it('burns on the PAR at its crown top, whatever reaches its mean leaf', () => {
+    const edge = PLANT_SPECIES_DATA.amazon_sword.tolerableLight[1];
+    const burnt = (light: number, canopy: CanopyLight): number =>
+      factor(buildPlantStressors(read({ light }, canopy)), 'light');
+
+    expect(burnt(edge, { leaf: 2, top: 1 })).toBe(0);
+    expect(burnt(edge, { leaf: 0.5, top: 1.2 })).toBeCloseTo(burnt(edge * 1.2, { leaf: 1, top: 1 }), 12);
+    expect(burnt(edge, { leaf: 0.5, top: 1.2 })).toBeCloseTo(burnt(edge, { leaf: 3, top: 1.2 }), 12);
   });
 });
 

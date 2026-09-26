@@ -7,7 +7,11 @@
  *
  * Benefits are income: every channel is realised *through* photosynthesis,
  * so the light term multiplies all four and a plant earns nothing in the
- * dark.
+ * dark. A plant's vigour scales all four too — hardiness scales what harms
+ * it, vigour what it earns.
+ *
+ * Light is read at the plant's own height (see `plants/canopy.ts`): income,
+ * nutrient demand and starvation at its mean leaf, the burn at its crown top.
  *
  * Stressors:
  * - Light starvation (daily light integral under the species edge)
@@ -21,6 +25,7 @@
  */
 
 import type { Plant, Resources } from '../state.js';
+import type { CanopyLight } from '../plants/canopy.js';
 import { getPh } from '../core/carbonate.js';
 import { PLANT_SPECIES_DATA, dailyLightEdge, getSaturationIrradiance } from '../plants/species.js';
 import { dailyLightIntegral } from '../equipment/light.js';
@@ -57,11 +62,13 @@ export interface PlantVitalityContext {
    * threshold.
    */
   algaeMass: number;
+  /** Light at this plant's height over the substrate PAR, from the tick's one canopy pass. */
+  canopy: CanopyLight;
 }
 
-function lightSaturation({ plant, resources, plantsConfig }: PlantVitalityContext): number {
+function lightSaturation({ plant, resources, plantsConfig, canopy }: PlantVitalityContext): number {
   return lightSaturationFactor(
-    resources.light,
+    resources.light * canopy.leaf,
     getSaturationIrradiance(plant.species, plantsConfig)
   );
 }
@@ -79,19 +86,23 @@ export function lightShortfall(dailyLight: number, edge: number): number {
  * but nitrate, whose edge it moves instead.
  */
 export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[] {
-  const { plant, resources, waterVolume, plantsConfig, nutrientSufficiency, algaeMass } = ctx;
+  const { plant, resources, waterVolume, plantsConfig, nutrientSufficiency, algaeMass, canopy } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
   const factors: VitalityFactor[] = [];
 
   // Starvation reads the day the plant has had, so a scheduled night costs
   // nothing and a dead fixture bites as its light leaves the window. Its cost
-  // is respiration's, so it runs on respiration's Q10.
+  // is respiration's, so it runs on respiration's Q10. The day is read at
+  // today's canopy.
   factors.push({
     key: 'lightStarvation',
     label: 'Light starvation',
     amount:
       plantsConfig.lightStarvationSeverity *
-      lightShortfall(dailyLightIntegral(resources.lightByHour), dailyLightEdge(plant.species)) *
+      lightShortfall(
+        dailyLightIntegral(resources.lightByHour) * canopy.leaf,
+        dailyLightEdge(plant.species)
+      ) *
       getRespirationTemperatureFactor(resources.temperature, plantsConfig),
   });
 
@@ -99,7 +110,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   factors.push({
     key: 'light',
     label: 'Light high',
-    amount: plantsConfig.lightExcessiveSeverity * Math.max(0, resources.light - lightHi),
+    amount: plantsConfig.lightExcessiveSeverity * Math.max(0, resources.light * canopy.top - lightHi),
   });
 
   const ph = getPh(resources);
@@ -151,14 +162,14 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
 export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] {
   const { plant, resources, plantsConfig, nutrientSufficiency } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
-  const saturation = lightSaturation(ctx);
+  const earning = lightSaturation(ctx) * (1 + plant.vigour);
 
   return [
     {
       key: 'co2',
       label: 'CO2',
       amount:
-        saturation *
+        earning *
         plantsConfig.co2BenefitPeak *
         calculateCo2Factor(resources.co2, plant.species, plantsConfig),
     },
@@ -166,14 +177,14 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
       key: 'temperature',
       label: 'Temperature',
       amount:
-        saturation *
+        earning *
         plantsConfig.temperatureBenefitPeak *
         bandComfort(resources.temperature, species.tolerableTemp),
     },
     {
       key: 'ph',
       label: 'pH',
-      amount: saturation * plantsConfig.phBenefitPeak * bandComfort(getPh(resources), species.tolerablePH),
+      amount: earning * plantsConfig.phBenefitPeak * bandComfort(getPh(resources), species.tolerablePH),
     },
     {
       key: 'nutrients',
@@ -184,7 +195,7 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
       // two together let condition track sufficiency continuously for
       // plants whose only knob is nutrients.
       amount:
-        saturation *
+        earning *
         plantsConfig.nutrientBenefitPeak *
         Math.max(0, Math.min(1, nutrientSufficiency)),
     },

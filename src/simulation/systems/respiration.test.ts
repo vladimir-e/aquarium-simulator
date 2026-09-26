@@ -36,26 +36,26 @@ describe('calculateRespiration', () => {
 
   describe('stoichiometry', () => {
     it('burns one mole of O2 for every mole of carbon it releases', () => {
-      const result = calculateRespiration(100, 25, AIR_SATURATED_O2);
+      const result = calculateRespiration(1, 25, AIR_SATURATED_O2);
 
       expect(result.oxygenConsumedMg / MW_O2).toBeCloseTo(result.co2ProducedMg / MW_CO2, 10);
     });
   });
 
-  describe('scaling with plant size', () => {
-    it('respiration scales linearly with plant size', () => {
-      const result100 = calculateRespiration(100, 25, AIR_SATURATED_O2);
-      const result200 = calculateRespiration(200, 25, AIR_SATURATED_O2);
+  describe('scaling with leaf area', () => {
+    it('respiration scales linearly with rate units', () => {
+      const one = calculateRespiration(1, 25, AIR_SATURATED_O2);
+      const two = calculateRespiration(2, 25, AIR_SATURATED_O2);
 
-      expect(result200.oxygenConsumedMg).toBeCloseTo(result100.oxygenConsumedMg * 2, 6);
-      expect(result200.co2ProducedMg).toBeCloseTo(result100.co2ProducedMg * 2, 6);
+      expect(two.oxygenConsumedMg).toBeCloseTo(one.oxygenConsumedMg * 2, 6);
+      expect(two.co2ProducedMg).toBeCloseTo(one.co2ProducedMg * 2, 6);
     });
   });
 
   describe('temperature effects', () => {
     it('runs q10 faster ten degrees warmer', () => {
-      const result25 = calculateRespiration(100, 25, AIR_SATURATED_O2);
-      const result35 = calculateRespiration(100, 35, AIR_SATURATED_O2);
+      const result25 = calculateRespiration(1, 25, AIR_SATURATED_O2);
+      const result35 = calculateRespiration(1, 35, AIR_SATURATED_O2);
       const { respirationQ10 } = plantsDefaults;
 
       expect(result35.oxygenConsumedMg).toBeCloseTo(result25.oxygenConsumedMg * respirationQ10, 6);
@@ -65,7 +65,7 @@ describe('calculateRespiration', () => {
 
   describe('oxygen availability', () => {
     it('runs at half its base rate at the half-saturation constant', () => {
-      const half = calculateRespiration(100, 25, plantsDefaults.respirationOxygenHalfSaturation);
+      const half = calculateRespiration(1, 25, plantsDefaults.respirationOxygenHalfSaturation);
 
       expect(half.co2ProducedMg).toBeCloseTo(
         plantsDefaults.baseRespirationRate * plantsDefaults.co2PerRateUnit * 0.5,
@@ -74,7 +74,7 @@ describe('calculateRespiration', () => {
     });
 
     it('draws nothing at all from water with no oxygen in it', () => {
-      const result = calculateRespiration(100, 25, 0);
+      const result = calculateRespiration(1, 25, 0);
 
       expect(result.oxygenConsumedMg).toBe(0);
       expect(result.co2ProducedMg).toBe(0);
@@ -83,7 +83,7 @@ describe('calculateRespiration', () => {
     it('falls monotonically as the water empties, and never below zero', () => {
       let previous = Infinity;
       for (const oxygen of [8, 4, 2, 1, 0.5, 0.25, 0.1, 0]) {
-        const drawn = calculateRespiration(100, 25, oxygen).oxygenConsumedMg;
+        const drawn = calculateRespiration(1, 25, oxygen).oxygenConsumedMg;
         expect(drawn).toBeGreaterThanOrEqual(0);
         expect(drawn).toBeLessThan(previous);
         previous = drawn;
@@ -91,15 +91,15 @@ describe('calculateRespiration', () => {
     });
 
     it('carries the carbon down with the oxygen, so the moles still match', () => {
-      const result = calculateRespiration(100, 25, 0.2);
+      const result = calculateRespiration(1, 25, 0.2);
 
       expect(result.oxygenConsumedMg / MW_O2).toBeCloseTo(result.co2ProducedMg / MW_CO2, 12);
     });
   });
 
   describe('the rate', () => {
-    it('releases the configured carbon per unit at 100 % size and reference temp', () => {
-      const result = calculateRespiration(100, 25, AIR_SATURATED_O2);
+    it('releases the configured carbon per rate unit at reference temp', () => {
+      const result = calculateRespiration(1, 25, AIR_SATURATED_O2);
 
       const expectedCo2 =
         plantsDefaults.baseRespirationRate *
@@ -116,16 +116,16 @@ describe('calculateRespiration', () => {
         ...plantsDefaults,
         baseRespirationRate: plantsDefaults.baseRespirationRate * 2,
       };
-      const defaultResult = calculateRespiration(100, 25, AIR_SATURATED_O2, plantsDefaults);
-      const customResult = calculateRespiration(100, 25, AIR_SATURATED_O2, customConfig);
+      const defaultResult = calculateRespiration(1, 25, AIR_SATURATED_O2, plantsDefaults);
+      const customResult = calculateRespiration(1, 25, AIR_SATURATED_O2, customConfig);
 
       expect(customResult.oxygenConsumedMg).toBeCloseTo(defaultResult.oxygenConsumedMg * 2, 6);
     });
 
     it('moves both gases together when the carbon yield changes', () => {
       const customConfig = { ...plantsDefaults, co2PerRateUnit: plantsDefaults.co2PerRateUnit * 2 };
-      const defaultResult = calculateRespiration(100, 25, AIR_SATURATED_O2, plantsDefaults);
-      const customResult = calculateRespiration(100, 25, AIR_SATURATED_O2, customConfig);
+      const defaultResult = calculateRespiration(1, 25, AIR_SATURATED_O2, plantsDefaults);
+      const customResult = calculateRespiration(1, 25, AIR_SATURATED_O2, customConfig);
 
       expect(customResult.co2ProducedMg).toBeCloseTo(defaultResult.co2ProducedMg * 2, 6);
       expect(customResult.oxygenConsumedMg).toBeCloseTo(defaultResult.oxygenConsumedMg * 2, 6);

@@ -1,4 +1,6 @@
 import type { SimulationState } from '../../simulation/state.js';
+import type { TunableConfig } from '../../simulation/config/index.js';
+import { floorCover, floorShade } from '../../simulation/plants/canopy.js';
 import { freeAmmoniaPpm } from '../../simulation/systems/nitrogen-cycle.js';
 import { FREE_AMMONIA_EDGE } from '../../simulation/livestock/tolerance.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/helpers.js';
@@ -18,7 +20,7 @@ export interface Reading<Id extends string = string> {
   label: string;
   unit: string;
   digits: number;
-  read: (state: SimulationState) => number | null;
+  read: (state: SimulationState, config: TunableConfig) => number | null;
   band: Band;
   /** Unbanded on an uncycled start until the cycle has had its month. */
   cycle?: boolean;
@@ -137,13 +139,30 @@ const DEFINITIONS = [
     ofStart: true,
   },
   {
-    id: 'plant_size',
-    label: 'plant size Σ',
-    unit: '%',
-    digits: 0,
-    read: (s): number => s.plants.reduce((sum, p) => sum + p.size, 0),
+    id: 'plant_units',
+    label: 'plant units Σ',
+    unit: 'u',
+    digits: 1,
+    read: (s): number => s.plants.reduce((sum, p) => sum + p.size, 0) / 100,
     band: { green: [0.8, ANY], amber: [0.4, ANY], why: 'plants hold or grow under care; melting back by half is a problem' },
     ofStart: true,
+  },
+  {
+    id: 'cover',
+    label: 'floor cover',
+    unit: '×',
+    digits: 2,
+    read: (s): number | null => (s.plants.length === 0 ? null : floorCover(s.plants, s.tank.capacity)),
+    band: { green: [0.3, 1.2], amber: [0.1, 2], why: 'a planted floor is full, not stacked; a keeper thins past it' },
+  },
+  {
+    id: 'shade',
+    label: 'floor shade',
+    unit: '',
+    digits: 2,
+    read: (s, config): number | null =>
+      s.plants.length === 0 ? null : floorShade(s.plants, s.tank.capacity, config.optics),
+    band: { green: [0, 0.8], amber: [0, 0.95], why: 'past this the understory is in the dark' },
   },
   {
     id: 'plant_cond',

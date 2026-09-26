@@ -17,6 +17,7 @@ export type LogEvent =
   | 'eggs-hatched' // a clutch reached its hatch time — fry added
   | 'fish-died' // a fish died (any cause)
   | 'plant-died' // a plant died from poor conditions
+  | 'plant-propagated' // a full bank bought an offshoot — a runner, plantlet or rhizome branch
   | 'fry-sold'; // the sell-fry action removed every fry at once
 
 export interface LogEntry {

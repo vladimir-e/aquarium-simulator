@@ -91,7 +91,10 @@ describe('tick', () => {
     });
     const murky: TunableConfig = {
       ...DEFAULT_CONFIG,
-      optics: { waterAttenuationPerCm: DEFAULT_CONFIG.optics.waterAttenuationPerCm * 4 },
+      optics: {
+        ...DEFAULT_CONFIG.optics,
+        waterAttenuationPerCm: DEFAULT_CONFIG.optics.waterAttenuationPerCm * 4,
+      },
     };
 
     expect(tick(state, murky).resources.light).toBeLessThan(
@@ -203,7 +206,7 @@ describe('tick determinism', () => {
       { species: 'guppy', count: 3, sex: 'female' },
       { species: 'guppy', count: 2, sex: 'male' },
     ],
-    plants: [{ species: 'java_fern', count: 2, size: 120 }],
+    plants: [{ species: 'java_fern', count: 2, size: 90 }],
   };
 
   function fortnight(rngSeed: number): SimulationState {

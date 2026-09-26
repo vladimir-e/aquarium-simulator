@@ -158,7 +158,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     // Force a plant big enough to trim so the action reports work done.
     const inflated = {
       ...session.state,
-      plants: session.state.plants.map((p) => ({ ...p, size: 120 })),
+      plants: session.state.plants.map((p) => ({ ...p, size: 95 })),
     };
     const { state } = applyAction(inflated, { type: 'trimPlants', targetSize: 85 }, session.config);
     saveSession(

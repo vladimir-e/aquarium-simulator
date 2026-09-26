@@ -3,7 +3,9 @@ import {
   createSimulation,
   FISH_SPECIES_DATA,
   getMaxFishMass,
-  getMaxPlants,
+  calculateFloorArea,
+  checkPlantFootprint,
+  GROWTH_FORMS,
   type Fish,
   type PlantSpecies,
   type SimulationState,
@@ -120,22 +122,27 @@ describe('fish options', () => {
 });
 
 describe('plant options', () => {
-  it('reads the free slots against the tank’s ceiling', () => {
-    const anubias = option(plants(planted(1, 'java_fern')), 'anubias');
+  const clump = GROWTH_FORMS.attached.footprintCm2;
+  const floorFull = Math.floor(calculateFloorArea(19) / clump);
 
-    expect(anubias.headroom).toBe(getMaxPlants(19) - 1);
-    expect(anubias.fit).toBe(`${getMaxPlants(19) - 1} of ${getMaxPlants(19)} slots free`);
+  it('reads the floor left, and how many more units it takes', () => {
+    const anubias = option(plants(planted(1, 'java_fern')), 'anubias');
+    const free = calculateFloorArea(19) - clump;
+
+    expect(anubias.headroom).toBe(Math.floor(free / clump));
+    expect(anubias.fit).toBe(`${Math.round(free)} cm² of floor free`);
   });
 
-  it('refuses in the action’s own words once every slot is taken', () => {
-    const anubias = option(plants(planted(getMaxPlants(19), 'java_fern')), 'anubias');
+  it('refuses in the action’s own words once the floor is taken', () => {
+    const state = planted(floorFull, 'java_fern');
+    const anubias = option(plants(state), 'anubias');
 
     expect(anubias.headroom).toBe(0);
-    expect(anubias.refusal).toBe(`Tank at plant capacity (${getMaxPlants(19)} plants max)`);
+    expect(anubias.refusal).toBe(checkPlantFootprint(state.plants, 'anubias', 19).message);
   });
 
-  it('names the substrate before the slots — a full tank is the lesser problem', () => {
-    const state = planted(getMaxPlants(19), 'java_fern');
+  it('names the substrate before the floor — a full tank is the lesser problem', () => {
+    const state = planted(floorFull, 'java_fern');
     const carpet = option(plants(state), 'monte_carlo');
 
     expect(state.equipment.substrate.type).toBe('none');

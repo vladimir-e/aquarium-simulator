@@ -86,8 +86,10 @@ export interface SeedPlantGroup {
   species: PlantSpecies;
   /** Defaults to 1. */
   count?: number;
-  /** Size %, same scale as `Plant.size`. */
+  /** % of one full unit, as `Plant.size`: in (0, 100]. */
   size?: number;
+  /** Ticks it has already stood in the tank, as `Plant.age`. Defaults to 0. */
+  age?: number;
 }
 
 /**
@@ -309,6 +311,7 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
         createPlant({
           species: group.species,
           size: group.size,
+          age: group.age,
           rng: state.rng,
         })
       );

@@ -109,7 +109,11 @@ describe('readLedger', () => {
     });
 
     it('names the bank by which way the next tick moves it', () => {
-      for (const state of [planted(0, 2), planted(10, 2), planted(0), planted(10)]) {
+      const cap = DEFAULT_CONFIG.plants.surplusCap;
+      const budding = planted(10, cap);
+      const grown = { ...budding, plants: budding.plants.map((plant) => ({ ...plant, size: 100 })) };
+
+      for (const state of [planted(0, 2), planted(10, 2), planted(0), planted(10), grown]) {
         const moved = tick(state, DEFAULT_CONFIG).plants[0].surplus - state.plants[0].surplus;
 
         expect(plantLedger(state).bank!.note).toBe(moved > 0 ? 'banking' : 'buying growth');

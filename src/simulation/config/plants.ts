@@ -12,7 +12,7 @@ import { SURPLUS_CAP_DEFAULT } from './vitality.js';
 
 export interface PlantsConfig {
   // Photosynthesis constants
-  /** Base photosynthesis rate per 100% plant size per hour */
+  /** Base photosynthesis rate per rate unit per hour */
   basePhotosynthesisRate: number;
   /** Dissolved CO2 (mg/L) at which a low-need species photosynthesises at half rate. */
   lowCo2HalfSaturation: number;
@@ -30,7 +30,7 @@ export interface PlantsConfig {
   saturationIrradianceFactor: number;
 
   // Respiration constants
-  /** Base respiration rate per 100% plant size per hour */
+  /** Base respiration rate per rate unit per hour */
   baseRespirationRate: number;
   /** Q10 temperature coefficient (rate multiplier per 10°C) */
   respirationQ10: number;
@@ -41,7 +41,7 @@ export interface PlantsConfig {
 
   // Gas exchange
   /**
-   * mg of CO2 carried by one rate unit — one hour of 100 % plant size at base
+   * mg of CO2 carried by one rate unit — an hour of 500 cm² of leaf at base
    * rate under saturating light and carbon. Photosynthesis fixes it and respiration
    * releases it: one reaction run both ways, so one yield, and the day/night
    * asymmetry belongs to `baseRespirationRate`. The oxygen partner is not a
@@ -52,7 +52,7 @@ export interface PlantsConfig {
   // Surplus-driven growth knobs.
   /**
    * Share of the bank a plant draws toward new tissue each hour, before the
-   * `maxSize` taper.
+   * taper `1 − size/100` closes it down as the unit fills.
    */
   growthDrawRate: number;
   /**
@@ -67,7 +67,9 @@ export interface PlantsConfig {
    */
   sizePerSurplus: number;
   /**
-   * Ceiling on the bank. Income past full condition banks up to it.
+   * Ceiling on the bank. Income past full condition banks up to it, and a full
+   * bank buys an offshoot — nothing when that would be a unit under
+   * `deathSizeThreshold` (see `propagate`).
    * Shared default across organism types — see `SURPLUS_CAP_DEFAULT`.
    */
   surplusCap: number;
@@ -124,11 +126,11 @@ export interface PlantsConfig {
    * square of the condition deficit to nothing at 100.
    */
   maxSheddingRate: number;
-  /** Waste produced per unit of shed size (g per % size shed). */
+  /** Waste per % of a rate unit shed (g). */
   wastePerShedSize: number;
   /** Size below this triggers death (%). */
   deathSizeThreshold: number;
-  /** Waste produced when plant dies (g per % size). */
+  /** Waste per % of a rate unit a dying plant leaves (g). */
   wastePerPlantDeath: number;
 }
 
@@ -163,11 +165,11 @@ export const plantsDefaults: PlantsConfig = {
   // already in trouble.
   respirationOxygenHalfSaturation: 0.5,
 
-  // mg CO2 per rate unit. Pinned against a grown-in planted 150 L (≈1000 total
-  // plant size): it produces 0.5–1 mg/L/h of gross oxygen through the
-  // photoperiod. A rate unit is an hour of 100 % plant size at full carbon
-  // *and* saturating light. That tank admits 22.3–44.6, and the same claim
-  // read on a planting grown in from 350 admits 21.6–43.4.
+  // mg CO2 per rate unit. Pinned against a grown-in planted 150 L (≈10 rate
+  // units, some 5,000 cm² of leaf): it produces 0.5–1 mg/L/h of gross oxygen
+  // through the photoperiod. A rate unit is an hour of 500 cm² of leaf at full
+  // carbon *and* saturating light. That tank admits 22.3–44.6, and the same
+  // claim read on a planting grown in from 3.5 rate units admits 21.6–43.4.
   co2PerRateUnit: 30.0,
 
   // Surplus-driven growth — vitality banks the income a full-condition plant
@@ -176,8 +178,9 @@ export const plantsDefaults: PlantsConfig = {
   //
   // 2 %/h is a ~50-hour time constant, two days: how long a cutting takes to
   // stop sulking and start growing. The bank settles near a day or two of
-  // income, well under `surplusCap` until the taper closes the draw down, and
-  // that is what a plant carries into a bad spell.
+  // income, what a plant carries into a bad spell, and stays well under
+  // `surplusCap` until the taper closes the draw down and it fills to buy an
+  // offshoot.
   growthDrawRate: 0.02,
   // 5 %/h at growth rate 1: a sword spends a bank on repair with a ~20 h time
   // constant, a monte carlo in half that, an anubias over three days.
@@ -226,9 +229,11 @@ export const plantsDefaults: PlantsConfig = {
   // Squared in the deficit it is 0.5 %/h at condition 50 and 0.08 %/h at 80,
   // so a plant relit before its condition collapses keeps most of itself.
   maxSheddingRate: 0.02,
-  wastePerShedSize: 0.005, // 0.005 g waste per % size shed
-  deathSizeThreshold: 10, // death if size < 10 %
-  wastePerPlantDeath: 0.01, // 0.01 g waste per % size when dying
+  wastePerShedSize: 0.005,
+  // Retires a plant shed below 1 % of its unit; without it a starved one would
+  // linger as a rootstock indefinitely.
+  deathSizeThreshold: 1,
+  wastePerPlantDeath: 0.01,
 };
 
 export interface PlantsConfigMeta {
@@ -317,6 +322,6 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   // Lifecycle (shedding + death)
   { key: 'maxSheddingRate', label: 'Max Shedding Rate', unit: '/hr', min: 0.005, max: 0.1, step: 0.005 },
   { key: 'wastePerShedSize', label: 'Waste per Shed Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
-  { key: 'deathSizeThreshold', label: 'Death Size Threshold', unit: '%', min: 5, max: 20, step: 1 },
+  { key: 'deathSizeThreshold', label: 'Death Size Threshold', unit: '%', min: 0.5, max: 5, step: 0.5 },
   { key: 'wastePerPlantDeath', label: 'Waste per Plant Death', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
 ];

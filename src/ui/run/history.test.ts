@@ -9,6 +9,7 @@ import {
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
 import { getPpm } from '../../simulation/resources/index.js';
 import type { Fish, Plant } from '../../simulation/state.js';
+import { plantRecord } from '../../simulation/tests/plant.js';
 import { snapshot } from '../test/snapshot';
 
 function makeState(mutate: (draft: SimulationState) => void): SimulationState {
@@ -16,7 +17,7 @@ function makeState(mutate: (draft: SimulationState) => void): SimulationState {
 }
 
 function makePlant(size: number): Plant {
-  return { id: `p-${size}`, species: 'java_fern', size, condition: 80, surplus: 0 };
+  return plantRecord({ id: `p-${size}`, species: 'java_fern', size, condition: 80, surplus: 0 });
 }
 
 function makeFish(id: string, stage: Fish['stage']): Fish {

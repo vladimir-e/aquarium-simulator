@@ -23,6 +23,7 @@ export {
   createSimulation,
   scheduledLightHistory,
   calculateTankHeight,
+  calculateFloorArea,
   calculateTankGlassSurface,
   calculateHardscapeSlots,
   DEFAULT_HEATER,
@@ -38,8 +39,20 @@ export type { LogEntry, LogSeverity, LogEvent } from './core/logging.js';
 export type { RngState } from './core/rng.js';
 
 // Species
-export type { PlantSpecies, PlantSpeciesData, NutrientDemand } from './plants/species.js';
-export { PLANT_SPECIES_DATA, getSaturationIrradiance, dailyLightEdge } from './plants/species.js';
+export type {
+  PlantSpecies,
+  PlantSpeciesData,
+  NutrientDemand,
+  GrowthForm,
+  GrowthFormData,
+} from './plants/species.js';
+export {
+  PLANT_SPECIES_DATA,
+  GROWTH_FORMS,
+  growthFormOf,
+  getSaturationIrradiance,
+  dailyLightEdge,
+} from './plants/species.js';
 export type {
   FishSpecies,
   FishSpeciesData,
@@ -293,9 +306,8 @@ export {
   removePlant,
   isSubstrateCompatible,
   getSubstrateIncompatibilityReason,
-  getMaxPlants,
   canAddPlant,
-  checkPlantCapacity,
+  checkPlantFootprint,
   dose,
   canDose,
   getDosePreview,
@@ -333,17 +345,30 @@ export {
   speciesDemand,
   speciesHalfSaturation,
   nutrientShare,
-  getTotalPlantSize,
   calculateCo2Factor,
   calculateRespiration,
   getRespirationTemperatureFactor,
   spendSurplus,
+  propagate,
+  VIGOUR_SPAN,
   getSpeciesGrowthRate,
   computePlantVitality,
   plantHealingRate,
   buildPlantStressors,
   buildPlantBenefits,
+  readPlantVitality,
+  readPlantLight,
+  LEAF_AREA_PER_RATE_UNIT,
+  plantHeight,
+  leafArea,
+  rateUnits,
+  getTotalRateUnits,
+  canopyLight,
+  floorCover,
+  floorShade,
+  isOvergrown,
 } from './plants/index.js';
+export type { PlantLight, CanopyLight, Propagation } from './plants/index.js';
 
 // Livestock
 export {

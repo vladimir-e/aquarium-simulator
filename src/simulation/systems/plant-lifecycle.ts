@@ -11,6 +11,7 @@
 import type { Plant } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
+import { fullRateUnits } from '../plants/canopy.js';
 
 /** Tissue a plant drops this tick, and the waste it makes doing it. */
 export function calculateShedding(
@@ -20,23 +21,25 @@ export function calculateShedding(
   const deficit = Math.max(0, Math.min(1, 1 - plant.condition / 100));
   const sizeReduction = config.maxSheddingRate * deficit * deficit * plant.size;
 
-  return { sizeReduction, wasteProduced: sizeReduction * config.wastePerShedSize };
+  return {
+    sizeReduction,
+    wasteProduced: sizeReduction * fullRateUnits(plant.species) * config.wastePerShedSize,
+  };
 }
 
 export function shouldPlantDie(plant: Plant, config: PlantsConfig = plantsDefaults): boolean {
   return plant.condition <= 0 || plant.size < config.deathSizeThreshold;
 }
 
-/**
- * Calculate waste produced when a plant dies.
- *
- * @param plant - Dying plant
- * @param config - Plants configuration
- * @returns Waste produced in grams
- */
+/** A size a unit can be planted, trimmed or bought at: at most a full unit, and none the next tick retires. */
+export function isPlantableSize(size: number, config: PlantsConfig): boolean {
+  return size > 0 && size >= config.deathSizeThreshold && size <= 100;
+}
+
+/** Grams of waste a dying plant leaves: all of what is left of it. */
 export function calculateDeathWaste(
   plant: Plant,
   config: PlantsConfig = plantsDefaults
 ): number {
-  return plant.size * config.wastePerPlantDeath;
+  return plant.size * fullRateUnits(plant.species) * config.wastePerPlantDeath;
 }

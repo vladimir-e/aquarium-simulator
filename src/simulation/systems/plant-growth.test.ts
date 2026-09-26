@@ -1,49 +1,33 @@
 import { describe, it, expect } from 'vitest';
-import {
-  spendSurplus,
-  getSpeciesGrowthRate,
-  getSpeciesMaxSize,
-  asymptoticGrowthFactor,
-} from './plant-growth.js';
+import { spendSurplus, propagate, getSpeciesGrowthRate, growthTaper } from './plant-growth.js';
 import type { Plant } from '../state.js';
-import type { PlantSpecies } from '../plants/species.js';
-import { plantsConfigMeta, plantsDefaults } from '../config/plants.js';
+import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
+import { plantsConfigMeta, plantsDefaults, type PlantsConfig } from '../config/plants.js';
+import { plantRecord } from '../tests/plant.js';
 
 function makePlant(
   species: PlantSpecies,
   overrides: Partial<Plant> = {}
 ): Plant {
-  return {
+  return plantRecord({
     id: `p_${species}`,
     species,
     size: 50,
     condition: 100,
     surplus: 0,
     ...overrides,
-  };
+  });
 }
 
-describe('asymptoticGrowthFactor', () => {
-  it('returns 1.0 at size 0', () => {
-    expect(asymptoticGrowthFactor(0, 100)).toBe(1);
+describe('growthTaper', () => {
+  it('is whole at size 0 and closed at a full unit', () => {
+    expect(growthTaper(0)).toBe(1);
+    expect(growthTaper(100)).toBe(0);
   });
 
-  it('returns 0 at maxSize', () => {
-    expect(asymptoticGrowthFactor(100, 100)).toBe(0);
-  });
-
-  it('clamps to 0 above maxSize', () => {
-    expect(asymptoticGrowthFactor(150, 100)).toBe(0);
-  });
-
-  it('decays linearly between 0 and maxSize', () => {
-    expect(asymptoticGrowthFactor(25, 100)).toBe(0.75);
-    expect(asymptoticGrowthFactor(50, 100)).toBe(0.5);
-    expect(asymptoticGrowthFactor(75, 100)).toBe(0.25);
-  });
-
-  it('returns 0 when maxSize is 0', () => {
-    expect(asymptoticGrowthFactor(50, 0)).toBe(0);
+  it('closes linearly in between', () => {
+    expect(growthTaper(25)).toBe(0.75);
+    expect(growthTaper(75)).toBe(0.25);
   });
 });
 
@@ -70,38 +54,38 @@ describe('spendSurplus', () => {
   });
 
   it('grows whatever the condition: the bank buys size alongside healing', () => {
-    const well = makePlant('java_fern', { surplus: 10, size: 200 });
-    const hurt = makePlant('java_fern', { surplus: 10, size: 200, condition: 40 });
+    const well = makePlant('java_fern', { surplus: 10, size: 60 });
+    const hurt = makePlant('java_fern', { surplus: 10, size: 60, condition: 40 });
     expect(growth(hurt)).toBeCloseTo(growth(well), 12);
     expect(spendSurplus(hurt).condition).toBe(40);
   });
 
   it('the withdrawal buys the growth and nothing else', () => {
-    const plant = makePlant('java_fern', { surplus: 20, size: 300 });
+    const plant = makePlant('java_fern', { surplus: 20, size: 80 });
     const rate = getSpeciesGrowthRate('java_fern') * plantsDefaults.sizePerSurplus;
     expect(growth(plant)).toBeCloseTo(withdrawal(plant) * rate, 10);
   });
 
   it('leaves the rest of the bank alone', () => {
-    const plant = makePlant('java_fern', { surplus: 20, size: 300 });
+    const plant = makePlant('java_fern', { surplus: 20, size: 80 });
     expect(withdrawal(plant)).toBeLessThan(plant.surplus);
     expect(spendSurplus(plant).surplus).toBeGreaterThan(0);
   });
 
-  it('size gain = surplus × growthDrawRate × asymptoticFactor × speciesRate × sizePerSurplus', () => {
-    const plant = makePlant('java_fern', { surplus: 10, size: 200 });
+  it('size gain = surplus × growthDrawRate × (1 − size/100) × speciesRate × sizePerSurplus', () => {
+    const plant = makePlant('java_fern', { surplus: 10, size: 60 });
     const expected =
       10 *
       plantsDefaults.growthDrawRate *
-      asymptoticGrowthFactor(200, getSpeciesMaxSize('java_fern')) *
+      (1 - 60 / 100) *
       getSpeciesGrowthRate('java_fern') *
       plantsDefaults.sizePerSurplus;
     expect(growth(plant)).toBeCloseTo(expected, 10);
   });
 
   it('doubling the bank doubles both the growth and the withdrawal', () => {
-    const lean = makePlant('java_fern', { surplus: 5, size: 200 });
-    const fat = makePlant('java_fern', { surplus: 10, size: 200 });
+    const lean = makePlant('java_fern', { surplus: 5, size: 60 });
+    const fat = makePlant('java_fern', { surplus: 10, size: 60 });
     expect(growth(fat)).toBeCloseTo(growth(lean) * 2, 10);
     expect(withdrawal(fat)).toBeCloseTo(withdrawal(lean) * 2, 10);
   });
@@ -115,33 +99,44 @@ describe('spendSurplus', () => {
 
   it('costs the same bank whatever the species does with it', () => {
     const surplus = 10;
-    const slow = makePlant('anubias', { surplus, size: getSpeciesMaxSize('anubias') * 0.5 });
-    const fast = makePlant('monte_carlo', {
-      surplus,
-      size: getSpeciesMaxSize('monte_carlo') * 0.5,
-    });
+    const slow = makePlant('anubias', { surplus, size: 50 });
+    const fast = makePlant('monte_carlo', { surplus, size: 50 });
     expect(withdrawal(fast)).toBeCloseTo(withdrawal(slow), 10);
   });
 
-  it('a plant near maxSize grows less and pays less for it', () => {
+  it('a plant nearer full grows less and pays less for it', () => {
     const surplus = 10;
     const small = makePlant('java_fern', { surplus, size: 10 });
-    const large = makePlant('java_fern', {
-      surplus,
-      size: getSpeciesMaxSize('java_fern') * 0.9,
-    });
+    const large = makePlant('java_fern', { surplus, size: 90 });
     expect(growth(large)).toBeLessThan(growth(small));
     expect(withdrawal(large)).toBeLessThan(withdrawal(small));
   });
 
-  it('a plant at maxSize keeps its whole bank instead of burning it', () => {
-    const plant = makePlant('java_fern', {
-      surplus: 25,
-      size: getSpeciesMaxSize('java_fern'),
-    });
+  it('a full plant keeps its whole bank instead of burning it', () => {
+    const plant = makePlant('java_fern', { surplus: 25, size: 100 });
     const after = spendSurplus(plant);
     expect(after.size).toBe(plant.size);
     expect(after.surplus).toBe(plant.surplus);
+  });
+
+  it('buys at most 0.72 of what is left to a full unit in a tick, so never reaches it, at any bound the tunables allow', () => {
+    const bound = (key: keyof PlantsConfig): number =>
+      plantsConfigMeta.find((knob) => knob.key === key)!.max;
+    const config: PlantsConfig = {
+      ...plantsDefaults,
+      growthDrawRate: bound('growthDrawRate'),
+      sizePerSurplus: bound('sizePerSurplus'),
+    };
+    const fastest = (Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]).reduce((a, b) =>
+      getSpeciesGrowthRate(a) > getSpeciesGrowthRate(b) ? a : b
+    );
+
+    for (const size of [0, 50, 99, 99.999]) {
+      const plant = makePlant(fastest, { surplus: bound('surplusCap'), size });
+      const after = spendSurplus(plant, config);
+      expect(after.size - size).toBeLessThanOrEqual(0.72 * (100 - size) + 1e-9);
+      expect(after.size).toBeLessThan(100);
+    }
   });
 
   it('never withdraws more than the bank holds, at any rate a config can carry', () => {
@@ -159,5 +154,74 @@ describe('spendSurplus', () => {
         10
       );
     }
+  });
+});
+
+describe('propagate', () => {
+  const CAP = plantsDefaults.surplusCap;
+  const conversion = (species: PlantSpecies, config: PlantsConfig = plantsDefaults): number =>
+    getSpeciesGrowthRate(species) * config.sizePerSurplus;
+
+  it('fires iff the bank is at a cap above 0', () => {
+    expect(propagate(makePlant('java_fern', { surplus: CAP }))).not.toBeNull();
+    expect(propagate(makePlant('java_fern', { surplus: CAP - 1e-9 }))).toBeNull();
+    const capless = { ...plantsDefaults, surplusCap: 0 };
+    expect(propagate(makePlant('java_fern', { surplus: 0 }), capless)).toBeNull();
+    expect(propagate(makePlant('java_fern', { surplus: 5 }), capless)).toBeNull();
+  });
+
+  it('buys an offshoot of the bank at the growth conversion, untapered, and the parent pays exactly that', () => {
+    for (const species of Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]) {
+      for (const size of [10, 80, 99]) {
+        const plant = makePlant(species, { surplus: CAP, size });
+        const { parent, offshootSize } = propagate(plant)!;
+        expect(offshootSize).toBeCloseTo(Math.min(100, CAP * conversion(species)), 10);
+        expect(parent.surplus + offshootSize / conversion(species)).toBeCloseTo(plant.surplus, 10);
+        expect(parent.size).toBe(plant.size);
+      }
+    }
+  });
+
+  it('empties the bank on anything short of a full unit', () => {
+    const { parent } = propagate(makePlant('monte_carlo', { surplus: CAP }))!;
+    expect(parent.surplus).toBe(0);
+  });
+
+  it('caps the offshoot at a full unit and leaves the change in the bank', () => {
+    const rich = { ...plantsDefaults, sizePerSurplus: 2 * (100 / (CAP * getSpeciesGrowthRate('monte_carlo'))) };
+    const plant = makePlant('monte_carlo', { surplus: CAP });
+    const { parent, offshootSize } = propagate(plant, rich)!;
+    expect(offshootSize).toBe(100);
+    expect(parent.surplus).toBeCloseTo(CAP / 2, 10);
+    expect(parent.surplus + offshootSize / conversion('monte_carlo', rich)).toBeCloseTo(plant.surplus, 10);
+  });
+
+  it('buys a full unit at most, never overdrawing the bank, anywhere on the drawer grid', () => {
+    const { min, max, step } = plantsConfigMeta.find((knob) => knob.key === 'sizePerSurplus')!;
+    const grid = Array.from({ length: Math.round((max - min) / step) + 1 }, (_, i) =>
+      Number((min + i * step).toFixed(6))
+    );
+    for (const species of Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]) {
+      for (const sizePerSurplus of grid) {
+        const config = { ...plantsDefaults, sizePerSurplus };
+        const worth = CAP * conversion(species, config);
+        const bought = propagate(makePlant(species, { surplus: CAP }), config);
+        if (worth < config.deathSizeThreshold) {
+          expect(bought).toBeNull();
+          continue;
+        }
+        expect(bought!.offshootSize).toBeLessThanOrEqual(100);
+        expect(bought!.offshootSize).toBeCloseTo(Math.min(100, worth), 9);
+        expect(bought!.parent.surplus).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it('buys nothing a unit could not live at, and leaves the bank to heal and grow on', () => {
+    const plant = makePlant('anubias', { surplus: CAP });
+    const threshold = CAP * conversion('anubias');
+    expect(propagate(plant, { ...plantsDefaults, deathSizeThreshold: threshold })).not.toBeNull();
+    expect(propagate(plant, { ...plantsDefaults, deathSizeThreshold: threshold * 1.01 })).toBeNull();
+    expect(propagate(plant, { ...plantsDefaults, sizePerSurplus: 0 })).toBeNull();
   });
 });

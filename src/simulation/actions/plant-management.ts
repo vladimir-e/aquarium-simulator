@@ -3,57 +3,54 @@
  */
 
 import { produce } from 'immer';
-import type { SimulationState } from '../state.js';
+import { calculateFloorArea, type Plant, type SimulationState } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import type { SubstrateType } from '../equipment/substrate.js';
-import { PLANT_SPECIES_DATA } from '../plants/species.js';
+import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
+import { floorShare, plantedFootprint } from '../plants/canopy.js';
 import { createLog } from '../core/logging.js';
 import { createPlant, DEFAULT_PLANT_SIZE } from '../plants/create-plant.js';
 import { disturbBed } from '../equipment/index.js';
+import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
+import { isPlantableSize } from '../systems/plant-lifecycle.js';
 import type { ActionResult, AddPlantAction, RemovePlantAction } from './types.js';
 
-/** Liters per 5 gallons (basis for plant limit calculation) */
-const LITERS_PER_5_GALLONS = 18.927;
-
-/** Plants allowed per 5 gallons */
-const PLANTS_PER_5_GALLONS = 3;
-
-/**
- * Calculate maximum number of plants allowed for a given tank capacity.
- * Limit is 3 plants per 5 gallons, minimum 1 plant.
- */
-export function getMaxPlants(tankCapacity: number): number {
-  if (tankCapacity <= 0) return 0;
-  // 3 plants per 5 gallons, minimum 1
-  return Math.max(1, Math.floor((tankCapacity / LITERS_PER_5_GALLONS) * PLANTS_PER_5_GALLONS));
-}
-
-export interface PlantCapacityResult {
-  /** True if one more plant fits under the tank's slot ceiling. */
+export interface PlantFootprintResult {
   ok: boolean;
   /** Rejection message when `!ok`; empty string when it fits. */
   message: string;
+  /** Floor the planting leaves free, cm². */
+  free: number;
+  /** Floor one unit of the species claims, cm². */
+  needed: number;
 }
 
 /**
- * Single source of truth for the {@link addPlant} slot ceiling — the comparison
- * and its rejection message. Both the action and the demo UI call this, so the
- * count and the message can't drift apart. Mirrors {@link checkFishCapacity}.
+ * Single source of truth for the {@link addPlant} floor budget — the comparison
+ * and its rejection message. A unit fits when its footprint fits the floor the
+ * planting leaves free; an epiphyte on the rock claims its plan view like any
+ * other. Mirrors {@link checkFishCapacity}.
  */
-export function checkPlantCapacity(
-  plants: SimulationState['plants'],
+export function checkPlantFootprint(
+  plants: readonly Pick<Plant, 'species'>[],
+  species: PlantSpecies,
   tankCapacity: number
-): PlantCapacityResult {
-  const maxPlants = getMaxPlants(tankCapacity);
-  const ok = plants.length < maxPlants;
-  return { ok, message: ok ? '' : `Tank at plant capacity (${maxPlants} plants max)` };
+): PlantFootprintResult {
+  const free = Math.max(0, calculateFloorArea(tankCapacity) - plantedFootprint(plants));
+  const needed = growthFormOf(species).footprintCm2;
+  const ok = needed <= free;
+  return {
+    ok,
+    message: ok
+      ? ''
+      : `Not enough floor: ${Math.round(free)} cm² free, ${PLANT_SPECIES_DATA[species].name} needs ${needed}`,
+    free,
+    needed,
+  };
 }
 
-/**
- * Check if more plants can be added to the tank.
- */
-export function canAddPlant(state: SimulationState): boolean {
-  return checkPlantCapacity(state.plants, state.tank.capacity).ok;
+export function canAddPlant(state: SimulationState, species: PlantSpecies): boolean {
+  return checkPlantFootprint(state.plants, species, state.tank.capacity).ok;
 }
 
 /**
@@ -107,9 +104,13 @@ export function getSubstrateIncompatibilityReason(
 }
 
 /**
- * Add a plant to the tank.
+ * Add a plant to the tank, at a size between `deathSizeThreshold` and a full unit.
  */
-export function addPlant(state: SimulationState, action: AddPlantAction): ActionResult {
+export function addPlant(
+  state: SimulationState,
+  action: AddPlantAction,
+  plantsConfig: PlantsConfig = plantsDefaults
+): ActionResult {
   const { species, initialSize = DEFAULT_PLANT_SIZE } = action;
 
   // Validate species
@@ -120,18 +121,16 @@ export function addPlant(state: SimulationState, action: AddPlantAction): Action
     };
   }
 
-  // Validate initial size
-  if (!Number.isFinite(initialSize) || initialSize < 0 || initialSize > 200) {
+  if (!isPlantableSize(initialSize, plantsConfig)) {
     return {
       state,
-      message: `Invalid initial size: ${initialSize}% (must be 0-200%)`,
+      message: `Invalid initial size: ${initialSize}% (must be ${plantsConfig.deathSizeThreshold}–100%)`,
     };
   }
 
-  // Check plant capacity
-  const capacity = checkPlantCapacity(state.plants, state.tank.capacity);
-  if (!capacity.ok) {
-    return { state, message: capacity.message };
+  const footprint = checkPlantFootprint(state.plants, species, state.tank.capacity);
+  if (!footprint.ok) {
+    return { state, message: footprint.message };
   }
 
   // Check substrate compatibility
@@ -166,8 +165,8 @@ export function addPlant(state: SimulationState, action: AddPlantAction): Action
 }
 
 /**
- * Remove a plant from the tank. Uprooting one disturbs its slot's share of the
- * bed; an epiphyte comes off the hardscape without touching it.
+ * Remove a plant from the tank. Uprooting one disturbs its footprint's share of
+ * the bed; an epiphyte comes off the hardscape without touching it.
  */
 export function removePlant(
   state: SimulationState,
@@ -190,7 +189,7 @@ export function removePlant(
   const newState = produce(state, (draft) => {
     draft.plants.splice(plantIndex, 1);
     if (plantData.substrateRequirement !== 'none') {
-      disturbBed(draft, 1 / getMaxPlants(draft.tank.capacity));
+      disturbBed(draft, floorShare(plant.species, draft.tank.capacity));
     }
 
     draft.logs.push(
