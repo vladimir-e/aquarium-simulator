@@ -203,7 +203,7 @@ export function processPlants(
       // 8. Shedding and death.
       const { sizeReduction, wasteProduced } = calculateShedding(plant, plantsConfig);
       if (sizeReduction > 0) {
-        plant = { ...plant, size: Math.max(0, plant.size - sizeReduction) };
+        plant = { ...plant, size: plant.size - sizeReduction };
         shedWaste += wasteProduced;
       }
       if (plant.condition <= 0) {

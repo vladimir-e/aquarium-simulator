@@ -324,18 +324,31 @@ describe('processPlants', () => {
       expect(result.state.logs.filter((l) => l.event === 'plant-died')).toHaveLength(1);
     });
 
-    it('keeps a speck of a plant while it has condition', () => {
+    it('keeps a plant of any size exactly while its condition stays above 0', () => {
+      const plants = [1e-6, 0.5, 50].flatMap((size) =>
+        [0.1, 50].map((condition) =>
+          plantRecord({ id: `${size}@${condition}`, species: 'monte_carlo', size, condition, surplus: 0 })
+        )
+      );
+      const state = createTestState({ plants, light: 0, lightByHour: new Array(24).fill(0), temperature: 25, water: 100 });
+      const result = processPlants(state, DEFAULT_CONFIG);
+      const living = plants.filter((_, i) => result.vitalities[i].newCondition > 0).map((p) => p.id);
+
+      expect(living.length).toBeGreaterThan(0);
+      expect(living.length).toBeLessThan(plants.length);
+      expect(result.state.plants.map((p) => p.id)).toEqual(living);
+    });
+
+    it('grows a speck at full condition out of its bank', () => {
       const state = createTestState({
-        plants: [plantRecord({ id: 'speck', species: 'monte_carlo', size: 0.01, condition: 1, surplus: 0 })],
+        plants: [plantRecord({ id: 'speck', species: 'monte_carlo', size: 1e-3, condition: 100, surplus: BANK })],
         light: 0,
         lightByHour: LIT_DAY,
         temperature: 25,
         water: 100,
       });
-      const result = processPlants(state, DEFAULT_CONFIG);
 
-      expect(result.state.plants.map((p) => p.id)).toEqual(['speck']);
-      expect(result.state.logs.filter((l) => l.event === 'plant-died')).toHaveLength(0);
+      expect(processPlants(state, DEFAULT_CONFIG).state.plants[0].size).toBeGreaterThan(1e-3);
     });
 
     it('sheds nothing at full condition, bank or no bank', () => {

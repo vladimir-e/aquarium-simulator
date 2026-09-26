@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { scheduledLightHistory, type SimulationState } from '../../simulation/state.js';
-import { MIN_PLANTABLE_SIZE } from '../../simulation/plants/create-plant.js';
 import { READINGS } from '../scenarios/readings.js';
 import { toJson } from '../scenarios/report.js';
 import { keepTank, runScenario, sampleDays } from '../scenarios/run.js';
@@ -38,24 +37,13 @@ describe('runScenario', () => {
 
 describe('keepTank', () => {
   const nano = findSetup('nano');
-  const tuned = (plants: Partial<TunableConfig['plants']>, optics: Partial<TunableConfig['optics']> = {}): TunableConfig => ({
+  const tuned = (optics: Partial<TunableConfig['optics']>): TunableConfig => ({
     ...DEFAULT_CONFIG,
-    plants: { ...DEFAULT_CONFIG.plants, ...plants },
     optics: { ...DEFAULT_CONFIG.optics, ...optics },
   });
 
-  it('plants only a size a unit can be planted at', () => {
-    const planted = (size: number) => (): SimulationState =>
-      keepTank({ ...nano, plants: [{ species: 'java_fern', count: 1, size }] }, { config: DEFAULT_CONFIG, untilTick: 0 });
-
-    expect(planted(100)).not.toThrow();
-    expect(planted(MIN_PLANTABLE_SIZE)).not.toThrow();
-    expect(planted(101)).toThrow(/from 1 to 100/);
-    expect(planted(0.5)).toThrow(/from 1 to 100/);
-  });
-
   it('opens on the day of light its tuned optics give, not the shipped ones', () => {
-    const config = tuned({}, { waterAttenuationPerCm: 2 * DEFAULT_CONFIG.optics.waterAttenuationPerCm });
+    const config = tuned({ waterAttenuationPerCm: 2 * DEFAULT_CONFIG.optics.waterAttenuationPerCm });
     let opened: SimulationState | undefined;
     keepTank(nano, { config, untilTick: 0, observe: (state) => (opened ??= state) });
 

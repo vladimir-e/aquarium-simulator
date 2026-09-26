@@ -12,7 +12,7 @@ import type { PlantSpecies } from './species.js';
 /** Size a plant goes in at when the caller doesn't say — a young specimen. */
 export const DEFAULT_PLANT_SIZE = 50;
 
-/** Least a plant is planted or trimmed to, % of one full unit. */
+/** The smallest cutting a keeper handles, % of one full unit; below it a trim is a removal. */
 export const MIN_PLANTABLE_SIZE = 1;
 
 export function isPlantableSize(size: number): boolean {

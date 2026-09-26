@@ -205,10 +205,10 @@ describe('propagate', () => {
       for (const sizePerSurplus of grid) {
         const config = { ...plantsDefaults, sizePerSurplus };
         const worth = CAP * conversion(species, config);
-        const bought = propagate(makePlant(species, { surplus: CAP }), config);
-        expect(bought!.offshootSize).toBeLessThanOrEqual(100);
-        expect(bought!.offshootSize).toBeCloseTo(Math.min(100, worth), 9);
-        expect(bought!.parent.surplus).toBeGreaterThanOrEqual(0);
+        const { parent, offshootSize } = propagate(makePlant(species, { surplus: CAP }), config)!;
+        expect(offshootSize).toBeLessThanOrEqual(100);
+        expect(offshootSize).toBeCloseTo(Math.min(100, worth), 9);
+        expect(parent.surplus).toBeGreaterThanOrEqual(0);
       }
     }
   });

@@ -12,7 +12,7 @@ import {
 import { getSubstrateKhReserve } from './equipment/substrate.js';
 import { calculateMaxBacteria } from './systems/nitrogen-cycle.js';
 import { HARDSCAPE_TANNINS } from './equipment/hardscape.js';
-import { DEFAULT_PLANT_SIZE } from './plants/create-plant.js';
+import { DEFAULT_PLANT_SIZE, MIN_PLANTABLE_SIZE } from './plants/create-plant.js';
 import { getDgh, getDkh } from './resources/helpers.js';
 
 const TANK: SimulationConfig = { tankCapacity: 40, substrate: { type: 'aqua_soil' } };
@@ -389,6 +389,14 @@ describe('createSimulation seeding', () => {
       expect(
         state.plants.every((p) => p.condition === 100 && p.surplus === 0)
       ).toBe(true);
+    });
+
+    it('plants only a size a unit can be planted at', () => {
+      const planted = (size: number) => (): unknown => createSimulation(TANK, { plants: [{ species: 'java_fern', size }] });
+
+      expect(planted(MIN_PLANTABLE_SIZE)).not.toThrow();
+      expect(planted(100)).not.toThrow();
+      for (const size of [0, MIN_PLANTABLE_SIZE / 2, 100.5]) expect(planted(size)).toThrow(/size must be within/);
     });
 
     it('founds a family per record, each on a vigour of its own, at the age the group names', () => {

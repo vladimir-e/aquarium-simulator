@@ -1,7 +1,6 @@
 import { applyAction, tick, type Action, type SimulationState } from '../../simulation/index.js';
 import { createSimulation } from '../../simulation/state.js';
 import { getPh } from '../../simulation/core/carbonate.js';
-import { isPlantableSize, MIN_PLANTABLE_SIZE } from '../../simulation/plants/create-plant.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { toFahrenheit } from '../units.js';
 import {
@@ -59,18 +58,7 @@ interface KeepOptions {
 
 const ROUTINE_NO_OPS: ReadonlySet<Action['type']> = new Set(['scrubAlgae', 'trimPlants', 'topOff']);
 
-function assertPlantable(setup: Setup): void {
-  for (const { species, size } of setup.plants) {
-    if (size !== undefined && !isPlantableSize(size)) {
-      throw new Error(
-        `${species} at ${size}%: a plant is a % of one full unit, from ${MIN_PLANTABLE_SIZE} to 100.`
-      );
-    }
-  }
-}
-
 export function keepTank(setup: Setup, { config, untilTick, observe, onRefusal }: KeepOptions): SimulationState {
-  assertPlantable(setup);
   let state = createSimulation({ ...toConfig(setup), optics: config.optics }, toSeed(setup), RNG_SEED);
   observe?.(state);
   while (state.tick < untilTick) {

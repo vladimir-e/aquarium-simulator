@@ -11,16 +11,18 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **A plant dies only at condition 0** - a shrunken plant lives while it has condition; breaking: no `deathSizeThreshold`, plant actions take no config (v32).
-- **One vitality model** - (#70): condition moves by benefit minus damage, banks only at 100, and the bank heals at a species share.
-- **Plants starve on the day's light** - (#70): starvation reads 24 h of PAR, and income runs on nutrient sufficiency.
-- **Plants are units of a growth form** - (#70): size is 0–100 of one unit, rated by leaf, lit at its own height, claiming floor by footprint.
-- **A full bank buys a plant an offshoot** - (#70): units carry family, age and vigour, and a family trims alone.
-- **Low condition sheds a plant** - (#70): with the square of the deficit, and shed or dead tissue fouls the water at one yield.
-- **Harm starts at an edge** - (#70): water quality on log dose past each organism's edge, comfort peaking mid-band, alerts where harm starts.
-- **Plant nutrition saturates** - (#70): per-nutrient Monod on species demand, and fish release only the nitrogen they ate.
-- **The planted preset injects like a keeper** - (#70): 0.5 bps holds CO₂ at 20–30 mg/L.
-- **The console reads families, sickness and the day's light** - (#70): passes return what they computed, and log lines read in the keeper's units.
+- **A plant dies only at condition 0** (#71) - a shrunken plant lives while it has condition, and every planting, trim and seed runs from `MIN_PLANTABLE_SIZE` to 100; breaking: no `deathSizeThreshold`, `addPlant`/`trimPlants`/`canTrimPlants` take no config, `createSimulation` refuses an unplantable seed size (v32).
+- **A new tank opens on the optics it runs on** (#70) - `SimulationConfig.optics` lights its first day, and `relight` re-reads a tank at hour zero under others.
+- **A feeding adds what it weighs** (#70) - the food stock keeps its real mass instead of rounding to 0.01 g.
+- **One vitality model** (#70) - condition moves by benefit minus damage, banks only at 100, and the bank heals at a species share; breaking: `computeVitality` takes the bank, a `healingRate` and `hardened` factors, `spendSurplusOnGrowth` → `spendSurplus` (v30).
+- **Plants starve on the day's light** (#70) - starvation reads 24 h of PAR, and income runs on nutrient sufficiency; breaking: `Resources.lightByHour`, no `lightInsufficientSeverity` or `nutrientBenefitPeak` (v31).
+- **Plants are units of a growth form** (#70) - size is 0–100 of one unit, rated by leaf, lit at its own height and claiming floor by footprint; breaking: no `maxSize`, `checkPlantFootprint` replaces `getMaxPlants`, `getTotalRateUnits` replaces `getTotalPlantSize`, `canAddPlant` takes a species, `calculateRespiration` takes rate units, vitality and photosynthesis take each plant's light (v31).
+- **A full bank buys a plant an offshoot** (#70) - units carry family, age and vigour, and a family trims alone; breaking: `Plant` gains `parentId`, `familyId`, `age`, `vigour`, and `canTrimPlants` takes the trim (v31).
+- **Low condition sheds a plant** (#70) - with the square of the deficit, and shed or dead tissue fouls the water at one yield; breaking: no `sheddingConditionThreshold`/`deathConditionThreshold`, `wastePerSize` replaces `wastePerShedSize`/`wastePerPlantDeath` (v31).
+- **Harm starts at an edge** (#70) - water quality on log dose past each organism's edge, comfort peaking mid-band, alerts where harm starts; breaking: `nitrateStressSeverity`/`nitrateEdge` replace `nutrientToxicity*`, no `nitrateStressThreshold`/`oxygenStressThreshold`, `waterLevelAlertLine`/`algaeAlertLine` replace the fixed alert thresholds, `checkAlerts` takes the config (v29).
+- **Plant nutrition saturates** (#70) - per-nutrient Monod on species demand, and fish release only the nitrogen they ate; breaking: nutrients config reshaped, no `wasteToAmmoniaRatio` or `basalAmmoniaRate` (v29).
+- **The planted preset injects like a keeper** (#70) - 0.5 bps holds CO₂ at 20–30 mg/L.
+- **The console reads families, sickness and the day's light** (#70) - passes return what they computed, and log lines read in the keeper's units; breaking: such a log `message` holds `{0}`-style placeholders.
 - **A cycled tank carries its stock** - a `'cycled'` colony is sized to the load its fish and bed put on it at rest, so a stocked tank opens without a mini-cycle; `cycledColony` takes the state.
 - **Nitrifiers saturate on their substrate** - AOB and NOB oxidise at a Monod share of capacity, so a cycled tank holds hundredths of a ppm and a pulse stands until worked down; `aobAmmoniaHalfSaturation`, `nobNitriteHalfSaturation`.
 - **The bed collects mulm** - standing waste settles into the bed's organic reserve, less in strong flow, and a water change can vacuum a share of it out; `wasteSettlingRate`, `settlingHalfTurnover`, `--vac`.

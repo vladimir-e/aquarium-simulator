@@ -298,6 +298,8 @@ export {
   MIN_SCRUB_PERCENT,
   MAX_SCRUB_PERCENT,
   MIN_ALGAE_TO_SCRUB,
+  MIN_PLANTABLE_SIZE,
+  isPlantableSize,
   waterChange,
   WATER_CHANGE_AMOUNTS,
   trimPlants,
