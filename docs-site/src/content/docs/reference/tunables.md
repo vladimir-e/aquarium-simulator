@@ -25,9 +25,9 @@ declared minimum of `0.1`.
 | Temperature | `temperature.` | Drift toward the room, scaled by tank size |
 | Evaporation | `evaporation.` | Water lost per day, and how warmth accelerates it |
 | Algae | `algae.` | The bloom's stressors, benefits and mass dynamics |
-| Optics | `optics.` | What the water column takes out of the light on the way down |
+| Optics | `optics.` | What the water column and the leaves above take out of the light on the way down |
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
-| Plants | `plants.` | Photosynthesis, respiration, vitality, growth, lifecycle |
+| Plants | `plants.` | Photosynthesis, respiration, vitality, growth and offshoots, lifecycle |
 | Nutrients | `nutrients.` | Fertilizer formula, plant uptake and half-saturations, demand tiers, minerals in waste |
 | Livestock | `livestock.` | Metabolism, satiation, vitality, death |
 
@@ -130,6 +130,7 @@ density you can look up rather than a score.
 | Tunable | Meaning | Unit |
 |---|---|---|
 | `waterAttenuationPerCm` | Beer–Lambert attenuation of the water column, per cm of depth | /cm |
+| `leafAttenuationPerLai` | Beer–Lambert extinction of a canopy, per unit of leaf area index; at 0 leaves shade nothing and a plant reads the water alone | /LAI |
 
 ## Water chemistry
 
@@ -143,18 +144,18 @@ density you can look up rather than a score.
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `basePhotosynthesisRate` | Rate one unit of plant size fixes carbon at, under ideal conditions | /hr |
+| `basePhotosynthesisRate` | Rate one rate unit — 500 cm² of leaf — fixes carbon at, under ideal conditions | /hr |
 | `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which a species of each carbon need photosynthesises at half rate | mg/L |
 | `saturationIrradianceFactor` | Multiple of a species' band low at which its light response saturates | × band low |
 | `co2PerRateUnit` | CO₂ carried by one rate unit; oxygen derives from it at the molar ratio | mg |
-| `baseRespirationRate` | Dark respiration per unit of plant size, running around the clock | /hr |
+| `baseRespirationRate` | Dark respiration per rate unit of leaf, running around the clock | /hr |
 | `respirationQ10` | Factor respiration multiplies by per 10 °C | — |
 | `respirationReferenceTemp` | Temperature respiration and light starvation are quoted at | °C |
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which respiration runs at half rate | mg/L |
-| `growthDrawRate` | Share of the bank drawn toward new tissue each hour | /hr |
+| `growthDrawRate` | Share of the bank drawn toward new tissue each hour, before the taper `1 − size/100` | /hr |
 | `healingDrawRate` | Share of the bank that heals condition each hour, per unit of species growth rate | /hr per growth rate |
-| `sizePerSurplus` | Size gained per surplus unit converted, before the species growth multiplier | % |
-| `surplusCap` | Ceiling on the bank | % |
+| `sizePerSurplus` | Size gained per surplus unit converted, before the species growth multiplier — the conversion growth and offshoots share | % |
+| `surplusCap` | Ceiling on the bank; a full one buys an offshoot | % |
 | `lightStarvationSeverity` | Damage in a day without light, falling to nothing at the species' daily light edge; quoted at the respiration reference temperature | %/hr |
 | `lightExcessiveSeverity` | Damage per PAR unit above the species' tolerable band | %/PAR/hr |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
@@ -163,8 +164,8 @@ density you can look up rather than a score.
 | `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of bloom past the threshold, and the mass above which algae shades plants | %/algae/hr · — |
 | `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` · `nutrientBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all four are scaled by the light term | %/hr |
 | `maxSheddingRate` | Share of itself a plant sheds per hour at condition 0, falling with the square of the deficit | /hr |
-| `wastePerShedSize` · `wastePerPlantDeath` | Waste produced per unit of size shed, and per unit of size on death | g/% |
-| `deathSizeThreshold` | Size below which a plant dies | % |
+| `wastePerShedSize` · `wastePerPlantDeath` | Waste per % of a rate unit shed, and per % of a rate unit a dying plant leaves — so a unit fouls the water by its leaf, not its size | g/% |
+| `deathSizeThreshold` | Size below which a plant dies, and the least a plant is planted, trimmed or budded at | % |
 
 Every severity above is pre-hardiness. The species' own hardiness scales every
 channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
@@ -198,7 +199,7 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `satiationOverfedFloor` · `satiationWellFedFloor` · `satiationHungryCeiling` · `satiationStarvingCeiling` | The four edges dividing the satiation axis into overfed, well-fed, peckish, hungry and starving | % |
 | `satiationOverfedSeverity` · `satiationHungrySeverity` · `satiationStarvingSeverity` | Peak cost of each stressed band; the curve interpolates between the anchors | %/hr |
 | `satiationWellFedPeak` · `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor at its best | %/hr |
-| `plantBenefitSaturationPoint` | Plant power at which the planted-tank benefit stops growing | plants |
+| `plantBenefitSaturationPoint` | Plant power at which the planted-tank benefit stops growing | power |
 | `surplusCap` | Ceiling on the fish's bank; a female spawns on a full one | % |
 | `healingDrawRate` | Share of its bank a 1 g fish heals from each hour, scaled by adult mass to the −¼ | /hr at 1 g |
 | `deathDecayFactor` | Share of a dead fish's mass that becomes waste | — |
@@ -212,7 +213,8 @@ can move them at runtime.
 | Table | Holds |
 |---|---|
 | Fish species | Per species: adult mass, lifespan, hardiness, temperature / pH / flow tolerance bands, and a full breeding block — mode, clutch size, hatch time, fry mass, maturity age |
-| Plant species | Per species: growth rate, max size, hardiness, CO₂ requirement, substrate requirement, nutrient demand tier, and the PAR band it tolerates, whose low end sets the daily light it starves under |
+| Plant species | Per species: growth rate, growth form, hardiness, CO₂ requirement, substrate requirement, nutrient demand tier, and the PAR band it tolerates, whose low end sets the daily light it starves under |
+| Growth forms | Per form: what one full unit is — its height and how height grows with size, its footprint, its leaf area index — and what its offshoot is called |
 | Filters | Per type: biological surface, target turnover, flow ceiling, tank-size ceiling, and whether it is air-driven |
 | Substrates | Per type: colony surface per litre, and the organic and KH reserves a fresh bed holds per litre |
 | Hardscape | Per type: colony surface, and the tannins a fresh piece carries |

@@ -66,6 +66,7 @@ have been written to do.
 | Monod | `[S] / (K + [S])` | A stock something consumes — dissolved oxygen, a nutrient |
 | Q10 | `q10 ^ ((T − Tref) / 10)` | Temperature, on anything enzymatic |
 | Jassby–Platt | `tanh(PAR / Ik)` | Light. Nothing can overdraw it, so the curve comes from the leaf rather than from the pool |
+| Beer–Lambert | `exp(−k × x)` | Light on its way down, `x` the water or the leaf area above — so depth and a canopy share one exponent |
 | Piecewise anchors | Linear ramps between named points, continuous at every crossing | A tolerance axis, where the real response has inflections but no cliffs |
 | Band comfort | Symmetric parabola `4(x − lo)(hi − x) ⁄ (hi − lo)²` | The in-band benefit of a tolerance band — full at the centre, zero at each edge where the band's damage starts |
 | Log dose | `ln(x ⁄ edge)` past an edge, or `ln((edge + a) ⁄ (x + a))` under one, the offset `a` keeping it finite at zero | A toxin, where every doubling costs the same, or a shortfall like oxygen's — and, between two anchors, the fish O₂ benefit |

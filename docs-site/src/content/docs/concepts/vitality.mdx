@@ -60,8 +60,8 @@ and it ends when the rates turn round.
 
 | Organism | Low condition | The bank buys |
 |---|---|---|
-| Fish | Dies at 0 | A brood. A mature female spawns once her bank is full and a mature male of her species is in the tank, and the spawn empties it — see [Breeding](/subsystems/livestock/#breeding) |
-| Plant | Sheds tissue, with the square of the deficit; dies at 0 | Size. A plant draws `growthDrawRate` of its bank toward new tissue each hour, and only what becomes tissue leaves it |
+| Fish | Dies at 0 | A brood: a full bank buys a spawn, and the spawn empties it — see [Breeding](/subsystems/livestock/#breeding) |
+| Plant | Sheds tissue, with the square of the deficit; dies at 0 | Its growth and its offshoots: growth draws on the bank through a taper that closes as the unit fills, and a full bank buys a new unit of the family — see [Offshoots](/subsystems/plants/#offshoots) |
 
 ## Algae runs its own bank
 
@@ -78,7 +78,7 @@ touches mass, and the bank buys mass. See [Algae](/subsystems/algae/).
 | First-order healing | <Badge text="settled" variant="success" /> | The bank heals at a species share, with no floor and no switch — the same law growth draws on |
 | Sickness | <Badge text="settled" variant="success" /> | A reading of the rates, not a state: condition falling is the whole of it |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at each edge, and the matching damage starts from zero at or past it, so net never jumps as a reading leaves its band |
-| The brood | <Badge text="settled" variant="success" /> | A spawn is an event bought whole: the full bank is its price and refilling it is the cooldown, with no timers |
+| Brood and offshoot | <Badge text="settled" variant="success" /> | Each is an event a full bank buys: the bank is its price and refilling it is the cooldown, with no timers |
 | Algae's bank | <Badge text="scaffolding" variant="caution" /> | It banks and grows only while the lamp is on — a switch on light, not a rate |
 
 ## Source
