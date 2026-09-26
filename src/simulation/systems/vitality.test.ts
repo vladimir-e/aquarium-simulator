@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  bandComfort,
   computeVitality,
   bankSurplus,
   eFoldsPast,
@@ -484,5 +485,27 @@ describe('eFoldsPast', () => {
 
   it('adds the same amount for every doubling, wherever it starts', () => {
     expect(eFoldsPast(160, 80) - eFoldsPast(80, 80)).toBeCloseTo(eFoldsPast(640, 80) - eFoldsPast(320, 80), 12);
+  });
+});
+
+describe('bandComfort', () => {
+  const band = [20, 28] as const;
+
+  it('is zero at both edges and outside, and one at the centre', () => {
+    expect(bandComfort(20, band)).toBe(0);
+    expect(bandComfort(28, band)).toBe(0);
+    expect(bandComfort(15, band)).toBe(0);
+    expect(bandComfort(35, band)).toBe(0);
+    expect(bandComfort(24, band)).toBe(1);
+  });
+
+  it('leaves each edge continuously and is symmetric about the centre', () => {
+    expect(bandComfort(20 + 1e-9, band)).toBeLessThan(1e-9);
+    expect(bandComfort(22, band)).toBeCloseTo(bandComfort(26, band), 12);
+    expect(bandComfort(22, band)).toBeCloseTo(0.75, 12);
+  });
+
+  it('earns nothing from a band with no width', () => {
+    expect(bandComfort(5, [5, 5])).toBe(0);
   });
 });

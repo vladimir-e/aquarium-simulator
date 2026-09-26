@@ -192,7 +192,9 @@ describe('stressors', () => {
 
 describe('water quality', () => {
   const neonTolerance = toleranceFactor(FISH_SPECIES_DATA.neon_tetra.hardiness);
-  const freeFraction = (): number => freeAmmoniaPpm(makeResources({ ammonia: 100 }));
+  const [phLo, phHi] = FISH_SPECIES_DATA.neon_tetra.phRange;
+  const comfortablePh = (phLo + phHi) / 2;
+  const freeFraction = (): number => freeAmmoniaPpm(makeResources({ ammonia: 100, ph: comfortablePh }));
   const at: Record<string, (reading: number) => ResourceOverrides> = {
     ammonia: (free) => ({ ammonia: (100 * free) / freeFraction() }),
     nitrite: (ppm) => ({ nitrite: ppm * 100 }),
@@ -200,7 +202,7 @@ describe('water quality', () => {
     oxygen: (oxygen) => ({ oxygen }),
   };
   const netAt = (key: string, reading: number, fish: Partial<Fish> = {}): number =>
-    vitality(fish, at[key](reading)).breakdown.net;
+    vitality(fish, { ph: comfortablePh, ...at[key](reading) }).breakdown.net;
 
   it.each<[string, number]>([
     ['nitrite', NITRITE_EDGE],
@@ -384,6 +386,15 @@ describe('benefits', () => {
     const v = vitality({}, { ph: 8.5 });
     expect(benefitAmount(v, 'ph')).toBe(0);
     expect(stressorAmount(v, 'ph')).toBeGreaterThan(0);
+  });
+
+  it('grades the pH benefit from nothing at the edge to its peak at the band centre', () => {
+    const [lo, hi] = FISH_SPECIES_DATA.neon_tetra.phRange;
+    const earned = (ph: number): number => benefitAmount(vitality({}, { ph }), 'ph');
+    expect(earned(hi)).toBe(0);
+    expect(stressorAmount(vitality({}, { ph: hi }), 'ph')).toBe(0);
+    expect(earned((lo + hi) / 2)).toBeCloseTo(livestockDefaults.phBenefitPeak, 12);
+    expect(earned((lo + 3 * hi) / 4)).toBeCloseTo(0.75 * livestockDefaults.phBenefitPeak, 12);
   });
 });
 

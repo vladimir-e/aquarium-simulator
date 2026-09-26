@@ -133,9 +133,9 @@ export interface LivestockConfig {
   satiationStarvingSeverity: number;
 
   // Vitality benefit peaks (%/h) — recovery rate when each factor is
-  // in its tolerable band. Sum at all-good (no plants) ≈ 1.0 %/h; with
+  // at its best. Sum at all-good (no plants) ≈ 1.0 %/h; with
   // saturated planting it rises to ≈ 1.2 %/h.
-  /** pH inside species range. */
+  /** pH at the centre of the species range, falling to 0 at its edges. */
   phBenefitPeak: number;
   /** Oxygen, rising on log scale from `OXYGEN_EDGE` to full at `OXYGEN_COMFORT`. */
   oxygenBenefitPeak: number;

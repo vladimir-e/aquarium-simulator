@@ -124,17 +124,16 @@ export interface PlantsConfig {
    */
   upkeepReserveHours: number;
 
-  // Vitality benefit peaks (%/h) when the corresponding factor is in its
-  // tolerable band. Every one of them is realised through photosynthesis, so
+  // Vitality benefit peaks (%/h), each at the best its factor gets. Every one of them is realised through photosynthesis, so
   // all four are multiplied by the light term `tanh(PAR / Ik)`: the budget is
   // the plant's income, and good water is worth nothing at midnight. Sum at
   // saturating light ≈ 0.5 %/h — the calibration budget the plant recovery
   // curves were pinned against.
   /** CO2, earned in proportion to the species' carbon Monod. */
   co2BenefitPeak: number;
-  /** Temperature in tolerable range. */
+  /** Temperature at the centre of the tolerable band, falling to 0 at its edges. */
   temperatureBenefitPeak: number;
-  /** pH in tolerable range. */
+  /** pH at the centre of the tolerable band, falling to 0 at its edges. */
   phBenefitPeak: number;
   /** Nutrient sufficiency 1.0 (Liebig). */
   nutrientBenefitPeak: number;

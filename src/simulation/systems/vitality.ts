@@ -397,21 +397,13 @@ export function computeVitality(input: VitalityInput): VitalityResult {
 }
 
 /**
- * In-range benefit: `peak` while `value` is inside the `[lo, hi]`
- * tolerance band, zero outside. The matching stressor takes over once
- * the value crosses out of range, so the transition stays continuous in
- * the net-rate sense (lose `peak` of benefit, start gaining damage).
- *
- * Step-shaped on purpose: tolerance bands are mostly flat with cliff
- * edges (in/out of range), and a flat plateau keeps the benefit budget
- * near its ceiling when only one factor drops to the edge. Used by both
- * fish and plant vitality builders.
- *
- * `hi = Infinity` is a valid degenerate case — a one-sided "above
- * threshold" benefit.
+ * Share of a tolerance band's benefit earned at `value`: 1 at the band's
+ * centre, falling to 0 at either edge, where the matching stressor starts
+ * from 0. The cardinal model with its optimum at the midpoint.
  */
-export function inRangeBenefit(value: number, lo: number, hi: number, peak: number): number {
-  return value >= lo && value <= hi ? peak : 0;
+export function bandComfort(value: number, [lo, hi]: readonly [number, number]): number {
+  const width = hi - lo;
+  return width > 0 ? Math.max(0, (4 * (value - lo) * (hi - value)) / (width * width)) : 0;
 }
 
 export function outsideBand(value: number, [lo, hi]: readonly [number, number]): number {

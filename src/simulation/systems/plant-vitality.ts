@@ -39,8 +39,8 @@ import { getDgh, getPpm } from '../resources/index.js';
 import { calculateCo2Factor } from './photosynthesis.js';
 import { getRespirationTemperatureFactor } from './respiration.js';
 import {
+  bandComfort,
   computeVitality,
-  inRangeBenefit,
   outsideBand,
   type VitalityFactor,
   type VitalityResult,
@@ -176,8 +176,6 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
 export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] {
   const { plant, resources, plantsConfig, nutrientSufficiency } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
-  const [tempLo, tempHi] = species.tolerableTemp;
-  const [phLo, phHi] = species.tolerablePH;
   const saturation = lightSaturation(ctx);
 
   return [
@@ -194,17 +192,13 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
       label: 'Temperature',
       amount:
         saturation *
-        inRangeBenefit(
-          resources.temperature,
-          tempLo,
-          tempHi,
-          plantsConfig.temperatureBenefitPeak
-        ),
+        plantsConfig.temperatureBenefitPeak *
+        bandComfort(resources.temperature, species.tolerableTemp),
     },
     {
       key: 'ph',
       label: 'pH',
-      amount: saturation * inRangeBenefit(getPh(resources), phLo, phHi, plantsConfig.phBenefitPeak),
+      amount: saturation * plantsConfig.phBenefitPeak * bandComfort(getPh(resources), species.tolerablePH),
     },
     {
       key: 'nutrients',

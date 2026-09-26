@@ -56,9 +56,9 @@ import {
   toleranceFactor,
 } from '../livestock/tolerance.js';
 import {
+  bandComfort,
   computeVitality,
   eFoldsPast,
-  inRangeBenefit,
   outsideBand,
   type VitalityFactor,
   type VitalityResult,
@@ -222,13 +222,12 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
 function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
   const { fish, resources, plants, config } = ctx;
   const speciesData = FISH_SPECIES_DATA[fish.species];
-  const [phMin, phMax] = speciesData.phRange;
 
   return [
     {
       key: 'ph',
       label: 'pH',
-      amount: inRangeBenefit(getPh(resources), phMin, phMax, config.phBenefitPeak),
+      amount: config.phBenefitPeak * bandComfort(getPh(resources), speciesData.phRange),
     },
     {
       key: 'satiation',

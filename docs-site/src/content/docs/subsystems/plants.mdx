@@ -25,7 +25,7 @@ repair first and new tissue second.
 | Shedding | <Badge text="settled" variant="success" /> | A rate reading a rate — the share of the upkeep bill left standing, with no threshold in it. |
 | Nutrition | <Badge text="settled" variant="success" /> | Every nutrient saturates on its own Monod curve against a per-species demand, and uptake follows the plant's need rather than the fertilizer's ratio. |
 | Carbon limitation | <Badge text="settled" variant="success" /> | Monod on dissolved CO₂, half rate at the species' carbon-need half-saturation. It scales photosynthesis, uptake and the CO₂ income channel, and never damages: a carbon-short plant earns and grows less. |
-| Tolerance-band benefits | <Badge text="scaffolding" variant="caution" /> | A step. Crossing an edge on temperature or pH loses the whole channel at once *and* starts damage. |
+| Tolerance bands | <Badge text="settled" variant="success" /> | Temperature and pH earn most at the band's centre and nothing at its edge, where damage starts from zero: net is continuous across every edge. |
 | Photoperiod gates | <Badge text="scaffolding" variant="caution" /> | Two switches on `light > 0`: the light-low stressor and surplus accrual. A light-starved plant swings between 0 and full damage as the lamp flips while its benefits ramp smoothly. |
 | Size against `maxSize` | <Badge text="scaffolding" variant="caution" /> | The ceiling is 600–1100 across the roster and the asymptotic factor stays above 0.9 through any calibration window, so it does not bind. Trimming validates a target in `[0, 100]` against it. |
 | Propagation | <Badge text="missing" variant="danger" /> | A plant with nowhere left to grow banks its whole income and nothing spends it. No runners, no daughter plants — the only way a plant enters the tank is the keeper putting one there. |
@@ -44,7 +44,7 @@ repair first and new tissue second.
 | Dwarf Hairgrass | 25–200 | 50 | high | high | 0.3 | 5.5–7.8 | 1–18 dGH | aqua soil |
 | Monte Carlo | 30–200 | 60 | high | high | 0.3 | 5.5–7.8 | 1–15 dGH | aqua soil |
 
-pH and GH bands are the generous hobby care-sheet ranges, wide enough for fresh aqua soil and hard tap alike. Past an edge the damage grows with the distance, per pH unit or per dGH (`ghStressSeverity`, under Key tunables). Only pH also earns inside its band; GH is damage alone.
+pH and GH bands are the generous hobby care-sheet ranges, wide enough for fresh aqua soil and hard tap alike. Past an edge the damage grows linearly with the distance, per °C, pH unit or dGH (`ghStressSeverity`, under Key tunables). pH is already a log scale, so linear in pH is log in acidity. Temperature and pH also earn inside their bands; GH is damage alone.
 
 Saturating irradiance is derived, not declared: `saturationIrradianceFactor ×
 tolerableLight[0]`. One number therefore carries both light channels, and a
@@ -168,9 +168,17 @@ nothing.
 | Channel | Earns when | At saturating light |
 |---|---|---|
 | CO₂ | scales with the species' `co2Factor` | `co2BenefitPeak × co2Factor` |
-| Temperature | inside `tolerableTemp` | `temperatureBenefitPeak` |
-| pH | inside `tolerablePH` | `phBenefitPeak` |
+| Temperature | inside `tolerableTemp`, most at its centre | `temperatureBenefitPeak × comfort` |
+| pH | inside `tolerablePH`, most at its centre | `phBenefitPeak × comfort` |
 | Nutrients | scales linearly with sufficiency | `nutrientBenefitPeak × sufficiency` |
+
+```
+comfort = 4 (x − lo)(hi − x) / (hi − lo)²     // 1 at the centre, 0 at either edge
+```
+
+A cardinal curve with its optimum at the band's midpoint: flat near the
+centre, so a few degrees off costs little, and zero at the edge, so leaving
+the band swaps a vanishing benefit for a damage that starts from nothing.
 
 Against that income sits upkeep, charged every hour at
 `upkeepCost × q10(temperature)` — the same Q10 the gas layer's respiration runs
@@ -247,7 +255,7 @@ plant leaves the array.
 | `ghStressSeverity` | Damage per dGH outside the species' band | `0.1` %/dGH/hr |
 | GH per nitrate drawn | Calcium and magnesium taken up per mg of nitrate actually drawn, off leaf-tissue ratios; a constant | `0.28` mg CaCO₃/mg |
 | GH half-saturation | GH, as CaCO₃, at which that uptake runs at half; a constant | `1` mg/L |
-| Benefit peaks (×4) | Recovery per channel in band, before the light term. Four at `0.125` sum to the 0.5 %/h budget the recovery curves were pinned against | `0.125` %/hr |
+| Benefit peaks (×4) | Recovery per channel at its best, before the light term. Four at `0.125` sum to the 0.5 %/h budget the recovery curves were pinned against | `0.125` %/hr |
 | `deathConditionThreshold` · `deathSizeThreshold` | The two floors a plant leaves the tank through | `10` % each |
 
 ## Seams

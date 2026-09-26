@@ -275,14 +275,15 @@ describe('buildPlantBenefits', () => {
 
   const PEAKS = Object.values(PEAK).reduce((sum, peak) => sum + peak, 0);
 
+  const centre = ([lo, hi]: readonly [number, number]): number => (lo + hi) / 2;
+  const anubiasAtCentre = {
+    temperature: centre(PLANT_SPECIES_DATA.anubias.tolerableTemp),
+    ph: centre(PLANT_SPECIES_DATA.anubias.tolerablePH),
+  };
+
   it('emits all four channels at their peak share of the light term', () => {
     const plant = makePlant('anubias');
-    const resources = makeResources({
-      light: 30,
-      co2: 5,
-      temperature: 25,
-      ph: 7.0,
-    });
+    const resources = makeResources({ light: 30, co2: 5, ...anubiasAtCentre });
     const context = ctx(plant, resources);
     const benefits = buildPlantBenefits(context);
     const keys = benefits.map((b) => b.key).sort();
@@ -309,6 +310,31 @@ describe('buildPlantBenefits', () => {
     expect(co2Benefit('monte_carlo', 4)).toBeGreaterThan(0);
     expect(co2Benefit('monte_carlo', 25)).toBeGreaterThan(co2Benefit('monte_carlo', 4));
     expect(co2Benefit('monte_carlo', 4)).toBeLessThan(co2Benefit('anubias', 4));
+  });
+
+  it.each<['temperature' | 'ph', 'tolerableTemp' | 'tolerablePH']>([
+    ['temperature', 'tolerableTemp'],
+    ['ph', 'tolerablePH'],
+  ])('ramps the %s benefit from nothing at either edge to its peak at the band centre', (key, band) => {
+    const [lo, hi] = PLANT_SPECIES_DATA.amazon_sword[band];
+    const earnedAt = (reading: number): number =>
+      buildPlantBenefits(ctx(makePlant('amazon_sword'), makeResources({ [key]: reading }))).find(
+        (b) => b.key === key
+      )!.amount;
+    const harmAt = (reading: number): number =>
+      buildPlantStressors(ctx(makePlant('amazon_sword'), makeResources({ [key]: reading }))).find(
+        (s) => s.key === key
+      )!.amount;
+    const mid = (lo + hi) / 2;
+    const quarter = (hi - lo) / 4;
+
+    expect(earnedAt(lo)).toBe(0);
+    expect(earnedAt(hi)).toBe(0);
+    expect(harmAt(lo)).toBe(0);
+    expect(harmAt(hi)).toBe(0);
+    expect(earnedAt(lo + 1e-6)).toBeLessThan(1e-5);
+    expect(earnedAt(mid + quarter)).toBeCloseTo(earnedAt(mid - quarter), 12);
+    expect(earnedAt(mid - quarter)).toBeCloseTo(0.75 * earnedAt(mid), 12);
   });
 
   describe('the budget is income realised through photosynthesis', () => {
@@ -363,7 +389,7 @@ describe('buildPlantBenefits', () => {
 
     it('reads Ik off the tuned factor rather than a constant of its own', () => {
       const atFactor = (saturationIrradianceFactor: number): number =>
-        budget('anubias', makeResources({ light: 20 }), {
+        budget('anubias', makeResources({ light: 20, ...anubiasAtCentre }), {
           ...plantsDefaults,
           saturationIrradianceFactor,
         });
@@ -371,7 +397,7 @@ describe('buildPlantBenefits', () => {
       expect(atFactor(4)).toBeLessThan(atFactor(2));
       expect(atFactor(2)).toBeLessThan(atFactor(1));
       const carbonShort = PEAK.co2! * (1 - calculateCo2Factor(20, 'anubias'));
-      const resources = makeResources({ light: 20 });
+      const resources = makeResources({ light: 20, ...anubiasAtCentre });
       const nutrientShort =
         PEAK.nutrients! *
         (1 - calculateNutrientSufficiency(resources, resources.water, 'anubias', nutrientsDefaults));

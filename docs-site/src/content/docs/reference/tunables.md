@@ -161,7 +161,7 @@ density you can look up rather than a score.
 | `nutrientDeficiencySeverity` | Damage per unit of missing sufficiency, Liebig-gated | %/(1−suff)/hr |
 | `nutrientToxicitySeverity` · `nutrientToxicityThresholdNitrate` | The gross-overdose channel: what it costs per ppm past the threshold, and where that threshold starts | %/ppm/hr · ppm |
 | `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of bloom past the threshold, and the mass above which algae shades plants | %/algae/hr · — |
-| `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` · `nutrientBenefitPeak` | Recovery earned per factor in its tolerable band; all four are scaled by the light term | %/hr |
+| `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` · `nutrientBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all four are scaled by the light term | %/hr |
 | `maxSheddingRate` | Share of itself a plant sheds per hour when it can pay none of its upkeep | /hr |
 | `wastePerShedSize` · `wastePerPlantDeath` | Waste produced per unit of size shed, and per unit of size on death | g/% |
 | `deathConditionThreshold` · `deathSizeThreshold` | Condition and size below which a plant dies | % |
@@ -198,7 +198,7 @@ sum once, centrally, rather than each channel scaling itself.
 | `waterLevelStressThreshold` | Share of capacity the water-level stressor switches on under | % |
 | `satiationOverfedFloor` · `satiationWellFedFloor` · `satiationHungryCeiling` · `satiationStarvingCeiling` | The four edges dividing the satiation axis into overfed, well-fed, peckish, hungry and starving | % |
 | `satiationOverfedSeverity` · `satiationHungrySeverity` · `satiationStarvingSeverity` | Peak cost of each stressed band; the curve interpolates between the anchors | %/hr |
-| `satiationWellFedPeak` · `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor in its good band | %/hr |
+| `satiationWellFedPeak` · `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor at its best | %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which the planted-tank benefit stops growing | plants |
 | `surplusCap` | Saturation cap on the fish's reserve bank | % |
 | `deathDecayFactor` | Share of a dead fish's mass that becomes waste | — |
