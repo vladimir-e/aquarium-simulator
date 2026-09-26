@@ -49,8 +49,8 @@ export interface PlantSpeciesData {
   /**
    * Hardiness 0–1. Scales every stressor and the upkeep by
    * `1 − hardiness` — higher = species tolerates poor conditions
-   * better. Mirrors `FishSpeciesData.hardiness`. Anubias / Java Fern
-   * sit at 0.7 (forgiving), high-tech carpet species at 0.3 (fussy).
+   * better. Anubias / Java Fern sit around 0.7 (forgiving), high-tech
+   * carpet species at 0.3 (fussy).
    */
   hardiness: number;
   /**

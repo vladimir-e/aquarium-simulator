@@ -290,13 +290,13 @@ export interface AlertState {
   waterLevelCritical: boolean;
   /** Algae level is at 80+ (bloom warning) */
   highAlgae: boolean;
-  /** Free NH₃ is above danger threshold (>0.02 ppm) */
+  /** Free NH₃ is above `FREE_AMMONIA_EDGE` */
   highAmmonia: boolean;
-  /** Nitrite level is above danger threshold (>1.0 ppm) */
+  /** Nitrite is above `NITRITE_EDGE` */
   highNitrite: boolean;
-  /** Nitrate level is above danger threshold (>80 ppm) */
+  /** Nitrate is above `NITRATE_EDGE` */
   highNitrate: boolean;
-  /** Oxygen below critical threshold (< 4 mg/L) */
+  /** Oxygen is below `OXYGEN_EDGE` */
   lowOxygen: boolean;
   /** CO2 above harmful threshold (> 30 mg/L) */
   highCo2: boolean;

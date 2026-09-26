@@ -15,7 +15,7 @@
  *   concentration axis: it moves where harm starts, not how steeply it grows.
  *
  * Benefit factors (peaks tunable via `LivestockConfig`):
- * - pH in species range
+ * - pH, full at the band centre and zero at its edges
  * - Satiation in well-fed band (peak around mid-well-fed, zero at
  *   the band edges)
  * - Oxygen, rising from `OXYGEN_EDGE` to full at `OXYGEN_COMFORT`
@@ -40,7 +40,7 @@
 import type { Fish, Plant, Resources } from '../state.js';
 import { getPh } from '../core/carbonate.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
-import { getDgh } from '../resources/index.js';
+import { getDgh, getPpm } from '../resources/index.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';
@@ -138,21 +138,13 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   const ghStress =
     config.ghStressSeverity * outsideBand(getDgh(resources.gh, waterVolume), speciesData.ghRange);
 
-  // Ammonia stress — only the unionized NH3 fraction is acutely toxic.
-  // Zero-volume sentinel: tank fully drained but fish still present.
-  const freeNH3Ppm =
-    waterVolume > 0
-      ? freeAmmoniaPpm({ ...resources, water: waterVolume })
-      : resources.ammonia > 0
-        ? 100
-        : 0;
+  // Only the unionized NH3 fraction is acutely toxic.
+  const freeNH3Ppm = freeAmmoniaPpm({ ...resources, water: waterVolume });
   const ammoniaStress = config.ammoniaStressSeverity * eFoldsPast(freeNH3Ppm, FREE_AMMONIA_EDGE * tolerance);
-
-  const nitritePpm = waterVolume > 0 ? resources.nitrite / waterVolume : (resources.nitrite > 0 ? 100 : 0);
-  const nitriteStress = config.nitriteStressSeverity * eFoldsPast(nitritePpm, NITRITE_EDGE * tolerance);
-
-  const nitratePpm = waterVolume > 0 ? resources.nitrate / waterVolume : (resources.nitrate > 0 ? 100 : 0);
-  const nitrateStress = config.nitrateStressSeverity * eFoldsPast(nitratePpm, NITRATE_EDGE * tolerance);
+  const nitriteStress =
+    config.nitriteStressSeverity * eFoldsPast(getPpm(resources.nitrite, waterVolume), NITRITE_EDGE * tolerance);
+  const nitrateStress =
+    config.nitrateStressSeverity * eFoldsPast(getPpm(resources.nitrate, waterVolume), NITRATE_EDGE * tolerance);
 
   // Satiation stressor — band-aware label (Overfed / Hungry / Starving)
   // depending on which side of the well-fed peak the fish is sitting

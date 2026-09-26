@@ -10,7 +10,12 @@ import {
   type WaterReading,
 } from './water';
 import { ammoniaAlertLine, HIGH_CO2_THRESHOLD } from '../../simulation/alerts/index.js';
-import { NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
+import {
+  NITRATE_EDGE,
+  NITRITE_EDGE,
+  OXYGEN_COMFORT,
+  OXYGEN_EDGE,
+} from '../../simulation/livestock/tolerance.js';
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
 import { getKhMass } from '../../simulation/resources/index.js';
 
@@ -147,15 +152,14 @@ describe('gasReadings', () => {
   });
 
   it('calls oxygen low at the engine’s own alert threshold, and not before', () => {
-    expect(OXYGEN_EDGE).toBe(4);
-    expect(gas(3.9, 12, 'oxygen')).toMatchObject({ status: 'warn' });
-    expect(gas(5, 12, 'oxygen')).toMatchObject({ status: 'neutral' });
-    expect(gas(6, 12, 'oxygen')).toMatchObject({ status: 'ok' });
+    expect(gas(OXYGEN_EDGE * 0.99, 12, 'oxygen')).toMatchObject({ status: 'warn' });
+    expect(gas(OXYGEN_EDGE, 12, 'oxygen')).toMatchObject({ status: 'neutral' });
+    expect(gas((OXYGEN_EDGE + OXYGEN_COMFORT) / 2, 12, 'oxygen')).toMatchObject({ status: 'neutral' });
+    expect(gas(OXYGEN_COMFORT, 12, 'oxygen')).toMatchObject({ status: 'ok' });
   });
 
   it('calls CO₂ high only past the threshold its alert fires on', () => {
-    expect(HIGH_CO2_THRESHOLD).toBe(30);
-    expect(gas(7, 30.1, 'co2')).toMatchObject({ status: 'alert' });
-    expect(gas(7, 30, 'co2')).toMatchObject({ status: 'neutral' });
+    expect(gas(7, HIGH_CO2_THRESHOLD * 1.01, 'co2')).toMatchObject({ status: 'alert' });
+    expect(gas(7, HIGH_CO2_THRESHOLD, 'co2')).toMatchObject({ status: 'neutral' });
   });
 });

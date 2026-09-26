@@ -402,9 +402,9 @@ export function eFoldsPast(value: number, edge: number): number {
 }
 
 /**
- * How many e-folds `value` stands under `edge`, zero at or over it. A reading
- * under `floor` counts as the floor, which keeps the log finite at zero.
+ * How many e-folds `value` stands under `edge`, zero at or over it, both read
+ * `offset` higher so the log stays smooth and finite all the way to zero.
  */
-export function eFoldsUnder(value: number, edge: number, floor: number): number {
-  return eFoldsPast(edge, Math.max(value, floor));
+export function eFoldsUnder(value: number, edge: number, offset: number): number {
+  return value < edge ? Math.log((edge + offset) / (Math.max(value, 0) + offset)) : 0;
 }

@@ -1,7 +1,6 @@
 /**
- * Where water quality starts to harm a fish. Each edge is where the matching
- * alert fires; hardiness moves a fish's own edge out from it along the
- * concentration axis, so the alert leads every fish.
+ * The water-quality edges the alerts fire at. Each fish's own edge sits past
+ * its alert's by `toleranceFactor(hardiness)`, so the alert leads every fish.
  */
 
 /** Free (unionized) NH₃, ppm. */
@@ -13,13 +12,13 @@ export const NITRITE_EDGE = 0.5;
 /** Nitrate as NO₃⁻, ppm. */
 export const NITRATE_EDGE = 80;
 
-/** Dissolved oxygen, mg/L — harm below it. */
+/** Dissolved oxygen, mg/L — the alert fires below it. */
 export const OXYGEN_EDGE = 4;
 
 /** Dissolved oxygen at which the oxygen benefit is full, mg/L. */
 export const OXYGEN_COMFORT = 6;
 
-/** Dissolved oxygen no fish can extract below, mg/L. */
+/** mg/L added to both sides of the oxygen log, keeping harm finite at zero. */
 export const ANOXIA = 0.1;
 
 /** How far past the edge a fish of hardiness 1 tolerates. */

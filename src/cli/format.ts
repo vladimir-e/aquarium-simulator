@@ -2,7 +2,16 @@
  * Output formatters for `sim observe` (markdown) and `sim trace` (CSV).
  */
 
-import { getDgh, getDkh, getPh, type SimulationState } from '../simulation/index.js';
+import {
+  getDgh,
+  getDkh,
+  getPh,
+  NITRATE_EDGE,
+  NITRITE_EDGE,
+  OXYGEN_EDGE,
+  type SimulationState,
+} from '../simulation/index.js';
+import { ammoniaAlertLine, HIGH_CO2_THRESHOLD } from '../simulation/alerts/index.js';
 import { bacteriaReadout, colonyCount, cycleWord, type Colony } from '../ui/run/index.js';
 import type { Session } from './session.js';
 import type { HistorySnapshot } from './history.js';
@@ -29,9 +38,9 @@ export function renderObserve(session: Session): string {
   const day = Math.floor(state.tick / 24) + 1;
   const name = session.name ? `"${session.name}"` : '(unnamed)';
 
-  const nh3 = round(toPpm(r.ammonia, r.water), 3);
-  const no2 = round(toPpm(r.nitrite, r.water), 3);
-  const no3 = round(toPpm(r.nitrate, r.water), 2);
+  const nh3 = toPpm(r.ammonia, r.water);
+  const no2 = toPpm(r.nitrite, r.water);
+  const no3 = toPpm(r.nitrate, r.water);
   const po4 = round(toPpm(r.phosphate, r.water), 3);
 
   const waterPct = Math.round((r.water / state.tank.capacity) * 100);
@@ -60,13 +69,13 @@ export function renderObserve(session: Session): string {
     )} · KH ${round(getDkh(r.kh, r.water), 1)} dKH · GH ${round(getDgh(r.gh, r.water), 1)} dGH · water ${round(r.water, 1)}L (${waterPct}%)`,
     '',
     '**Nitrogen**',
-    `- NH3: ${nh3} ppm${warningSymbol(nh3 > 0.1)}`,
-    `- NO2: ${no2} ppm${warningSymbol(no2 > 1.0)}`,
-    `- NO3: ${no3} ppm${warningSymbol(no3 > 80)}`,
+    `- NH3: ${round(nh3, 3)} ppm${warningSymbol(nh3 > ammoniaAlertLine(r))}`,
+    `- NO2: ${round(no2, 3)} ppm${warningSymbol(no2 > NITRITE_EDGE)}`,
+    `- NO3: ${round(no3, 2)} ppm${warningSymbol(no3 > NITRATE_EDGE)}`,
     `- Biofilter: ${cycleWord(bacteria.cycled)} · AOB ${colony(bacteria.aob)} · NOB ${colony(bacteria.nob)}`,
     '',
     `**Gases** O2 ${round(r.oxygen, 2)} · CO2 ${round(r.co2, 2)} mg/L${warningSymbol(
-      r.oxygen < 4 || r.co2 > 30
+      r.oxygen < OXYGEN_EDGE || r.co2 > HIGH_CO2_THRESHOLD
     )}`,
     `**Nutrients** PO4 ${po4} · K ${round(toPpm(r.potassium, r.water), 2)} · Fe ${round(
       toPpm(r.iron, r.water),

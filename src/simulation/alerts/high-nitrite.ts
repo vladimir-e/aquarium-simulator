@@ -1,7 +1,6 @@
 /**
- * High nitrite alert.
- * Triggers once when nitrite crosses the line where it starts to harm fish.
- * Resets when nitrite level drops below threshold.
+ * High nitrite alert — fires once when nitrite crosses its edge, ahead of
+ * every fish's own, and resets below it.
  *
  * Nitrite is stored as mass (mg), so ppm is derived from mass/water.
  */

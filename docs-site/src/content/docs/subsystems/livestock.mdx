@@ -19,7 +19,7 @@ in, and the bank that health leaves over is what pays for the next spawn.
 |---|---|---|
 | Metabolism | <Badge text="settled" variant="success" /> | Draw, deamination and CO₂ on one Monod factor off one half-saturation constant. Deamination is metabolism, so a depressed fish excretes proportionally less nitrogen. |
 | Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces-bound N come out of one food-nitrogen budget, so the waste mass is derived rather than a free parameter. A fish releases only the nitrogen it ate: a fasting fish releases none. |
-| Satiation | <Badge text="settled" variant="success" /> | One continuous piecewise curve producing both a stressor and a benefit, zero at every band edge. This is what the rest of the engine's bands should look like. |
+| Satiation | <Badge text="settled" variant="success" /> | One continuous piecewise curve producing both a stressor and a benefit, zero at every band edge. |
 | Water quality | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen harm on log dose from each fish's own edge, which hardiness moves out from the alert's. Chloride, which blunts nitrite, is not modelled. |
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits — as `1 − hardiness` for most, and on the concentration axis for water quality. A hardy fish tolerates bad water but isn't more energised by good. |
 | Age | <Badge text="settled" variant="success" /> | A linear stressor ramp past the species lifespan, through the same channel as every other stressor. No probabilistic cliff. |
@@ -69,8 +69,8 @@ A fish regulates its uptake until the water falls past its critical oxygen
 tension, so the half-saturation constant sits at 1.0 mg/L — the highest in the
 tank. Fish feel a shortage before the bacteria do.
 
-Every nitrogen flow starts from food eaten, so a fish that eats nothing loads the
-water with nothing. Feces sit outside the factor because that nitrogen was never
+Every nitrogen flow starts from food eaten, so a fish that eats nothing releases
+no nitrogen. Feces sit outside the factor because that nitrogen was never
 absorbed, and the gut does not care what the gills are getting. The nitrogen a
 depressed fish does not deaminate stays in its body, which is an untracked sink.
 Minerals take no such detour: food carries phosphate, potassium and iron at
@@ -158,12 +158,12 @@ positive net rate, banking the reserve breeding spends.
 #### Water quality
 
 Each water-quality stressor is its severity times the e-folds past the fish's
-own edge — `ln(reading ⁄ edge)`, or `ln(edge ⁄ reading)` for oxygen, read no
-lower than anoxia at 0.1 mg/L — because toxicity runs on log dose: every
-doubling costs the same. Hardiness moves a fish's edge out from the alert's by
-`2^hardiness`, and down by the same factor for oxygen. Effective hardiness is
-clamped to [0.1, 0.95], so the alert fires before any fish takes damage and no
-fish's edge reaches twice the alert's. A hardy species differs in where harm
+own edge — `ln(reading ⁄ edge)`, or for oxygen `ln((edge + a) ⁄ (reading + a))`,
+where anoxia `a` = 0.1 mg/L keeps it finite at zero — because toxicity runs on
+log dose: every doubling costs the same. Hardiness moves a fish's edge out from
+the alert's by `2^hardiness`, and down by the same factor for oxygen. Effective
+hardiness is clamped to [0.1, 0.95], so the alert fires before any fish takes
+damage and no fish's edge reaches twice the alert's. A hardy species differs in where harm
 starts, not in how steeply it grows, and still dies at the lethal levels.
 Each severity puts a mid-hardiness fish at its 96-hour LC50 one %/h past what a
 clean tank gives back, so it dies in about four days.

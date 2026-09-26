@@ -449,14 +449,16 @@ describe('eFoldsPast', () => {
 });
 
 describe('eFoldsUnder', () => {
-  it('is zero at or above the edge and the log of the ratio under it', () => {
+  it('is zero at or above the edge and the log of the offset ratio under it', () => {
     expect(eFoldsUnder(5, 4, 0.1)).toBe(0);
     expect(eFoldsUnder(4, 4, 0.1)).toBe(0);
-    expect(eFoldsUnder(4 / Math.E, 4, 0.1)).toBeCloseTo(1, 12);
+    expect(eFoldsUnder(4.1 / Math.E - 0.1, 4, 0.1)).toBeCloseTo(1, 12);
   });
 
-  it('reads anything under the floor as the floor', () => {
-    expect(eFoldsUnder(0, 4, 0.1)).toBe(eFoldsUnder(0.1, 4, 0.1));
+  it('stays finite at zero and still rises toward it', () => {
+    expect(Number.isFinite(eFoldsUnder(0, 4, 0.1))).toBe(true);
+    expect(eFoldsUnder(0, 4, 0.1)).toBeGreaterThan(eFoldsUnder(0.05, 4, 0.1));
+    expect(eFoldsUnder(0.05, 4, 0.1)).toBeGreaterThan(eFoldsUnder(0.1, 4, 0.1));
   });
 });
 

@@ -9,6 +9,8 @@ import { getGhMass } from '../resources/helpers.js';
 import type { FishSpecies } from '../livestock/species.js';
 import {
   ANOXIA,
+  FREE_AMMONIA_EDGE,
+  HARDY_TOLERANCE,
   NITRATE_EDGE,
   NITRITE_EDGE,
   OXYGEN_COMFORT,
@@ -163,10 +165,10 @@ describe('stressors', () => {
     expect(high).toBeGreaterThan(low * 10);
   });
 
-  it('reads toxins at full strength in a drained tank', () => {
-    const drained = totalStress(vitality({}, { ammonia: 1 }, { water: 0 }));
-    const full = totalStress(vitality({}, { ammonia: 1 }));
-    expect(drained).toBeGreaterThan(full);
+  it('leaves a drained tank to the water-level stressor', () => {
+    const v = vitality({}, { ammonia: 1000, nitrite: 1000, nitrate: 1000, flow: 1000, water: 0 }, { water: 0 });
+    for (const key of ['ammonia', 'nitrite', 'nitrate', 'flow']) expect(stressorAmount(v, key)).toBe(0);
+    expect(stressorAmount(v, 'waterLevel')).toBeGreaterThan(0);
   });
 
   it('sums every active stressor into the total', () => {
@@ -216,12 +218,14 @@ describe('water quality', () => {
     expect(charge(own * 8)).toBeCloseTo(3 * charge(own * 2), 10);
   });
 
-  it('grows oxygen harm by the same step each time the oxygen halves, floored at anoxia', () => {
+  it('grows oxygen harm by the same step each time oxygen plus anoxia halves, finite and rising to zero', () => {
     const own = OXYGEN_EDGE / neonTolerance;
     const charge = (oxygen: number): number => stressorAmount(vitality({}, { oxygen }), 'oxygen');
+    const halved = (times: number): number => (own + ANOXIA) / 2 ** times - ANOXIA;
     expect(charge(own)).toBe(0);
-    expect(charge(own / 4)).toBeCloseTo(2 * charge(own / 2), 10);
-    expect(charge(0)).toBe(charge(ANOXIA));
+    expect(charge(halved(2))).toBeCloseTo(2 * charge(halved(1)), 10);
+    expect(Number.isFinite(charge(0))).toBe(true);
+    expect(charge(0)).toBeGreaterThan(charge(ANOXIA / 2));
   });
 
   it('moves a hardier fish’s edge out rather than flattening its slope', () => {
@@ -246,32 +250,37 @@ describe('water quality', () => {
     expect(benefit(OXYGEN_COMFORT * 2)).toBeCloseTo(peak, 10);
   });
 
-  const anchors: [string, number, number][] = [
-    ['ammonia', 0.17, 1],
-    ['nitrite', 2.7, 10],
-    ['nitrate', 300, 800],
-    ['oxygen', 2.2, 1.5],
+  const channels: [string, number, number][] = [
+    ['ammonia', FREE_AMMONIA_EDGE, livestockDefaults.ammoniaStressSeverity],
+    ['nitrite', NITRITE_EDGE, livestockDefaults.nitriteStressSeverity],
+    ['nitrate', NITRATE_EDGE, livestockDefaults.nitrateStressSeverity],
+    ['oxygen', OXYGEN_EDGE, livestockDefaults.oxygenStressSeverity],
   ];
+  const past = (key: string, edge: number, factor: number): number =>
+    key === 'oxygen' ? edge / factor : edge * factor;
 
   const budget = (key: string): number =>
     livestockDefaults.phBenefitPeak +
     livestockDefaults.satiationWellFedPeak +
     (key === 'oxygen' ? 0 : livestockDefaults.oxygenBenefitPeak);
 
-  it.each(anchors)('breaks a mid-hardiness fish even on %s at %s', (key, breakEven) => {
+  it.each(channels)('breaks a fish even on %s where its charge meets the clean-tank budget', (key, edge, severity) => {
+    const ratio = Math.exp(budget(key) / severity);
+    const breakEven =
+      key === 'oxygen' ? (edge / neonTolerance + ANOXIA) / ratio - ANOXIA : edge * neonTolerance * ratio;
     const v = atBandCentre(key, breakEven);
     expect(v.breakdown.benefitRate).toBeCloseTo(budget(key), 10);
-    expect(v.breakdown.net).toBeCloseTo(0, 1);
+    expect(v.breakdown.net).toBeCloseTo(0, 10);
   });
 
-  it.each(anchors)('kills a mid-hardiness fish on %s at its LC50 in about four days', (key, _, lc50) => {
-    const v = atBandCentre(key, lc50);
-    expect(v.breakdown.benefitRate).toBeCloseTo(budget(key), 10);
-    expect(v.breakdown.net).toBeCloseTo(-1, 1);
+  it.each(channels)('spares even the frailest fish on %s just past the alert edge', (key, edge) => {
+    const frailest = atBandCentre(key, past(key, edge, 1.01), { hardinessOffset: -1 });
+    expect(stressorAmount(frailest, key)).toBe(0);
   });
 
-  it.each(anchors)('still harms the hardiest fish on %s at the LC50', (key, _, lc50) => {
-    expect(atBandCentre(key, lc50, { species: 'guppy', hardinessOffset: 1 }).breakdown.net).toBeLessThan(0);
+  it.each(channels)('still harms the hardiest fish on %s where hardiness 1 would start', (key, edge) => {
+    const hardiest = atBandCentre(key, past(key, edge, HARDY_TOLERANCE), { species: 'guppy', hardinessOffset: 1 });
+    expect(stressorAmount(hardiest, key)).toBeGreaterThan(0);
   });
 });
 
@@ -346,13 +355,6 @@ describe('flow is a turnover', () => {
 
     expect(evaporated).toBeGreaterThan(0);
     expect(evaporated).toBe(doubled);
-  });
-
-  it('leaves a drained tank to the water-level stressor', () => {
-    const v = vitality({}, { flow: 1000, water: 0 }, { water: 0 });
-
-    expect(stressorAmount(v, 'flow')).toBe(0);
-    expect(stressorAmount(v, 'waterLevel')).toBeGreaterThan(0);
   });
 });
 

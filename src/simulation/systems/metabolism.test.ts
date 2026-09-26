@@ -90,13 +90,13 @@ describe('processMetabolism', () => {
     const expectedWaste = result.foodConsumed * (1 - livestockDefaults.gillNFraction);
     expect(result.wasteProduced).toBeCloseTo(expectedWaste, 8);
 
-    const postPrandial =
+    const gillNH3 =
       result.foodConsumed *
       livestockDefaults.foodNitrogenFraction *
       livestockDefaults.gillNFraction *
       (MW_NH3 / MW_N) *
       1000;
-    expect(result.ammoniaProduced).toBeCloseTo(postPrandial * AMPLE_FACTOR, 6);
+    expect(result.ammoniaProduced).toBeCloseTo(gillNH3 * AMPLE_FACTOR, 6);
   });
 
   it('releases no nitrogen when it eats nothing', () => {

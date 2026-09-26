@@ -72,15 +72,13 @@ export interface LivestockConfig {
   phStressSeverity: number;
   /** Health damage per dGH outside safe range */
   ghStressSeverity: number;
-  /**
-   * Water-quality damage per e-fold past each fish's own tolerance edge
-   * (`livestock/tolerance`, moved out by hardiness) — free NH₃, not total
-   * ammonia, since only the unionized form crosses the gills. Oxygen counts
-   * e-folds under its edge.
-   */
+  /** Damage per e-fold of free (unionized) NH₃ past the fish's own edge. */
   ammoniaStressSeverity: number;
+  /** Damage per e-fold of nitrite past the fish's own edge. */
   nitriteStressSeverity: number;
+  /** Damage per e-fold of nitrate past the fish's own edge. */
   nitrateStressSeverity: number;
+  /** Damage per e-fold of dissolved oxygen under the fish's own edge. */
   oxygenStressSeverity: number;
   /** Health damage per % water below 50% capacity */
   waterLevelStressSeverity: number;
@@ -90,8 +88,8 @@ export interface LivestockConfig {
    * Health damage per hour past species `maxAge`, applied per hour.
    * Smooth replacement for the legacy probabilistic old-age cliff:
    * once a fish exceeds its species lifespan, it accumulates damage
-   * that scales with how far past it is, runs through hardiness like
-   * any other stressor, and eventually drives condition to zero.
+   * that scales with how far past it is, scaled by `1 − hardiness`,
+   * and eventually drives condition to zero.
    */
   ageStressSeverity: number;
 
@@ -204,10 +202,10 @@ export const livestockDefaults: LivestockConfig = {
   ghStressSeverity: 0.1,
   // Each puts a mid-hardiness fish at its 96-hour LC50 one %/h past what a
   // clean tank gives back, so it dies in about four days.
-  ammoniaStressSeverity: 0.56,
-  nitriteStressSeverity: 0.75,
-  nitrateStressSeverity: 1.0,
-  oxygenStressSeverity: 2.7,
+  ammoniaStressSeverity: 0.56, // LC50 ≈ 1 ppm free NH₃
+  nitriteStressSeverity: 0.75, // LC50 ≈ 10 ppm NO₂
+  nitrateStressSeverity: 1.0, // LC50 ≈ 800 ppm NO₃
+  oxygenStressSeverity: 2.7, // LC50 ≈ 1.5 mg/L O₂
   waterLevelStressSeverity: 0.2, // 0.2% per % below threshold
   // 0.3 %/h per turnover above species tolerance. A 150 L on a canister
   // plus a 240 GPH powerhead runs 14×, so a neon is 4 over and pays
@@ -262,8 +260,7 @@ export const livestockDefaults: LivestockConfig = {
 
   // Benefit peaks (%/h) for the non-satiation channels. Sum at
   // all-good in a bare tank, pH at its band centre: pH 0.4 + well-fed 0.3 +
-  // O2 0.3 = 1.0 %/h
-  // (matches the legacy budget). With three full-grown healthy plants
+  // O2 0.3 = 1.0 %/h. With three full-grown healthy plants
   // (saturated): +0.2 → 1.2 %/h.
   phBenefitPeak: 0.4,
   oxygenBenefitPeak: 0.3,
