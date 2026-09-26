@@ -186,7 +186,7 @@ export const algaeVitalityConfigMeta: AlgaeVitalityConfigMeta[] = [
   { key: 'lowPlantPowerPeak', label: 'Low Plant Power Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'lowPlantPowerSeverity', label: 'Low Plant Power Severity', unit: '%/power/hr', min: 0, max: 2, step: 0.05 },
   // Mass dynamics
-  { key: 'algaeGrowthPerTickCap', label: 'Algae Growth per Tick Cap', unit: 'surplus', min: 0.1, max: 10, step: 0.1 },
-  { key: 'massPerSurplus', label: 'Mass per Surplus', unit: '%', min: 0.05, max: 2, step: 0.05 },
-  { key: 'surplusCap', label: 'Surplus Cap', unit: '%', min: 0, max: 100, step: 5 },
+  { key: 'algaeGrowthPerTickCap', label: 'Algae Growth per Tick Cap', unit: 'pts', min: 0.1, max: 10, step: 0.1 },
+  { key: 'massPerSurplus', label: 'Mass per Bank Point', unit: '%/pt', min: 0.05, max: 2, step: 0.05 },
+  { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: 100, step: 5 },
 ];

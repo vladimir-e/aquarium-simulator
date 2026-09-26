@@ -69,17 +69,8 @@ function plant(size: number, species: PlantSpecies = 'amazon_sword'): Plant {
   });
 }
 
-function suffMap(
-  plants: readonly Plant[],
-  resources: Resources,
-  waterVolume: number
-): Map<string, number> {
-  return new Map(
-    plants.map((p) => [
-      p.id,
-      calculateNutrientSufficiency(resources, waterVolume, p.species, nutrientsDefaults),
-    ])
-  );
+function sufficiencyOf(plants: readonly Plant[], resources: Resources, waterVolume: number): number[] {
+  return plants.map((p) => calculateNutrientSufficiency(resources, waterVolume, p.species, nutrientsDefaults));
 }
 
 describe('calculateCo2Factor', () => {
@@ -127,7 +118,7 @@ describe('calculatePhotosynthesis', () => {
       co2,
       resources,
       volume,
-      suffMap(plants, resources, volume),
+      sufficiencyOf(plants, resources, volume),
       config,
       nutrients
     );
@@ -555,7 +546,7 @@ describe('calculatePhotosynthesis', () => {
         PLENTIFUL_CO2,
         resources,
         waterVolume,
-        suffMap([lit, shaded], resources, waterVolume)
+        sufficiencyOf([lit, shaded], resources, waterVolume)
       );
 
       expect(both).toEqual(photosynthesis([lit], { co2: PLENTIFUL_CO2 }));

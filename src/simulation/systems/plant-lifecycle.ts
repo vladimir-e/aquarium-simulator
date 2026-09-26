@@ -23,7 +23,7 @@ export function calculateShedding(
 
   return {
     sizeReduction,
-    wasteProduced: sizeReduction * fullRateUnits(plant.species) * config.wastePerShedSize,
+    wasteProduced: tissueWaste(plant, sizeReduction, config),
   };
 }
 
@@ -41,5 +41,9 @@ export function calculateDeathWaste(
   plant: Plant,
   config: PlantsConfig = plantsDefaults
 ): number {
-  return plant.size * fullRateUnits(plant.species) * config.wastePerPlantDeath;
+  return tissueWaste(plant, plant.size, config);
+}
+
+function tissueWaste(plant: Plant, size: number, config: PlantsConfig): number {
+  return size * fullRateUnits(plant.species) * config.wastePerSize;
 }

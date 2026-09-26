@@ -28,7 +28,7 @@ Tweaks apply to every setup in the run:
 | `--trim[=2w]` | Cut every plant to 85 % and thin the youngest until the planting fits its floor; planted setups trim weekly |
 | `--scrub[=1w]`, `--top-off[=1d]` | Maintenance chores, optional period |
 | `--<chore>=off` | Drop that chore from the schedule |
-| `--plant=java_fern:3:40` | Add a plant group (species:count:size, size a % of one full unit, ≤ 100) |
+| `--plant=java_fern:3:40` | Add a plant group (species:count:size, size a % of one full unit, from `deathSizeThreshold` to 100) |
 | `--fish=neon_tetra:6` | Add a fish group (species:count) |
 | `--rock=calcite_rock:2` | Add hardscape pieces (type:count) |
 | `--tap-kh=8` | Tap water carbonate hardness, dKH |
@@ -51,7 +51,7 @@ The session lives in `.simstate/current.json`; every command acts on it until a 
 # Every preset but bare opens a month into its life; --no-seed starts it brand new
 npx tsx src/cli/sim.ts new --preset=planted --tank-gal=10 --name=my-run [--no-seed]
 
-npx tsx src/cli/sim.ts add plant --species=amazon_sword --size=0.5
+npx tsx src/cli/sim.ts add plant --species=amazon_sword --size=50
 npx tsx src/cli/sim.ts add fish --species=neon_tetra --count=6
 npx tsx src/cli/sim.ts tick 5d
 

@@ -29,9 +29,12 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      is the share of one full unit of its growth form, 0–100, and `Plant`
  *      gains `parentId`, `familyId`, `age` and `vigour`; `OpticsConfig` gains
  *      `leafAttenuationPerLai`, the canopy's extinction, and
- *      `deathSizeThreshold` drops to 1. A v30 save carries plants past 100, no
- *      lineage and no leaf attenuation for the canopy to read. `PersistedUI`
- *      gains `speed`, so the run carries on at the pace it was left at.
+ *      `deathSizeThreshold` drops to 1. Plant income runs on nutrient
+ *      sufficiency: `PlantsConfig` drops `nutrientBenefitPeak`, gains
+ *      `sufficiencyEdge`, and folds `wastePerShedSize` / `wastePerPlantDeath`
+ *      into `wastePerSize`. `PersistedUI` gains `speed`, so the run carries on
+ *      at the pace it was left at. A v30 save carries plants past 100, no
+ *      lineage and no leaf attenuation for the canopy to read.
  * v30: One vitality model. `Resources` gains `lightByHour`, the 24-hour PAR
  *      history the daily light integral reads. `PlantsConfig` drops
  *      `upkeepCost`, `upkeepReserveHours`, `lightInsufficientSeverity` and

@@ -153,7 +153,8 @@ describe('readLedger', () => {
   describe('for a plant', () => {
     const half = DEFAULT_CONFIG.plants.surplusCap / 2;
     const planted = (hour: number, surplus = half): SimulationState => {
-      const state = applyAction(createSimulation({ tankCapacity: 200 }), {
+      const dosed = applyAction(createSimulation({ tankCapacity: 200 }), { type: 'dose', amountMl: 20 }, DEFAULT_CONFIG);
+      const state = applyAction(dosed.state, {
         type: 'addPlant',
         species: 'java_fern',
       }).state;

@@ -38,7 +38,7 @@ describe('dueActions', () => {
   it('turns a share-of-stock feed into grams of the fish mass', () => {
     const mass = stocked.fish.reduce((sum, fish) => sum + fish.mass, 0);
     const [feed] = dueActions([{ every: 1, action: { type: 'feed', shareOfStock: 0.5 } }], at(stocked, 1));
-    expect(feed).toEqual({ type: 'feed', amount: Math.round(mass * 50) / 100 });
+    expect(feed).toEqual({ type: 'feed', amount: mass * 0.5 });
   });
 
   it('drops a share-of-stock feed when there are no fish', () => {

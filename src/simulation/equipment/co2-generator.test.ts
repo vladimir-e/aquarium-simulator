@@ -53,7 +53,7 @@ describe('calculateCo2Injection', () => {
 
 describe('formatCo2Rate', () => {
   it('prints the injection as a signed rate to one decimal', () => {
-    expect(formatCo2Rate(1, 100)).toBe(`+${calculateCo2Injection(1, 100).toFixed(1)} mg/L/hr`);
+    expect(formatCo2Rate(1, 100)).toBe(`+${calculateCo2Injection(1, 100).toFixed(1)} mg/L/h`);
   });
 });
 

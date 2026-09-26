@@ -50,9 +50,15 @@ describe('calculateShedding', () => {
     const result = calculateShedding({ ...plant, condition: 20 });
 
     expect(result.wasteProduced).toBeCloseTo(
-      result.sizeReduction * fullRateUnits('java_fern') * plantsDefaults.wastePerShedSize,
+      result.sizeReduction * fullRateUnits('java_fern') * plantsDefaults.wastePerSize,
       12
     );
+  });
+
+  it('yields what the same tissue would leave dead: one conversion, whatever the route', () => {
+    const { sizeReduction, wasteProduced } = calculateShedding({ ...plant, condition: 20 });
+
+    expect(wasteProduced).toBeCloseTo(calculateDeathWaste({ ...plant, size: sizeReduction }), 12);
   });
 
   it('fouls the water more for a sword melting than a carpet patch, by their leaf', () => {

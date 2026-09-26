@@ -3,11 +3,12 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createSimulation, tick } from '../../simulation/index.js';
+import { createSimulation, scheduledLightHistory, tick } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { getPresetById } from '../../simulation/presets.js';
 import { createSession, loadSession, saveSession, hasSession, SESSION_VERSION } from '../session.js';
 import { appendSnapshot, HISTORY_CAP, snapshot } from '../history.js';
+import { configureSession } from '../sim.js';
 
 let dir: string;
 let path: string;
@@ -136,5 +137,23 @@ describe('history cap', () => {
     // First retained entry should be tick=50 (oldest 50 dropped).
     expect(history[0]!.tick).toBe(50);
     expect(history.at(-1)!.tick).toBe(HISTORY_CAP + 49);
+  });
+});
+
+describe('configureSession', () => {
+  const fresh = createSession(createSimulation({ tankCapacity: 200 }), DEFAULT_CONFIG, 'optics');
+  const attenuation = String(2 * DEFAULT_CONFIG.optics.waterAttenuationPerCm);
+
+  it('relights a tank still at hour zero under the optics it will run on', () => {
+    const tuned = configureSession(fresh, 'optics.waterAttenuationPerCm', attenuation);
+
+    expect(tuned.state.resources.lightByHour).toEqual(scheduledLightHistory(tuned.state, tuned.config.optics));
+    expect(tuned.state.resources.lightByHour).not.toEqual(fresh.state.resources.lightByHour);
+    expect(tuned.history.at(-1)).toEqual(snapshot(tuned.state));
+  });
+
+  it('leaves a running tank the day it has lived', () => {
+    const running = { ...fresh, state: tick(fresh.state, fresh.config) };
+    expect(configureSession(running, 'optics.waterAttenuationPerCm', attenuation).state).toBe(running.state);
   });
 });

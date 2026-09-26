@@ -29,8 +29,7 @@ export const dayOf = (tick: number): number => Math.floor(tick / 24) + 1;
 
 function toAction(chore: Chore, state: SimulationState): Action | null {
   if (!('shareOfStock' in chore)) return chore;
-  const mass = state.fish.reduce((sum, fish) => sum + fish.mass, 0);
-  const amount = Math.round(mass * chore.shareOfStock * 100) / 100;
+  const amount = state.fish.reduce((sum, fish) => sum + fish.mass, 0) * chore.shareOfStock;
   return amount > 0 ? { type: 'feed', amount } : null;
 }
 

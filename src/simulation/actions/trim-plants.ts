@@ -14,22 +14,27 @@ import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
 import { isPlantableSize } from '../systems/plant-lifecycle.js';
 import type { ActionResult, TrimPlantsAction } from './types.js';
 
-/**
- * Check if any plants can be trimmed.
- * Plants can be trimmed if any plant is above 50% size.
- */
-export function canTrimPlants(state: SimulationState): boolean {
-  return state.plants.some((p) => p.size > 50);
+type TrimScope = Omit<TrimPlantsAction, 'type'>;
+
+/** Whether a trim cuts this plant: over the target, and the plant or family it names if it names one. */
+function cuts({ targetSize, plantId, familyId }: TrimScope): (plant: Plant) => boolean {
+  return (plant) =>
+    plant.size > targetSize &&
+    (plantId !== undefined ? plant.id === plantId : familyId === undefined || plant.familyId === familyId);
 }
 
-/**
- * Get the number of plants that would be affected by trimming to a target size.
- */
-export function getPlantsToTrimCount(
+/** Whether `trimPlants` would cut anything: a plantable target, and a plant in its scope over it. */
+export function canTrimPlants(
   state: SimulationState,
-  targetSize: number
-): number {
-  return state.plants.filter((p) => p.size > targetSize).length;
+  scope: TrimScope,
+  plantsConfig: PlantsConfig = plantsDefaults
+): boolean {
+  return isPlantableSize(scope.targetSize, plantsConfig) && state.plants.some(cuts(scope));
+}
+
+/** Plants a trim of the whole tank to `targetSize` cuts. */
+export function getPlantsToTrimCount(state: SimulationState, targetSize: number): number {
+  return state.plants.filter(cuts({ targetSize })).length;
 }
 
 /**
@@ -62,8 +67,7 @@ export function trimPlants(
 }
 
 function trimBulk(state: SimulationState, targetSize: number, familyId?: string): ActionResult {
-  const trims = (p: Plant): boolean =>
-    p.size > targetSize && (familyId === undefined || p.familyId === familyId);
+  const trims = cuts({ targetSize, familyId });
   const plantsToTrim = state.plants.filter(trims);
   if (plantsToTrim.length === 0) {
     return {

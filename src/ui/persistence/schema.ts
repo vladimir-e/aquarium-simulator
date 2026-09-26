@@ -461,6 +461,7 @@ const PlantsConfigSchema = z
     phStressSeverity: z.number(),
     ghStressSeverity: z.number(),
     nutrientDeficiencySeverity: z.number(),
+    sufficiencyEdge: z.number(),
     nitrateStressSeverity: z.number(),
     nitrateEdge: z.number(),
     algaeShadingSeverity: z.number(),
@@ -469,11 +470,9 @@ const PlantsConfigSchema = z
     co2BenefitPeak: z.number(),
     temperatureBenefitPeak: z.number(),
     phBenefitPeak: z.number(),
-    nutrientBenefitPeak: z.number(),
     maxSheddingRate: z.number(),
-    wastePerShedSize: z.number(),
+    wastePerSize: z.number(),
     deathSizeThreshold: z.number(),
-    wastePerPlantDeath: z.number(),
   })
   .strict();
 

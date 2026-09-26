@@ -21,18 +21,27 @@ import type { HistorySnapshot } from './history.js';
  * v15 sized plants against one full unit of their growth form, lit them at
  *    their own height and let a full bank buy an offshoot. `Plant.size` stops
  *    at 100, `Plant` gains `parentId`, `familyId`, `age` and `vigour`, and
- *    `OpticsConfig` gains `leafAttenuationPerLai`. A v14 session parses, and
- *    the first tick with a plant in it reads a canopy off the key it does not
- *    carry and a vigour its plants never drew: every plant's light, condition
- *    and bank are `NaN` from there on.
+ *    `OpticsConfig` gains `leafAttenuationPerLai`. Plant income runs on
+ *    nutrient sufficiency: `PlantsConfig` drops `nutrientBenefitPeak`, gains
+ *    `sufficiencyEdge`, and folds `wastePerShedSize` / `wastePerPlantDeath`
+ *    into `wastePerSize`. A v14 session parses, and the first tick with a
+ *    plant in it reads a canopy off the key it does not carry and a vigour its
+ *    plants never drew: every plant's light, condition and bank are `NaN`
+ *    from there on.
  * v14 put every organism on one vitality model. `Resources` gains
  *    `lightByHour`, the day of PAR the plants' daily light integral reads;
  *    `PlantsConfig` drops `upkeepCost`, `upkeepReserveHours`,
  *    `lightInsufficientSeverity` and `deathConditionThreshold`, trades the
  *    nutrient-toxicity pair for `nitrateStressSeverity` / `nitrateEdge`, and
  *    gains `lightStarvationSeverity` and `healingDrawRate`; `LivestockConfig`
- *    gains `healingDrawRate`. A v13 session parses, and the first tick writes
- *    an hour into a history it does not carry and throws.
+ *    gains `healingDrawRate`. It also carries saturating plant nutrition and
+ *    the shared tolerance edges: `NutrientsConfig` is rebuilt on Monod uptake,
+ *    `PlantsConfig` drops `nutrientsPerPhotosynthesis` and `optimalNitrate`,
+ *    `NitrogenCycleConfig` drops `wasteToAmmoniaRatio`, `LivestockConfig`
+ *    drops `basalAmmoniaRate` and its nitrate and oxygen stress thresholds,
+ *    and `AlgaeVitalityConfig` gains its reference nitrate and phosphate ppm.
+ *    A v13 session parses, and the first tick writes an hour into a history it
+ *    does not carry and throws.
  * v13 made the nitrifiers seed continuously and saturate on their substrate.
  *    `NitrogenCycleConfig` dropped `aobSpawnThreshold`, `nobSpawnThreshold`
  *    and `inoculumPerLiter` for `seedingRate`, and gained

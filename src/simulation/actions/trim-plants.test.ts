@@ -16,12 +16,18 @@ function tankWith(...sizes: number[]): SimulationState {
 const sizes = (state: SimulationState): number[] => state.plants.map((p) => p.size);
 
 describe('canTrimPlants', () => {
-  it('needs a plant above half size', () => {
-    expect(canTrimPlants(tankWith())).toBe(false);
-    expect(canTrimPlants(tankWith(30, 45))).toBe(false);
-    expect(canTrimPlants(tankWith(50))).toBe(false);
-    expect(canTrimPlants(tankWith(30, 51))).toBe(true);
-    expect(canTrimPlants(tankWith(99))).toBe(true);
+  it('answers exactly whether trimPlants would cut anything, for every scope', () => {
+    const state = produce(tankWith(40, 95, 20, 60), (draft) => {
+      draft.plants[1].familyId = 'p1';
+    });
+    const plantsConfig = { ...plantsDefaults, deathSizeThreshold: 5 };
+    for (const targetSize of [0, 4, 5, 20, 30, 59, 60, 100, 101]) {
+      for (const scope of [{}, { familyId: 'p1' }, { familyId: 'p3' }, { plantId: 'p2' }, { plantId: 'p3' }, { plantId: 'gone' }]) {
+        const action = { type: 'trimPlants' as const, targetSize, ...scope };
+        const trimmed = trimPlants(state, action, plantsConfig).state !== state;
+        expect(canTrimPlants(state, action, plantsConfig)).toBe(trimmed);
+      }
+    }
   });
 });
 

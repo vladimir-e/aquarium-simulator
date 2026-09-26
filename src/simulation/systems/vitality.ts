@@ -145,6 +145,11 @@ export function outsideBand(value: number, [lo, hi]: readonly [number, number]):
   return Math.max(0, lo - value, value - hi);
 }
 
+/** Share of `edge` that `value` falls short of: 0 at or over it, 1 at nothing. */
+export function shortfall(value: number, edge: number): number {
+  return edge > 0 ? Math.max(0, 1 - value / edge) : 0;
+}
+
 /**
  * How many e-folds `value` stands past `edge`, zero at or under it. Toxicity
  * runs on log dose, so doubling a concentration adds the same harm wherever it

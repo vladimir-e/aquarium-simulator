@@ -4,8 +4,8 @@
  * Pipeline:
  * 1. The canopy: each plant's light at its own height, read by photosynthesis
  *    and vitality and handed back as the light the tick ran on.
- * 2. Compute per-plant Liebig sufficiency once (shared by photosynthesis
- *    and vitality below).
+ * 2. Each plant's Liebig sufficiency, once: photosynthesis and vitality both
+ *    run on it.
  * 3. Photosynthesis: emits resource effects only — O2 production, CO2
  *    uptake, nutrient draw. Does NOT directly produce size growth;
  *    that flows through surplus. Light-gated: zero output at night.
@@ -95,18 +95,10 @@ export function processPlants(
   // 1. The canopy, and each plant's light in it.
   const light = lightOf(state, canopyOf(state, config));
 
-  // 2. Liebig sufficiency, once per plant: photosynthesis gates biomass and
-  //    uptake on it, and vitality its nutrient stressor and benefit.
-  const sufficiencyByPlantId = new Map<string, number>(
-    state.plants.map((plant) => [
-      plant.id,
-      calculateNutrientSufficiency(
-        state.resources,
-        state.resources.water,
-        plant.species,
-        nutrientsConfig
-      ),
-    ])
+  // 2. Liebig sufficiency, once per plant: photosynthesis fixes carbon and
+  //    draws on it, and vitality earns and charges on it.
+  const sufficiency = state.plants.map((plant) =>
+    calculateNutrientSufficiency(state.resources, state.resources.water, plant.species, nutrientsConfig)
   );
 
   // 3. Photosynthesis: resource effects only (O2 release, CO2 uptake,
@@ -118,7 +110,7 @@ export function processPlants(
     state.resources.co2,
     state.resources,
     state.resources.water,
-    sufficiencyByPlantId,
+    sufficiency,
     plantsConfig,
     nutrientsConfig
   );
@@ -172,7 +164,7 @@ export function processPlants(
       resources: state.resources,
       waterVolume: state.resources.water,
       plantsConfig,
-      nutrientSufficiency: sufficiencyByPlantId.get(plant.id) ?? 0,
+      nutrientSufficiency: sufficiency[i],
       algaeMass,
       light: light[i],
     })
@@ -255,7 +247,6 @@ export function processPlants(
   };
 }
 
-// Re-export helper functions for testing and UI use
 export {
   calculatePhotosynthesis,
   calculateCo2Factor,
@@ -265,10 +256,8 @@ export {
   plantHeight,
   leafArea,
   rateUnits,
-  fullRateUnits,
   getTotalRateUnits,
   canopyLight,
-  lightAtHeight,
   floorCover,
   floorShade,
   isOvergrown,
@@ -282,7 +271,6 @@ export {
   spendSurplus,
   propagate,
   getSpeciesGrowthRate,
-  growthTaper,
 } from '../systems/plant-growth.js';
 export type { Propagation } from '../systems/plant-growth.js';
 export { VIGOUR_SPAN } from './create-plant.js';
@@ -292,11 +280,6 @@ export {
   speciesHalfSaturation,
   nutrientShare,
 } from '../systems/nutrients.js';
-export {
-  calculateShedding,
-  shouldPlantDie,
-  calculateDeathWaste,
-} from '../systems/plant-lifecycle.js';
 export {
   computePlantVitality,
   buildPlantStressors,
