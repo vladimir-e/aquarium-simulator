@@ -102,11 +102,15 @@ describe('OverviewSection', () => {
     expect(strip()).toBeNull();
   });
 
-  it('anchors the nitrogen cycle across two columns of the grid', () => {
+  it('runs the cycle, the roster and the rack across a tablet, the two reading sheets side by side', () => {
     renderOverview();
 
-    expect(widget('Nitrogen').className).toContain('col-span-2');
-    expect(widget('Life').className).not.toContain('col-span-2');
+    for (const title of ['Nitrogen', 'Life', 'Gear']) {
+      expect(widget(title).className).toContain('md:col-span-2');
+    }
+    for (const title of ['Water', 'Nutrients']) {
+      expect(widget(title).className).not.toContain('col-span');
+    }
   });
 
   it('draws the cycle as a chain of four stocks', () => {
@@ -185,6 +189,16 @@ describe('OverviewSection', () => {
     expect(query().get('inspect')).toBe('species-neon_tetra');
   });
 
+  it('opens the add menu in place, and lands on the picker it names', () => {
+    renderOverview(stocked());
+    const life = within(widget('Life'));
+
+    fireEvent.click(life.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(life.getByRole('button', { name: 'Add fish' }));
+
+    expect(query().get('add')).toBe('fish');
+  });
+
   it('gives the algae row no dots to speak of', () => {
     renderOverview(stocked());
     expect(within(widget('Life')).queryByRole('img', { name: /Algae/i })).toBeNull();
@@ -201,7 +215,7 @@ describe('OverviewSection', () => {
     const gear = within(widget('Gear'));
     const off = DEVICES.filter((id) => !run.state.equipment[id].enabled);
 
-    expect(gear.getByText('Others')).toBeTruthy();
+    expect(gear.getByText('Off')).toBeTruthy();
     expect(gear.getAllByRole('switch')).toHaveLength(DEVICES.length - off.length);
     for (const id of off) expect(gear.queryByRole('switch', { name: NAMES[id] })).toBeNull();
 

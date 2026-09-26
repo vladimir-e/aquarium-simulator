@@ -13,7 +13,7 @@ import { Select } from '../ui/Select';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { CONTROL_FOCUS } from '../ui/focus';
 
-const SPEED_OPTIONS = SPEED_PRESETS.map((preset) => ({
+export const SPEED_OPTIONS = SPEED_PRESETS.map((preset) => ({
   value: preset,
   label: SPEED_LABELS[preset],
 }));
@@ -44,9 +44,10 @@ interface TopBarProps {
  * The one place the run is driven from. The transport sits centre because it
  * is touched every session and should be where the thumb left it; nothing here
  * carries a live figure except the clock and the count of what needs the
- * keeper. The right side gives way by the room it has, least needed first —
- * the needs word, the ⌘K hint, the links and the theme Setup also carries —
- * so Act keeps its label.
+ * keeper. A tablet keeps the step as its glyph; a phone keeps play and the
+ * clock, and finds the speed and the step in the More sheet. The right side
+ * gives way by the room it has, least needed first — the needs word, the ⌘K
+ * hint, the links and the theme Setup also carries — so Act keeps its label.
  */
 export function TopBar({
   tick,
@@ -86,9 +87,14 @@ export function TopBar({
         >
           {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         </button>
-        <button type="button" onClick={onStep} className={`${CONTROL} max-lg:hidden`}>
+        <button
+          type="button"
+          onClick={onStep}
+          aria-label="+1 d"
+          className={`${CONTROL} max-md:hidden max-lg:w-8 max-lg:justify-center max-lg:px-0`}
+        >
           <SkipForward className="h-3.5 w-3.5 text-ink-2" />
-          +1 d
+          <span className="max-lg:hidden">+1 d</span>
         </button>
 
         <p className="whitespace-nowrap px-1.5 text-[15px] tabular-nums max-md:px-0">

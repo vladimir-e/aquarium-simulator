@@ -6,12 +6,13 @@ import type { Need } from '../../nav';
 import { CONTROL_FOCUS } from '../ui/focus';
 
 const VERB_LINK =
-  `flex shrink-0 items-center gap-0.5 rounded-control px-1 text-[13px] font-medium text-accent transition-colors hover:bg-surface-2 ${CONTROL_FOCUS}`;
+  `ml-auto flex shrink-0 items-center gap-0.5 rounded-control px-1 text-[13px] font-medium text-accent transition-colors hover:bg-surface-2 ${CONTROL_FOCUS}`;
 
 /**
  * What needs the keeper, one line each, worst first — and beside every line the
- * verb that answers it. Rendered only when the engine has latched something, so
- * a quiet tank is a quiet screen and the grid moves up to fill the space.
+ * verb that answers it; a phone drops the sentence under the two. Rendered only
+ * when something needs the keeper, so a quiet tank is a quiet screen and the
+ * grid moves up to fill the space.
  */
 export function NeedsStrip({
   needs,
@@ -42,7 +43,7 @@ export function NeedsStrip({
               <TriangleAlert className="h-3.5 w-3.5" />
               {need.text}
             </span>
-            <p className="min-w-0 flex-1 text-[13px] text-ink-2">
+            <p className="min-w-0 flex-1 text-[13px] text-ink-2 max-md:order-last max-md:basis-full">
               <span className="font-medium tabular-nums text-ink">{need.figure}</span> —{' '}
               {need.sentence}
             </p>

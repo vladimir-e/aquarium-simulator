@@ -153,21 +153,17 @@ export function shownInPlace(entry: RackEntry): boolean {
   return entry.row.on;
 }
 
-/** The one row that stands for all of them. */
+/** The one row that stands for all of them, saying they are off before it runs out of room to name them. */
 export function OthersLine({ off }: { off: RackEntry[] }): React.JSX.Element {
+  const names = off.map((entry) => entry.row.name.toLowerCase()).join(', ');
   return (
     <div className={`${ROW} ${ROW_H} ${TEMPLATE.widget}`}>
-      <RowOverlay
-        to="/gear"
-        label={`Others — ${off.map((entry) => entry.row.name.toLowerCase()).join(', ')} off`}
-      />
+      <RowOverlay to="/gear" label={`Off — ${names}`} />
       <span aria-hidden />
       <span aria-hidden />
       <span className={`${CELL} col-span-3 text-ink-3`}>
-        <span className="text-[14px] font-medium">Others</span>
-        <span className="ml-1.5 text-[13px]">
-          {off.map((entry) => entry.row.name.toLowerCase()).join(', ')} off
-        </span>
+        <span className="text-[14px] font-medium">Off</span>
+        <span className="ml-1.5 text-[13px]">{names}</span>
       </span>
     </div>
   );

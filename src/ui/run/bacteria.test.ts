@@ -183,7 +183,7 @@ describe('bacteriaReadout', () => {
     expect(readout.atTrace).toBe(true);
     expect(readout.cycled).toBe(false);
     expect(bacteriaSummary(readout, null)).toBe(
-      `Both toxins read zero, on colonies too small to hold a feeding — ${Math.round(readout.colonisation)} % of the biofilm this tank offers.`
+      `Both toxins read zero, on colonies too small to hold a feeding — ${Math.round(readout.colonisation)}\u00a0% of the biofilm this tank offers.`
     );
   });
 
@@ -324,6 +324,6 @@ describe('bacteriaSummary', () => {
       null
     );
     expect(summary).toContain('clearing nitrite');
-    expect(summary).toContain('50 % of the biofilm this tank offers');
+    expect(summary).toContain('50\u00a0% of the biofilm this tank offers');
   });
 });

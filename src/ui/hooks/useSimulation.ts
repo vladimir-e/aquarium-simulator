@@ -36,7 +36,7 @@ import {
 } from '../../simulation/presets.js';
 import { useConfig } from './useConfig.js';
 import { usePersistence, type PersistedSimulation } from '../persistence/index.js';
-import { type SpeedPreset, DEFAULT_SPEED, SPEED_TICKS_PER_SECOND, STEP_TICKS } from '../run/speed.js';
+import { type SpeedPreset, SPEED_TICKS_PER_SECOND, STEP_TICKS } from '../run/speed.js';
 import {
   type RunSnapshot,
   type RunAggregates,
@@ -242,7 +242,7 @@ function rebuildConfig(state: SimulationState, capacity: number): SimulationConf
 
 export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseSimulationReturn {
   const { config } = useConfig();
-  const { initialSimulation, onSimulationChange } = usePersistence();
+  const { initialSimulation, initialUI, onSimulationChange, onUIChange } = usePersistence();
 
   // Restore preset from persistence or use default
   const [currentPreset, setCurrentPreset] = useState<PresetId>(() => {
@@ -280,7 +280,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   const replaceTank = useCallback(() => setTankId((id) => id + 1), []);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState<SpeedPreset>(DEFAULT_SPEED);
+  const [speed, setSpeed] = useState<SpeedPreset>(initialUI.speed);
   const intervalRef = useRef<number | null>(null);
   // Store config/speed refs so the single interval always reads the latest.
   const configRef = useRef(config);
@@ -340,6 +340,10 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       })
     );
   }, [config.optics]);
+
+  useEffect(() => {
+    onUIChange({ speed });
+  }, [speed, onUIChange]);
 
   // Notify persistence when state or preset changes
   useEffect(() => {

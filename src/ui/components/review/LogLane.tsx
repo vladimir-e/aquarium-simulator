@@ -65,7 +65,7 @@ export function LogLane({
     <section className={`flex min-h-0 flex-col ${className}`}>
       <div className="flex min-h-[26px] shrink-0 flex-wrap items-center gap-2 pb-1.5">
         <h2 className="text-[13px] font-medium leading-[18px] text-ink-2">Log</h2>
-        <div className="ml-auto flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
           <Segmented
             ariaLabel="Log category"
             options={FILTER_OPTIONS}

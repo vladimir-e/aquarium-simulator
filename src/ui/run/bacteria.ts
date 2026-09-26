@@ -412,15 +412,15 @@ export function bacteriaSummary(
 
   if (nob.count < aob.count && rates.netNitrite > 0) {
     const behind = Math.round((1 - nob.count / aob.count) * 100);
-    return `NOB trail AOB by ${behind} % — nitrite accumulates until the colony catches up.${peakClause(projection)}`;
+    return `NOB trail AOB by ${behind}\u00a0% — nitrite accumulates until the colony catches up.${peakClause(projection)}`;
   }
 
   if (atTrace && !cycled) {
-    return `Both toxins read zero, on colonies too small to hold a feeding — ${Math.round(readout.colonisation)} % of the biofilm this tank offers.`;
+    return `Both toxins read zero, on colonies too small to hold a feeding — ${Math.round(readout.colonisation)}\u00a0% of the biofilm this tank offers.`;
   }
 
   if (rates.netNitrite <= 0) {
-    return `The biofilter is clearing nitrite at least as fast as it appears, on ${Math.round(readout.colonisation)} % of the biofilm this tank offers.`;
+    return `The biofilter is clearing nitrite at least as fast as it appears, on ${Math.round(readout.colonisation)}\u00a0% of the biofilm this tank offers.`;
   }
 
   return `Nitrite rising at ${rates.netNitrite.toFixed(4)} ppm/h.${peakClause(projection)}`;

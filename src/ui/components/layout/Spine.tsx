@@ -49,7 +49,7 @@ export function Spine({ history, logs }: SpineProps): React.JSX.Element {
 
   return (
     <div
-      className={`flex flex-col gap-0.5 border-t border-hairline px-3 py-0.5 ${expanded ? 'h-40 max-md:h-[120px]' : ''}`}
+      className={`flex flex-col gap-0.5 border-t border-hairline px-3 py-0.5 ${expanded ? 'h-40 max-md:h-[200px]' : ''}`}
     >
       {expanded && isMobile && (
         <Segmented

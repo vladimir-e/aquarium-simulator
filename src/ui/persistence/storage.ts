@@ -19,6 +19,7 @@ import {
 } from './schema.js';
 import { type TunableConfig, DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { DEFAULT_SETTINGS } from '../actions/verbs.js';
+import { DEFAULT_SPEED } from '../run/speed.js';
 import { detectUnitSystem } from '../utils/units.js';
 
 /**
@@ -260,6 +261,7 @@ export function getDefaultUI(): PersistedUI {
     tunablesOpen: false,
     spineOpen: false,
     acts: { settings: DEFAULT_SETTINGS, promoted: null },
+    speed: DEFAULT_SPEED,
   };
 }
 

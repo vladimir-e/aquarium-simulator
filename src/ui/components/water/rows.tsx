@@ -82,7 +82,12 @@ function ColonyRow({
       value={colonyCount(colony.count)}
       unit="cells"
       trend={throughput}
-      note={`${pct > 0 && pct < 1 ? '<1' : Math.round(pct)} % of ceiling`}
+      note={
+        <>
+          {pct > 0 && pct < 1 ? '<1' : Math.round(pct)} %
+          <span className="@max-[20rem]:hidden"> of ceiling</span>
+        </>
+      }
     />
   );
 }

@@ -13,6 +13,7 @@ import {
 } from '../../simulation/config/index.js';
 import { VERB_IDS, type VerbId } from '../actions/verbs.js';
 import { PERSISTENCE_VERSION } from './types.js';
+import { SPEED_PRESETS, type SpeedPreset } from '../run/speed.js';
 
 // ============================================================================
 // Schedule Schema
@@ -577,6 +578,7 @@ export const PersistedUISchema = z
     tunablesOpen: z.boolean(),
     spineOpen: z.boolean(),
     acts: ActsSchema,
+    speed: z.enum(SPEED_PRESETS as [SpeedPreset, ...SpeedPreset[]]),
   })
   .strict();
 

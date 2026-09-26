@@ -53,7 +53,7 @@ function seedSession(
       ...overrides,
     },
     tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric', tunablesOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
+    ui: { units: 'metric', tunablesOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null }, speed: '1h' },
   };
   globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 }
@@ -354,6 +354,17 @@ describe('useSimulation', () => {
     });
 
     expect(result.current.speed).toBe('1d');
+  });
+
+  it('carries on at the speed a reload found it at', () => {
+    const first = renderHook(() => useSimulation(), { wrapper });
+    act(() => {
+      first.result.current.changeSpeed('6h');
+    });
+    first.unmount();
+
+    const second = renderHook(() => useSimulation(), { wrapper });
+    expect(second.result.current.speed).toBe('6h');
   });
 
   describe('presets', () => {

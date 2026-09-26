@@ -218,6 +218,7 @@ describe('the tracks', () => {
           tunablesOpen: false,
           spineOpen: true,
           acts: { settings: DEFAULT_SETTINGS, promoted: null },
+          speed: '1h',
         },
       })
     );

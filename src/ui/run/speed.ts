@@ -1,5 +1,6 @@
 /**
- * Transport speed presets. Speed is session-scoped, not persisted.
+ * Transport speed presets. The one chosen outlives a reload with the rest of
+ * the keeper's settings.
  */
 
 export type SpeedPreset = '1h' | '6h' | '1d';

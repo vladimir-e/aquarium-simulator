@@ -33,7 +33,6 @@ import {
   algaeStatus,
   classifyVital,
   nutrientReadings,
-  printsAsZero,
   readingAt,
   stockedBand,
   trackAt,
@@ -364,11 +363,6 @@ const READINGS: Reading[] = [
 
 const RANK: Record<Status, number> = { neutral: 0, ok: 1, warn: 2, alert: 3 };
 
-/** Two values that would print identically have not moved as far as a reader is concerned. */
-function prints(a: number, b: number, decimals: number): boolean {
-  return printsAsZero(a - b, decimals);
-}
-
 export interface PreviewInput {
   before: SimulationState;
   /** One state per outcome the engine could land in; more than one is a roll. */
@@ -388,12 +382,12 @@ export function previewRows({ before, outcomes, config, units }: PreviewInput): 
   const rows: PreviewRow[] = [];
 
   for (const reading of READINGS) {
-    const from = reading.read(standing);
-    const values = sheets.map(reading.read);
-    if (values.every((value) => prints(value, from, reading.decimals))) continue;
-
     const format = (value: number): string =>
       reading.display(value, units).toFixed(reading.decimals);
+    const from = reading.read(standing);
+    const values = sheets.map(reading.read);
+    if (values.every((value) => format(value) === format(from))) continue;
+
     const low = Math.min(...values);
     const high = Math.max(...values);
 
@@ -408,7 +402,7 @@ export function previewRows({ before, outcomes, config, units }: PreviewInput): 
       key: reading.key,
       label: reading.label,
       before: format(from),
-      after: prints(low, high, reading.decimals) ? format(values[0]) : `${format(low)}–${format(high)}`,
+      after: format(low) === format(high) ? format(values[0]) : `${format(low)}–${format(high)}`,
       unit: reading.unit(units),
       status: reading.status(values[worst], sheets[worst]),
       from: reading.at(from, sheets[worst]),

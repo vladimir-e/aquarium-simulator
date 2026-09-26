@@ -259,6 +259,20 @@ describe('AppShell on a phone', () => {
     expect(theme.getAttribute('aria-label')).not.toBe(before);
   });
 
+  it('offers the speed and the day’s step in the sheet, and steps with the sheet out of the way', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+
+    const sheet = within(screen.getByRole('dialog', { name: 'More' }));
+    const speed = within(sheet.getByRole('group', { name: 'Speed' }));
+    fireEvent.click(speed.getByRole('button', { name: '6h' }));
+    expect(speed.getByRole('button', { name: '6h' }).getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(sheet.getByRole('button', { name: /Step a day/ }));
+    expect(screen.queryByRole('dialog', { name: 'More' })).toBeNull();
+    expect(screen.getByText(/Day 2 · 00:00/)).toBeTruthy();
+  });
+
   it('hands the tabs back to the rail once the viewport grows', () => {
     renderShell();
     act(() => media.set(viewport(1180)));

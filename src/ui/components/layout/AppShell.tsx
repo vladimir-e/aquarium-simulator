@@ -199,6 +199,12 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
               <MoreSections
                 alerts={alerts}
                 onNavigate={closeDrawers}
+                speed={sim.speed}
+                onSpeedChange={sim.changeSpeed}
+                onStep={() => {
+                  closeDrawers();
+                  sim.step();
+                }}
                 tunablesModified={tunablesModified}
                 onTunables={toggleTunables}
               />

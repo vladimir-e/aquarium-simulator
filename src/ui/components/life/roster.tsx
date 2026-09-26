@@ -19,26 +19,32 @@ import { SpeciesGlyph, type SpeciesKey } from '../ui/SpeciesGlyph';
 
 /**
  * One row, laid out three ways. Each layout fixes its column count, so a row
- * kind must emit exactly that many cells: nine for the fish table at tablet
- * width, ten for the plants, five for the widget, and six for either table on
- * a phone — which is what the {@link WIDE} cells fall out to. On a phone an
- * individual's figure takes the count cell its row has no count for.
+ * kind must emit exactly that many cells: six for either table on a phone,
+ * eight at tablet width — the {@link WIDE} figures — and nine for the fish and
+ * ten for the plants once a laptop-wide stage has room for the {@link WIDEST}
+ * ones; five for the widget. The name keeps a real width at every step and
+ * wraps to a second line before it truncates. On a phone an individual's
+ * figure takes the count cell its row has no count for.
  */
 export type RosterLayout = 'fish' | 'plants' | 'widget';
 
 /** The layouts that print headings, and the figures the widget has no room for. */
 type TableLayout = Exclude<RosterLayout, 'widget'>;
 
+/** A column only a laptop-wide stage has room for: what the table reads beside a figure. */
+const WIDEST = 'hidden lg:block';
+
 const TEMPLATE: Record<RosterLayout, string> = {
-  fish: 'grid-cols-[16px_minmax(0,1fr)_44px_84px_68px_24px] md:grid-cols-[16px_minmax(0,1fr)_52px_92px_64px_140px_160px_88px_28px]',
+  fish: 'gap-x-2 grid-cols-[16px_minmax(0,1fr)_44px_84px_80px_24px] md:gap-x-2.5 md:grid-cols-[16px_minmax(7rem,1fr)_52px_92px_64px_160px_88px_28px] lg:grid-cols-[16px_minmax(7rem,1fr)_52px_92px_64px_140px_160px_88px_28px]',
   plants:
-    'grid-cols-[16px_minmax(0,1fr)_44px_84px_68px_24px] md:grid-cols-[16px_minmax(0,1fr)_52px_92px_64px_64px_64px_160px_88px_28px]',
-  widget: 'grid-cols-[16px_minmax(0,1fr)_40px_80px_68px]',
+    'gap-x-2 grid-cols-[16px_minmax(0,1fr)_44px_84px_80px_24px] md:gap-x-2.5 md:grid-cols-[16px_minmax(7rem,1fr)_52px_92px_64px_160px_88px_28px] lg:grid-cols-[16px_minmax(7rem,1fr)_52px_92px_64px_64px_64px_160px_88px_28px]',
+  widget: 'gap-x-2 grid-cols-[16px_minmax(0,1fr)_40px_80px_80px]',
 };
 
 interface Heading {
   label: string;
-  wide?: boolean;
+  /** Hidden until the stage has room for it. */
+  from?: typeof WIDE | typeof WIDEST;
 }
 
 const HEADINGS: Record<TableLayout, Heading[]> = {
@@ -46,9 +52,9 @@ const HEADINGS: Record<TableLayout, Heading[]> = {
     { label: '' },
     { label: 'species' },
     { label: 'count' },
-    { label: 'mass', wide: true },
-    { label: 'age', wide: true },
-    { label: 'satiation', wide: true },
+    { label: 'mass', from: WIDE },
+    { label: 'age', from: WIDE },
+    { label: 'satiation', from: WIDEST },
     { label: 'condition' },
     { label: 'status' },
     { label: '' },
@@ -57,15 +63,18 @@ const HEADINGS: Record<TableLayout, Heading[]> = {
     { label: '' },
     { label: 'species' },
     { label: 'count' },
-    { label: 'size', wide: true },
-    { label: 'age', wide: true },
-    { label: 'light', wide: true },
-    { label: 'bank', wide: true },
+    { label: 'size', from: WIDE },
+    { label: 'age', from: WIDE },
+    { label: 'light', from: WIDEST },
+    { label: 'bank', from: WIDEST },
     { label: 'condition' },
     { label: 'status' },
     { label: '' },
   ],
 };
+
+/** A name that wraps to a second line before it gives up any of itself. */
+const NAME = 'relative pointer-events-none line-clamp-2 break-words leading-5';
 
 const NUMBER = `${CELL} text-right tabular-nums text-[13px]`;
 const FIGURE = `${NUMBER} text-ink-2`;
@@ -76,16 +85,10 @@ function Word({ status, word }: { status: Status; word: string }): React.JSX.Ele
   );
 }
 
-function SatiationCell({
-  satiation,
-  wide = false,
-}: {
-  satiation: Satiation | null;
-  wide?: boolean;
-}): React.JSX.Element {
-  if (!satiation) return <span aria-hidden className={wide ? WIDE : ''} />;
+function SatiationCell({ satiation }: { satiation: Satiation | null }): React.JSX.Element {
+  if (!satiation) return <span aria-hidden className={WIDEST} />;
   return (
-    <span className={`relative pointer-events-none ${wide ? WIDE : ''}`}>
+    <span className={`relative pointer-events-none ${WIDEST}`}>
       <RangeStrip at={satiation.at} band={satiation.band} tone={toneOf(satiation.status)} />
     </span>
   );
@@ -94,16 +97,17 @@ function SatiationCell({
 function LightCell({ light }: { light: LightFigure | null }): React.JSX.Element {
   const tone = light ? toneOf(light.status) : 'ink';
   return (
-    <span className={`${NUMBER} ${WIDE} ${tone === 'ink' ? 'text-ink-2' : TONE_TEXT[tone]}`}>
+    <span className={`${NUMBER} ${WIDEST} ${tone === 'ink' ? 'text-ink-2' : TONE_TEXT[tone]}`}>
       {light?.text}
     </span>
   );
 }
 
 /**
- * The tablet-wide figures between the count and the condition: what each one
- * weighs or measures and how old it is, then what the table reads beside that —
- * a fish's satiation, a plant's light and bank. The widget has room for none.
+ * The wide figures between the count and the condition: what each one weighs or
+ * measures and how old it is from a tablet up, then from a laptop up what the
+ * table reads beside that — a fish's satiation, a plant's light and bank. The
+ * widget has room for none.
  */
 function Figures({
   layout,
@@ -126,11 +130,11 @@ function Figures({
       <span className={`${FIGURE} ${WIDE}`}>{figure}</span>
       <span className={`${FIGURE} ${WIDE}`}>{age}</span>
       {layout === 'fish' ? (
-        <SatiationCell satiation={satiation} wide />
+        <SatiationCell satiation={satiation} />
       ) : (
         <>
           <LightCell light={light} />
-          <span className={`${FIGURE} ${WIDE}`}>{bank}</span>
+          <span className={`${FIGURE} ${WIDEST}`}>{bank}</span>
         </>
       )}
     </>
@@ -160,17 +164,23 @@ function ConditionCell({
 function Name({
   species,
   name,
+  caption = null,
   strong = false,
 }: {
   species: SpeciesKey;
   name: string;
+  /** What the count is made of, where a tablet-wide table has room to say it. */
+  caption?: string | null;
   strong?: boolean;
 }): React.JSX.Element {
   return (
     <>
       <SpeciesGlyph species={species} className="relative pointer-events-none" />
-      <span className={`${CELL} text-[14px] ${strong ? 'font-medium text-ink' : 'text-ink-2'}`}>
+      <span className={`${NAME} text-[14px] ${strong ? 'font-medium text-ink' : 'text-ink-2'}`}>
         {name}
+        {caption && (
+          <span className="ml-1.5 hidden whitespace-nowrap text-[13px] font-normal text-ink-3 md:inline">{caption}</span>
+        )}
       </span>
     </>
   );
@@ -194,7 +204,12 @@ function SpeciesLine({
         onClick={onToggle}
         expanded={row.expanded}
       />
-      <Name species={row.species} name={row.name} strong />
+      <Name
+        species={row.species}
+        name={row.name}
+        caption={layout === 'widget' ? null : row.caption}
+        strong
+      />
       <Count count={row.count} caret={layout === 'widget' ? null : row.expanded} />
       <Figures
         layout={layout}
@@ -275,7 +290,7 @@ function FamilyLine({
         expanded={row.expanded}
       />
       <span aria-hidden />
-      <span className={`${CELL} pl-3 text-[13px] text-ink-2 md:pl-6`}>{row.label}</span>
+      <span className={`${NAME} pl-3 text-[13px] text-ink-2 md:pl-6`}>{row.label}</span>
       <Count count={row.count} caret={row.expanded} />
       <Figures layout={layout} figure={row.figure} age={row.age} light={row.light} />
       <ConditionCell at={row.at} status={row.status} dots={row.dots} label={`${title} by unit`} />
@@ -401,7 +416,7 @@ function Line({
         <div className={`${ROW} ${ROW_H} ${TEMPLATE[layout]}`}>
           <RowOverlay label={`${row.name} — ${row.word}`} onClick={() => handlers.onInspect(row)} />
           <SpeciesGlyph species="algae" className="relative pointer-events-none" />
-          <span className={`${CELL} text-[14px] font-medium text-ink`}>
+          <span className={`${NAME} text-[14px] font-medium text-ink`}>
             {row.name}
             <span className={`ml-1.5 text-[13px] font-normal text-ink-2 ${layout === 'widget' ? '' : 'md:hidden'}`}>
               {row.figure}
@@ -412,7 +427,9 @@ function Line({
           ) : (
             <>
               <span aria-hidden className="md:hidden" />
-              <span className={`${CELL} col-span-5 text-right text-[13px] text-ink-2 ${WIDE}`}>
+              <span
+                className={`${CELL} col-span-3 text-right text-[13px] text-ink-2 lg:col-span-5 ${WIDE}`}
+              >
                 {row.figure} {row.caption}
                 {row.trend && <span className="ml-1.5 tabular-nums text-ink-3">{row.trend}</span>}
               </span>
@@ -429,7 +446,7 @@ function Line({
       return (
         <div className={`${ROW} ${ROW_H} ${TEMPLATE[layout]}`}>
           <span aria-hidden />
-          <span className={`${CELL} text-[14px] font-medium text-ink`}>
+          <span className={`${NAME} text-[14px] font-medium text-ink`}>
             {row.name}
             <span className="ml-1.5 text-[13px] font-normal text-ink-2">{row.caption}</span>
           </span>
@@ -457,7 +474,7 @@ function Line({
           {layout !== 'widget' && <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>}
           <span
             className={`${CELL} text-right text-[13px] text-ink-3 ${
-              layout === 'widget' ? 'col-span-2' : 'col-span-3 md:col-span-4'
+              layout === 'widget' ? 'col-span-2' : 'col-span-3 lg:col-span-4'
             }`}
           >
             {row.age}
@@ -481,12 +498,12 @@ export function Roster({
   return (
     <div>
       {layout !== 'widget' && (
-        <div className={`grid h-6 items-center gap-2.5 ${TEMPLATE[layout]}`}>
+        <div className={`grid h-6 items-center ${TEMPLATE[layout]}`}>
           {HEADINGS[layout].map((heading, i) => (
             <span
               key={i}
               className={`truncate text-[11px] text-ink-3 ${i >= 2 ? 'text-right' : ''} ${
-                heading.wide ? WIDE : ''
+                heading.from ?? ''
               }`}
             >
               {heading.label}

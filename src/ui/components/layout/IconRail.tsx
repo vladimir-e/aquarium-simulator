@@ -1,20 +1,25 @@
 import React from 'react';
 import {
   Fish,
+  Gauge,
   LayoutGrid,
   LineChart,
   Droplets,
   Plug,
   Settings,
+  SkipForward,
   SlidersHorizontal,
   MoreHorizontal,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { MORE_IDS, SECTIONS, TAB_IDS, type NeedTone, type SectionDef, type SectionId } from '../../nav';
+import type { SpeedPreset } from '../../run';
 import { Badge } from '../ui/Badge';
 import { DRAWER_TOGGLE } from '../ui/Drawer';
 import { INSET_FOCUS } from '../ui/focus';
+import { Segmented } from '../ui/Segmented';
 import { useThemeCycle } from '../ui/ThemeToggle';
+import { SPEED_OPTIONS } from './TopBar';
 
 const ICON: Record<SectionId, typeof Fish> = {
   overview: LayoutGrid,
@@ -126,21 +131,46 @@ export function TabBar({
 }
 
 /**
- * What did not fit the tab bar: the two sections behind More, and the tunables
- * and the theme — the two controls the phone's top bar has no room for.
+ * What did not fit the phone's bars: the run's speed and its step, the two
+ * sections behind More, and the tunables and the theme.
  */
 export function MoreSections({
   alerts,
   onNavigate,
+  speed,
+  onSpeedChange,
+  onStep,
   tunablesModified,
   onTunables,
 }: NavProps & {
   onNavigate: () => void;
+  speed: SpeedPreset;
+  onSpeedChange: (speed: SpeedPreset) => void;
+  /** Steps a day and closes the sheet, so the day it stepped is what shows. */
+  onStep: () => void;
   tunablesModified: number;
   onTunables: () => void;
 }): React.JSX.Element {
   return (
     <div className="flex flex-col p-1.5">
+      <div className={`${MORE_ITEM} text-ink`}>
+        <Gauge className="h-5 w-5 text-ink-2" />
+        Speed
+        <Segmented
+          ariaLabel="Speed"
+          options={SPEED_OPTIONS}
+          value={speed}
+          onChange={onSpeedChange}
+          className="ml-auto h-8"
+        />
+      </div>
+      <button type="button" onClick={onStep} className={`${MORE_ITEM} text-ink hover:bg-surface-2`}>
+        <SkipForward className="h-5 w-5 text-ink-2" />
+        Step a day
+        <span className="ml-auto text-[13px] text-ink-3">+1 d</span>
+      </button>
+      <div aria-hidden className="mx-3 my-1 border-t border-hairline" />
+
       {SECTIONS.filter((s) => MORE_IDS.includes(s.id)).map((section) => {
         const Glyph = ICON[section.id];
         const alert = alerts.get(section.id);

@@ -44,10 +44,12 @@ export function GearWidget({
   book,
   sim,
   onOpenReading,
+  className,
 }: {
   book: ReadingBook;
   sim: ReturnType<typeof useSimulation>;
   onOpenReading: (id: ReadingId) => void;
+  className?: string;
 }): React.JSX.Element {
   const { state } = sim;
   const entries = useMemo(() => rackEntries(book.rack), [book.rack]);
@@ -61,6 +63,7 @@ export function GearWidget({
       title="Gear"
       caption={`${on.length} of ${entries.length} on`}
       to="/gear"
+      className={className}
       footer={
         <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[12px]">
           <Passive

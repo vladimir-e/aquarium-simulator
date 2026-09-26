@@ -41,6 +41,7 @@ describe('PersistedUISchema', () => {
       tunablesOpen: false,
       spineOpen: false,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
+      speed: '1h',
     };
     expect(PersistedUISchema.safeParse(validUI).success).toBe(true);
   });
@@ -51,6 +52,7 @@ describe('PersistedUISchema', () => {
       tunablesOpen: true,
       spineOpen: true,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
+      speed: '1h',
     };
     expect(PersistedUISchema.safeParse(validUI).success).toBe(true);
   });
@@ -61,8 +63,20 @@ describe('PersistedUISchema', () => {
       tunablesOpen: false,
       spineOpen: false,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
+      speed: '1h',
     };
     expect(PersistedUISchema.safeParse(invalidUI).success).toBe(false);
+  });
+
+  it('rejects a speed the transport does not offer', () => {
+    const fast = {
+      units: 'metric',
+      tunablesOpen: false,
+      spineOpen: false,
+      acts: { settings: DEFAULT_SETTINGS, promoted: null },
+      speed: '1w',
+    };
+    expect(PersistedUISchema.safeParse(fast).success).toBe(false);
   });
 
   it('rejects extra keys (strict mode)', () => {
@@ -71,6 +85,7 @@ describe('PersistedUISchema', () => {
       tunablesOpen: false,
       spineOpen: false,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
+      speed: '1h',
       extraKey: 'value',
     };
     expect(PersistedUISchema.safeParse(withExtra).success).toBe(false);
@@ -534,7 +549,7 @@ describe('PersistedStateSchema', () => {
     version: PERSISTENCE_VERSION,
     simulation: validSimulation,
     tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric', tunablesOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
+    ui: { units: 'metric', tunablesOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null }, speed: '1h' },
   };
 
   it('validates complete valid state', () => {

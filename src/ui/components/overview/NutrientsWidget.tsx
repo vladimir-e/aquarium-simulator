@@ -14,6 +14,7 @@ interface NutrientsWidgetProps {
   onAct: (verb: VerbId, at?: number) => void;
   /** The dose the plants are short of is a label the widget can ask for. */
   actLabel: (verb: VerbId, at?: number) => string;
+  className?: string;
 }
 
 /**
@@ -27,6 +28,7 @@ export function NutrientsWidget({
   onOpenReading,
   onAct,
   actLabel,
+  className,
 }: NutrientsWidgetProps): React.JSX.Element {
   const { advice, perMl } = book.dose;
   const alert = nutrientAlert(book.nutrients);
@@ -40,6 +42,7 @@ export function NutrientsWidget({
           : (alert?.text ?? 'plants have what they need')
       }
       to="/water"
+      className={className}
       footer={
         <>
           <VerbButton

@@ -29,7 +29,7 @@ function Stock({
         {reading.value}
         <span className="ml-0.5 text-[11px] font-normal text-ink-2">{reading.unit}</span>
       </span>
-      <span className="text-[11px] leading-[14px] tabular-nums text-ink-3">{rate}</span>
+      <span className="min-h-[14px] text-[11px] leading-[14px] tabular-nums text-ink-3">{rate}</span>
     </button>
   );
 }

@@ -13,17 +13,20 @@ export function WaterWidget({
   onOpenReading,
   onAct,
   actLabel,
+  className,
 }: {
   book: ReadingBook;
   onOpenReading: (id: ReadingId) => void;
   onAct: (verb: VerbId) => void;
   actLabel: (verb: VerbId) => string;
+  className?: string;
 }): React.JSX.Element {
   return (
     <Widget
       title="Water"
       caption={book.caption}
       to="/water"
+      className={className}
       footer={
         <>
           <VerbButton label={actLabel('waterChange')} onClick={() => onAct('waterChange')} />

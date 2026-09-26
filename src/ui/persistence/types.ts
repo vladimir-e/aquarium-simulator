@@ -17,6 +17,7 @@ import type {
 import type { TankSeed } from '../../simulation/seed.js';
 import type { RngState } from '../../simulation/core/rng.js';
 import type { VerbId, VerbSettings } from '../actions/verbs.js';
+import type { SpeedPreset } from '../run/speed.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 
 /**
@@ -29,7 +30,8 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      gains `parentId`, `familyId`, `age` and `vigour`; `OpticsConfig` gains
  *      `leafAttenuationPerLai`, the canopy's extinction, and
  *      `deathSizeThreshold` drops to 1. A v30 save carries plants past 100, no
- *      lineage and no leaf attenuation for the canopy to read.
+ *      lineage and no leaf attenuation for the canopy to read. `PersistedUI`
+ *      gains `speed`, so the run carries on at the pace it was left at.
  * v30: One vitality model. `Resources` gains `lightByHour`, the 24-hour PAR
  *      history the daily light integral reads. `PlantsConfig` drops
  *      `upkeepCost`, `upkeepReserveHours`, `lightInsufficientSeverity` and
@@ -265,6 +267,7 @@ export interface PersistedUI {
   spineOpen: boolean;
   /** What the keeper has chosen but not yet done, and the verb Act is named for. */
   acts: { settings: VerbSettings; promoted: VerbId | null };
+  speed: SpeedPreset;
 }
 
 /**

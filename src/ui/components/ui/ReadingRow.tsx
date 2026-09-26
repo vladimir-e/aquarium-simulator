@@ -20,7 +20,7 @@ export interface ReadingRowProps {
   /** Direction and rate, e.g. `↘ 0.2/d`. */
   trend?: string;
   /** Whatever the number alone doesn't say — truncates before the trend does. */
-  note?: string;
+  note?: React.ReactNode;
   size?: keyof typeof VALUE_SIZE;
   /** Opens the reading's drawer. */
   onClick?: () => void;
@@ -62,7 +62,11 @@ export function ReadingRow({
     </>
   );
 
-  const shape = `${ROW} h-9 grid-cols-[minmax(40px,auto)_minmax(84px,auto)_minmax(48px,1fr)_minmax(0,auto)] text-left`;
+  const shape = `${ROW} @container h-9 ${
+    at === undefined
+      ? 'grid-cols-[minmax(40px,auto)_minmax(84px,auto)_minmax(0,1fr)_minmax(0,auto)]'
+      : 'grid-cols-[minmax(40px,auto)_minmax(84px,auto)_minmax(48px,1fr)_minmax(0,auto)]'
+  } text-left`;
 
   if (!onClick) return <div className={shape}>{body}</div>;
 
