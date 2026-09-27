@@ -62,14 +62,14 @@ function generateHardscapeId(): string {
   return `hardscape_${Date.now().toString(36)}_${(hardscapeSeq++).toString(36)}`;
 }
 
-/** A device change: the recipe's writes, then the passive readings settled off them. */
-function refit(
+/** The recipe's writes, then the passive readings settled off them. */
+function produceSettled(
   state: SimulationState,
   optics: OpticsConfig,
   recipe: (draft: SimulationState) => void
 ): SimulationState {
-  const refitted = produce(state, recipe);
-  return refitted === state ? state : settlePassiveResources(refitted, optics);
+  const next = produce(state, recipe);
+  return next === state ? state : settlePassiveResources(next, optics);
 }
 
 interface UseSimulationReturn {
@@ -245,12 +245,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       const restoredState = persistedToState(initialSimulation);
       // Add a log entry for session resume
       const log = createLog(restoredState.tick, 'simulation', 'info', 'Session restored');
-      return settlePassiveResources(
-        produce(restoredState, (draft) => {
-          draft.logs.push(log);
-        }),
-        config.optics
-      );
+      return produceSettled(restoredState, config.optics, (draft) => {
+        draft.logs.push(log);
+      });
     }
 
     // Otherwise, create from default preset
@@ -313,14 +310,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     setAggregates(emptyAggregates());
   }, []);
 
-  // Optics decide how much of the fixture's PAR reaches the substrate, so
-  // retuning them moves a resource the way swapping a filter does. A paused
-  // tank would otherwise render — and persist — the old figure until the next
-  // tick. The settle returns the same state when nothing moved, so this is inert
-  // on mount and on a reset that restores the value already in force. Swapping
-  // a tank is not an optics change, so every tank minted here — off a preset or
-  // a `rebuildConfig`, both on `opticsDefaults` — is settled under the config's
-  // optics as it opens.
+  // Retuned optics move the light a paused tank shows and persists; the settle
+  // is inert when nothing moved. A new tank is not an optics change, so each one
+  // minted here is settled as it opens.
   useEffect(() => {
     setState((current) => settlePassiveResources(current, config.optics));
   }, [config.optics]);
@@ -451,31 +443,28 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     resetRun();
 
     setState((current) =>
-      settlePassiveResources(
-        produce(current, (draft) => {
-          const fresh = createSimulation(
-            rebuildConfig(current, current.tank.capacity),
-            current.seed
-          );
-          draft.tick = 0;
-          draft.resources = fresh.resources;
-          draft.equipment.substrate = fresh.equipment.substrate;
-          draft.equipment.hardscape = fresh.equipment.hardscape;
-          if (draft.seed?.bacteria === 'cycled') Object.assign(draft.resources, cycledColony(draft));
+      produceSettled(current, configRef.current.optics, (draft) => {
+        const fresh = createSimulation(
+          rebuildConfig(current, current.tank.capacity),
+          current.seed
+        );
+        draft.tick = 0;
+        draft.resources = fresh.resources;
+        draft.equipment.substrate = fresh.equipment.substrate;
+        draft.equipment.hardscape = fresh.equipment.hardscape;
+        if (draft.seed?.bacteria === 'cycled') Object.assign(draft.resources, cycledColony(draft));
 
-          // Clear in-flight clutches: they hatch at an absolute
-          // `laidTick + hatchTime`, so rewinding the clock to 0 would
-          // strand them until sim time climbed back past their hatch tick.
-          // (Fish age is relative, so livestock is left in place.)
-          draft.clutches = [];
+        // Clear in-flight clutches: they hatch at an absolute
+        // `laidTick + hatchTime`, so rewinding the clock to 0 would
+        // strand them until sim time climbed back past their hatch tick.
+        // (Fish age is relative, so livestock is left in place.)
+        draft.clutches = [];
 
-          draft.alertState = quietAlerts();
+        draft.alertState = quietAlerts();
 
-          // Clear logs and add reset message
-          draft.logs = [createLog(0, 'simulation', 'info', 'Simulation reset')];
-        }),
-        configRef.current.optics
-      )
+        // Clear logs and add reset message
+        draft.logs = [createLog(0, 'simulation', 'info', 'Simulation reset')];
+      })
     );
   }, [isPlaying, stopAutoPlay, resetRun]);
 
@@ -594,7 +583,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
   const updateFilterEnabled = useCallback((enabled: boolean) => {
     setState((current) =>
-      refit(current, configRef.current.optics, (draft) => {
+      produceSettled(current, configRef.current.optics, (draft) => {
         const message = enabled ? 'Filter enabled' : 'Filter disabled';
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.filter.enabled = enabled;
@@ -605,7 +594,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
   const updateFilterType = useCallback((type: FilterType) => {
     setState((current) =>
-      refit(current, configRef.current.optics, (draft) => {
+      produceSettled(current, configRef.current.optics, (draft) => {
         const oldType = draft.equipment.filter.type;
         if (oldType !== type) {
           const log = createLog(
@@ -623,7 +612,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
   const updateAirPumpEnabled = useCallback((enabled: boolean) => {
     setState((current) =>
-      refit(current, configRef.current.optics, (draft) => {
+      produceSettled(current, configRef.current.optics, (draft) => {
         const message = enabled ? 'Air pump enabled' : 'Air pump disabled';
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.airPump.enabled = enabled;
@@ -634,7 +623,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
   const updatePowerheadEnabled = useCallback((enabled: boolean) => {
     setState((current) =>
-      refit(current, configRef.current.optics, (draft) => {
+      produceSettled(current, configRef.current.optics, (draft) => {
         const message = enabled ? 'Powerhead enabled' : 'Powerhead disabled';
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.powerhead.enabled = enabled;
@@ -645,7 +634,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
   const updatePowerheadFlowRate = useCallback((flowRateGPH: PowerheadFlowRate) => {
     setState((current) =>
-      refit(current, configRef.current.optics, (draft) => {
+      produceSettled(current, configRef.current.optics, (draft) => {
         const oldRate = draft.equipment.powerhead.flowRateGPH;
         if (oldRate !== flowRateGPH) {
           const log = createLog(
@@ -695,7 +684,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
   const updateLightEnabled = useCallback((enabled: boolean) => {
     setState((current) =>
-      refit(current, configRef.current.optics, (draft) => {
+      produceSettled(current, configRef.current.optics, (draft) => {
         const message = enabled
           ? `Light enabled (${draft.equipment.light.par} PAR)`
           : 'Light disabled';
@@ -708,7 +697,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
   const updateLightPar = useCallback((par: number) => {
     setState((current) =>
-      refit(current, configRef.current.optics, (draft) => {
+      produceSettled(current, configRef.current.optics, (draft) => {
         const oldPar = draft.equipment.light.par;
         if (oldPar !== par) {
           const log = createLog(
@@ -726,7 +715,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
   const updateLightSchedule = useCallback((schedule: DailySchedule) => {
     setState((current) =>
-      refit(current, configRef.current.optics, (draft) => {
+      produceSettled(current, configRef.current.optics, (draft) => {
         const oldSchedule = draft.equipment.light.schedule;
         if (oldSchedule.startHour !== schedule.startHour || oldSchedule.duration !== schedule.duration) {
           const log = createLog(

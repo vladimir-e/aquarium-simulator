@@ -3,7 +3,8 @@
  */
 
 import { produce } from 'immer';
-import { calculateFloorArea, type Plant, type SimulationState } from '../state.js';
+import type { Plant, SimulationState } from '../state.js';
+import { calculateFloorArea } from '../core/geometry.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
 import { floorShare, plantedFootprint } from '../plants/canopy.js';

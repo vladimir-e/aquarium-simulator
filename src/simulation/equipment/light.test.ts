@@ -7,7 +7,7 @@ import {
   type Light,
 } from './light.js';
 import { opticsDefaults } from '../config/optics.js';
-import { calculateTankHeight } from '../state.js';
+import { calculateTankHeight } from '../core/geometry.js';
 
 describe('light equipment', () => {
   describe('LIGHT_PAR_OPTIONS', () => {

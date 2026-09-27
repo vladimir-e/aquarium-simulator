@@ -10,16 +10,13 @@ import {
   resetHardscape,
   calculatePassiveResources,
   processEquipment,
+  settlePassiveResources,
   type PassiveResourceValues,
 } from './index.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { getSubstrateSurface, type SubstrateType } from './substrate.js';
-import {
-  calculateTankHeight,
-  createSimulation,
-  type SimulationState,
-  type SimulationConfig,
-} from '../state.js';
+import { createSimulation, type SimulationState, type SimulationConfig } from '../state.js';
+import { calculateTankHeight } from '../core/geometry.js';
 import { calculateParAtDepth } from './light.js';
 import { opticsDefaults } from '../config/optics.js';
 import { FILTER_SURFACE, getFilterFlow } from './filter.js';
@@ -160,6 +157,17 @@ describe('calculatePassiveResources', () => {
       expect(at(40)).toBeGreaterThan(at(150));
       expect(at(150)).toBeGreaterThan(at(300));
     });
+  });
+});
+
+describe('settlePassiveResources', () => {
+  it('leaves a new tank as it stands, though hour zero rewrites its whole day', () => {
+    const state = createSimulation({
+      tankCapacity: 100,
+      light: { enabled: true, par: 90, schedule: { startHour: 0, duration: 12 } },
+    });
+
+    expect(settlePassiveResources(state, opticsDefaults)).toBe(state);
   });
 });
 

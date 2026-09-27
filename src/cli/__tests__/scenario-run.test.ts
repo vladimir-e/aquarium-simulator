@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
-import { scheduledLightHistory, type SimulationState } from '../../simulation/state.js';
+import type { SimulationState } from '../../simulation/state.js';
+import { scheduledLightHistory } from '../../simulation/equipment/index.js';
 import { READINGS } from '../scenarios/readings.js';
 import { toJson } from '../scenarios/report.js';
 import { keepTank, runScenario, sampleDays } from '../scenarios/run.js';

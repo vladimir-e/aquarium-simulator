@@ -3,7 +3,8 @@
  * (`flora/`) runs them through their hour beside the blooms.
  */
 
-import { calculateTankHeight, type SimulationState } from '../state.js';
+import type { SimulationState } from '../state.js';
+import { calculateTankHeight } from '../core/geometry.js';
 import type { TunableConfig } from '../config/index.js';
 import { canopyLight, lightAtHeight, type PlantLight } from './canopy.js';
 

@@ -8,13 +8,13 @@ import { calculateNutrientSufficiency, nutrientsIn, organicNutrients, tankPools 
 import { tissueMass } from '../systems/plant-lifecycle.js';
 import { getPpm } from '../resources/index.js';
 import {
-  calculateTankHeight,
   createSimulation,
   type AlgaeState,
   type SimulationState,
   type Plant,
   type Resources,
 } from '../state.js';
+import { calculateTankHeight } from '../core/geometry.js';
 import { ALGAE, ALGAE_KINDS, bloomTissue, habitatGain, habitatSize, waterExtinction, type AlgaeKind } from '../algae/index.js';
 import { calculateParAtDepth, dailyLightIntegral } from '../equipment/light.js';
 import { produce } from 'immer';

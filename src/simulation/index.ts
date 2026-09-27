@@ -23,16 +23,13 @@ export type {
 export {
   createSimulation,
   quietAlerts,
-  scheduledLightHistory,
-  calculateTankHeight,
-  calculateFloorArea,
-  calculateTankGlassSurface,
   calculateHardscapeSlots,
   DEFAULT_HEATER,
   DEFAULT_LID,
   DEFAULT_ATO,
   DEFAULT_LIGHT,
 } from './state.js';
+export { calculateTankHeight, calculateFloorArea, calculateTankGlassSurface } from './core/geometry.js';
 
 // Logging
 export type { LogEntry, LogSeverity, LogEvent, LogQuantity, LogText, QuantityFormat } from './core/logging.js';
@@ -238,6 +235,7 @@ export {
   getLightOutput,
   calculateParAtDepth,
   scheduledLightByHour,
+  scheduledLightHistory,
   dailyLightIntegral,
   LIGHT_PAR_OPTIONS,
   MAX_LIGHT_PAR,

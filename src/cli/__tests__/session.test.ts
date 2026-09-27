@@ -176,7 +176,7 @@ describe('configureSession', () => {
     expect(tuned.state.resources.lightByHour).toEqual(running.state.resources.lightByHour);
   });
 
-  it('leaves a settled tank as it stands when the leaf set is not one its readings are read under', () => {
+  it('a non-optics leaf leaves a settled tank as it stands', () => {
     const green = produce(
       createSimulation({
         tankCapacity: 200,

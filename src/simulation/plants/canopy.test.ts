@@ -14,14 +14,8 @@ import {
   type CanopyLight,
 } from './canopy.js';
 import { GROWTH_FORMS, growthFormOf, PLANT_SPECIES_DATA, type PlantSpecies } from './species.js';
-import {
-  calculateFloorArea,
-  calculateTankHeight,
-  createSimulation,
-  type Blooms,
-  type Plant,
-  type SimulationState,
-} from '../state.js';
+import { createSimulation, type Blooms, type Plant, type SimulationState } from '../state.js';
+import { calculateFloorArea, calculateTankHeight } from '../core/geometry.js';
 import { opticsDefaults, type OpticsConfig } from '../config/optics.js';
 import { plantsDefaults } from '../config/plants.js';
 import { buildPlantBenefits, buildPlantStressors } from '../systems/plant-vitality.js';
@@ -57,12 +51,6 @@ const MIXED: Unit[] = [
 ];
 
 describe('geometry', () => {
-  it('floors the 2:1:1 box at twice its depth squared', () => {
-    for (const capacity of [20, 150, 300]) {
-      expect(calculateFloorArea(capacity)).toBeCloseTo(2 * calculateTankHeight(capacity) ** 2, 9);
-    }
-  });
-
   it('stands a carpet at its full height whatever its size, and grows the others up with it', () => {
     expect(plantHeight(unit('monte_carlo', 5), DEPTH)).toBe(GROWTH_FORMS.carpet.heightCm);
     expect(plantHeight(unit('amazon_sword', 100), DEPTH)).toBe(GROWTH_FORMS.rosette.heightCm);

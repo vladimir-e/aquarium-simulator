@@ -23,7 +23,7 @@
  */
 
 import type { Blooms, Plant, Resources, SimulationState } from '../state.js';
-import { calculateFloorArea, calculateTankHeight } from '../state.js';
+import { calculateFloorArea, calculateTankHeight } from '../core/geometry.js';
 import type { OpticsConfig } from '../config/optics.js';
 import { calculateParAtDepth, dailyLightIntegral } from '../equipment/light.js';
 import { growthFormOf, plantTraits, type PlantSpecies } from './species.js';

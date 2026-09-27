@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { onTheGlass, scrubAlgae } from './scrub-algae.js';
-import { createSimulation, calculateFloorArea, calculateTankGlassSurface, type SimulationState } from '../state.js';
+import { createSimulation, type SimulationState } from '../state.js';
+import { calculateFloorArea, calculateTankGlassSurface } from '../core/geometry.js';
 import { habitatSize, placeShare } from '../algae/index.js';
 import { bloomsTissue } from '../tests/blooms.js';
 import { createHardscapeItem } from '../equipment/hardscape.js';

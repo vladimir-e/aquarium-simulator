@@ -1,5 +1,5 @@
 import type { Resources, SimulationState } from '../state.js';
-import { calculateFloorArea, calculateTankGlassSurface, calculateTankHeight } from '../state.js';
+import { calculateFloorArea, calculateTankGlassSurface, calculateTankHeight } from '../core/geometry.js';
 import type { OpticsConfig } from '../config/optics.js';
 import type { ActionType } from '../actions/types.js';
 import { calculateHardscapeTotalSurface } from '../equipment/hardscape.js';

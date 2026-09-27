@@ -5,7 +5,7 @@
 import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
-import { calculateTankHeight, calculateTankGlassSurface, scheduledLightHistory } from '../state.js';
+import { calculateTankHeight, calculateTankGlassSurface } from '../core/geometry.js';
 import { type OpticsConfig, type TunableConfig } from '../config/index.js';
 import {
   heaterUpdate,
@@ -281,6 +281,18 @@ export function calculatePassiveResources(
   const aeration = equipment.airPump.enabled || filterAerates;
 
   return { surface, flow, light, aeration };
+}
+
+/** The light history of a tank that has run its fixture's schedule all along, through its water as it stands. */
+export function scheduledLightHistory(
+  state: Pick<SimulationState, 'tank' | 'equipment' | 'algae'>,
+  optics: OpticsConfig
+): number[] {
+  return scheduledLightByHour(
+    state.equipment.light,
+    calculateTankHeight(state.tank.capacity),
+    waterExtinction(state.algae, optics)
+  );
 }
 
 /**

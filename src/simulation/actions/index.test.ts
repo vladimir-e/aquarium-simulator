@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { applyAction } from './index';
 import type { Action } from './types';
-import { createSimulation, scheduledLightHistory, type SimulationState } from '../state';
+import { createSimulation, type SimulationState } from '../state';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { calculatePassiveResources } from '../equipment/index.js';
+import { calculatePassiveResources, scheduledLightHistory } from '../equipment/index.js';
 import { tick } from '../tick.js';
 import { produce } from 'immer';
 

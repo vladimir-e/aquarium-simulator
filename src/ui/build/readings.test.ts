@@ -15,7 +15,7 @@ import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { bacteriaReadout, colonyCount, readHourAhead } from '../run/index.js';
 import { calculateParAtDepth } from '../../simulation/equipment/light.js';
 import { formatCo2Rate } from '../../simulation/equipment/co2-generator.js';
-import { calculateTankHeight } from '../../simulation/state.js';
+import { calculateTankHeight } from '../../simulation/core/geometry.js';
 import { getPresetById } from '../../simulation/presets.js';
 import type { UnitSystem } from '../utils/units.js';
 import type { EquipmentId } from './devices';
