@@ -173,6 +173,7 @@ export {
 export {
   processEquipment,
   calculatePassiveResources,
+  settlePassiveResources,
   calculateSurface,
   biofilmKept,
   rescape,

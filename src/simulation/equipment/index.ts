@@ -5,7 +5,7 @@
 import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
-import { calculateTankHeight, calculateTankGlassSurface } from '../state.js';
+import { calculateTankHeight, calculateTankGlassSurface, scheduledLightHistory } from '../state.js';
 import { type OpticsConfig, type TunableConfig } from '../config/index.js';
 import {
   heaterUpdate,
@@ -281,6 +281,20 @@ export function calculatePassiveResources(
   const aeration = equipment.airPump.enabled || filterAerates;
 
   return { surface, flow, light, aeration };
+}
+
+/**
+ * Recompute the passive readings off the tank as it stands, at its hour. At
+ * hour zero the tank has lived no day yet, so its light history is the
+ * schedule it was lit to; past it, the history is the hours the tick recorded.
+ */
+export function settlePassiveResources(draft: SimulationState, optics: OpticsConfig): void {
+  const passive = calculatePassiveResources(draft, optics);
+  draft.resources.surface = passive.surface;
+  draft.resources.flow = passive.flow;
+  draft.resources.light = passive.light;
+  draft.resources.aeration = passive.aeration;
+  if (draft.tick === 0) draft.resources.lightByHour = scheduledLightHistory(draft, optics);
 }
 
 /**

@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { applyAction } from './index';
 import type { Action } from './types';
-import { createSimulation, type SimulationState } from '../state';
+import { createSimulation, scheduledLightHistory, type SimulationState } from '../state';
 import { DEFAULT_CONFIG } from '../config/index.js';
+import { calculatePassiveResources } from '../equipment/index.js';
+import { tick } from '../tick.js';
 import { produce } from 'immer';
 
 describe('applyAction', () => {
@@ -47,6 +49,41 @@ describe('applyAction', () => {
         }
       });
     }
+  });
+
+  describe('the light a water change leaves', () => {
+    const config = produce(DEFAULT_CONFIG, (draft) => {
+      draft.optics.waterAttenuationPerCm *= 2;
+    });
+    const greenTank = (): SimulationState =>
+      produce(
+        createSimulation({
+          tankCapacity: 100,
+          light: { enabled: true, par: 100, schedule: { startHour: 0, duration: 24 } },
+          optics: config.optics,
+        }),
+        (draft) => {
+          draft.algae.greenWater.mass = 60;
+        }
+      );
+    const changed = (state: SimulationState): SimulationState =>
+      applyAction(state, { type: 'waterChange', amount: 0.5 }, config).state;
+
+    it('reads through the cleared water, and leaves the day the tank has lived to the tick', () => {
+      const lit = tick(greenTank(), config);
+      const after = changed(lit);
+
+      expect(after.resources.light).toBe(calculatePassiveResources(after, config.optics).light);
+      expect(after.resources.light).toBeGreaterThan(lit.resources.light);
+      expect(after.resources.lightByHour).toEqual(lit.resources.lightByHour);
+    });
+
+    it('reads the day through the cleared water at hour zero, the tank having lived none', () => {
+      const after = changed(greenTank());
+
+      expect(after.resources.lightByHour).toEqual(scheduledLightHistory(after, config.optics));
+      expect(after.resources.light).toBe(after.resources.lightByHour[0]);
+    });
   });
 
   it('mixes a dose to the formula the config carries', () => {
