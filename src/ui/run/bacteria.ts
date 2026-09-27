@@ -275,7 +275,7 @@ export interface CycleProjection {
   hours: number;
   /** Nitrite at the peak, ppm. */
   ppm: number;
-  /** Flora that can take ammonia the chain alone never sees; with any, the peak reaches `ppm` at most. */
+  /** Flora the chain alone never sees: what they draw and what they shed both move the peak off `ppm`. */
   feeders: ('plants' | 'algae')[];
 }
 
@@ -315,9 +315,10 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
  * the bed's leaching and settling are not choices: they run every tick whatever
  * the keeper does, so the projection carries them.
  *
- * The chain runs alone. What plants and a bloom take turns on how they grow,
- * which is the whole flora pass rather than a rate to hold, and it only ever
- * lowers the peak — so wherever they can feed, the peak is a ceiling.
+ * The chain runs alone. Plants and a bloom move the peak either way — growth
+ * draws ammonia, shedding and die-back rot back into it — and which way turns
+ * on the whole flora pass rather than a rate to hold, so the figure is the
+ * cycle's alone and names the flora that will shift it.
  */
 export function projectNitritePeak(
   state: SimulationState,
@@ -411,10 +412,8 @@ function inDays(hours: number): string {
 
 function peakClause(projection: CycleProjection | null): string {
   if (!projection) return ` No nitrite peak within ${PROJECTION_HORIZON / 24} d at this production rate.`;
-  const ppm = `${projection.ppm.toFixed(2)} ppm`;
-  return projection.feeders.length > 0
-    ? ` Nitrite peaks ${inDays(projection.hours)} at no more than ${ppm}, as ${projection.feeders.join(' and ')} take ammonia too.`
-    : ` Nitrite peaks ${inDays(projection.hours)} at ${ppm}.`;
+  const peak = ` The cycle alone peaks nitrite at ${projection.ppm.toFixed(2)} ppm ${inDays(projection.hours)}`;
+  return projection.feeders.length > 0 ? `${peak}; the ${projection.feeders.join(' and ')} here will shift it.` : `${peak}.`;
 }
 
 /** What the two colonies mean together — the sentence the numbers add up to. */

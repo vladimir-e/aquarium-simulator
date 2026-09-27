@@ -318,25 +318,24 @@ describe('projectNitritePeak', () => {
     expect(Math.abs(projection.hours - engine.hours)).toBeLessThanOrEqual(2);
     expect(Math.abs(projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.01);
     expect(bacteriaSummary(readBiofilter(state), projection)).toContain(
-      `Nitrite peaks in ${Math.round(projection.hours / 24)} d at ${projection.ppm.toFixed(2)} ppm.`
+      `The cycle alone peaks nitrite at ${projection.ppm.toFixed(2)} ppm in ${Math.round(projection.hours / 24)} d.`
     );
   });
 
-  it('reads the peak as a ceiling wherever plants or a bloom can take the ammonia, and names them', () => {
+  it('names the flora that will shift the cycle’s peak wherever plants or a bloom can feed, without a direction', () => {
     const lit = soilTank();
     const projection = projectPeak(lit)!;
 
     expect(projection.feeders).toEqual(['algae']);
-    expect(enginePeak(lit).ppm).toBeLessThanOrEqual(projection.ppm);
     expect(bacteriaSummary(readBiofilter(lit), projection)).toContain(
-      `at no more than ${projection.ppm.toFixed(2)} ppm, as algae take ammonia too.`
+      `The cycle alone peaks nitrite at ${projection.ppm.toFixed(2)} ppm in ${Math.round(projection.hours / 24)} d; the algae here will shift it.`
     );
 
     const plantedDark = applyAction(soilTank({ lit: false }), { type: 'addPlant', species: 'anubias' }).state;
     expect(projectPeak(plantedDark)!.feeders).toEqual(['plants']);
     const plantedLit = applyAction(lit, { type: 'addPlant', species: 'anubias' }).state;
     expect(bacteriaSummary(readBiofilter(plantedLit), projectPeak(plantedLit))).toContain(
-      'as plants and algae take ammonia too.'
+      'the plants and algae here will shift it.'
     );
   });
 
@@ -385,7 +384,7 @@ describe('bacteriaSummary', () => {
 
     expect(readout.aob.count).toBeGreaterThan(0);
     expect(summary).toContain('Uncycled');
-    expect(summary).toContain('Nitrite peaks in');
+    expect(summary).toContain('The cycle alone peaks nitrite at');
   });
 
   it('keeps a cycled tank off the uncycled line while a feeding is still being worked down', () => {
@@ -401,7 +400,7 @@ describe('bacteriaSummary', () => {
     const summary = bacteriaSummary(readout, { hours: 30, ppm: 2, feeders: [] });
 
     expect(summary).toContain('NOB trail AOB by');
-    expect(summary).toContain('Nitrite peaks in');
+    expect(summary).toContain('The cycle alone peaks nitrite at');
   });
 
   it('calls out the surface as the limit once both colonies have filled it', () => {

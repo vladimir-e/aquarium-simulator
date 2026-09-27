@@ -111,7 +111,7 @@ describe('WaterSection', () => {
     expect(within(biofilter).getByText('AOB')).toBeTruthy();
     expect(within(biofilter).getByText('NOB')).toBeTruthy();
     expect(within(biofilter).getByText(/Uncycled\./)).toBeTruthy();
-    expect(within(biofilter).getByText(/Nitrite peaks in|No nitrite peak within/)).toBeTruthy();
+    expect(within(biofilter).getByText(/The cycle alone peaks nitrite at|No nitrite peak within/)).toBeTruthy();
   });
 
   it('names every waste source, substrate included, on an unstocked soil tank', () => {
