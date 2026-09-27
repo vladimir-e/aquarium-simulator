@@ -207,7 +207,8 @@ describe('waterLevelAlert', () => {
           CAPACITY,
           at.livestock,
           0,
-          1
+          1,
+          0
         ).breakdown;
         const harmed = stressors.find((s) => s.key === 'waterLevel')!.amount > 0;
 

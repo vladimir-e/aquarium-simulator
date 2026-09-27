@@ -284,6 +284,7 @@ const ClutchSchema = z
     species: z.enum(FISH_SPECIES),
     eggs: z.number().min(0),
     development: z.number().min(0),
+    motherId: z.string().optional(),
   })
   .strict();
 
@@ -541,6 +542,8 @@ const LivestockConfigSchema = z
     broodCost: z.number().positive(),
     eggSensitivity: z.number().min(0),
     eggPredationRate: z.number().min(0),
+    fryPredationRate: z.number().min(0),
+    fryVulnerabilityExponent: z.number().positive(),
     deathDecayFactor: z.number(),
   })
   .strict();

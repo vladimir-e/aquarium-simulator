@@ -1,6 +1,6 @@
 ---
 title: Livestock
-description: Fish as individuals — a gut whose digestion is the fish's income, one oxygen factor over the whole metabolism, a bank that heals a fish and buys its growth and broods, and clutches the water and the fish thin.
+description: Fish as individuals — a gut whose digestion is the fish's income, one oxygen factor over the whole metabolism, a bank that heals a fish and buys its growth and broods, clutches the water and the fish thin, and fry the larger fish hunt.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -16,7 +16,8 @@ suffocating fish loads the water less and suffers more. Health is the vitality
 model: income at full health banks, the bank heals the fish, and the bank buys
 its growth and its broods, so a bigger ration grows a fish sooner and buys more
 broods. A brood is a clutch — a count of eggs that the water and the tank's
-fish thin as it develops — so a crowded tank eats its own eggs.
+fish thin as it develops — so a crowded tank eats its own eggs, and its larger
+fish hunt the fry that hatch.
 
 ## Status
 
@@ -37,7 +38,7 @@ fish thin as it develops — so a crowded tank eats its own eggs.
 | Low health | <Badge text="settled" variant="success" /> | Only death reads it: health is the buffer between harm and death, so a fish at 5 % eats, breathes and excretes as one at 100 does ([Vitality](/concepts/vitality/)). |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge, and damage starts from zero at or past it. pH earns most at the band's centre; oxygen rises from the alert edge to comfort. |
 | Clutches | <Badge text="settled" variant="success" /> | A stock of eggs two rates thin — the fish's own water harm, and predation by the fish per litre — developing on the metabolic factor until it hatches. No timer and no crowding rule. |
-| Fry predation | <Badge text="missing" variant="danger" /> | Nothing eats a hatched fry, and a livebearer's carried brood is out of every mouth, so a guppy pair still breeds toward a wipeout. A carried brood outlives a mother that dies. |
+| Fry predation | <Badge text="settled" variant="success" /> | A damage rate: the larger fish per litre, falling smoothly with the prey's size. A fed fry's bank rides out a light hunt and a starving one's doesn't; what they kill they eat. A mother carries one brood, and it dies with her. |
 | Colonies | <Badge text="missing" variant="danger" /> | Snails and shrimp do not exist. Fish are the only animals, and food they leave behind decays rather than feeding anything. |
 | General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only band per species: no benefit inside it, and one pooled GH rather than calcium and magnesium apart. |
 | Dissolved CO₂ | <Badge text="missing" variant="danger" /> | Fish carry no carbon stressor. A tank can sit at any CO₂ the injector reaches without a fish noticing. |
@@ -109,14 +110,14 @@ water it is in, so a suffocating fish draws less *and* suffers more.
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
 | `health` | Benefits; healing from the bank | Stressors | %, normal at 100 |
-| `gut` | Eating, up to `gutCapacity × mass` | Digestion, first order | g |
+| `gut` | Eating, up to `gutCapacity × mass`; eggs and fry it eats | Digestion, first order | g |
 | `surplus` | Income at full health | Healing; growth; a brood | condition points, capped at `surplusCap` |
 | clutch `eggs` | A brood | Water harm and predation, first order; hatching | eggs |
 | clutch `development` | The metabolic factor over the species' development time | Hatching, at 1 | share of the way to hatching |
 | `age` | One tick per hour, always | — | ticks |
 | `mass` | Growth, out of the bank | — | g |
 | `food` | Feeding and the feeder, elsewhere | Fish eating, a share of their appetite each | g |
-| `waste` | Feces; half the body mass of a fish that dies, and its gut; dead eggs | Mineralization, elsewhere | g |
+| `waste` | Feces; half the body mass of a fish that dies, and its gut, less what the fish eat of it; dead eggs | Mineralization, elsewhere | g |
 | `ammonia` | Gill excretion | Nitrification, elsewhere | mg |
 | `kh` | Gill excretion, an equivalent per mole of ammonia | Nitrification, elsewhere | mg CaCO₃ |
 | `oxygen` | Gas exchange, elsewhere | Respiration, itself throttled by the oxygen already standing | mg/L |
@@ -171,6 +172,7 @@ outruns its healing, so its health falls.
 | Flow | above the species `maxTurnover` | tank volumes/h over |
 | Hunger | digesting under its maintenance ration | share short of it |
 | Age | past the species `maxAge` | hour over |
+| Hunted | larger fish in the tank, on any fish short of adult size | g of them per litre |
 
 Every benefit is its peak times the fish's nourishment.
 
@@ -209,6 +211,22 @@ buys it about two more.
 Ammonia reads the free fraction rather than total ammonia, so the same 2 ppm
 reading costs a fish far less at pH 6.5 than at 8.0. Nitrite is read without
 chloride, which in real tap water raises its tolerance.
+
+#### Predation
+
+Every fish larger than a fish hunts it, by its mass per litre:
+
+```
+hunted = fryPredationRate × larger fish mass / water × (1 − size / 100)^fryVulnerabilityExponent
+```
+
+hardened by `1 − hardiness` as the body's stressors are. It is one more
+damage rate: a fed fry earning past it banks the difference and grows out of
+reach, and a hungry one or one in a crowd loses condition until it dies. A
+newborn guppy among a grown pair in 110 L takes about 0.06 %/h and grows
+through it; among twenty grown guppies about 0.6 %/h, most of what a fed fry
+earns — so a tank breeds until its own fish hold the fry back. At a third of
+adult size a fish is a fifth as exposed as a newborn.
 
 ### Individual variation
 
@@ -300,12 +318,16 @@ investment: a bubble-nesting betta builds and guards the nest, an angelfish
 pair fans its eggs together, a guppy or a neon only mates. Exposure is how
 much of the tank's predation reaches the clutch — a guarded nest loses less,
 and a livebearer's clutch is the brood its mother carries through gestation,
-out of reach, until she gives birth.
+out of reach, until she gives birth. She carries one brood at a time — a
+gestating female doesn't brood — and it dies with her, to waste.
 
 ### Death
 
 Death is vitality-driven and nothing else: health reaching zero removes the fish
-and adds `deathDecayFactor` of its body mass to the waste pool. Old age arrives
+and adds `deathDecayFactor` of its body mass to the waste pool. The share of its
+dying hour's damage its predators did is the share of its body and gut they
+eat, into the guts of the larger fish by their mass, so an eaten fry feeds the
+tank rather than fouling it. Old age arrives
 through the same channel — past the species lifespan the age stressor
 accumulates until it outruns the benefit budget, which gives the keeper a
 visible decline rather than a coin flip.
@@ -336,6 +358,8 @@ visible decline rather than a coin flip.
 | `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his share | `50` pts |
 | `eggSensitivity` | How many times harder the water harms an egg than a fish | `3` × |
 | `eggPredationRate` | Share of a clutch an hour one gram of fish per litre eats, before its exposure | `2` L/g/hr |
+| `fryPredationRate` | Damage an hour, before hardiness, one gram per litre of larger fish does a fish at no size | `20` %/hr per g/L |
+| `fryVulnerabilityExponent` | How steeply a growing fish outgrows its predators | `4` |
 | `deathDecayFactor` | Share of body mass that becomes waste on death | `0.5` |
 
 ## Seams

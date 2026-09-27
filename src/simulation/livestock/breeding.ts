@@ -4,14 +4,15 @@
  * `state.clutches` directly because it *adds* organisms, which the effect
  * system can't express; the waste dead eggs leave goes out as an effect.
  *
- * The clutches standing live their hour first, then a female on a full bank
- * broods, then every fish's bank draws toward growth. The brood runs before
+ * The clutches standing live their hour first — a carried brood whose mother
+ * died goes to waste with her — then a female on a full bank broods, then
+ * every fish's bank draws toward growth. The brood runs before
  * growth for the reason a plant's offshoot does: drawn first, a bank sits a
  * hair under full and a grown female never broods.
  */
 
 import { produce } from 'immer';
-import type { SimulationState, Clutch } from '../state.js';
+import type { SimulationState, Clutch, Fish } from '../state.js';
 import type { Effect } from '../core/effects.js';
 import type { FishSpecies } from '../livestock/species.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
@@ -61,8 +62,8 @@ function addFry(draft: SimulationState, species: FishSpecies, count: number, con
 /**
  * One hour of every clutch: the water and the fish thin it, it develops, and a
  * developed clutch hatches its whole eggs. The eggs eaten land in the fish's
- * guts by their mass; the rest of the dead, and the part egg a hatch leaves,
- * are returned as grams of waste.
+ * guts by their mass; the rest of the dead, a carried brood whose mother is
+ * gone, and the part egg a hatch leaves, are returned as grams of waste.
  */
 function tendClutches(draft: SimulationState, config: LivestockConfig): number {
   if (draft.clutches.length === 0) return 0;
@@ -73,16 +74,21 @@ function tendClutches(draft: SimulationState, config: LivestockConfig): number {
   let eaten = 0;
   let waste = 0;
 
+  const living = new Set(draft.fish.map((fish) => fish.id));
   const developing: Clutch[] = [];
   for (const clutch of draft.clutches) {
     const { species } = clutch;
+    const mass = FISH_SPECIES_DATA[species].breeding.eggMass;
+    if (clutch.motherId !== undefined && !living.has(clutch.motherId)) {
+      waste += clutch.eggs * mass;
+      continue;
+    }
     const hour = settleClutch(
       clutch,
       eggHarmRate(species, resources, resources.water, config),
       eggPredationRate(species, predatorMass, resources.water, config),
       developmentRate(species, factor)
     );
-    const mass = FISH_SPECIES_DATA[species].breeding.eggMass;
     eaten += hour.eaten * mass;
     waste += hour.spoiled * mass;
 
@@ -114,7 +120,7 @@ function hatch(draft: SimulationState, species: FishSpecies, count: number, conf
 
 /** The ready females of each species brood together, fathered by the males of their species. */
 function spawn(draft: SimulationState, config: LivestockConfig): void {
-  const ready = draft.fish.filter((f) => readyToBrood(f, config));
+  const ready = draft.fish.filter((f) => readyToBrood(f, draft.clutches, config));
 
   for (const species of new Set(ready.map((f) => f.species))) {
     const females = ready.filter((f) => f.species === species);
@@ -128,15 +134,17 @@ function spawn(draft: SimulationState, config: LivestockConfig): void {
       male.surplus = result.males[i].surplus;
     });
 
-    for (const count of result.offspring) {
-      if (count > 0) layClutch(draft, species, count);
-    }
+    result.offspring.forEach((count, i) => {
+      if (count > 0) layClutch(draft, females[i], count);
+    });
   }
 }
 
-function layClutch(draft: SimulationState, species: FishSpecies, eggs: number): void {
+function layClutch(draft: SimulationState, mother: Fish, eggs: number): void {
+  const { species } = mother;
   const { name, breeding } = FISH_SPECIES_DATA[species];
-  draft.clutches.push({ id: drawId(draft.rng, 'clutch'), species, eggs, development: 0 });
+  const clutch: Clutch = { id: drawId(draft.rng, 'clutch'), species, eggs, development: 0 };
+  draft.clutches.push(breeding.mode === 'livebearer' ? { ...clutch, motherId: mother.id } : clutch);
   draft.logs.push(
     createLog(
       draft.tick,

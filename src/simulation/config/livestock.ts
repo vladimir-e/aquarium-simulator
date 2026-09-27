@@ -146,6 +146,12 @@ export interface LivestockConfig {
   /** Share of a clutch's eggs an hour one gram of fish per litre finds, before the clutch's exposure. */
   eggPredationRate: number;
 
+  // Fry predation
+  /** Damage an hour, before hardiness, that one gram per litre of larger fish does a fish at no size at all. */
+  fryPredationRate: number;
+  /** How steeply a fish outgrows its predators: vulnerability is `(1 − size / 100)` to this power. */
+  fryVulnerabilityExponent: number;
+
   // Death
   /** Fraction of fish mass added as waste on death */
   deathDecayFactor: number;
@@ -257,6 +263,13 @@ export const livestockDefaults: LivestockConfig = {
   // A grown neon pair in 40 L finds about 5 % of an open clutch an hour, so a
   // fifth of it hatches; ten neons leave next to none.
   eggPredationRate: 2,
+
+  // A guppy fry among a grown pair in 110 L takes about 0.06 %/h and banks
+  // through it; among twenty grown guppies it takes about 0.6 %/h, most of
+  // what a fed fry earns. At a third of adult size a fish is a fifth as
+  // exposed as a newborn.
+  fryPredationRate: 20,
+  fryVulnerabilityExponent: 4,
 
   // Death
   deathDecayFactor: 0.5, // Half fish mass becomes waste
@@ -373,6 +386,9 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   // Clutches
   { key: 'eggSensitivity', label: 'Egg Sensitivity', unit: '× fish', min: 0, max: 10, step: 0.5 },
   { key: 'eggPredationRate', label: 'Egg Predation Rate', unit: 'L/g/hr', min: 0, max: 20, step: 0.5 },
+  // Fry predation
+  { key: 'fryPredationRate', label: 'Fry Predation Rate', unit: '%/hr per g/L', min: 0, max: 200, step: 1 },
+  { key: 'fryVulnerabilityExponent', label: 'Fry Vulnerability Exponent', unit: '', min: 1, max: 10, step: 0.5 },
   // Death
   { key: 'deathDecayFactor', label: 'Death Decay Factor', unit: '', min: 0.1, max: 1.0, step: 0.1 },
 ];

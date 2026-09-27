@@ -11,7 +11,7 @@
  * their own brood shares.
  */
 
-import type { Fish } from '../state.js';
+import type { Clutch, Fish } from '../state.js';
 import type { FishLifeStage, FishSpecies } from '../livestock/species.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
@@ -83,10 +83,11 @@ export function offspringFathered(male: Fish, config: LivestockConfig): number {
   );
 }
 
-/** Whether a female broods this hour: her bank is full and buys at least one whole egg. */
-export function readyToBrood(fish: Fish, config: LivestockConfig): boolean {
+/** Whether a female broods this hour: she carries no brood, and her full bank buys at least one whole egg. */
+export function readyToBrood(fish: Fish, clutches: readonly Clutch[], config: LivestockConfig): boolean {
   return (
     fish.sex === 'female' &&
+    !clutches.some((clutch) => clutch.motherId === fish.id) &&
     bankFull(fish.surplus, config.surplusCap) &&
     Math.floor(eggsLaid(fish, config)) >= 1
   );

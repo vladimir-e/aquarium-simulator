@@ -202,6 +202,8 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his species' share | pts per body mass |
 | `eggSensitivity` | How many times harder the water harms an egg than a fish, as a share of the clutch an hour | × |
 | `eggPredationRate` | Share of a clutch an hour one gram of fish per litre eats, before the clutch's exposure | L/g/hr |
+| `fryPredationRate` | Damage an hour, before hardiness, one gram per litre of larger fish does a fish at no size | %/hr per g/L |
+| `fryVulnerabilityExponent` | How steeply a growing fish outgrows its predators: exposure is `(1 − size / 100)` to this power | — |
 | `deathDecayFactor` | Share of a dead fish's mass that becomes waste | — |
 
 ## Fixed tables

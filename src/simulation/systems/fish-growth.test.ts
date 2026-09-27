@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Fish } from '../state.js';
+import type { Clutch, Fish } from '../state.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { livestockDefaults as config } from '../config/livestock.js';
 import {
@@ -155,7 +155,16 @@ describe('brood', () => {
     const result = brood([small], [fish({ sex: 'male' })], config);
     expect(result.offspring).toEqual([0]);
     expect(result.females[0].surplus).toBe(small.surplus);
-    expect(readyToBrood(small, config)).toBe(false);
+    expect(readyToBrood(small, [], config)).toBe(false);
+  });
+
+  it('a female carrying a brood is not ready for another', () => {
+    const she = fish({ id: 'she' });
+    const carried: Clutch = { id: 'c', species: 'guppy', eggs: 10, development: 0.5, motherId: 'she' };
+    const another: Clutch = { ...carried, motherId: 'her-sister' };
+    expect(readyToBrood(she, [], config)).toBe(true);
+    expect(readyToBrood(she, [another], config)).toBe(true);
+    expect(readyToBrood(she, [carried], config)).toBe(false);
   });
 
   it('a male pays toward a brood only with a brood bank to pay from', () => {

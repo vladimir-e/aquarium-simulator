@@ -116,10 +116,38 @@ describe('processBreeding', () => {
   });
 
   it('a livebearer gives birth to its carried clutch', () => {
-    const brood: Clutch = { id: 'c', species: 'guppy', eggs: 8, development: 0.9999 };
-    const out = processBreeding(withTank([], [brood]), DEFAULT_CONFIG);
-    expect(out.state.fish).toHaveLength(8);
+    const mother = mkFish({ id: 'mother' });
+    const brood: Clutch = { id: 'c', species: 'guppy', eggs: 8, development: 0.9999, motherId: 'mother' };
+    const out = processBreeding(withTank([mother], [brood]), DEFAULT_CONFIG);
+    expect(born([mother], out.state.fish)).toHaveLength(8);
     expect(events(out.state, 'fish-spawned')[0].count).toBe(8);
+  });
+
+  it('a livebearer carries her brood, and an egg-layer leaves hers', () => {
+    for (const species of ['guppy', 'neon_tetra'] as const) {
+      const she = mkFish({ id: `she-${species}`, species, sex: 'female', surplus: CAP });
+      const pair = [she, mkFish({ species, sex: 'male', surplus: CAP })];
+      const [clutch] = processBreeding(withTank(pair), DEFAULT_CONFIG).state.clutches;
+      expect(clutch.motherId).toBe(species === 'guppy' ? she.id : undefined);
+    }
+  });
+
+  it('a carried brood dies with its mother, every egg to waste', () => {
+    const brood: Clutch = { id: 'c', species: 'guppy', eggs: 12, development: 0.9999, motherId: 'gone' };
+    const out = processBreeding(withTank([mkFish({ sex: 'male' })], [brood]), DEFAULT_CONFIG);
+    expect(out.state.clutches).toHaveLength(0);
+    expect(out.state.fish).toHaveLength(1);
+    const waste = out.effects.find((e) => e.resource === 'waste')!.delta;
+    expect(waste).toBeCloseTo(12 * FISH_SPECIES_DATA.guppy.breeding.eggMass, 12);
+  });
+
+  it('a gestating female broods again only once she has given birth', () => {
+    const she = mkFish({ id: 'she', sex: 'female', surplus: CAP });
+    const pair = [she, mkFish({ sex: 'male', surplus: CAP })];
+    const carrying: Clutch = { id: 'c', species: 'guppy', eggs: 5, development: 0.1, motherId: 'she' };
+    const out = processBreeding(withTank(pair, [carrying]), DEFAULT_CONFIG);
+    expect(out.state.clutches.map((c) => c.id)).toEqual(['c']);
+    expect(events(out.state, 'eggs-laid')).toHaveLength(0);
   });
 
   it('hatches the whole eggs left, the part egg to waste', () => {

@@ -10,7 +10,7 @@
  *
  * Stressors, hardened here before they reach the vitality engine:
  * - Temperature, pH, GH, hunger, water level, flow, age (past species
- *   `maxAge`) are scaled by `1 − effectiveHardiness`.
+ *   `maxAge`) and predation are scaled by `1 − effectiveHardiness`.
  * - Free NH3, nitrite, nitrate and oxygen instead carry hardiness on the
  *   concentration axis: it moves where harm starts, not how steeply it grows.
  *
@@ -43,6 +43,7 @@ import type { LivestockConfig } from '../config/livestock.js';
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { maintenance, nourishment } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
+import { fishSize } from './fish-growth.js';
 import {
   FREE_AMMONIA_EDGE,
   NITRATE_EDGE,
@@ -69,7 +70,7 @@ export interface HealthResult {
   survivingFish: Fish[];
   /** Names of fish that died */
   deadFishNames: string[];
-  /** Waste the dead leave: their share of body mass, and whatever their guts held */
+  /** Waste the dead leave: their share of body mass and whatever their guts held, less what the survivors ate */
   deathWaste: number;
   /** Each fish's vitality this tick, in the order handed in, the dead included */
   vitalities: VitalityResult[];
@@ -99,6 +100,8 @@ interface FishFactorContext {
   digested: number;
   /** Grams it had to digest this hour to hold its condition. */
   need: number;
+  /** Grams of the tank's fish larger than it. */
+  predatorMass: number;
 }
 
 /**
@@ -165,6 +168,27 @@ export function waterStressors(
   ];
 }
 
+/** Grams of the fish larger than the prey — every fish that could swallow it. */
+export function predatorMass(prey: Pick<Fish, 'mass'>, fish: readonly Pick<Fish, 'mass'>[]): number {
+  return fish.reduce((sum, f) => (f.mass > prey.mass ? sum + f.mass : sum), 0);
+}
+
+/** How exposed a fish of this size is to predators: whole at no size, falling smoothly to none at adult size. */
+export function fryVulnerability(size: number, config: LivestockConfig): number {
+  return Math.max(0, 1 - size / 100) ** config.fryVulnerabilityExponent;
+}
+
+/** Damage, before hardiness, that the larger fish per litre do a fish an hour. */
+export function predationStress(
+  prey: Pick<Fish, 'species' | 'mass'>,
+  predators: number,
+  waterVolume: number,
+  config: LivestockConfig
+): number {
+  if (waterVolume <= 0) return 0;
+  return ((config.fryPredationRate * predators) / waterVolume) * fryVulnerability(fishSize(prey), config);
+}
+
 /**
  * Build the hardened stressor list for a fish: the water's, then its own
  * body's, scaled by hardiness. Inactive stressors are emitted with
@@ -201,6 +225,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   }
 
   const hungerStress = config.hungerSeverity * shortfall(ctx.digested, ctx.need);
+  const huntedStress = predationStress(fish, ctx.predatorMass, waterVolume, config);
 
   return [
     ...waterStressors(fish.species, ctx.hardiness, resources, waterVolume, config),
@@ -210,6 +235,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
         { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
         { key: 'flow', label: 'Flow', amount: flowStress },
         { key: 'age', label: 'Age', amount: ageStress },
+        { key: 'hunted', label: 'Hunted', amount: huntedStress },
       ],
       ctx.hardiness
     ),
@@ -259,8 +285,8 @@ export function fishHealingRate(fish: Fish, config: LivestockConfig): number {
 /**
  * A vitality tick for one fish, without applying it — `processHealth` applies
  * it. A caller wanting the next tick's numbers reads it on the hour that tick
- * settles, with the fish as metabolism leaves them, what its gut digested and
- * the metabolic factor it digested at.
+ * settles, with the fish as metabolism leaves them, what its gut digested,
+ * the metabolic factor it digested at and the grams of fish larger than it.
  */
 export function computeFishVitality(
   fish: Fish,
@@ -270,7 +296,8 @@ export function computeFishVitality(
   tankCapacity: number,
   config: LivestockConfig,
   digested: number,
-  metabolicFactor: number
+  metabolicFactor: number,
+  predators: number
 ): VitalityResult {
   const ctx: FishFactorContext = {
     fish,
@@ -282,6 +309,7 @@ export function computeFishVitality(
     hardiness: effectiveHardiness(fish),
     digested,
     need: maintenance(fish, metabolicFactor, config),
+    predatorMass: predators,
   };
   return computeVitality({
     stressors: buildStressors(ctx),
@@ -293,6 +321,13 @@ export function computeFishVitality(
   });
 }
 
+/** Share of a fish's damage this hour that its predators did. */
+function huntedShare(vitality: VitalityResult): number {
+  const { damageRate, stressors } = vitality.breakdown;
+  const hunted = stressors.find((factor) => factor.key === 'hunted')?.amount ?? 0;
+  return damageRate > 0 ? hunted / damageRate : 0;
+}
+
 /**
  * Process health for all fish in one tick.
  * Applies vitality, captures surplus, and handles death.
@@ -300,6 +335,8 @@ export function computeFishVitality(
  * Death is driven entirely by vitality: when stressors (including
  * the age stressor past `maxAge`) outpace benefits and condition
  * reaches 0, the fish dies. There is no separate probabilistic check.
+ * The share of its damage its predators did is the share of its body
+ * and gut they eat, into their guts by their mass; the rest rots.
  */
 export function processHealth(
   fish: Fish[],
@@ -311,34 +348,42 @@ export function processHealth(
   digested: readonly number[],
   metabolicFactor: number
 ): HealthResult {
-  const survivingFish: Fish[] = [];
   const deadFishNames: string[] = [];
   let deathWaste = 0;
   const vitalities = fish.map((f, i) =>
-    computeFishVitality(f, resources, plants, waterVolume, tankCapacity, config, digested[i], metabolicFactor)
+    computeFishVitality(
+      f,
+      resources,
+      plants,
+      waterVolume,
+      tankCapacity,
+      config,
+      digested[i],
+      metabolicFactor,
+      predatorMass(f, fish)
+    )
   );
 
+  const survivingFish = fish
+    .map((f, i) => ({ ...f, health: vitalities[i].newCondition, surplus: vitalities[i].surplus }))
+    .filter((f) => f.health > 0);
+
   fish.forEach((f, i) => {
+    if (vitalities[i].newCondition > 0) return;
     const speciesData = FISH_SPECIES_DATA[f.species];
-    const result = vitalities[i];
-    const newHealth = result.newCondition;
+    const rot = f.mass * config.deathDecayFactor + f.gut;
+    const predators = survivingFish.filter((survivor) => survivor.mass > f.mass);
+    const predatorTotal = predators.reduce((sum, predator) => sum + predator.mass, 0);
+    const share = predatorTotal > 0 ? huntedShare(vitalities[i]) : 0;
 
-    if (newHealth <= 0) {
-      // Distinguish age-driven death in the log so the player can tell
-      // "my fish got old" from "my water went bad." Past maxAge the
-      // age stressor is on, so attribute death to age when that's the
-      // dominant signal.
-      const overAge = f.age > speciesData.maxAge;
-      deadFishNames.push(overAge ? `${speciesData.name} (old age)` : speciesData.name);
-      deathWaste += f.mass * config.deathDecayFactor + f.gut;
-      return;
-    }
+    for (const predator of predators) predator.gut += (share * (f.mass + f.gut) * predator.mass) / predatorTotal;
+    deathWaste += (1 - share) * rot;
 
-    survivingFish.push({
-      ...f,
-      health: newHealth,
-      surplus: result.surplus,
-    });
+    // Past maxAge the age stressor is on, so "got old" reads apart from
+    // "the water went bad"; a fish mostly eaten reads as eaten.
+    const overAge = f.age > speciesData.maxAge;
+    const cause = overAge ? ' (old age)' : share > 0.5 ? ' (eaten)' : '';
+    deadFishNames.push(`${speciesData.name}${cause}`);
   });
 
   return {

@@ -87,13 +87,14 @@ export type Blooms = Record<AlgaeKind, AlgaeState>;
  * A clutch: a stock of eggs, not individuals. Water harm and predators thin
  * `eggs` as rates; `development` fills toward 1 on the parents' metabolic
  * factor, and the whole eggs left then hatch as fry. A livebearer's clutch is
- * the brood its mother carries.
+ * the brood its mother carries, and dies with her.
  */
 export interface Clutch {
   id: string;
   species: FishSpecies;
   eggs: number;
   development: number;
+  motherId?: string;
 }
 
 /**
