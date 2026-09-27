@@ -13,7 +13,7 @@ import {
   calculateHeatingRate,
   HEATER_WATTAGE_OPTIONS,
 } from './heater.js';
-import { resettle } from '../algae/index.js';
+import { clearPlace, resettle } from '../algae/index.js';
 import { atoUpdate } from './ato.js';
 import { getFilterSurface, getFilterFlow, isFilterAirDriven, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_TYPES, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN } from './filter.js';
 import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH, POWERHEAD_FLOW_RATES } from './powerhead.js';
@@ -302,8 +302,9 @@ export function biofilmKept(state: SimulationState): number {
 }
 
 /**
- * Pull the bed out and lay a different one in its place, and the biofilm that
- * lived on it goes out with it.
+ * Pull the bed out and lay a different one in its place: the biofilm that
+ * lived on it and the film on the floor go out with it, and the new bed
+ * arrives sterile and bare.
  *
  * Returns the same state when the bed is already of that type.
  */
@@ -319,6 +320,7 @@ export function rescape(state: SimulationState, type: SubstrateType): Simulation
     draft.resources.aob *= kept;
     draft.resources.nob *= kept;
     draft.resources.surface = calculateSurface(draft);
+    draft.algae = clearPlace(state.algae, 'floor', state);
   });
 }
 

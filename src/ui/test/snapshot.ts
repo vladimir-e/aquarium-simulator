@@ -1,3 +1,4 @@
+import { mapKinds } from '../../simulation/index.js';
 import type { RunSnapshot } from '../run/index.js';
 
 /** One tick of a quiet tank, for a test that reads a field or two off it. */
@@ -17,7 +18,7 @@ export function snapshot(tick: number, reading: Partial<RunSnapshot> = {}): RunS
     fishCount: 0,
     fryCount: 0,
     plantCount: 0,
-    algae: { greenWater: 0, film: 0 },
+    algae: mapKinds(() => 0),
     food: 0,
     lightOn: false,
     ...reading,

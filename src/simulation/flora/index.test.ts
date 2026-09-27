@@ -28,6 +28,7 @@ import { PLANT_SPECIES_DATA, growthFormOf, plantTraits, type PlantSpecies } from
 import { CARE_SHEET_PHOTOPERIOD, dailyLightEdge, floraHealingRate } from '../systems/flora.js';
 import { getSubstrateNutrients } from '../equipment/substrate.js';
 import { plantRecord } from '../tests/plant.js';
+import { bloomsTissue } from '../tests/blooms.js';
 import { nonFinitePaths } from '../tests/leaves.js';
 import { coverage } from '../core/logging.js';
 import { VIGOUR_SPAN } from '../plants/create-plant.js';
@@ -71,13 +72,6 @@ function tank({ plants = [], algae = {}, ...resources }: Partial<TankFields> = {
     draft.plants = plants;
   });
 }
-
-/** Grams of tissue every kind of bloom holds. */
-const bloomsTissue = (state: SimulationState): number =>
-  ALGAE_KINDS.reduce(
-    (sum, kind) => sum + bloomTissue(state.algae[kind].mass, habitatSize(ALGAE[kind].habitat, state), ALGAE[kind]),
-    0
-  );
 
 const total = (effects: readonly Effect[], resource: string, source?: string): number =>
   effects

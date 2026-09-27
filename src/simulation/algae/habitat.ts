@@ -19,13 +19,12 @@ export function columnGain(depthCm: number, optics: OpticsConfig): number {
   return attenuation > 0 ? Math.expm1(attenuation) / attenuation : 1;
 }
 
-/** Where a piece of habitat lies: the water column, the glass walls, or the bed — the floor and the hardscape on it. */
-export type HabitatPlace = 'column' | 'walls' | 'bed';
+export type HabitatPlace = 'column' | 'walls' | 'floor' | 'hardscape';
 
 /**
  * The pieces each habitat is made of, by place. The column is the tank's
- * litres. The surfaces are the lit ones that do not grow: the glass walls and
- * the bed.
+ * litres. The surfaces are the lit ones that do not grow: the glass walls, the
+ * floor and the hardscape on it.
  */
 const HABITATS: Record<AlgaeHabitat, (tank: HabitatTank) => Partial<Record<HabitatPlace, number>>> = {
   column: ({ tank }) => ({ column: tank.capacity }),
@@ -33,13 +32,28 @@ const HABITATS: Record<AlgaeHabitat, (tank: HabitatTank) => Partial<Record<Habit
     const floor = calculateFloorArea(tank.capacity);
     return {
       walls: calculateTankGlassSurface(tank.capacity) - floor,
-      bed: floor + calculateHardscapeTotalSurface(equipment.hardscape.items),
+      floor,
+      hardscape: calculateHardscapeTotalSurface(equipment.hardscape.items),
     };
   },
 };
 
+export const PLACE_NAMES: Readonly<Record<HabitatPlace, string>> = {
+  column: 'the water column',
+  walls: 'the glass',
+  floor: 'the floor',
+  hardscape: 'the hardscape',
+};
+
 function pieces(habitat: AlgaeHabitat, tank: HabitatTank): [HabitatPlace, number][] {
   return Object.entries(HABITATS[habitat](tank)) as [HabitatPlace, number][];
+}
+
+/** The places that hold some of a habitat in this tank. */
+export function habitatPlaces(habitat: AlgaeHabitat, tank: HabitatTank): HabitatPlace[] {
+  return pieces(habitat, tank)
+    .filter(([, size]) => size > 0)
+    .map(([place]) => place);
 }
 
 /** Litres of column, or cm² of surface. */
@@ -56,14 +70,16 @@ export function placeShare(habitat: AlgaeHabitat, place: HabitatPlace, tank: Hab
 /**
  * The mean PAR over a habitat as a multiple of the PAR at the substrate, each
  * piece weighted by its size: the column's mean through the column and on the
- * walls that span it, what the canopy leaves on the bed.
+ * walls that span it, what the canopy leaves on the floor and the hardscape.
  */
 export function habitatGain(habitat: AlgaeHabitat, tank: HabitatTank, optics: OpticsConfig): number {
   const column = columnGain(calculateTankHeight(tank.tank.capacity), optics);
+  const underCanopy = 1 - floorShade(tank.plants, tank.tank.capacity, optics);
   const gain: Record<HabitatPlace, number> = {
     column,
     walls: column,
-    bed: 1 - floorShade(tank.plants, tank.tank.capacity, optics),
+    floor: underCanopy,
+    hardscape: underCanopy,
   };
   const size = habitatSize(habitat, tank);
   return size > 0 ? pieces(habitat, tank).reduce((sum, [place, piece]) => sum + piece * gain[place], 0) / size : 0;

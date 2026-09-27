@@ -221,7 +221,7 @@ describe('OverviewSection', () => {
 
   it('gives the bloom rows no dots to speak of', () => {
     renderOverview(stocked());
-    expect(within(widget('Life')).queryByRole('img', { name: /Green water|Film algae/i })).toBeNull();
+    expect(within(widget('Life')).queryByRole('img', { name: /Green water|Film/i })).toBeNull();
   });
 
   it('invites stocking when the tank is bare', () => {

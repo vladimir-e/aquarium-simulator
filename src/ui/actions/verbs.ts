@@ -2,26 +2,29 @@
  * The seven husbandry verbs in one shape: a master row, an option row, a
  * preview and a commit. Every option set is the engine's own
  * (`WATER_CHANGE_AMOUNTS`, `MAX_ROOT_TABS`, `TRIM_TARGETS`) and every refusal
- * is an engine guard (`canDose`, `canRootTab`, `getPlantsToTrimCount`), or
- * the engine's own reading of what a verb would take (`onTheGlass`), stated
- * where the verb would otherwise say what it is about to do — so an
- * unavailable verb is never a dead end.
+ * is an engine guard (`canDose`, `canRootTab`, `getPlantsToTrimCount`), or a
+ * display gate on the engine's own reading of what a verb would take
+ * (`onTheGlass`), stated where the verb would otherwise say what it is about
+ * to do — so an unavailable verb is never a dead end.
  */
 
 import {
   ALGAE,
+  ALGAE_KINDS,
   applyAction,
   canDose,
   canRootTab,
   coverage,
   getPlantsToTrimCount,
-  kindsIn,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
   onTheGlass,
+  placeShare,
   PLANT_SPECIES_DATA,
   WATER_CHANGE_AMOUNTS,
   type Action,
+  type AlgaeHabitat,
+  type AlgaeKind,
   type SimulationState,
 } from '../../simulation/index.js';
 import { FoodResource, getPpm, NitrateResource } from '../../simulation/resources/index.js';
@@ -51,7 +54,7 @@ export type SettableVerb = Extract<VerbId, 'feed' | 'waterChange' | 'dose' | 'ro
 
 export type VerbSettings = Record<SettableVerb, number>;
 
-/** Top-off refills to capacity and a scrub is a roll: neither takes an amount. */
+/** Top-off refills to capacity and a scrub clears the glass: neither takes an amount. */
 export function isSettable(id: VerbId): id is SettableVerb {
   return id !== 'topOff' && id !== 'scrubAlgae';
 }
@@ -228,16 +231,19 @@ function blockedReason(
         : `nothing above ${settings.trimPlants} %`;
     case 'scrubAlgae': {
       const glass = onTheGlass(state);
-      return kindsIn('surfaces').some((kind) => !printsAsZero(glass[kind], COVERAGE_DECIMALS))
-        ? null
-        : 'the glass is clean';
+      return ALGAE_KINDS.some((kind) => !printsAsZero(glass[kind], COVERAGE_DECIMALS)) ? null : 'the glass is clean';
     }
   }
 }
 
+/** The kinds whose habitat reaches the glass. */
+function glassKinds(state: SimulationState): AlgaeKind[] {
+  return ALGAE_KINDS.filter((kind) => placeShare(ALGAE[kind].habitat, 'walls', state) > 0);
+}
+
 /** Each kind a scrub reaches, named, with its coverage. */
 function onSurfaces(state: SimulationState, units: UnitSystem): string {
-  return kindsIn('surfaces')
+  return glassKinds(state)
     .map((kind) => `${ALGAE[kind].name.toLowerCase()} ${logQuantityIn(units)(coverage(state.algae[kind].mass))}`)
     .join(' · ');
 }
@@ -263,7 +269,7 @@ function rowValue(
     case 'trimPlants':
       return `to ${settings.trimPlants} %`;
     case 'scrubAlgae':
-      return kindsIn('surfaces')
+      return glassKinds(state)
         .map((kind) => logQuantityIn(units)(coverage(state.algae[kind].mass)))
         .join(' · ');
   }
@@ -501,6 +507,12 @@ function meta(
   }
 }
 
+const SCRUB_REACH: Record<AlgaeHabitat, (name: string) => string> = {
+  surfaces: (name) =>
+    `${name} on the glass comes off; what the floor and the hardscape hold stays, and spreads back over the glass at once.`,
+  column: (name) => `${name} floats free of the glass — a water change takes it.`,
+};
+
 /**
  * Prose in the chip row's slot for the two bare verbs, so the settings step is
  * an honest statement rather than an empty panel.
@@ -508,8 +520,11 @@ function meta(
 const BARE_NOTE: Partial<Record<VerbId, string>> = {
   topOff:
     'No amount to set — top-off refills to capacity at the tank’s own temperature. The tap’s KH and GH come with it, everything else dissolved is diluted, and pH follows the CO₂ and KH that leaves.',
-  scrubAlgae:
-    'No amount to set — a scrub clears the glass. The film on the walls comes off; the film on the floor and the hardscape stays, and green water floats free of it — a water change takes that. What comes off is loose in the water as waste: it rots there, and a gravel vac takes it once it settles.',
+  scrubAlgae: [
+    'No amount to set — a scrub clears the glass.',
+    ...ALGAE_KINDS.map((kind) => SCRUB_REACH[ALGAE[kind].habitat](ALGAE[kind].name)),
+    'What comes off is loose in the water as waste: it rots there, and a gravel vac takes it once it settles.',
+  ].join(' '),
 };
 
 function commitLabel(

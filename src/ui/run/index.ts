@@ -119,7 +119,7 @@ export {
   type LedgerBank,
   type LedgerRow,
   type LedgerTarget,
-  BLOOM_VERB,
+  bloomVerb,
   LEDGER_DECIMALS,
   readLedger,
 } from './ledger.js';

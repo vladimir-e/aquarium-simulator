@@ -20,7 +20,7 @@ unchanged, with the message explaining why.
 | Refusal discipline | <Badge text="settled" variant="success" /> | Every action taking a number refuses a non-finite one *before* its own bounds. A comparison against `NaN` is false, so an unguarded bound would write it into a resource nothing downstream ever clears. |
 | Water change | <Badge text="settled" variant="success" /> | Removes proportional dissolved mass, then blends temperature and both gases by volume against the tap and brings in the tap's KH and GH. The one verb with real physics in it. |
 | Feed · dose · root tab · stocking | <Badge text="settled" variant="success" /> | Bounded writes to a single stock, with the consequences left to the tick. |
-| Scrub | <Badge text="settled" variant="success" /> | Clears the glass: every bloom loses the walls' share of its habitat, read off the tank's geometry and hardscape. The floor and the hardscape keep their film. |
+| Scrub | <Badge text="scaffolding" variant="caution" /> | Clears the glass: every bloom loses the walls' share of its habitat, read off the tank's geometry and hardscape. Coverage is one figure over the whole habitat, so what the floor and the hardscape held spreads back over the glass at once, and a second scrub takes the walls' share again out of it. |
 | Top-off | <Badge text="scaffolding" variant="caution" /> | Fills to capacity and adds the tap's KH and GH, nothing else. The tap water it adds carries no temperature, no oxygen and no CO₂ — while the auto top-off doing the same job blends all three. |
 | Trim | <Badge text="settled" variant="success" /> | An absolute size inside a unit's own range — one plant, one family or the whole planting — and the cut leaves the tank. |
 | Planting by floor | <Badge text="settled" variant="success" /> | A unit goes in when its form's full footprint, whatever its size, fits the floor the planting leaves free. |
@@ -53,7 +53,7 @@ diverge the moment their keepers act differently.
 | Water change | a fraction in `(0, 1]`, optionally a vacuum share in `[0, 1]` | see below | either non-finite or outside its range, or the tank is empty |
 | Dose | millilitres | the four nutrient pools, by the fertilizer ratio | non-finite, below the minimum or above the maximum |
 | Root tab | a whole number of tabs | the bed's nutrient store, by `rootTab` per tab | not a whole number from 1 to `MAX_ROOT_TABS`, or no bed |
-| Scrub algae | — | the film on the glass walls, its tissue into `waste`: the film's mass down by the walls' share of its habitat; the floor's and the hardscape's film stays, and green water floats free of it | nothing on the glass |
+| Scrub algae | — | the film on the glass walls, its tissue into `waste`: the film's mass down by the walls' share of its habitat, what is left spread back over the glass; green water floats free of it | nothing on the glass |
 | Trim plants | a target size, optionally one plant id or one family id | every plant above the target down to it — of that family, or just the named plant | target outside `[MIN_PLANTABLE_SIZE, 100]`, nothing above the target, plant not found |
 | Add plant | species, optional size | a unit founding its own family, at condition 100 with an empty bank | unknown species, size outside `[MIN_PLANTABLE_SIZE, 100]`, not enough floor for its footprint |
 | Remove plant | plant id | the plant leaves the array; a rooted one disturbs its footprint's share of the bed | not found |
@@ -109,7 +109,7 @@ no dispatch, no message, no refusal.
 
 The engine ships two helpers for the changes with a consequence behind them.
 Swapping the bed scales both colonies by the share of colonisable surface that
-went out with it. Writing doser settings clamps the amount into the doser's own
+went out with it, and takes the floor's share of the film. Writing doser settings clamps the amount into the doser's own
 range. Every other setting is a plain assignment, and the colony feels it only
 when the next tick truncates it to whatever surface is left. A light change
 reaches the substrate on the next tick, and the day's light catches up as

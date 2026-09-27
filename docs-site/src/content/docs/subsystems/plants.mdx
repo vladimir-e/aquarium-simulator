@@ -21,7 +21,7 @@ family. Low condition sheds tissue.
 |---|---|---|
 | Photosynthesis on PAR | <Badge text="settled" variant="success" /> | Jassby–Platt `tanh(PAR/Ik)`, per plant, on the light at its own mean leaf against its own saturating irradiance. |
 | Rated by leaf | <Badge text="settled" variant="success" /> | Photosynthesis, respiration, plant power and waste run on leaf area, in rate units of 500 cm², so a full sword counts for more than a full carpet patch. |
-| Metabolic pace | <Badge text="settled" variant="success" /> | Every flora fixes, respires and starves at its growth rate against a leaf at 1, so a monte carlo's leaf runs 1.8×, an anubias's 0.3× and a bloom's 30×. |
+| Metabolic pace | <Badge text="settled" variant="success" /> | Every flora fixes, respires and starves at its growth rate against a leaf at 1, so a monte carlo's leaf runs 1.8×, an anubias's 0.3×, green water 60× and film 20×. |
 | Carbon–oxygen exchange | <Badge text="settled" variant="success" /> | One yield, run both ways. Respiration releases the carbon photosynthesis fixed, and the oxygen derives from it at the molar mass ratio rather than from a second constant. |
 | Respiration | <Badge text="settled" variant="success" /> | Runs 24/7 on Q10 × Monod, so a plant in suffocating water respires slower and releases proportionally less carbon. |
 | Light starvation | <Badge text="settled" variant="success" /> | A rate on the day's light at the plant's own leaf, short of the species' edge — the day, not the hour. |
@@ -253,7 +253,7 @@ an ordinary hour a pool meets every request and a plant grows at its
 sufficiency; an offshoot's lump on thin water is met in part, and no pool goes
 below zero. A lean species holds on where a hungry one starves, and two plants
 short of the same nutrient are met at the same fraction of their shares. The
-bloom requests beside the plants in the same call
+blooms request beside the plants in the same call
 ([Algae](/subsystems/algae/)), so nothing is served before anything else. What
 a plant takes splits between the pools and forms as they met it. The bank pays
 only for what arrived.
@@ -504,8 +504,8 @@ The canopy's own constant, `leafAttenuationPerLai`, is under [Light](/subsystems
 ## Source
 
 `src/simulation/plants/` — the roster, the growth forms, the canopy and
-construction; `src/simulation/flora/` — the hour's pass, beside the bloom;
-`src/simulation/systems/` — the flora law the bloom shares, photosynthesis,
+construction; `src/simulation/flora/` — the hour's pass, beside the blooms;
+`src/simulation/systems/` — the flora law the blooms share, photosynthesis,
 respiration, nutrition and the tissue draw, vitality, growth, offshoots and
 lifecycle; `src/simulation/config/` — the tunables above and their declared
 ranges.

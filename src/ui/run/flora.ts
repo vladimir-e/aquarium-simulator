@@ -82,18 +82,26 @@ function bloomShows(mass: number): boolean {
  * over, so its word and its tone move together. Low algae is good for the
  * player, so the tones run green → coral as it climbs.
  */
-const ALGAE_LADDER: readonly { upTo: number; status: Status }[] = [
+const ALGAE_LADDER = [
   { upTo: 0.5, status: 'ok' },
   { upTo: 1, status: 'ok' },
   { upTo: 2, status: 'warn' },
   { upTo: Infinity, status: 'alert' },
-];
+] as const satisfies readonly { upTo: number; status: Status }[];
+
+/** The rung a coverage that shows stands on, against the line the tank alerts over. */
+function rungOf(mass: number, line: number): number {
+  return ALGAE_LADDER.findIndex((step) => mass <= step.upTo * line);
+}
+
+type WordPer<T extends readonly unknown[]> = { [K in keyof T]: string };
+type LadderWords = readonly [none: string, ...rungs: WordPer<typeof ALGAE_LADDER>];
 
 /**
  * Each kind's words for its coverage, none first and then up the ladder: green
  * water reads as the water's clarity, film as how coated the glass is.
  */
-const ALGAE_WORDS: Record<AlgaeKind, readonly [none: string, ...rungs: string[]]> = {
+const ALGAE_WORDS: Record<AlgaeKind, LadderWords> = {
   greenWater: ['clear', 'hazy', 'cloudy', 'green', 'pea soup'],
   film: ['clean', 'dusted', 'filmed', 'coated', 'smothered'],
 };
@@ -102,7 +110,7 @@ const ALGAE_WORDS: Record<AlgaeKind, readonly [none: string, ...rungs: string[]]
 export function algaeReading(kind: AlgaeKind, mass: number, line: number): Reading {
   const words = ALGAE_WORDS[kind];
   if (!bloomShows(mass)) return { status: 'ok', word: words[0] };
-  const rung = ALGAE_LADDER.findIndex((step) => mass <= step.upTo * line);
+  const rung = rungOf(mass, line);
   return { status: ALGAE_LADDER[rung].status, word: words[rung + 1] };
 }
 
@@ -119,7 +127,7 @@ export function isReported(log: LogEntry): boolean {
 }
 
 export function algaeStatus(mass: number, line: number): Status {
-  return bloomShows(mass) ? ALGAE_LADDER.find((step) => mass <= step.upTo * line)!.status : 'ok';
+  return bloomShows(mass) ? ALGAE_LADDER[rungOf(mass, line)].status : 'ok';
 }
 
 /** Where a plant stands among its kin, numbered the way a reader counts. */

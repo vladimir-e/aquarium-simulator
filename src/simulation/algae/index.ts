@@ -19,8 +19,8 @@ import {
   tissuePerRateUnit,
   type FloraLoss,
 } from '../systems/flora.js';
-import { habitatSize, type BloomLight, type HabitatTank } from './habitat.js';
-import { ALGAE, type AlgaeTraits } from './traits.js';
+import { habitatSize, placeShare, type BloomLight, type HabitatPlace, type HabitatTank } from './habitat.js';
+import { ALGAE, type AlgaeKind, type AlgaeTraits } from './traits.js';
 import { EMPTY_BLOOM, mapKinds } from './blooms.js';
 
 /** Grams of organic matter in this much bloom, in a habitat of this size. */
@@ -150,10 +150,25 @@ export function resettle(blooms: Blooms, before: HabitatTank, after: HabitatTank
   });
 }
 
+/** Each kind's coverage at a place: its mass times the share of its habitat that lies there. */
+export function coverageAt(blooms: Blooms, place: HabitatPlace, tank: HabitatTank): Record<AlgaeKind, number> {
+  return mapKinds((kind) => blooms[kind].mass * placeShare(ALGAE[kind].habitat, place, tank));
+}
+
+/**
+ * Each bloom with a place laid bare: its coverage there taken out, the tissue
+ * the rest of its habitat holds kept. Coverage is one figure over the habitat,
+ * so what is left spreads over the bare place at once.
+ */
+export function clearPlace(blooms: Blooms, place: HabitatPlace, tank: HabitatTank): Blooms {
+  const cleared = coverageAt(blooms, place, tank);
+  return mapKinds((kind) => ({ ...blooms[kind], mass: blooms[kind].mass - cleared[kind] }));
+}
+
 export { ALGAE, ALGAE_KINDS } from './traits.js';
-export { EMPTY_BLOOM, combinedCoverage, emptyBlooms, isAlgaeKind, kindsIn, mapKinds } from './blooms.js';
+export { EMPTY_BLOOM, combinedCoverage, emptyBlooms, isAlgaeKind, mapKinds } from './blooms.js';
 export type { AlgaeHabitat, AlgaeKind, AlgaeTraits } from './traits.js';
-export { bloomLight, columnGain, habitatGain, habitatSize, placeShare } from './habitat.js';
+export { PLACE_NAMES, bloomLight, columnGain, habitatGain, habitatPlaces, habitatSize, placeShare } from './habitat.js';
 export type { BloomLight, HabitatPlace, HabitatTank } from './habitat.js';
 export {
   computeAlgaeVitality,

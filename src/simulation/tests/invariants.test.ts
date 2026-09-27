@@ -8,12 +8,13 @@ import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { NUTRIENTS, WASTE_NUTRIENTS, type WasteNutrient } from '../config/nutrients.js';
 import { CACO3_PER_EQUIVALENT, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
 import { tissueMass } from '../systems/plant-lifecycle.js';
-import { ALGAE, ALGAE_KINDS, bloomTissue, habitatSize } from '../algae/index.js';
+import { ALGAE, ALGAE_KINDS } from '../algae/index.js';
 import { purchase } from '../systems/plant-growth.js';
 import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
 import { freshSubstrate } from '../equipment/substrate.js';
 import { getPpm } from '../resources/index.js';
 import { plantRecord } from './plant.js';
+import { bloomsTissue, kindTissue } from './blooms.js';
 import { leaves, nonFinitePaths } from './leaves.js';
 // The scenario setups are the shared definition of a real tank, so the engine invariants run over them.
 import { SETUPS, type Setup } from '../../cli/scenarios/setups.js';
@@ -23,14 +24,6 @@ function run(state: SimulationState, hours: number, config = DEFAULT_CONFIG): Si
   let running = state;
   for (let hour = 0; hour < hours; hour++) running = tick(running, config);
   return running;
-}
-
-/** Grams of tissue every kind of bloom holds, over its own habitat. */
-function bloomsTissue(state: SimulationState): number {
-  return ALGAE_KINDS.reduce(
-    (sum, kind) => sum + bloomTissue(state.algae[kind].mass, habitatSize(ALGAE[kind].habitat, state), ALGAE[kind]),
-    0
-  );
 }
 
 /** Grams of organic matter in the tank: food, waste, the bed's reserve, plant tissue and the blooms'. */
@@ -224,7 +217,7 @@ describe('a planting over a charged bed', () => {
     expect(growing.equipment.substrate.nutrients.phosphate).toBeLessThan(leakedOnly);
   });
 
-  it('conserves nitrogen through the bed’s leak, growth, spores, shedding and death, the bloom drawing beside the plants', () => {
+  it('conserves nitrogen through the bed’s leak, growth, spores, shedding and death, the blooms drawing beside the plants', () => {
     for (const state of [growing, grown, dark]) {
       expect(nitrogenInPools(state) / nitrogenInPools(start)).toBeCloseTo(1, 10);
     }
@@ -404,9 +397,7 @@ describe('the keeper’s hands on the blooms', () => {
     const share = 0.3;
     const changed = applyAction(coated, { type: 'waterChange', amount: share }).state;
     const greenWater = (state: SimulationState): number =>
-      bloomTissue(state.algae.greenWater.mass, habitatSize('column', state), ALGAE.greenWater) *
-      DEFAULT_CONFIG.livestock.foodNitrogenFraction *
-      1000;
+      kindTissue(state, 'greenWater') * DEFAULT_CONFIG.livestock.foodNitrogenFraction * 1000;
     const exported = share * (dissolvedNitrogen(coated) + greenWater(coated));
 
     expect(changed.algae.film).toEqual(coated.algae.film);
@@ -416,6 +407,7 @@ describe('the keeper’s hands on the blooms', () => {
 
   it('keep every gram of a scrub in the tank, as waste', () => {
     const scrubbed = applyAction(coated, { type: 'scrubAlgae' }).state;
+    expect(scrubbed.algae.film.mass).toBeLessThan(coated.algae.film.mass);
     expect(scrubbed.algae.greenWater).toEqual(coated.algae.greenWater);
     expect(nitrogenInPools(scrubbed) / nitrogenInPools(coated)).toBeCloseTo(1, 12);
   });

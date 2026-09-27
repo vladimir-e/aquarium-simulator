@@ -1,7 +1,6 @@
 /**
  * The tank's draw stream — everything the simulation can't derive from
- * physics comes off it: an individual's variation, a scrub's bite, an
- * organism's name.
+ * physics comes off it: an individual's variation, an organism's name.
  *
  * A pair rather than a closure because a pair serializes: a saved tank
  * resumes its stream where a generator identity would have been lost.

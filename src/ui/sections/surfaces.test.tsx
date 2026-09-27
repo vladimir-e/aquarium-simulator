@@ -72,7 +72,7 @@ describe('one roster, two surfaces', () => {
     const plants = rosterRows(group('Plants'));
 
     expect(plants[0]).toMatch(/^Green water — /);
-    expect(plants[1]).toMatch(/^Film algae — /);
+    expect(plants[1]).toMatch(/^Film — /);
     expect(widget.slice(fish.length, fish.length + 2)).toEqual(plants.slice(0, 2));
   });
 });

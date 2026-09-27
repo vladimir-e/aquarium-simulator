@@ -8,6 +8,7 @@
 import {
   ALGAE,
   PLANT_SPECIES_DATA,
+  type AlgaeHabitat,
   type AlgaeKind,
   type SimulationState,
   type VitalityFactor,
@@ -296,17 +297,25 @@ function plantLedger(
   };
 }
 
-/** The verb that takes each kind out of the tank: a water change carries green water off, a scrub takes the film. */
-export const BLOOM_VERB: Record<AlgaeKind, Extract<VerbId, 'scrubAlgae' | 'waterChange'>> = {
-  greenWater: 'waterChange',
-  film: 'scrubAlgae',
+type BloomVerb = Extract<VerbId, 'scrubAlgae' | 'waterChange'>;
+
+/**
+ * Each habitat in the ledger's words — the line under a bloom's name and where
+ * its light is read — and the verb that takes a bloom out of it.
+ */
+const HABITAT: Record<AlgaeHabitat, { subtitle: string; lit: string; verb: BloomVerb }> = {
+  column: { subtitle: 'suspended in the water column', lit: 'through the water column', verb: 'waterChange' },
+  surfaces: {
+    subtitle: 'on the glass, the floor and the hardscape',
+    lit: 'on the glass and under the canopy',
+    verb: 'scrubAlgae',
+  },
 };
 
-/** Where each kind lives, in the ledger's words: the line under its name, and where its light is read. */
-const BLOOM_PLACE: Record<AlgaeKind, { subtitle: string; lit: string }> = {
-  greenWater: { subtitle: 'suspended in the water column', lit: 'through the water column' },
-  film: { subtitle: 'on the glass, the floor and the hardscape', lit: 'on the glass and under the canopy' },
-};
+/** The verb that takes a kind out of the tank, by where it lives. */
+export function bloomVerb(kind: AlgaeKind): BloomVerb {
+  return HABITAT[ALGAE[kind].habitat].verb;
+}
 
 /**
  * A bloom as the organism it is — condition, what feeds it and what harms it,
@@ -318,7 +327,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
   const next = ahead.algae[kind];
   const { breakdown } = next.vitality;
   const traits = ALGAE[kind];
-  const place = BLOOM_PLACE[kind];
+  const place = HABITAT[traits.habitat];
   const cap = config.plants.surplusCap;
   const line = algaeAlertLine(config);
   const coverage = algaeReading(kind, mass, line);
@@ -356,7 +365,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
       ...bankOf({ now: surplus, next: next.surplus, cap, covered: breakdown.healed, spent: next.spent }, 'buying growth'),
     },
     demand: `half-fed at ${traits.ammoniaHalfSaturation} ppm NH₃, ${traits.nitrateHalfSaturation} NO₃, ${traits.phosphateHalfSaturation} PO₄ · light from ${traits.lowLight} PAR`,
-    verb: BLOOM_VERB[kind],
+    verb: place.verb,
     scope: null,
   };
 }

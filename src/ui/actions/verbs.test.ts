@@ -186,7 +186,7 @@ describe('the seven verbs', () => {
     });
   });
 
-  it('dispatches the shape the engine reads, and lets it roll its own scrub', () => {
+  it('dispatches the shape the engine reads', () => {
     const settings: VerbSettings = { feed: 2, waterChange: 0.9, dose: 4, rootTab: 3, trimPlants: 50 };
 
     expect(verbAction('feed', settings)).toEqual({ type: 'feed', amount: 2 });

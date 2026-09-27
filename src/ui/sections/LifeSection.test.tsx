@@ -58,14 +58,14 @@ describe('LifeSection', () => {
     renderLife();
     const plants = within(group('Plants'));
 
-    for (const name of ['Green water', 'Film algae']) {
+    for (const name of ['Green water', 'Film']) {
       expect(plants.getByRole('button', { name: new RegExp(`^${name} — `) })).toBeTruthy();
       expect(plants.queryByRole('img', { name: new RegExp(name) })).toBeNull();
     }
     expect(plants.getByRole('img', { name: /Anubias by family/ }).children).toHaveLength(2);
   });
 
-  it.each(['Green water', 'Film algae'])('opens the %s ledger on the organism: its condition, coverage, light and bank', (name) => {
+  it.each(['Green water', 'Film'])('opens the %s ledger on the organism: its condition, coverage, light and bank', (name) => {
     renderLife();
     fireEvent.click(within(group('Plants')).getByRole('button', { name: new RegExp(`^${name} — `) }));
 

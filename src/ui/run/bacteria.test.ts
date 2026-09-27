@@ -16,11 +16,8 @@ import {
   NO3_TO_NH3_MASS_RATIO,
 } from '../../simulation/core/chemistry.js';
 import {
-  ALGAE,
   ALGAE_KINDS,
   applyAction,
-  bloomTissue,
-  habitatSize,
   mapKinds,
   createSimulation,
   organicNutrients,
@@ -31,6 +28,7 @@ import {
 import { getMassFromPpm, getPpm } from '../../simulation/resources/index.js';
 import { aobCapacity } from '../../simulation/systems/index.js';
 import { monodFactor } from '../../simulation/core/kinetics.js';
+import { bloomsTissue } from '../../simulation/tests/blooms.js';
 import { readHourAhead } from './ahead.js';
 
 const config = DEFAULT_CONFIG;
@@ -280,13 +278,8 @@ describe('bacteriaReadout', () => {
     const { rates } = readBiofilter(blooming);
     const next = tick(blooming, config);
     const water = blooming.resources.water;
-    const tissue = (state: SimulationState): number =>
-      ALGAE_KINDS.reduce(
-        (sum, kind) => sum + bloomTissue(state.algae[kind].mass, habitatSize(ALGAE[kind].habitat, state), ALGAE[kind]),
-        0
-      );
     const ammoniaTaken =
-      (tissue(next) - tissue(blooming)) *
+      (bloomsTissue(next) - bloomsTissue(blooming)) *
       organicNutrients(config.livestock, config.nutrients).nitrate *
       NO3_TO_NH3_MASS_RATIO;
     const moved = (next.resources.ammonia - blooming.resources.ammonia) / water;

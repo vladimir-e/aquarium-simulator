@@ -327,7 +327,7 @@ export {
 } from './actions/index.js';
 export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 
-// Flora — plants and the bloom in one pass, on one law
+// Flora — plants and the blooms in one pass, on one law
 export { processFlora } from './flora/index.js';
 export type { FloraProcessingResult, BloomHour } from './flora/index.js';
 export {
@@ -347,7 +347,6 @@ export {
   emptyBlooms,
   isAlgaeKind,
   mapKinds,
-  kindsIn,
   combinedCoverage,
   resettle,
   bloomLight,

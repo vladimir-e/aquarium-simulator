@@ -9,7 +9,7 @@
 import { ALGAE_KINDS, type AlertState, type AlgaeKind, type SimulationState } from '../../simulation/index.js';
 import { verbName, type VerbId } from '../actions';
 import type { ReadingBook, ReadingId } from '../readings';
-import { BLOOM_VERB, STATUS_SEVERITY, worstStatus } from '../run';
+import { bloomVerb, STATUS_SEVERITY, worstStatus } from '../run';
 import type { SectionId } from './sections.js';
 
 /** The two tones that ask for the keeper: past a line fish take harm at, and short of it. */
@@ -112,7 +112,7 @@ const ALERTS: readonly AlertSpec[] = [
     section: 'life',
     text: 'Algae bloom',
     reading: largerBloom,
-    act: (state) => BLOOM_VERB[largerBloom(state)],
+    act: (state) => bloomVerb(largerBloom(state)),
     to: '/life',
   },
 ];

@@ -6,6 +6,7 @@
  * extent is stated in the caption rather than left implied.
  */
 
+import { ALGAE, ALGAE_KINDS } from '../../simulation/index.js';
 import { DECIMALS } from '../readings/index.js';
 import type { RunSnapshot } from '../run/index.js';
 import type { AlertKind } from './category.js';
@@ -73,8 +74,14 @@ export const TRACKS: TrackDef[] = [
       { key: 'fishCount', label: 'fish', decimals: 0, accessor: (s) => s.fishCount },
       { key: 'fryCount', label: 'fry', decimals: 0, accessor: (s) => s.fryCount },
       { key: 'plantCount', label: 'plants', decimals: 0, accessor: (s) => s.plantCount },
-      { key: 'greenWater', label: 'green water', decimals: DECIMALS.greenWater, accessor: (s) => s.algae.greenWater },
-      { key: 'film', label: 'film', decimals: DECIMALS.film, accessor: (s) => s.algae.film },
+      ...ALGAE_KINDS.map(
+        (kind): TrackSeries => ({
+          key: kind,
+          label: ALGAE[kind].name.toLowerCase(),
+          decimals: DECIMALS[kind],
+          accessor: (s) => s.algae[kind],
+        })
+      ),
     ],
   },
 ];

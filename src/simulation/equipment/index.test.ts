@@ -6,6 +6,7 @@ import {
   disturbBed,
   liftHardscape,
   placeHardscape,
+  rescape,
   resetHardscape,
   calculatePassiveResources,
   processEquipment,
@@ -24,6 +25,8 @@ import { opticsDefaults } from '../config/optics.js';
 import { FILTER_SURFACE, getFilterFlow } from './filter.js';
 import { POWERHEAD_FLOW_LPH } from './powerhead.js';
 import { calculateHardscapeTotalSurface, createHardscapeItem, type HardscapeItem } from './hardscape.js';
+import { ALGAE, ALGAE_KINDS, placeShare } from '../algae/index.js';
+import { bloomsTissue, kindTissue } from '../tests/blooms.js';
 
 const passive = (state: SimulationState): PassiveResourceValues =>
   calculatePassiveResources(state, opticsDefaults);
@@ -160,6 +163,46 @@ describe('biofilmKept', () => {
   });
 });
 
+describe('rescape', () => {
+  const coated = (): SimulationState =>
+    produce(
+      createSimulation({
+        tankCapacity: 100,
+        substrate: { type: 'gravel' },
+        hardscape: { items: [createHardscapeItem('rock', 'neutral_rock')] },
+      }),
+      (draft) => {
+        draft.resources.aob = 1000;
+        for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 40, condition: 80, surplus: 3 };
+      }
+    );
+
+  it('lays the new bed in and takes the colony on the old one out with it', () => {
+    const state = coated();
+    const swapped = rescape(state, 'sand');
+
+    expect(swapped.equipment.substrate.type).toBe('sand');
+    expect(swapped.resources.aob).toBeCloseTo(1000 * biofilmKept(state), 9);
+  });
+
+  it('takes the floor’s share of every bloom out with the bed, keeping what the rest of its habitat holds', () => {
+    const state = coated();
+    const swapped = rescape(state, 'sand');
+
+    for (const kind of ALGAE_KINDS) {
+      const floor = placeShare(ALGAE[kind].habitat, 'floor', state);
+      expect(kindTissue(swapped, kind)).toBeCloseTo(kindTissue(state, kind) * (1 - floor), 12);
+      expect(swapped.algae[kind]).toMatchObject({ condition: 80, surplus: 3 });
+    }
+    expect(bloomsTissue(swapped)).toBeLessThan(bloomsTissue(state));
+  });
+
+  it('leaves a bed of the same type where it is', () => {
+    const state = coated();
+    expect(rescape(state, 'gravel')).toBe(state);
+  });
+});
+
 describe('disturbBed', () => {
   const settled = (): SimulationState =>
     produce(createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } }), (draft) => {
@@ -283,6 +326,19 @@ describe('hardscape moves', () => {
     expect(reset.equipment.substrate.organicReserve).toBe(0);
     expect(reset.resources.surface).toBe(calculateSurface(reset));
     expect(reset.resources.aob).toBeLessThan(state.resources.aob);
+  });
+
+  it('takes the lifted pieces’ share of every bloom out and sets them back bare', () => {
+    const state = produce(crowded(4, 8), (draft) => {
+      for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 40, condition: 100, surplus: 0 };
+    });
+    const reset = resetHardscape(state);
+
+    for (const kind of ALGAE_KINDS) {
+      const lifted = placeShare(ALGAE[kind].habitat, 'hardscape', state);
+      expect(kindTissue(reset, kind)).toBeCloseTo(kindTissue(state, kind) * (1 - lifted), 12);
+    }
+    expect(bloomsTissue(reset)).toBeLessThan(bloomsTissue(state));
   });
 
   it('keeps every piece of a tank carrying more than its slots', () => {

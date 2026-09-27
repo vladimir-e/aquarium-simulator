@@ -43,9 +43,9 @@ export type AlgaeKind = 'greenWater' | 'film';
  *
  * Green water is the sprinter: a lit, rich day doubles it in about a day, but
  * it needs rich water. A cycled tank's trace of ammonia meets 6 % of its
- * nitrogen need and a 2 ppm spike 80 %; phosphate under 0.1 ppm meets under a
- * sixth of its need, a fed tank's 2 ppm four fifths. Heavy green water carries
- * some 10–50 mg/L of dry cells.
+ * nitrogen need and a 2 ppm spike 80 %; phosphate at 0.1 ppm meets a third of
+ * its need, a fed tank's 2 ppm 91 %. Heavy green water carries some 10–50 mg/L
+ * of dry cells.
  *
  * Film is the stayer: a third of green water's pace, so it takes a week or two
  * to show on the glass, but efficient on lean water — a cycled tank's trace of
@@ -73,7 +73,7 @@ export const ALGAE: Readonly<Record<AlgaeKind, AlgaeTraits>> = {
     sporeRate: 0.002,
   },
   film: {
-    name: 'Film algae',
+    name: 'Film',
     habitat: 'surfaces',
     growthRate: 20,
     hardiness: 0.4,
