@@ -14,7 +14,6 @@ import {
   gutBand,
   gutStatus,
   groupFry,
-  hungerOf,
   readFish,
   rosterSummary,
   type FryBatch,
@@ -93,20 +92,6 @@ describe('gutBand', () => {
   });
 });
 
-describe('hungerOf', () => {
-  it('tallies every band short of fed', () => {
-    expect(hungerOf(['fed', 'hungry', 'starving'])).toEqual({ count: 2, band: 'starving' });
-  });
-
-  it('reads the worst band present, not the first one found', () => {
-    expect(hungerOf(['hungry', 'hungry'])).toEqual({ count: 2, band: 'hungry' });
-  });
-
-  it('is null when nothing is hungry', () => {
-    expect(hungerOf(['fed'])).toBeNull();
-  });
-});
-
 describe('groupBySpecies', () => {
   it('folds adults into per-species rows and excludes fry', () => {
     const fish = [
@@ -120,7 +105,7 @@ describe('groupBySpecies', () => {
     const neon = groups[0];
     expect(neon.count).toBe(2);
     expect(neon.gut.at).toBeCloseTo((0.8 + HUNGRY / gutAt(1)) / 2, 12);
-    expect(neon.hunger).toEqual({ count: 1, band: 'hungry' });
+    expect(neon.gut).toMatchObject({ word: '1 hungry', status: 'warn' });
     expect(neon.name).toBe(FISH_SPECIES_DATA.neon_tetra.name);
   });
 
@@ -132,8 +117,7 @@ describe('groupBySpecies', () => {
     const [neon] = species(tank(fish));
 
     expect(neon.gut.at).toBeCloseTo(0.5, 12);
-    expect(neon.gut.status).toBe('alert');
-    expect(neon.hunger).toEqual({ count: 1, band: 'starving' });
+    expect(neon.gut).toMatchObject({ word: '1 hungry', status: 'alert' });
   });
 
   it('sums the group’s mass but averages its age and condition', () => {
@@ -185,7 +169,7 @@ describe('groupFry', () => {
 
     expect(batch.gut.at).toBeCloseTo(0.5, 12);
     expect(batch.condition).toBe(70);
-    expect(batch.hunger).toEqual({ count: 1, band: 'starving' });
+    expect(batch.gut).toMatchObject({ word: '1 hungry', status: 'alert' });
   });
 
   it('has nothing to sell where nothing is growing out', () => {

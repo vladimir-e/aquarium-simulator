@@ -75,6 +75,19 @@ export interface MetabolismResult {
 
 export type MetabolismWater = Pick<Resources, 'food' | 'oxygen' | 'temperature'>;
 
+function oxygenFactor(oxygen: number, config: LivestockConfig): number {
+  return monodFactor(oxygen, config.respirationOxygenHalfSaturation);
+}
+
+/** The pace every fish digests and needs at in this water, against reference water. */
+export function metabolicFactor(
+  water: Pick<MetabolismWater, 'oxygen' | 'temperature'>,
+  config: LivestockConfig
+): number {
+  const q10 = q10Factor(water.temperature, config.metabolicQ10, config.metabolicReferenceTemp);
+  return q10 * oxygenFactor(water.oxygen, config);
+}
+
 /**
  * One hour of metabolism. Each gut digests what it held coming into the hour;
  * then every fish eats at once, each taking its appetite in full, or the same
@@ -86,11 +99,9 @@ export function processMetabolism(
   config: LivestockConfig,
   foodMineralContent: MineralVector = nutrientsDefaults.foodMineralContent
 ): MetabolismResult {
-  const oxygenFactor = monodFactor(water.oxygen, config.respirationOxygenHalfSaturation);
-  const metabolicFactor =
-    q10Factor(water.temperature, config.metabolicQ10, config.metabolicReferenceTemp) * oxygenFactor;
+  const factor = metabolicFactor(water, config);
 
-  const digested = fish.map((f) => digest(f.gut, metabolicFactor, config));
+  const digested = fish.map((f) => digest(f.gut, factor, config));
   const digestedFish = fish.map((f, i) => ({ ...f, gut: Math.max(0, f.gut - digested[i]) }));
   const eaten = serve(
     digestedFish.map((f) => appetite(f, config)),
@@ -100,12 +111,13 @@ export function processMetabolism(
 
   const totalDigested = digested.reduce((sum, d) => sum + d, 0);
   const out = excretion(totalDigested, config, foodMineralContent);
-  const oxygenConsumedMg = fish.reduce((sum, f) => sum + config.baseRespirationRate * f.mass, 0) * oxygenFactor;
+  const oxygenConsumedMg =
+    fish.reduce((sum, f) => sum + config.baseRespirationRate * f.mass, 0) * oxygenFactor(water.oxygen, config);
 
   return {
     updatedFish,
     digested,
-    metabolicFactor,
+    metabolicFactor: factor,
     foodConsumed: eaten.reduce((sum, e) => sum + e, 0),
     wasteProduced: out.waste,
     ammoniaProduced: out.ammonia,

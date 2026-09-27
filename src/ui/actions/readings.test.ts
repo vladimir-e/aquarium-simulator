@@ -65,7 +65,7 @@ function gassed(): SimulationState {
 }
 
 function detail(state: SimulationState, id: VerbId, settings = DEFAULT_SETTINGS): VerbDetail {
-  return verbDetail(state, id, settings, 'metric', DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG));
+  return verbDetail(id, { state, settings, units: 'metric', config: DEFAULT_CONFIG, ahead: readHourAhead(state, DEFAULT_CONFIG) });
 }
 
 function row(rows: PreviewRow[], key: string): PreviewRow {
@@ -292,9 +292,9 @@ describe('preview readings', () => {
 
   it('reads temperature in the reader’s own units', () => {
     const state = fixture();
-    const ahead = readHourAhead(state, DEFAULT_CONFIG);
-    const metric = row(verbDetail(state, 'waterChange', DEFAULT_SETTINGS, 'metric', DEFAULT_CONFIG, ahead).preview, 'temperature');
-    const imperial = row(verbDetail(state, 'waterChange', DEFAULT_SETTINGS, 'imperial', DEFAULT_CONFIG, ahead).preview, 'temperature');
+    const input = { state, settings: DEFAULT_SETTINGS, config: DEFAULT_CONFIG, ahead: readHourAhead(state, DEFAULT_CONFIG) };
+    const metric = row(verbDetail('waterChange', { ...input, units: 'metric' }).preview, 'temperature');
+    const imperial = row(verbDetail('waterChange', { ...input, units: 'imperial' }).preview, 'temperature');
 
     expect(metric.unit).toBe('°C');
     expect(metric.before).toBe('25.4');

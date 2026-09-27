@@ -45,19 +45,6 @@ export function gutStatus(band: GutBand, sick: boolean): Status {
   }
 }
 
-export interface Hunger {
-  count: number;
-  /** The worst band among those counted — a group is as urgent as its worst fish. */
-  band: GutBand;
-}
-
-/** Hunger across any set of fish — a species group, a fry batch, the whole tank. */
-export function hungerOf(bands: readonly GutBand[]): Hunger | null {
-  const hungry = bands.filter((band) => band !== 'fed');
-  if (hungry.length === 0) return null;
-  return { count: hungry.length, band: hungry.includes('starving') ? 'starving' : 'hungry' };
-}
-
 export function countFry(fish: Fish[]): number {
   return fish.reduce((n, f) => n + (f.stage === 'fry' ? 1 : 0), 0);
 }
@@ -172,7 +159,6 @@ export interface RosterFigures {
 
 interface RosterGroup extends RosterFigures {
   count: number;
-  hunger: Hunger | null;
   reading: Reading;
   /** The fish behind the row, each already read. */
   members: FishRead[];
@@ -189,25 +175,24 @@ export interface FryBatch extends RosterGroup {
   species: FishSpecies[];
 }
 
-function groupGut(members: FishRead[], hunger: Hunger | null): Gut {
+function groupGut(members: FishRead[]): Gut {
+  const hungry = members.filter((member) => member.gut.word !== 'fed').length;
   return {
     at: mean(members.map((member) => member.gut.at)),
     band: members[0].gut.band,
     status: members.map((member) => member.gut.status).reduce(worstStatus),
-    word: hunger ? `${hunger.count} hungry` : 'fed',
+    word: hungry > 0 ? `${hungry} hungry` : 'fed',
   };
 }
 
 function groupFigures(members: FishRead[]): RosterGroup {
   const group = members.map((member) => member.fish);
-  const hunger = hungerOf(members.map((member) => member.gut.word));
   return {
     count: group.length,
     massG: group.reduce((sum, f) => sum + f.mass, 0),
     ageDays: Math.floor(mean(group.map((f) => f.age)) / 24),
-    gut: groupGut(members, hunger),
+    gut: groupGut(members),
     condition: mean(group.map((f) => f.health)),
-    hunger,
     reading: groupReading(members),
     members,
   };

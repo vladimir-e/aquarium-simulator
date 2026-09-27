@@ -80,7 +80,7 @@ export function VerbDrawer({
 }: VerbDrawerProps): React.JSX.Element | null {
   const { unitSystem } = useUnits();
   const detail = useMemo(
-    () => (verb === null ? null : verbDetail(state, verb, settings, unitSystem, config, ahead, scope)),
+    () => (verb === null ? null : verbDetail(verb, { state, settings, units: unitSystem, config, ahead, scope })),
     [verb, scope, state, settings, unitSystem, config, ahead]
   );
 

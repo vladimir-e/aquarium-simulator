@@ -31,10 +31,10 @@ describe('digestion', () => {
 describe('maintenance', () => {
   it('needs a day\'s ration by mass in reference water', () => {
     expect(dailyMaintenance([{ mass: 1 }, { mass: 3 }], 1, config)).toBeCloseTo(4 * config.maintenanceRation, 12);
-    expect(24 * maintenance({ mass: 2 }, 0.7, config)).toBeCloseTo(dailyMaintenance([{ mass: 2 }], 0.7, config), 12);
   });
 
   it('needs less as its metabolism slows, in step with the factor', () => {
+    expect(dailyMaintenance([{ mass: 2 }], 0.5, config)).toBeCloseTo(0.5 * dailyMaintenance([{ mass: 2 }], 1, config), 12);
     expect(maintenance({ mass: 1 }, 0.5, config)).toBeCloseTo(0.5 * maintenance({ mass: 1 }, 1, config), 12);
     expect(maintenance({ mass: 1 }, 0, config)).toBe(0);
   });

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   computeFishVitality,
   createSimulation,
+  dailyMaintenance,
   FILTER_SPECS,
   FILTER_TYPES,
   FISH_SPECIES_DATA,
@@ -805,9 +806,12 @@ describe('deviceHint', () => {
   it('weighs the feeder’s ration against what the fish burn in the water they are in', () => {
     const warm = applyAction(base, { type: 'addFish', species: 'neon_tetra' }).state;
     const cold = { ...warm, resources: { ...warm.resources, temperature: warm.resources.temperature - 10 } };
-    const multiple = (state: SimulationState): number => parseFloat(hint('autoFeeder', state)!.text.split(' is ')[1]);
+    const { metabolicFactor } = readHourAhead(cold, DEFAULT_CONFIG);
+    const need = dailyMaintenance(cold.fish, metabolicFactor, DEFAULT_CONFIG.livestock);
+    const multiple = cold.equipment.autoFeeder.amount / need;
 
-    expect(multiple(cold)).toBeGreaterThan(multiple(warm));
+    expect(metabolicFactor).toBeLessThan(readHourAhead(warm, DEFAULT_CONFIG).metabolicFactor);
+    expect(hint('autoFeeder', cold)?.text).toContain(`is ${multiple.toFixed(1)}× what the fish need`);
   });
 });
 

@@ -9,14 +9,14 @@
 import { ALGAE, ALGAE_KINDS, type AlertState, type SimulationState } from '../../simulation/index.js';
 import { verbName, type VerbId } from '../actions';
 import type { ReadingBook, ReadingId } from '../readings';
-import { bloomVerb, STATUS_SEVERITY, worstStatus } from '../run';
+import { bloomVerb, STATUS_SEVERITY, worstStatus, type FishRead, type Status } from '../run';
 import type { SectionId } from './sections.js';
 
 /** The two tones that ask for the keeper: past a line fish take harm at, and short of it. */
 export type NeedTone = 'warn' | 'alert';
 
 export interface Need {
-  id: keyof AlertState | 'fish';
+  id: keyof AlertState | 'fishStarving' | 'fishSick';
   section: SectionId;
   tone: NeedTone;
   /** What went wrong, as the strip states it. */
@@ -135,43 +135,47 @@ function alertNeed(spec: AlertSpec, book: ReadingBook): Need {
 }
 
 /**
- * The fish, once any starve or fall sick. A starving fish is answered by a
- * feeding, in the tone its gut reads; otherwise the worst sick one's ledger
- * names what is charging it.
+ * The fish, once any starve or fall sick. Starving fish are answered by a
+ * feeding, in the tone their guts read; the rest of the sick by the worst
+ * one's ledger, which names what is charging it.
  */
-function fishNeed(book: ReadingBook): Need | null {
+function fishNeeds(book: ReadingBook): Need[] {
   const groups = [...book.roster.fish, ...(book.roster.fry ? [book.roster.fry] : [])];
   const fish = groups.flatMap((group) => group.members);
+  const base = (id: Need['id'], members: FishRead[], status: (member: FishRead) => Status) =>
+    ({
+      id,
+      section: 'life',
+      tone: needTone(members.map(status).reduce(worstStatus)),
+      figure: `${members.length} of ${fish.length}`,
+    }) as const;
+  const needs: Need[] = [];
 
   const starving = fish.filter((member) => member.gut.word === 'starving');
   if (starving.length > 0) {
-    return {
-      id: 'fish',
-      section: 'life',
-      tone: needTone(starving.map((member) => member.gut.status).reduce(worstStatus)),
+    needs.push({
+      ...base('fishStarving', starving, (member) => member.gut.status),
       text: 'Fish starving',
-      figure: `${starving.length} of ${fish.length}`,
       sentence: 'Digesting short of their ration, hunger alone outruns everything they earn.',
       verb: verbName('feed'),
       act: 'feed',
       to: '/life',
-    };
+    });
   }
 
-  const sick = fish.filter((member) => member.sick);
-  if (sick.length === 0) return null;
+  const sick = fish.filter((member) => member.sick && member.gut.word !== 'starving');
+  if (sick.length > 0) {
+    const worstFish = sick.reduce((a, b) => (b.condition < a.condition ? b : a));
+    needs.push({
+      ...base('fishSick', sick, (member) => member.reading.status),
+      text: 'Fish sick',
+      sentence: 'Damage is outrunning what their banks heal; the ledger names what is charging it.',
+      verb: 'Inspect',
+      to: `/life?inspect=${worstFish.id}`,
+    });
+  }
 
-  const worstFish = sick.reduce((a, b) => (b.condition < a.condition ? b : a));
-  return {
-    id: 'fish',
-    section: 'life',
-    tone: needTone(sick.map((member) => member.reading.status).reduce(worstStatus)),
-    text: 'Fish sick',
-    figure: `${sick.length} of ${fish.length}`,
-    sentence: 'Damage is outrunning what their banks heal; the ledger names what is charging it.',
-    verb: 'Inspect',
-    to: `/life?inspect=${worstFish.id}`,
-  };
+  return needs;
 }
 
 /**
@@ -181,8 +185,7 @@ function fishNeed(book: ReadingBook): Need | null {
 export function activeNeeds(state: SimulationState, book: ReadingBook): Need[] {
   const latched = (section: SectionId): Need[] =>
     ALERTS.filter((spec) => spec.section === section && state.alertState[spec.id]).map((spec) => alertNeed(spec, book));
-  const fish = fishNeed(book);
-  return [...latched('water'), ...(fish ? [fish] : []), ...latched('life')].sort(
+  return [...latched('water'), ...fishNeeds(book), ...latched('life')].sort(
     (a, b) => STATUS_SEVERITY[b.tone] - STATUS_SEVERITY[a.tone]
   );
 }

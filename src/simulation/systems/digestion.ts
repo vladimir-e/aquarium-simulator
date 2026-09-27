@@ -58,5 +58,6 @@ export function nourishment(digested: number, need: number): number {
  */
 export function hungerLine(factor: number, config: LivestockConfig): number {
   if (factor <= 0) return 0;
-  return (config.maintenanceRation * factor) / 24 / (config.gutCapacity * hourlyDraw(config.digestionRate * factor));
+  const fish = { mass: 1 };
+  return maintenance(fish, factor, config) / digest(gutCapacity(fish, config), factor, config);
 }

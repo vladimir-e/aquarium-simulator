@@ -42,7 +42,7 @@ function stocked(fullness: number, fish: Partial<Fish> = {}): SimulationState {
 }
 
 const BANKED = { surplus: livestockDefaults.surplusCap };
-const HUNGRY = 0.9 * hungerLine(1, livestockDefaults);
+const HUNGRY_FULLNESS = 0.9 * hungerLine(1, livestockDefaults);
 
 describe('activeNeeds', () => {
   it('says nothing about a tank with nothing latched', () => {
@@ -84,7 +84,7 @@ describe('activeNeeds', () => {
   });
 
   it('stays quiet while fish are fed, or hungry with banks that heal what hunger charges', () => {
-    expect(needs(stocked(HUNGRY, BANKED))).toEqual([]);
+    expect(needs(stocked(HUNGRY_FULLNESS, BANKED))).toEqual([]);
     expect(needs(stocked(1))).toEqual([]);
   });
 
@@ -102,7 +102,7 @@ describe('activeNeeds', () => {
 
   it('sends a hungry fish sick of ammonia to its ledger, not to the food', () => {
     const state = produce(stocked(1, { surplus: 0 }), (draft) => {
-      draft.fish[0].gut = gutAt(HUNGRY, draft.fish[0].mass);
+      draft.fish[0].gut = gutAt(HUNGRY_FULLNESS, draft.fish[0].mass);
       draft.resources.ammonia = 10 * draft.resources.water;
     });
     const [sick] = needs(state);
@@ -112,6 +112,18 @@ describe('activeNeeds', () => {
 
     expect(sick).toMatchObject({ text: 'Fish sick', verb: 'Inspect', figure: '3 of 3', to: `/life?inspect=${state.fish[0].id}` });
     expect(sick.act).toBeUndefined();
+  });
+
+  it('does not let a banked starving fish hide the others sick of something a feeding will not answer', () => {
+    const state = produce(stocked(1, { surplus: 0, health: 25 }), (draft) => {
+      Object.assign(draft.fish[0], { gut: 0, health: 100, surplus: livestockDefaults.surplusCap });
+      draft.resources.ammonia = 10 * draft.resources.water;
+    });
+
+    expect(needs(state)).toMatchObject([
+      { id: 'fishSick', tone: 'alert', verb: 'Inspect', figure: '2 of 3', to: `/life?inspect=${state.fish[1].id}` },
+      { id: 'fishStarving', tone: 'warn', act: 'feed', figure: '1 of 3' },
+    ]);
   });
 
   it('sends each need to the section that answers it, in its worst tone', () => {

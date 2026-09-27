@@ -148,7 +148,7 @@ describe('processMetabolism', () => {
     expect(gasping.oxygenConsumedMg).toBeLessThan(breathing.oxygenConsumedMg);
   });
 
-  it('runs on one metabolic factor: the digestion Q10 per ten degrees, times the oxygen factor', () => {
+  it('runs on one metabolic factor: the metabolic Q10 per ten degrees, times the oxygen factor', () => {
     const { metabolicReferenceTemp: ref, metabolicQ10, respirationOxygenHalfSaturation: k } = livestockDefaults;
     const factor = (temperature: number, oxygen: number): number =>
       processMetabolism([], water({ temperature, oxygen }), livestockDefaults).metabolicFactor;

@@ -598,14 +598,18 @@ function rungs(
  * the selected verb is read this far: the preview applies the action to find
  * its rows.
  */
+export interface VerbInput {
+  state: SimulationState;
+  settings: VerbSettings;
+  units: UnitSystem;
+  config: TunableConfig;
+  ahead: HourAhead;
+  scope?: VerbScope | null;
+}
+
 export function verbDetail(
-  state: SimulationState,
   id: VerbId,
-  settings: VerbSettings,
-  units: UnitSystem,
-  config: TunableConfig,
-  ahead: HourAhead,
-  scope: VerbScope | null = null
+  { state, settings, units, config, ahead, scope = null }: VerbInput
 ): VerbDetail {
   const setting = settingOf(id, settings);
   return {

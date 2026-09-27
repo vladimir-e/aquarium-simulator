@@ -16,7 +16,7 @@ import {
 } from './equipment/substrate.js';
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
-import { excretion } from './systems/metabolism.js';
+import { excretion, metabolicFactor } from './systems/metabolism.js';
 import { dailyMaintenance } from './systems/digestion.js';
 import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
@@ -137,14 +137,15 @@ type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
 
 /**
  * mg of ammonia a tick the tank's stock and bed put into the water at rest:
- * every fish digesting its maintenance ration, and the bed leaching what it
- * holds. All the waste either one makes is mineralised in the end, whether or
- * not it settles on the way. Food fed past maintenance is left out — the
+ * every fish digesting its maintenance ration in the water it is in, and the
+ * bed leaching what it holds. All the waste either one makes is mineralised in
+ * the end, whether or not it settles on the way. Food fed past maintenance is left out — the
  * engine has no ration to size it by — so under a keeper who feeds more the
  * colony errs small and grows on from the seed.
  */
 function restingAmmoniaSupply(state: StockedTank): number {
-  const digested = dailyMaintenance(state.fish, 1, livestockDefaults) / 24;
+  const factor = metabolicFactor(state.resources, livestockDefaults);
+  const digested = dailyMaintenance(state.fish, factor, livestockDefaults) / 24;
   const { ammonia, waste } = excretion(digested, livestockDefaults);
   const leached = calculateSubstrateLeach(state.equipment.substrate.organicReserve, decayDefaults);
   return ammonia + (waste + leached) * ammoniaPerGramOfFood(livestockDefaults);
