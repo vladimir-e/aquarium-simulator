@@ -8,10 +8,11 @@ import { Badge } from '@astrojs/starlight/components';
 ## What it models
 
 Eight threshold checks run at the end of every tick, after every effect has
-landed — one per kind of bloom among them. Each holds a flag: it writes one line when the reading crosses into
-trouble, stays quiet while the condition persists, and clears silently when the
-reading comes back. Alongside them the log collects everything the tank did that
-a reader would want to see afterwards.
+landed — one per kind of bloom among them. Each holds a flag: it writes one
+line when the reading crosses into trouble, stays quiet while the condition
+persists, and clears silently when the reading comes back. Alongside them the
+log collects everything the tank did that a reader would want to see
+afterwards.
 
 ## Status
 
@@ -21,7 +22,7 @@ a reader would want to see afterwards.
 | Log entry shape | <Badge text="settled" variant="success" /> | Free text for humans with its volumes, temperatures and coverages kept as quantities, a typed `event` discriminator for code, and a `count` wherever an entry accounts for more than one organism. |
 | Water-quality thresholds | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen alert at their tolerance edge, and hardiness moves each fish's own harm edge out from it. Ammonia reads the free fraction, so the total it takes moves with pH and temperature. |
 | Water-level threshold | <Badge text="settled" variant="success" /> | Alerts where its harm starts, read off the tunable that starts it, so retuning the harm moves the alert with it. |
-| Bloom thresholds | <Badge text="settled" variant="success" /> | A bloom harms nothing; it takes light. Each kind alerts on its effect — the share of the plants' light it takes — so the keeper is told which kind to answer and with which verb. With nothing planted it alerts on its coverage. |
+| Bloom thresholds | <Badge text="settled" variant="success" /> | A bloom harms nothing; it takes light. Each kind alerts on its level — the further of its coverage and the share of the plants' light it takes, each over its own line — so the keeper is told which kind to answer and with which verb, and a bare tank alerts on coverage by the same rule. |
 | CO₂ threshold | <Badge text="scaffolding" variant="caution" /> | The line keepers treat as too much, with nothing behind it — no organism in the engine reads dissolved CO₂ as a stressor. |
 | Behaviour on a drained tank | <Badge text="scaffolding" variant="caution" /> | Concentrations read 0 when there is no water and the water-level check requires `water > 0`, so the alert layer goes silent exactly when the tank is empty. Fish health reads the same zeroes, so a drained tank charges no toxin and no flow — its water-level stressor carries it. |
 | Clearing | <Badge text="missing" variant="danger" /> | A condition resolving writes nothing. The log records that a tank got into trouble and never that it got out. |
@@ -51,12 +52,13 @@ the transition into trouble.
 | High nitrate | above 80 ppm | the same |
 | Low oxygen | below 4 mg/L | the same, below the line |
 | High CO₂ | above 40 mg/L, the level keepers treat as too much | nowhere — nothing reads it |
-| Green water · Film | the kind takes more than 25 % of the plants' light — its share at each plant's mean leaf, weighted by leaf area — or, with nothing planted, covers more than 30 of its habitat | nowhere — a bloom takes light, and a plant starves only past its own edge |
+| Green water · Film | the kind's level passes 1: it covers more than 30 of its habitat, or takes more than 25 % of the plants' light — its share at each plant's mean leaf, weighted by leaf area | nowhere — a bloom takes light, and a plant starves only past its own edge |
 
 The four water-quality alerts fire before any fish takes damage; water level
 fires exactly where its damage starts; the blooms and CO₂ have no harm of their
-own behind them. Each bloom alert names its verb: a water change for green
-water, a scrub for film.
+own behind them. Each bloom alert states the figure further past its line and
+names the action its habitat is taken out by: a water change for green water, a
+scrub for film.
 Ammonia reads the unionized fraction of the total, so the same test-kit reading
 crosses it sooner the higher the pH and the warmer the water:
 
@@ -140,7 +142,7 @@ the fish tolerance edges, defined with [livestock](/subsystems/livestock/).
 | `OXYGEN_EDGE` | Dissolved oxygen below which the alert fires | `4` mg/L |
 | `HIGH_CO2_THRESHOLD` | Dissolved CO₂ above which the alert fires | `40` mg/L |
 | `PLANT_LIGHT_LINE` | Share of the plants' light a bloom alerts past | `25` % |
-| `BLOOM_COVERAGE_LINE` | Coverage a bloom alerts past with nothing planted | `30` |
+| `BLOOM_COVERAGE_LINE` | Coverage a bloom alerts past | `30` |
 
 ## Seams
 

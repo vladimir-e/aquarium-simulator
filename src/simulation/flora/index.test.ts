@@ -15,8 +15,8 @@ import {
   type Plant,
   type Resources,
 } from '../state.js';
-import { ALGAE, ALGAE_KINDS, bloomTissue, habitatGain, habitatSize, type AlgaeKind } from '../algae/index.js';
-import { dailyLightIntegral } from '../equipment/light.js';
+import { ALGAE, ALGAE_KINDS, bloomTissue, habitatGain, habitatSize, waterExtinction, type AlgaeKind } from '../algae/index.js';
+import { calculateParAtDepth, dailyLightIntegral } from '../equipment/light.js';
 import { produce } from 'immer';
 import { carbonateKh } from '../core/carbonate.js';
 import { CACO3_PER_EQUIVALENT, MW_NH3, MW_NO3 } from '../core/chemistry.js';
@@ -549,6 +549,22 @@ describe('processFlora — plants', () => {
         expect(reading.heightCm).toBe(plantHeight(planting[i], calculateTankHeight(state.tank.capacity)));
       });
       expect(processFlora(state, DEFAULT_CONFIG).light).toEqual(light);
+    });
+
+    it.each(ALGAE_KINDS)('reads each plant’s PAR under %s off the canopy through it, below its PAR in clear water', (kind) => {
+      const lamp = (algae: Partial<Record<AlgaeKind, Partial<AlgaeState>>>): SimulationState => {
+        const lit = tank({ plants: planting, lightByHour: LIT_DAY, algae });
+        const depth = calculateTankHeight(lit.tank.capacity);
+        return { ...lit, resources: { ...lit.resources, light: calculateParAtDepth(100, depth, waterExtinction(lit.algae, DEFAULT_CONFIG.optics)) } };
+      };
+      const bloomed = lamp({ [kind]: { mass: 40 } });
+      const canopy = canopyLight(planting, bloomed.tank.capacity, DEFAULT_CONFIG.optics, bloomed.algae);
+      const clear = processFlora(lamp({}), DEFAULT_CONFIG).light;
+
+      processFlora(bloomed, DEFAULT_CONFIG).light.forEach((reading, i) => {
+        expect(reading.par).toBeCloseTo(bloomed.resources.light * canopy[i].leaf, 12);
+        expect(reading.par).toBeLessThan(clear[i].par);
+      });
     });
 
     it('photosynthesises each plant on the PAR at its mean leaf, and respires on the rate units that fix', () => {

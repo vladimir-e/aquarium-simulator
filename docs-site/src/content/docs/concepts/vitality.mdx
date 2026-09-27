@@ -1,6 +1,6 @@
 ---
 title: Vitality
-description: One model for every organism with a condition — rates of benefit and harm move condition, only a full organism banks, and the bank heals at a species rate and buys what the organism makes.
+description: One model for every organism — rates of benefit and harm move condition, only a full organism banks, and the bank heals at a species rate and buys what the organism makes.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -80,6 +80,7 @@ and it ends when the rates turn round.
 ## Source
 
 `src/simulation/systems/` holds the shared step, the flora law plants and the
-blooms all run on, and each organism's factor builders; `src/simulation/plants/`, `src/simulation/algae/` and
+blooms all run on, and each organism's factor builders;
+`src/simulation/plants/`, `src/simulation/algae/` and
 `src/simulation/livestock/` decide what their bank buys, and
 `src/simulation/flora/` runs plants and the blooms through one pass.

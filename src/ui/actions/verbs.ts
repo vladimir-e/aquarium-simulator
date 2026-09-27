@@ -3,9 +3,9 @@
  * preview and a commit. Every option set is the engine's own
  * (`WATER_CHANGE_AMOUNTS`, `MAX_ROOT_TABS`, `TRIM_TARGETS`) and every refusal
  * is an engine guard (`canDose`, `canRootTab`, `getPlantsToTrimCount`), or a
- * display gate on the engine's own reading of what a verb would take
- * (`onTheGlass`), stated where the verb would otherwise say what it is about
- * to do — so an unavailable verb is never a dead end.
+ * display gate on the reading the verb acts on — the coverage of each bloom on
+ * the glass — stated where the verb would otherwise say what it is about to do,
+ * so an unavailable verb is never a dead end.
  */
 
 import {
@@ -18,20 +18,19 @@ import {
   getPlantsToTrimCount,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
-  onTheGlass,
   placeShare,
   PLANT_SPECIES_DATA,
   WATER_CHANGE_AMOUNTS,
   type Action,
-  type AlgaeHabitat,
   type AlgaeKind,
   type SimulationState,
 } from '../../simulation/index.js';
-import { habitatPlaces, namePlaces } from '../../simulation/algae/index.js';
+import { namePlaces, placesKept } from '../../simulation/algae/index.js';
 import { FoodResource, getPpm, NitrateResource } from '../../simulation/resources/index.js';
 import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
 import {
   bedReading,
+  bloomVerb,
   doseToCover,
   nutrientReadings,
   plantLabels,
@@ -230,10 +229,10 @@ function blockedReason(
       return getPlantsToTrimCount(reached(state, scope), settings.trimPlants) > 0
         ? null
         : `nothing above ${settings.trimPlants} %`;
-    case 'scrubAlgae': {
-      const glass = onTheGlass(state);
-      return ALGAE_KINDS.some((kind) => !printsAsZero(glass[kind], COVERAGE_DECIMALS)) ? null : 'the glass is clean';
-    }
+    case 'scrubAlgae':
+      return glassKinds(state).some((kind) => !printsAsZero(state.algae[kind].mass, COVERAGE_DECIMALS))
+        ? null
+        : 'the glass is clean';
   }
 }
 
@@ -508,12 +507,6 @@ function meta(
   }
 }
 
-const SCRUB_REACH: Record<AlgaeHabitat, (name: string, offTheGlass: string) => string> = {
-  surfaces: (name, offTheGlass) =>
-    `${name} on the glass comes off; what coats ${offTheGlass} stays, and spreads back over the glass at once.`,
-  column: (name) => `${name} floats free of the glass — a water change takes it.`,
-};
-
 /**
  * Prose in the chip row's slot for the two bare verbs, so the settings step is
  * an honest statement rather than an empty panel.
@@ -521,16 +514,19 @@ const SCRUB_REACH: Record<AlgaeHabitat, (name: string, offTheGlass: string) => s
 const BARE_NOTE: Partial<Record<VerbId, (state: SimulationState) => string>> = {
   topOff: () =>
     'No amount to set — top-off refills to capacity at the tank’s own temperature. The tap’s KH and GH come with it, everything else dissolved is diluted, and pH follows the CO₂ and KH that leaves.',
-  scrubAlgae: (state) =>
-    [
+  scrubAlgae: (state) => {
+    const onGlass = glassKinds(state);
+    return [
       'No amount to set — a scrub clears the glass.',
       ...ALGAE_KINDS.map((kind) => {
         const { habitat, name } = ALGAE[kind];
-        const offTheGlass = habitatPlaces(habitat, state).filter((place) => place !== 'walls');
-        return SCRUB_REACH[habitat](name, namePlaces(offTheGlass));
+        return onGlass.includes(kind)
+          ? `${name} on the glass comes off; what coats ${namePlaces(placesKept(habitat, 'walls', state))} stays, and spreads back over the glass at once.`
+          : `${name} is not on the glass — a ${VERB[bloomVerb(kind)].name.toLowerCase()} takes it.`;
       }),
       'What comes off is loose in the water as waste: it rots there, and a gravel vac takes it once it settles.',
-    ].join(' '),
+    ].join(' ');
+  },
 };
 
 function commitLabel(

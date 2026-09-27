@@ -1,9 +1,9 @@
 /**
  * The waste pool: what stands in the tank, what feeds it each hour, and what
  * leaves it into the nitrogen cycle. Every rate is the engine's own: what the
- * next tick's plants and bloom shed, its fish pass and the food they leave decays into,
- * and the leaching off the tank as it stands. A death's one-off lump is an
- * event, not a rate, so no source counts it.
+ * next tick's plants and blooms shed, its fish pass and the food they leave
+ * decays into, and the leaching off the tank as it stands. A death's one-off
+ * lump is an event, not a rate, so no source counts it.
  */
 
 import {

@@ -15,9 +15,9 @@ import {
   bloomTissue,
   clearPlace,
   coverageAt,
-  habitatPlaces,
   habitatSize,
   namePlaces,
+  placesKept,
   type AlgaeKind,
 } from '../algae/index.js';
 import { createLog } from '../core/logging.js';
@@ -37,14 +37,13 @@ export function scrubAlgae(state: SimulationState): ActionResult {
     draft.algae = clearPlace(state.algae, 'walls', state);
     for (const kind of scraped) {
       const traits = ALGAE[kind];
-      const left = habitatPlaces(traits.habitat, state).filter((place) => place !== 'walls');
       draft.resources.waste += bloomTissue(glass[kind], habitatSize(traits.habitat, state), traits);
       draft.logs.push(
         createLog(
           draft.tick,
           'scrub',
           'info',
-          `Scrubbed the glass: removed ${glass[kind].toFixed(1)} ${traits.name.toLowerCase()}, ${draft.algae[kind].mass.toFixed(1)} left on ${namePlaces(left)}`
+          `Scrubbed the glass: removed ${glass[kind].toFixed(1)} ${traits.name.toLowerCase()}, ${draft.algae[kind].mass.toFixed(1)} left on ${namePlaces(placesKept(traits.habitat, 'walls', state))}`
         )
       );
     }

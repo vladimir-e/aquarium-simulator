@@ -18,7 +18,7 @@ import {
   HIGH_CO2_THRESHOLD,
   type Alert,
 } from './index.js';
-import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
+import { DEFAULT_CONFIG, configRange, type TunableConfig } from '../config/index.js';
 import { computeFishVitality } from '../systems/fish-health.js';
 import { createFish } from '../livestock/create-fish.js';
 import { plantLightTaken } from '../plants/canopy.js';
@@ -223,14 +223,27 @@ describe('bloomAlert', () => {
       ];
       draft.algae[kind].mass = mass;
     });
+  const unplanted = (kind: AlgaeKind, mass: number): SimulationState => ({ ...planted(kind, mass), plants: [] });
+  const attenuated = (perGram: number): TunableConfig => ({ ...config, optics: { ...config.optics, algaeAttenuationPerGram: perGram } });
+  const fires = (kind: AlgaeKind, state: SimulationState, at = config): boolean => bloomAlert(kind).check(state, at).log !== null;
 
-  it.each(ALGAE_KINDS)('fires for %s over planting exactly where it takes the line’s share of the plants’ light, whatever its coverage', (kind) => {
+  it.each(ALGAE_KINDS)('fires for %s exactly where its level passes 1: coverage past its line, or the plants’ light it takes past its own', (kind) => {
     for (let mass = 5; mass <= 95; mass += 5) {
-      const state = planted(kind, mass);
-      const taken = plantLightTaken(state, config.optics)[kind] * 100;
-      expect(bloomAlert(kind).check(state, config).log !== null).toBe(taken > PLANT_LIGHT_LINE);
+      for (const state of [planted(kind, mass), unplanted(kind, mass)]) {
+        const taken = plantLightTaken(state, config.optics)[kind] * 100;
+        expect(fires(kind, state)).toBe(mass > BLOOM_COVERAGE_LINE || taken > PLANT_LIGHT_LINE);
+      }
     }
-    expect(bloomAlert(kind).check(planted(kind, 95), config).log).not.toBeNull();
+  });
+
+  it.each(ALGAE_KINDS)('fires for %s at its coverage line on the light it takes alone, once that passes its line', (kind) => {
+    const dense = attenuated(configRange('optics.algaeAttenuationPerGram')!.max);
+    const state = planted(kind, BLOOM_COVERAGE_LINE);
+
+    expect(plantLightTaken(state, dense.optics)[kind] * 100).toBeGreaterThan(PLANT_LIGHT_LINE);
+    expect(fires(kind, state, dense)).toBe(true);
+    expect(fires(kind, state, attenuated(0))).toBe(false);
+    expect(fires(kind, unplanted(kind, BLOOM_COVERAGE_LINE), dense)).toBe(false);
   });
 
   it('is each kind’s own: one kind’s bloom raises its flag alone', () => {
@@ -243,7 +256,7 @@ describe('bloomAlert', () => {
   });
 
   it('names the verb that takes its kind out', () => {
-    const message = (kind: AlgaeKind): string => bloomAlert(kind).check(planted(kind, 95), config).log!.message;
+    const message = (kind: AlgaeKind): string => bloomAlert(kind).check(planted(kind, 2 * BLOOM_COVERAGE_LINE), config).log!.message;
     expect(message('greenWater')).toContain('water change');
     expect(message('film')).toContain('scrub');
   });

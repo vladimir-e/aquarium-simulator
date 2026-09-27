@@ -151,15 +151,15 @@ export function LedgerDrawer({
           />
         )}
 
-        {ledger.shade && (
+        {ledger.lightTaken && (
           <ReadingRow
-            name="Shade"
-            value={ledger.shade.text}
+            name="Light taken"
+            value={ledger.lightTaken.text}
             unit="% of plants' light"
-            at={ledger.shade.at}
-            band={ledger.shade.band}
-            tone={toneOf(ledger.shade.status)}
-            note={ledger.shade.note}
+            at={ledger.lightTaken.at}
+            band={ledger.lightTaken.band}
+            tone={toneOf(ledger.lightTaken.status)}
+            note={ledger.lightTaken.note}
           />
         )}
 

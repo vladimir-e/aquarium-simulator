@@ -168,10 +168,20 @@ export function clearPlace(blooms: Blooms, place: HabitatPlace, tank: HabitatTan
 export { ALGAE, ALGAE_KINDS } from './traits.js';
 export { EMPTY_BLOOM, emptyBlooms, isAlgaeKind, mapKinds } from './blooms.js';
 export type { AlgaeHabitat, AlgaeKind, AlgaeTraits } from './traits.js';
-export { bloomLight, columnGain, habitatGain, habitatPlaces, habitatSize, namePlaces, placeShare } from './habitat.js';
-export type { BloomLight, HabitatPlace, HabitatTank } from './habitat.js';
-export { bloomPass, waterExtinction, waterShade } from './shade.js';
-export type { BloomShade, WaterShade } from './shade.js';
+export {
+  bloomLight,
+  columnGain,
+  habitatGain,
+  habitatPlaces,
+  habitatSize,
+  namePlaces,
+  placesKept,
+  placeShare,
+  REMOVED_BY,
+} from './habitat.js';
+export type { BloomLight, BloomRemoval, HabitatPlace, HabitatTank } from './habitat.js';
+export { bloomPass, columnPass, lightLoss, waterExtinction } from './shade.js';
+export type { BloomShade, LightLoss } from './shade.js';
 export {
   computeAlgaeVitality,
   buildAlgaeStressors,

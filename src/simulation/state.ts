@@ -298,9 +298,9 @@ export interface Equipment {
 /**
  * Tracks which alert conditions are currently active.
  * Used to only fire alerts once when crossing thresholds. Each kind of bloom
- * has its own, set while it takes more than `PLANT_LIGHT_LINE` of the plants'
- * light — or, with nothing planted, while it covers more than
- * `BLOOM_COVERAGE_LINE` of its habitat.
+ * has its own, set while its `bloomLevel` is past 1: it covers more than
+ * `BLOOM_COVERAGE_LINE` of its habitat, or takes more than `PLANT_LIGHT_LINE`
+ * of the plants' light.
  */
 export interface AlertState extends Record<AlgaeKind, boolean> {
   /** Water is below `waterLevelAlertLine` % of capacity */

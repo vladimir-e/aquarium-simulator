@@ -29,7 +29,6 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
       traits,
       resources,
       plants: [],
-      litres: LITRES,
       plantsConfig,
       algaeConfig,
       nutrientSufficiency: 1,
@@ -46,9 +45,11 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
     plantRecord({ id: `s${condition}`, species: 'amazon_sword', size: 100, condition, surplus: 0 });
 
   describe('allelopathy', () => {
-    it('harms the bloom in proportion to thriving plant per litre, hardened, from no plants up', () => {
-      const harm = (plants: Plant[], litres = LITRES): number =>
-        amount(buildAlgaeStressors(context({ plants, litres })), 'allelopathy');
+    it('harms the bloom in proportion to thriving plant per litre of standing water, hardened, from no plants up', () => {
+      const harm = (plants: Plant[], water = LITRES): number => {
+        const ctx = context({ plants });
+        return amount(buildAlgaeStressors({ ...ctx, resources: { ...ctx.resources, water } }), 'allelopathy');
+      };
 
       expect(harm([])).toBe(0);
       expect(harm([sword(100)])).toBeCloseTo(

@@ -28,6 +28,7 @@ CO₂ against KH wherever something needs it.
 | pH from CO₂ and KH | <Badge text="settled" variant="success" /> | The hobby relation `CO₂ = 3 × KH × 10^(7 − pH)`, derived on read and never stored, so it cannot lag or drift. |
 | Soft-water floor | <Badge text="scaffolding" variant="caution" /> | A fixed `0.1` dKH of background buffer and `0.1` mg/L of residual CO₂ keep pH finite at KH 0 and CO₂ 0. Stand-ins for the phosphate and humic buffers a real tank carries. |
 | Nitrogen moves KH by its charge | <Badge text="settled" variant="success" /> | Stoichiometric: minting ammonia, nitrifying it and the flora's uptake each move an equivalent per proton they take up or release — see [KH and pH](#kh-and-ph). |
+| Nitrification at KH 0 | <Badge text="scaffolding" variant="caution" /> | Nitrifiers never run short of carbonate: at KH 0 they keep making nitrate and the `kh` floor absorbs the acid, so a soft tank's nitrate outgrows its charge. A cycled seed does the same — aqua soil over 0.5 dKH tap seeds 0 dKH beside nitrate its KH never paid for. |
 | Tap, top-off and evaporation | <Badge text="settled" variant="success" /> | KH and GH are masses, so evaporation concentrates them and every litre of tap water brings `tapKh` and `tapGh` with it. |
 | Hardscape and substrate | <Badge text="scaffolding" variant="caution" /> | Hand-set rates and reserves. Calcite dissolves in proportion to [H⁺] and never runs out; driftwood's tannins and aqua soil's buffer are finite and taper as they are spent. |
 | Calcite and soil move GH with KH | <Badge text="settled" variant="success" /> | Stoichiometric: CaCO₃ dissolves into equal CaCO₃-equivalents of Ca²⁺ and carbonate, and soil's cation exchange takes up Ca²⁺ and Mg²⁺ for the H⁺ that spends carbonate. |
@@ -191,11 +192,13 @@ process takes from the water and loses one for each it releases.
 | Plants and the blooms taking ammonia | `−1` |
 | Plants and the blooms taking nitrate, from the water or the bed | `+1` |
 
-Through these processes KH moves exactly with the charge on the inorganic
-nitrogen in the water and the bed, so organic nitrogen carried to nitrate nets
-one equivalent spent, and nitrogen that goes back into tissue, in either form,
-nets none. Every other flow here — and a fertiliser dose or a water change —
-moves KH and that charge independently.
+While KH lasts, these processes move it exactly with the charge on the
+inorganic nitrogen in the water and the bed, so organic nitrogen carried to
+nitrate nets one equivalent spent, and nitrogen that goes back into tissue, in
+either form, nets none. Every other flow here — and a fertiliser dose or a
+water change — moves KH and that charge independently. Nitrification does not
+read KH: at KH 0 it keeps making nitrate, and the stock's floor absorbs the
+acid.
 
 Four hobby behaviours fall out. A heavily stocked tank left without water
 changes drains its KH and its pH sags — old tank syndrome. A lightly stocked

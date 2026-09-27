@@ -346,12 +346,13 @@ describe('alkalinity around the nitrogen loop', () => {
     );
   });
 
-  it('moves KH exactly as far as the charge on the inorganic nitrogen moves, through gills, decay, growth from the water and the bed, shedding and rot', () => {
+  it('moves KH exactly as far as the charge on the inorganic nitrogen moves while KH lasts, through gills, decay, growth from the water and the bed, shedding and rot', () => {
     const leakedOnly =
       start.equipment.substrate.nutrients.nitrate * (1 - DEFAULT_CONFIG.nutrients.bedLeakRate) ** (LIT_DAYS * 24);
     expect(lit.equipment.substrate.nutrients.nitrate).toBeLessThan(leakedOnly);
 
     for (const state of [lit, dark]) {
+      expect(state.resources.kh).toBeGreaterThan(0);
       expect(Math.abs(state.resources.kh - start.resources.kh)).toBeGreaterThan(1);
       expect(alkalinityNetOfNitrogen(state) / alkalinityNetOfNitrogen(start)).toBeCloseTo(1, 10);
     }
@@ -367,9 +368,14 @@ describe('blooms at every tunable’s maximum', () => {
     for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 95, condition: 100, surplus: 100 };
     for (const n of NUTRIENTS) draft.resources[n] = 1000 * DEFAULT_CONFIG.nutrients.halfSaturation[n] * draft.resources.water;
   });
+  const planted = produce(crowded, (draft) => {
+    draft.plants = (['java_fern', 'amazon_sword', 'monte_carlo'] as const).map((species) =>
+      plantRecord({ id: species, species, size: 60, condition: 100, surplus: 50 })
+    );
+  });
 
-  it.each(maxed)('keep mass within [0, 100], condition within [0, 100] and the bank ≥ 0 with %s at its max', (_path, config) => {
-    let state = crowded;
+  const keepBounded = (start: SimulationState, config: TunableConfig): SimulationState => {
+    let state = start;
     for (let hour = 0; hour < 48; hour++) {
       state = tick(state, config);
       for (const kind of ALGAE_KINDS) {
@@ -381,6 +387,15 @@ describe('blooms at every tunable’s maximum', () => {
         expect(surplus).toBeGreaterThanOrEqual(0);
       }
     }
+    return state;
+  };
+
+  it.each(maxed)('keep mass within [0, 100], condition within [0, 100] and the bank ≥ 0 with %s at its max', (_path, config) => {
+    keepBounded(crowded, config);
+  });
+
+  it.each(maxed)('keep those bounds over a planting, every figure finite, with %s at its max', (_path, config) => {
+    expect(nonFinitePaths(keepBounded(planted, config))).toEqual([]);
   });
 });
 

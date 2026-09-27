@@ -10,8 +10,10 @@ import {
   ALGAE_KINDS,
   PLANT_SPECIES_DATA,
   plantLightTaken,
+  REMOVED_BY,
   type AlgaeHabitat,
   type AlgaeKind,
+  type BloomRemoval,
   type Light,
   type LightPath,
   type SimulationState,
@@ -24,7 +26,7 @@ import type { VerbId, VerbScope } from '../actions/verbs.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 import { COVERAGE_DECIMALS } from '../utils/units.js';
 import type { HourAhead } from './ahead.js';
-import { algaeReading, plantLabels, shadeStatus, sharePercent, unitTitle } from './flora.js';
+import { algaeReading, lightTakenStatus, plantLabels, sharePercent, unitTitle } from './flora.js';
 import { crownBurns, lightStatus, plantLightStatus } from './light.js';
 import { fishNumbers, fishReading, fishSatiation, fishTitle, type Satiation } from './livestock.js';
 import { CONDITION_BAND, type SpeciesId } from './roster.js';
@@ -114,7 +116,7 @@ export interface Ledger {
   /** How much of its habitat a bloom fills, %. */
   coverage: LedgerRow | null;
   /** The share of the plants' light a bloom takes, % — while anything is planted. */
-  shade: LedgerRow | null;
+  lightTaken: LedgerRow | null;
   helping: LedgerFactor[];
   hurting: LedgerFactor[];
   helps: number;
@@ -254,7 +256,7 @@ function fishLedger(
     light: null,
     lightPath: null,
     coverage: null,
-    shade: null,
+    lightTaken: null,
     helping,
     hurting,
     helps: total(breakdown.benefits),
@@ -324,7 +326,7 @@ function plantLedger(
     ),
     lightPath: lightPathView(light.path, state.equipment.light),
     coverage: null,
-    shade: null,
+    lightTaken: null,
     helping,
     hurting,
     helps: total(breakdown.benefits),
@@ -345,20 +347,18 @@ function plantLedger(
   };
 }
 
-type BloomVerb = Extract<VerbId, 'scrubAlgae' | 'waterChange'>;
-
 /**
  * Each habitat in the ledger's words — how a bloom lies in its places, where
- * its light is read — and the verb that takes a bloom out of it.
+ * its light is read, and how it takes the plants' light.
  */
-const HABITAT: Record<AlgaeHabitat, { lies: string; lit: string; shades: string; verb: BloomVerb }> = {
-  column: { lies: 'suspended in', lit: 'through the water column', shades: 'the deeper a leaf, the more', verb: 'waterChange' },
-  surfaces: { lies: 'on', lit: 'on the glass and under the canopy', shades: 'coating every leaf alike', verb: 'scrubAlgae' },
+const HABITAT: Record<AlgaeHabitat, { lies: string; lit: string; takes: string }> = {
+  column: { lies: 'suspended in', lit: 'through the water column', takes: 'the deeper a leaf, the more' },
+  surfaces: { lies: 'on', lit: 'on the glass and under the canopy', takes: 'coating every leaf alike' },
 };
 
 /** The verb that takes a kind out of the tank, by where it lives. */
-export function bloomVerb(kind: AlgaeKind): BloomVerb {
-  return HABITAT[ALGAE[kind].habitat].verb;
+export function bloomVerb(kind: AlgaeKind): BloomRemoval {
+  return REMOVED_BY[ALGAE[kind].habitat];
 }
 
 /**
@@ -399,14 +399,14 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
       status: coverage.status,
       note: projectedTrend(next.mass - mass),
     },
-    shade:
+    lightTaken:
       state.plants.length > 0
         ? {
             text: String(Math.round(taken)),
             at: taken / 100,
             band: { from: 0, to: PLANT_LIGHT_LINE / 100 },
-            status: shadeStatus(taken),
-            note: HABITAT[traits.habitat].shades,
+            status: lightTakenStatus(taken),
+            note: place.takes,
           }
         : null,
     helping: factors(breakdown.benefits),
@@ -420,7 +420,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
       ...bankOf({ now: surplus, next: next.surplus, cap, covered: breakdown.healed, spent: next.spent }, 'buying growth'),
     },
     demand: `half-fed at ${traits.ammoniaHalfSaturation} ppm NH₃, ${traits.nitrateHalfSaturation} NO₃, ${traits.phosphateHalfSaturation} PO₄ · light from ${traits.lowLight} PAR`,
-    verb: place.verb,
+    verb: bloomVerb(kind),
     scope: null,
   };
 }

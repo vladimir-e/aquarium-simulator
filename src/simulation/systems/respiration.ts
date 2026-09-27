@@ -36,7 +36,7 @@ export function getRespirationTemperatureFactor(
 /**
  * Calculate respiration rate and the gas masses it moves.
  *
- * @param rateUnits - Rate units respiring: the planting's and the bloom's
+ * @param rateUnits - Rate units respiring: the planting's and the blooms'
  * @param temperature - Current water temperature (C)
  * @param oxygen - Dissolved oxygen (mg/L), which the rate saturates against
  * @param config - Plants configuration

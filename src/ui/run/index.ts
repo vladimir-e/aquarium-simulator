@@ -135,7 +135,6 @@ export {
 } from './light.js';
 export {
   algaeReading,
-  algaeStatus,
   isReported,
   type PlantLabel,
   plantLabels,

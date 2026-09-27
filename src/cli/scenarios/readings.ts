@@ -6,7 +6,9 @@ import { FREE_AMMONIA_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tole
 import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/helpers.js';
 import { getPh } from '../../simulation/core/carbonate.js';
+import { ALGAE, ALGAE_KINDS, type AlgaeKind } from '../../simulation/algae/index.js';
 import { toFahrenheit } from '../units.js';
+import { snakeCase, type SnakeCase } from '../names.js';
 
 export interface Band {
   green: readonly [number, number];
@@ -33,6 +35,11 @@ const mean = (values: number[]): number | null =>
   values.length === 0 ? null : values.reduce((sum, v) => sum + v, 0) / values.length;
 
 const ANY = Infinity;
+
+const BLOOM_WHY: Record<AlgaeKind, string> = {
+  greenWater: 'a trace in the water is normal; the water going green is not',
+  film: 'a kept tank shows some film on its glass; a coated one is not kept',
+};
 
 const DEFINITIONS = [
   {
@@ -210,22 +217,16 @@ const DEFINITIONS = [
     read: (s): number | null => mean(s.fish.map((f) => f.health)),
     band: { green: [70, 100], amber: [40, 100], why: 'fish in a maintained tank look healthy' },
   },
-  {
-    id: 'green_water',
-    label: 'green water',
-    unit: '/100',
-    digits: 0,
-    read: (s): number => s.algae.greenWater.mass,
-    band: { green: [0, 30], amber: [0, 60], why: 'a trace in the water is normal; the water going green is not' },
-  },
-  {
-    id: 'film',
-    label: 'film',
-    unit: '/100',
-    digits: 0,
-    read: (s): number => s.algae.film.mass,
-    band: { green: [0, 30], amber: [0, 60], why: 'a kept tank shows some film on its glass; a coated one is not kept' },
-  },
+  ...ALGAE_KINDS.map(
+    (kind): Reading<SnakeCase<AlgaeKind>> => ({
+      id: snakeCase(kind),
+      label: ALGAE[kind].name.toLowerCase(),
+      unit: '/100',
+      digits: 0,
+      read: (s) => s.algae[kind].mass,
+      band: { green: [0, 30], amber: [0, 60], why: BLOOM_WHY[kind] },
+    })
+  ),
 ] as const satisfies readonly Reading[];
 
 export type ReadingId = (typeof DEFINITIONS)[number]['id'];

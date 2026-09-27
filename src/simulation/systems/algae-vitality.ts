@@ -19,8 +19,6 @@ export interface AlgaeVitalityContext {
   resources: Resources;
   /** The planting as the hour starts: its thriving leaf is what harms the bloom. */
   plants: readonly Plant[];
-  /** Litres of water the plants' allelochemicals spread through. */
-  litres: number;
   plantsConfig: PlantsConfig;
   algaeConfig: AlgaeConfig;
   /** Liebig sufficiency on the water column, 0–1. */
@@ -52,7 +50,7 @@ export function buildAlgaeStressors(ctx: AlgaeVitalityContext): VitalityFactor[]
       {
         key: 'allelopathy',
         label: 'Plants',
-        amount: ctx.algaeConfig.allelopathySeverity * thrivingPlantDensity(ctx.plants, ctx.litres),
+        amount: ctx.algaeConfig.allelopathySeverity * thrivingPlantDensity(ctx.plants, ctx.resources.water),
       },
     ],
     ctx.traits.hardiness

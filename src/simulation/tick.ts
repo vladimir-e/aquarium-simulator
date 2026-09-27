@@ -79,7 +79,7 @@ export function tick(
   // Tier 1: IMMEDIATE - Environmental effects, then equipment responses
   let newState = settleEnvironment(state, config);
 
-  // Tier 2: ACTIVE - Living processes: plants and the bloom in one pass, then
+  // Tier 2: ACTIVE - Living processes: plants and the blooms in one pass, then
   // livestock, which read the planting as the flora leave it.
   const floraResult = processFlora(newState, config);
   newState = applyEffects(floraResult.state, floraResult.effects, config);

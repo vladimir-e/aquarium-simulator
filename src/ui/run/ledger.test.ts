@@ -266,15 +266,15 @@ describe('readLedger', () => {
     }
   });
 
-  it('reads a bloom’s shade as the share of the plants’ light it takes, and none with nothing planted', () => {
+  it('reads the share of the plants’ light a bloom takes, and none with nothing planted', () => {
     const carpeted = applyAction(tank([]), { type: 'addPlant', species: 'monte_carlo' }).state;
     const green = produce(carpeted, (draft) => {
       draft.algae.greenWater.mass = 40;
     });
-    const { shade } = ledgerOf(green, { kind: 'algae', bloom: 'greenWater' })!;
+    const { lightTaken } = ledgerOf(green, { kind: 'algae', bloom: 'greenWater' })!;
 
-    expect(Number(shade!.text)).toBe(Math.round(plantLightTaken(green, DEFAULT_CONFIG.optics).greenWater * 100));
-    expect(ledgerOf(tank([]), { kind: 'algae', bloom: 'greenWater' })!.shade).toBeNull();
+    expect(Number(lightTaken!.text)).toBe(Math.round(plantLightTaken(green, DEFAULT_CONFIG.optics).greenWater * 100));
+    expect(ledgerOf(tank([]), { kind: 'algae', bloom: 'greenWater' })!.lightTaken).toBeNull();
   });
 
   it('has nothing to open for a fish the tank no longer holds', () => {

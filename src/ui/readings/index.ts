@@ -11,7 +11,10 @@ import {
   ALGAE_KINDS,
   mapKinds,
   plantLightTaken,
+  REMOVED_BY,
+  type AlgaeHabitat,
   type AlgaeKind,
+  type BloomRemoval,
   type SimulationState,
 } from '../../simulation/index.js';
 import { habitatPlaces, namePlaces } from '../../simulation/algae/index.js';
@@ -465,24 +468,30 @@ function bedView(bed: BedReading): NeedView {
   };
 }
 
-/** What each kind's coverage is, in words, and what takes it out of the tank. */
-const BLOOM_SENTENCE: Record<AlgaeKind, (state: SimulationState) => string> = {
-  greenWater: () =>
-    'How green the water is: cells suspended in the column, shading everything below them, the deepest most. A water change carries them out.',
-  film: (state) =>
-    `How coated ${namePlaces(habitatPlaces(ALGAE.film.habitat, state))} are, and every leaf with them, which it dims. A scrub takes it off the glass.`,
+/** What a bloom's coverage is, in words, by the places its habitat has. */
+const COVERAGE_SENTENCE: Record<AlgaeHabitat, (places: string) => string> = {
+  column: (places) => `How clouded ${places} is with suspended cells, shading everything below them, the deepest most.`,
+  surfaces: (places) => `How coated ${places} are, and every leaf with them, which it dims.`,
+};
+
+/** What takes a bloom out of the tank, by the verb that does. */
+const REMOVAL_SENTENCE: Record<BloomRemoval, string> = {
+  waterChange: 'A water change carries them out.',
+  scrubAlgae: 'A scrub takes it off the glass.',
 };
 
 /** What a bloom does to the plants, and where the engine alerts over it. */
-function shadeSentence(kind: AlgaeKind, state: SimulationState, taken: number): string {
+function lightTakenSentence(kind: AlgaeKind, state: SimulationState, taken: number): string {
+  const coverage = `${said(kind, BLOOM_COVERAGE_LINE)} % coverage`;
   return state.plants.length > 0
-    ? `It takes ${Math.round(taken)} % of the plants' light; past ${PLANT_LIGHT_LINE} % the engine alerts.`
-    : `Nothing is planted for it to shade; past ${said(kind, BLOOM_COVERAGE_LINE)} % the engine alerts.`;
+    ? `It takes ${Math.round(taken)} % of the plants' light; past ${PLANT_LIGHT_LINE} % of it, or ${coverage}, the engine alerts.`
+    : `Nothing is planted for it to shade; past ${coverage} the engine alerts.`;
 }
 
-/** A bloom's coverage, on its kind's ladder, in the tone of the worse of it and its shade on the plants. */
+/** A bloom's coverage, on its kind's ladder, in the tone of the worse of it and the plants' light it takes. */
 function bloomView(kind: AlgaeKind, state: SimulationState, ahead: HourAhead, taken: number, tape: Tape): ReadingView {
   const mass = state.algae[kind].mass;
+  const { habitat } = ALGAE[kind];
   const at = scale(DISPLAY_CEILING.algae);
   return {
     id: kind,
@@ -493,7 +502,11 @@ function bloomView(kind: AlgaeKind, state: SimulationState, ahead: HourAhead, ta
     band: { from: 0, to: at(BLOOM_COVERAGE_LINE) },
     tone: toneOf(algaeReading(kind, mass, taken).status),
     trend: projectedDrift(ahead.algae[kind].mass - mass),
-    sentence: `${BLOOM_SENTENCE[kind](state)} ${shadeSentence(kind, state, taken)}`,
+    sentence: [
+      COVERAGE_SENTENCE[habitat](namePlaces(habitatPlaces(habitat, state))),
+      REMOVAL_SENTENCE[REMOVED_BY[habitat]],
+      lightTakenSentence(kind, state, taken),
+    ].join(' '),
     net: null,
     fills: [],
     drains: [],
@@ -531,8 +544,8 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const tempBand = stockedBand(state, (data) => data.temperatureRange);
   const phBand = stockedBand(state, (data) => data.phRange);
   const ghBand = stockedBand(state, (data) => data.ghRange);
-  const taken = plantLightTaken(state, config.optics);
-  const shade = mapKinds((kind) => taken[kind] * 100);
+  const shares = plantLightTaken(state, config.optics);
+  const taken = mapKinds((kind) => shares[kind] * 100);
   const levelLine = waterLevelAlertLine(config);
   const wasteAt = scale(DISPLAY_CEILING.waste);
   const oxygenAt = scale(DISPLAY_CEILING.oxygen);
@@ -680,7 +693,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     potassium: nutrientView('potassium', nutrient('potassium'), tape),
     iron: nutrientView('iron', nutrient('iron'), tape),
     bed: bedView(bed),
-    ...mapKinds((kind) => bloomView(kind, state, ahead, shade[kind], tape)),
+    ...mapKinds((kind) => bloomView(kind, state, ahead, taken[kind], tape)),
     dailyLight: {
       id: 'dailyLight',
       name: 'Daily light',
@@ -730,7 +743,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
         trend: projectedDrift(ahead.algae[kind].mass - state.algae[kind].mass),
         at: byId[kind].at,
         band: byId[kind].band,
-        ...algaeReading(kind, state.algae[kind].mass, shade[kind]),
+        ...algaeReading(kind, state.algae[kind].mass, taken[kind]),
       })),
     },
     rack: {

@@ -17,7 +17,7 @@ import { highCo2Alert } from './high-co2.js';
 
 export type { Alert, AlertResult } from './types.js';
 export { waterLevelAlert, waterLevelAlertLine } from './water-level.js';
-export { bloomAlert, bloomAlerts, BLOOM_COVERAGE_LINE, PLANT_LIGHT_LINE } from './bloom.js';
+export { bloomAlert, bloomAlerts, bloomLevel, BLOOM_COVERAGE_LINE, PLANT_LIGHT_LINE } from './bloom.js';
 export { highAmmoniaAlert, ammoniaAlertLine } from './high-ammonia.js';
 export { highNitriteAlert } from './high-nitrite.js';
 export { highNitrateAlert } from './high-nitrate.js';

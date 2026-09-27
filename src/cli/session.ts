@@ -24,10 +24,12 @@ import type { HistorySnapshot } from './history.js';
  *    `AlgaeConfig`, and `NutrientsConfig.halfSaturation` gains `ammonia`. The
  *    blooms shade through light: `OpticsConfig` gains
  *    `algaeAttenuationPerGram`, `PlantsConfig` drops the `algaeShading*` pair,
- *    and `AlertState` trades `highAlgae` for a flag per kind. A v16 session
- *    parses, and the first tick reads each kind's bloom, its allelopathy
- *    severity, every ammonia half-saturation and the blooms' attenuation off
- *    keys it does not carry.
+ *    and `AlertState` trades `highAlgae` for a flag per kind. The history's
+ *    `algae` holds `Blooms`, so the trace's `algae_mass` and `algae_surplus`
+ *    become a column per kind and figure (`green_water_mass`,
+ *    `film_condition`…). A v16 session parses, and the first tick reads each
+ *    kind's bloom, its allelopathy severity, every ammonia half-saturation and
+ *    the blooms' attenuation off keys it does not carry.
  * v16 made the bed a nutrient store and plants of their nutrients, and let a
  *    plant die only at condition 0. `Substrate` gains `nutrients`;
  *    `NutrientsConfig` drops `uptakePerRateUnit` and gains `rootTab` and

@@ -19,8 +19,6 @@ import {
 import {
   ALGAE_KINDS,
   calculateSubstrateLeach,
-  dailyLightIntegral,
-  scheduledLightHistory,
   wasteSettlingShare,
   type Resources,
   type SimulationState,
@@ -282,11 +280,11 @@ export interface CycleProjection {
 }
 
 /** Plants, and blooms the lamp can light or whose bank can grow them in the dark. */
-function ammoniaFeeders(state: SimulationState, config: TunableConfig): CycleProjection['feeders'] {
-  const lit = dailyLightIntegral(scheduledLightHistory(state, config.optics)) > 0;
+function ammoniaFeeders(state: SimulationState): CycleProjection['feeders'] {
+  const { light } = state.equipment;
   const feeders: CycleProjection['feeders'] = [];
   if (state.plants.length > 0) feeders.push('plants');
-  if (lit || ALGAE_KINDS.some((kind) => state.algae[kind].surplus > 0)) feeders.push('algae');
+  if ((light.enabled && light.par > 0) || ALGAE_KINDS.some((kind) => state.algae[kind].surplus > 0)) feeders.push('algae');
   return feeders;
 }
 
@@ -317,7 +315,7 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
  * the bed's leaching and settling are not choices: they run every tick whatever
  * the keeper does, so the projection carries them.
  *
- * The chain runs alone. Plants and a bloom move the peak either way — growth
+ * The chain runs alone. Plants and the blooms move the peak either way — growth
  * draws ammonia, shedding and die-back rot back into it — and which way turns
  * on the whole flora pass rather than a rate to hold, so the figure is the
  * cycle's alone and names the flora that will shift it.
@@ -404,7 +402,7 @@ export function projectNitritePeak(
   }
 
   if (peakAt === 0) return null;
-  return { hours: peakAt, ppm: peakPpm, feeders: ammoniaFeeders(state, config) };
+  return { hours: peakAt, ppm: peakPpm, feeders: ammoniaFeeders(state) };
 }
 
 function inDays(hours: number): string {

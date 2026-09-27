@@ -1,6 +1,7 @@
 import type { Resources, SimulationState } from '../state.js';
 import { calculateFloorArea, calculateTankGlassSurface, calculateTankHeight } from '../state.js';
 import type { OpticsConfig } from '../config/optics.js';
+import type { ActionType } from '../actions/types.js';
 import { calculateHardscapeTotalSurface } from '../equipment/hardscape.js';
 import { dailyLightIntegral } from '../equipment/light.js';
 import { floorShade } from '../plants/canopy.js';
@@ -40,6 +41,14 @@ const HABITATS: Record<AlgaeHabitat, (tank: HabitatTank) => Partial<Record<Habit
   },
 };
 
+export type BloomRemoval = Extract<ActionType, 'waterChange' | 'scrubAlgae'>;
+
+/** The keeper's action that takes a bloom out of its habitat. */
+export const REMOVED_BY: Readonly<Record<AlgaeHabitat, BloomRemoval>> = {
+  column: 'waterChange',
+  surfaces: 'scrubAlgae',
+};
+
 const PLACE_NAMES: Readonly<Record<HabitatPlace, string>> = {
   column: 'the water column',
   walls: 'the glass',
@@ -63,6 +72,11 @@ export function habitatPlaces(habitat: AlgaeHabitat, tank: HabitatTank): Habitat
   return pieces(habitat, tank)
     .filter(([, size]) => size > 0)
     .map(([place]) => place);
+}
+
+/** The places that hold some of a habitat once `cleared` is laid bare. */
+export function placesKept(habitat: AlgaeHabitat, cleared: HabitatPlace, tank: HabitatTank): HabitatPlace[] {
+  return habitatPlaces(habitat, tank).filter((place) => place !== cleared);
 }
 
 /** Litres of column, or cm² of surface. */

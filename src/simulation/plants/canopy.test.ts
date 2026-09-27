@@ -29,7 +29,8 @@ import { calculateNutrientSufficiency } from '../systems/nutrients.js';
 import { nutrientsDefaults, type Nutrient } from '../config/nutrients.js';
 import { scheduledLightByHour } from '../equipment/light.js';
 import { emptyBlooms } from '../algae/blooms.js';
-import { waterExtinction, waterShade } from '../algae/shade.js';
+import { ALGAE_KINDS } from '../algae/traits.js';
+import { lightLoss, waterExtinction } from '../algae/shade.js';
 import { produce } from 'immer';
 import { plantRecord } from '../tests/plant.js';
 import { mirroredPools } from '../tests/pools.js';
@@ -269,7 +270,7 @@ describe('under the blooms', () => {
   });
 
   it('dims every leaf and crown top by the share the film on it passes, wherever it stands', () => {
-    const { leafPass } = waterShade(blooms(0, 60), opticsDefaults);
+    const { leafPass } = lightLoss(blooms(0, 60), opticsDefaults);
     const clear = under(MIXED, emptyBlooms());
     under(MIXED, blooms(0, 60)).forEach((coated, i) => {
       expect(coated.leaf).toBeCloseTo(clear[i].leaf * leafPass, 12);
@@ -279,7 +280,7 @@ describe('under the blooms', () => {
 
   it('takes green water’s share from a leaf by the depth above it, so a carpet loses more than a sword', () => {
     const green = blooms(60, 0);
-    const k = waterShade(green, opticsDefaults).blooms.greenWater.extinction;
+    const k = lightLoss(green, opticsDefaults).blooms.greenWater.extinction;
     const clear = under(TWO, emptyBlooms());
     const [carpet, sword] = under(TWO, green).map((at, i) => (at.leaf * Math.exp(-k * DEPTH)) / clear[i].leaf);
 
@@ -306,9 +307,22 @@ describe('plantLightTaken', () => {
   });
 
   it('takes film’s coat from every planting alike', () => {
-    const { coat } = waterShade(tank([], 0, 50).algae, opticsDefaults).blooms.film;
+    const { coat } = lightLoss(tank([], 0, 50).algae, opticsDefaults).blooms.film;
     for (const plants of [[carpet], [sword], [carpet, sword]]) {
       expect(plantLightTaken(tank(plants, 0, 50), opticsDefaults).film).toBeCloseTo(coat, 12);
+    }
+  });
+
+  it('is each kind’s take along the canopy’s own path to every leaf, weighted by leaf area', () => {
+    const plants = MIXED.map((p, i) => plantRecord({ id: `p${i}`, ...p, condition: 100, surplus: 0 }));
+    const state = tank(plants, 40, 30);
+    const paths = canopyLight(plants, CAPACITY, opticsDefaults, state.algae).map(({ path }) => path);
+    const leaf = plants.reduce((sum, p) => sum + leafArea(p), 0);
+    const taken = plantLightTaken(state, opticsDefaults);
+    for (const kind of ALGAE_KINDS) {
+      const alongPaths = plants.reduce((sum, p, i) => sum + leafArea(p) * (1 - paths[i].blooms[kind]), 0) / leaf;
+      expect(taken[kind]).toBeGreaterThan(0);
+      expect(taken[kind]).toBeCloseTo(alongPaths, 12);
     }
   });
 

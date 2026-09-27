@@ -29,6 +29,7 @@ import {
 } from '../ui/run/index.js';
 import type { Session } from './session.js';
 import type { HistorySnapshot } from './history.js';
+import { snakeCase } from './names.js';
 
 /** Convert a mass (mg) to concentration (ppm) given water volume (L). */
 function toPpm(massMg: number, waterL: number): number {
@@ -169,7 +170,7 @@ const BLOOM_KEYS = ['mass', 'condition', 'surplus'] as const satisfies readonly 
 const BLOOM_FIELDS = new Map<string, [AlgaeKind, keyof AlgaeState]>(
   ALGAE_KINDS.flatMap((kind) =>
     BLOOM_KEYS.map((key): [string, [AlgaeKind, keyof AlgaeState]] => [
-      `${kind.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)}_${key}`,
+      `${snakeCase(kind)}_${key}`,
       [kind, key],
     ])
   )

@@ -15,6 +15,7 @@ import {
   ALGAE_KINDS,
   floorLight,
   floorShade,
+  plantLightTaken,
   type FishSpeciesData,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -38,7 +39,7 @@ import {
 import type { StripBand } from '../components/ui/strip.js';
 import { DISPLAY_CEILING, onScale } from '../readings';
 import {
-  algaeStatus,
+  algaeReading,
   bedReading,
   classifyVital,
   nutrientProbe,
@@ -373,14 +374,15 @@ const READINGS: Reading[] = [
       unit: PERCENT,
       display: same,
       decimals: COVERAGE_DECIMALS,
-      status: (value) => algaeStatus(value),
+      status: (value, { state, config }) =>
+        algaeReading(kind, value, plantLightTaken(state, config.optics)[kind] * 100).status,
       at: (value) => onScale(DISPLAY_CEILING.algae, value),
       band: () => ({ from: 0, to: onScale(DISPLAY_CEILING.algae, BLOOM_COVERAGE_LINE) }),
       note: none,
     })
   ),
   {
-    key: 'shade',
+    key: 'floorShade',
     label: 'Floor shade',
     read: ({ state, config }) =>
       floorShade(state.plants, state.tank.capacity, config.optics) * 100,

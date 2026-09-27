@@ -4,6 +4,7 @@ import {
   BLOOM_COVERAGE_LINE,
   PLANT_LIGHT_LINE,
   applyAction,
+  bloomAlert,
   calculateFloorArea,
   calculateNutrientSufficiency,
   tankPools,
@@ -14,6 +15,7 @@ import {
   growthFormOf,
   getPlantsToTrimCount,
   getSubstrateNutrients,
+  plantLightTaken,
   readPlantLight,
   tick,
   type AlgaeKind,
@@ -27,7 +29,6 @@ import { MAX_DOSE_ML } from '../../simulation/actions/dose.js';
 import { produce } from 'immer';
 import {
   algaeReading,
-  algaeStatus,
   bedReading,
   doseDeltas,
   doseToCover,
@@ -84,12 +85,6 @@ describe('condition + algae words', () => {
     expect(conditionWord(95)).toBe('thriving');
   });
 
-  it('maps a bloom’s coverage to status (low is good)', () => {
-    expect(algaeStatus(BLOOM_COVERAGE_LINE)).toBe('ok');
-    expect(algaeStatus(1.5 * BLOOM_COVERAGE_LINE)).toBe('warn');
-    expect(algaeStatus(2.1 * BLOOM_COVERAGE_LINE)).toBe('alert');
-  });
-
   it('reads green water as the water’s clarity and film as how coated the glass is', () => {
     const words = (kind: AlgaeKind): string[] =>
       [0, 0.3, 0.8, 1.5, 3].map((share) => algaeReading(kind, share * BLOOM_COVERAGE_LINE, 0).word);
@@ -106,7 +101,13 @@ describe('condition + algae words', () => {
       expect(algaeReading(kind, printed, 0).word).not.toBe(none.word);
     });
 
-    it('takes the worse tone of its coverage and its shade on the plants, keeping its coverage word', () => {
+    it('maps its coverage to status (low is good)', () => {
+      expect(algaeReading(kind, BLOOM_COVERAGE_LINE, 0).status).toBe('ok');
+      expect(algaeReading(kind, 1.5 * BLOOM_COVERAGE_LINE, 0).status).toBe('warn');
+      expect(algaeReading(kind, 2.1 * BLOOM_COVERAGE_LINE, 0).status).toBe('alert');
+    });
+
+    it('takes the worse tone of its coverage and the plants’ light it takes, keeping its coverage word', () => {
       const light = BLOOM_COVERAGE_LINE / 2;
       expect(algaeReading(kind, light, 0).status).toBe('ok');
       expect(algaeReading(kind, light, 1.5 * PLANT_LIGHT_LINE)).toEqual({
@@ -115,6 +116,19 @@ describe('condition + algae words', () => {
       });
       expect(algaeReading(kind, light, 2.5 * PLANT_LIGHT_LINE).status).toBe('alert');
       expect(algaeReading(kind, 3 * BLOOM_COVERAGE_LINE, 0).status).toBe('alert');
+    });
+
+    it('turns amber exactly where the engine alerts, planted or not', () => {
+      for (const bed of [tank(), planted(['monte_carlo', 'amazon_sword'])]) {
+        for (let mass = 0; mass <= 95; mass += 5) {
+          const state = produce(bed, (draft) => {
+            draft.algae[kind].mass = mass;
+          });
+          const taken = plantLightTaken(state, DEFAULT_CONFIG.optics)[kind] * 100;
+          const alerts = bloomAlert(kind).check(state, DEFAULT_CONFIG).log !== null;
+          expect(algaeReading(kind, mass, taken).status !== 'ok').toBe(alerts);
+        }
+      }
     });
   });
 });

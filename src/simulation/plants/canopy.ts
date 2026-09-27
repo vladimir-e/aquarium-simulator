@@ -30,7 +30,7 @@ import { growthFormOf, plantTraits, type PlantSpecies } from './species.js';
 import { dailyLightEdge } from '../systems/flora.js';
 import type { AlgaeKind } from '../algae/traits.js';
 import { mapKinds } from '../algae/blooms.js';
-import { bloomPass, waterExtinction, waterShade } from '../algae/shade.js';
+import { bloomPass, lightLoss, waterExtinction, type LightLoss } from '../algae/shade.js';
 
 type Unit = Pick<Plant, 'species' | 'size'>;
 
@@ -101,6 +101,14 @@ function shadeAt(crown: Crown, z: number, leafAttenuation: number): number {
   return crown.floorShare * (1 - Math.exp(-leafAttenuation * crown.leafAreaIndex * (1 - z / crown.height)));
 }
 
+function overLeaf(plant: Unit, depth: number, optics: OpticsConfig, loss: LightLoss): Pick<LightPath, 'water' | 'blooms'> {
+  const below = depth - plantHeight(plant, depth) / 2;
+  return {
+    water: Math.exp(-optics.waterAttenuationPerCm * below),
+    blooms: mapKinds((kind) => bloomPass(loss.blooms[kind], below)),
+  };
+}
+
 /**
  * Per plant, in `plants` order, through the water and the blooms as they
  * stand. A lone unit above a few % of a unit reads more light at its leaf the
@@ -116,7 +124,8 @@ export function canopyLight(
 ): CanopyLight[] {
   const depth = calculateTankHeight(capacity);
   const k = optics.leafAttenuationPerLai;
-  const { extinction, leafPass, blooms: shade } = waterShade(blooms, optics);
+  const loss = lightLoss(blooms, optics);
+  const { extinction, leafPass } = loss;
   const crowns = plants.map((plant) => crownOf(plant, depth, capacity));
 
   return plants.map((plant, i) => {
@@ -130,15 +139,10 @@ export function canopyLight(
       aboveTop += shadeAt(crowns[j], own.height, k);
     }
     const selfShadeRelief = 0.5 * k * growthFormOf(plant.species).leafAreaIndex * (1 - plant.size / 100);
-    const below = depth - meanLeaf;
     return {
       leaf: leafPass * Math.exp(extinction * meanLeaf + selfShadeRelief - aboveLeaf),
       top: leafPass * Math.exp(extinction * own.height - aboveTop),
-      path: {
-        water: Math.exp(-optics.waterAttenuationPerCm * below),
-        canopy: Math.exp(selfShadeRelief - aboveLeaf),
-        blooms: mapKinds((kind) => bloomPass(shade[kind], below)),
-      },
+      path: { ...overLeaf(plant, depth, optics, loss), canopy: Math.exp(selfShadeRelief - aboveLeaf) },
     };
   });
 }
@@ -223,15 +227,11 @@ export function plantLightTaken(
   optics: OpticsConfig
 ): Record<AlgaeKind, number> {
   const depth = calculateTankHeight(state.tank.capacity);
-  const shade = waterShade(state.algae, optics).blooms;
+  const loss = lightLoss(state.algae, optics);
+  const passed = state.plants.map((plant) => overLeaf(plant, depth, optics, loss).blooms);
   const leaf = state.plants.reduce((sum, plant) => sum + leafArea(plant), 0);
   return mapKinds((kind) =>
-    leaf > 0
-      ? state.plants.reduce(
-          (sum, plant) => sum + leafArea(plant) * (1 - bloomPass(shade[kind], depth - plantHeight(plant, depth) / 2)),
-          0
-        ) / leaf
-      : 0
+    leaf > 0 ? state.plants.reduce((sum, plant, i) => sum + leafArea(plant) * (1 - passed[i][kind]), 0) / leaf : 0
   );
 }
 

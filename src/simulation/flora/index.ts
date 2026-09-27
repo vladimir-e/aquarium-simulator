@@ -112,7 +112,6 @@ const sumForms = (vectors: readonly FormVector[]): FormVector =>
 export function processFlora(state: SimulationState, config: TunableConfig): FloraProcessingResult {
   const effects: Effect[] = [];
   const { plants: plantsConfig, nutrients: nutrientsConfig } = config;
-  const litres = state.tank.capacity;
   const waterVolume = state.resources.water;
 
   const pushDelta = (resource: NutrientForm | 'oxygen' | 'co2' | 'gh' | 'kh' | 'waste', delta: number, source: string): void => {
@@ -176,7 +175,6 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
       traits: b.traits,
       resources: state.resources,
       plants: state.plants,
-      litres,
       plantsConfig,
       algaeConfig: config.algae,
       nutrientSufficiency: b.sufficiency,

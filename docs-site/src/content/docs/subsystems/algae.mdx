@@ -41,7 +41,7 @@ counted over the fixed surfaces alone.
 | Nutrients | <Badge text="settled" variant="success" /> | The plants' recipe, from the water alone, in one draw with every plant: no feeder is served before another. |
 | Nitrogen form | <Badge text="settled" variant="success" /> | Ammonia first and nitrate for the rest, on each kind's affinities; both take nitrate more poorly than a plant does. |
 | Carbon and oxygen | <Badge text="settled" variant="success" /> | The plants' photosynthesis and respiration on one CO₂ stock, its tissue rated at the plants' relation and run at its growth rate. |
-| Allelopathy | <Badge text="settled" variant="success" /> | One harm rate on thriving plant leaf per litre of water, with no threshold, on every kind — the minor term beside the ammonia plants take. It stands in for the small effects the model leaves out, and cannot hold a fed bloom on its own. |
+| Allelopathy | <Badge text="settled" variant="success" /> | One harm rate on thriving plant leaf per litre of standing water, with no threshold, on every kind — the minor term beside the ammonia plants take. It stands in for the small effects the model leaves out, and cannot hold a fed bloom on its own. |
 | Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape — the square of the deficit — and condition 0 kills what is left, bank and all. Both return it as waste, and a die-back is logged with the kind and the coverage it took. |
 | Scrubbing | <Badge text="scaffolding" variant="caution" /> | The keeper clears the glass: every bloom loses its mass times the walls' share of its habitat, so the share follows the tank's geometry and its hardscape. What comes off is waste in the water. Coverage is one figure over the whole habitat, so what the floor and the hardscape held spreads back over the glass at once, and a second scrub takes the walls' share again out of it. |
 | Shade | <Badge text="settled" variant="success" /> | Light, not damage: tissue takes light by Beer–Lambert per gram crossed, at one coefficient for both kinds, and the habitat decides how it is crossed ([Light](/subsystems/light/#the-blooms)). Green water shades itself, the film under it and every plant by its depth; film coats every leaf at its coverage. |
@@ -58,7 +58,7 @@ counted over the fixed surfaces alone.
 | Temperature · pH | income, then harm | The plants' band helpers on its own bands: comfort peaks mid-band, damage starts at the edge |
 | Light starvation | harm | The day's light over its habitat against its daily light edge, at respiration's Q10 and its growth rate: a bloom respires fast, so it starves fast |
 | Nutrient deficiency | harm | Liebig sufficiency under `sufficiencyEdge`, on the light curve |
-| Allelopathy | harm | `allelopathySeverity × Σ(plant rate units × condition/100) / litres` |
+| Allelopathy | harm | `allelopathySeverity × Σ(plant rate units × condition/100) / litres of standing water` |
 
 Every harm is hardened by the kind's hardiness. Income runs only while the
 lamp is on; the bank carries it through the night.
@@ -164,11 +164,12 @@ are tunables.
 | [Water & gases](/subsystems/water-and-gases/) | CO₂, O₂, temperature, pH | CO₂ fixed and O₂ released by day, respired day and night; KH moved by the form its nitrogen comes in |
 | [Equipment](/subsystems/equipment/) | The hardscape's surface, part of film's habitat | A swapped bed takes the floor's share of film out with it; a piece set down thins its coverage, a piece lifted takes its share |
 | [Actions](/subsystems/actions/) | — | A water change takes its share of the green water out of the tank; a scrub takes the film on the glass into the waste |
-| [Alerts & logging](/subsystems/alerts-and-logging/) | — | Each kind raises its own alert once per crossing, on the share of the plants' light it takes, or with nothing planted on its coverage; an `algae-died` entry per die-back, naming the kind and stating the coverage it took |
+| [Alerts & logging](/subsystems/alerts-and-logging/) | — | Each kind raises its own alert once per crossing of its level — the further of its coverage and the share of the plants' light it takes, each over its line; an `algae-died` entry per die-back, naming the kind and stating the coverage it took |
 
 ## Source
 
 `src/simulation/algae/` holds the kinds, their traits and habitats,
 `src/simulation/systems/` their vitality and the flora law they share with the
 plants, and `src/simulation/flora/` the pass that runs them beside the plants;
-`src/simulation/config/` holds the tunable.
+`src/simulation/config/` holds the two tunables, allelopathy with the algae's
+and the attenuation per gram with the optics.

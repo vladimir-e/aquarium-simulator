@@ -183,7 +183,7 @@ describe('the seven verbs', () => {
         familyId: first,
       }).preview;
 
-      expect(preview.map((row) => row.key)).toEqual(['shade']);
+      expect(preview.map((row) => row.key)).toEqual(['floorShade']);
       expect(Number(preview[0].after)).toBeLessThan(Number(preview[0].before));
     });
   });

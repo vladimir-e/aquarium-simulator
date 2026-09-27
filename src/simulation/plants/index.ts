@@ -1,6 +1,6 @@
 /**
  * Plants — the canopy and the light at each plant's height. The flora pass
- * (`flora/`) runs them through their hour beside the bloom.
+ * (`flora/`) runs them through their hour beside the blooms.
  */
 
 import { calculateTankHeight, type SimulationState } from '../state.js';
