@@ -46,7 +46,7 @@ export function bloomFixer(
   config: PlantsConfig
 ): CarbonFixer {
   return {
-    rateUnits: bloomRateUnits(bloom.mass, litres, traits, config),
+    metabolicRateUnits: bloomRateUnits(bloom.mass, litres, traits, config),
     lightResponse: lightSaturationFactor(light.par, saturationIrradiance(traits, config)),
     sufficiency,
     co2HalfSaturation: traits.co2HalfSaturation,

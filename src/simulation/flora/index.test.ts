@@ -540,7 +540,7 @@ describe('processFlora — plants', () => {
       for (const n of NUTRIENTS) expect(total(effects, n, 'photosynthesis')).toBe(0);
 
       const respiration = calculateRespiration(
-        fixers.reduce((sum, fixer) => sum + fixer.rateUnits, 0),
+        fixers.reduce((sum, fixer) => sum + fixer.metabolicRateUnits, 0),
         resources.temperature,
         resources.oxygen,
         plantsConfig

@@ -32,7 +32,7 @@ import {
   plantLabels,
   TRIM_TARGETS,
 } from '../run';
-import { formatVolume, type UnitSystem } from '../utils/units.js';
+import { COVERAGE_DECIMALS, formatVolume, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
 
 export type VerbId =
@@ -271,7 +271,7 @@ function rowValue(
     case 'trimPlants':
       return `to ${settings.trimPlants} %`;
     case 'scrubAlgae':
-      return `${Math.round(state.algae.mass)} %`;
+      return `${state.algae.mass.toFixed(COVERAGE_DECIMALS)} %`;
   }
 }
 
@@ -503,7 +503,7 @@ function meta(
         : line;
     }
     case 'scrubAlgae':
-      return `algae ${Math.round(state.algae.mass)} %`;
+      return `algae ${state.algae.mass.toFixed(COVERAGE_DECIMALS)} %`;
   }
 }
 

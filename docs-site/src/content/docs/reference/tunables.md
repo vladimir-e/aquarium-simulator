@@ -150,7 +150,7 @@ for any bloom.
 | `sizePerSurplus` | Size gained per bank point converted, before the species growth multiplier — the conversion growth and offshoots share | %/pt |
 | `surplusCap` | Ceiling on the bank; a full one buys an offshoot | pts |
 | `tissuePerSize` | Organic matter in a % of a rate unit of tissue, so a unit weighs by its leaf, not its size — what growth draws the recipe for, and shedding and death return as waste | g/% |
-| `lightStarvationSeverity` | Damage in a day without light, falling to nothing at the species' daily light edge; quoted at the respiration reference temperature | %/hr |
+| `lightStarvationSeverity` | Damage in a day without light, falling to nothing at the species' daily light edge; quoted at growth rate 1 and the respiration reference temperature | %/hr |
 | `lightExcessiveSeverity` | Damage per PAR unit above the species' tolerable band | %/PAR/hr |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
 | `nutrientDeficiencySeverity` · `sufficiencyEdge` | Damage at a Liebig sufficiency of 0 under saturating light, falling linearly to nothing at the edge; and the sufficiency a plant counts as fed, since a Monod share never reaches 1 | %/hr · — |

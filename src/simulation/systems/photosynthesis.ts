@@ -38,7 +38,7 @@ export function calculateCo2Factor(
 
 /** One photosynthesiser's hour, as the carbon it can fix reads it. */
 export interface CarbonFixer {
-  rateUnits: number;
+  metabolicRateUnits: number;
   /** `tanh(PAR / Ik)` at the light it stands in, 0–1. */
   lightResponse: number;
   /** Liebig sufficiency, 0–1. */
@@ -56,7 +56,7 @@ export function plantFixer(
 ): CarbonFixer {
   const traits = plantTraits(plant.species);
   return {
-    rateUnits: metabolicRateUnits(rateUnits(plant), traits),
+    metabolicRateUnits: metabolicRateUnits(rateUnits(plant), traits),
     lightResponse: lightSaturationFactor(par, saturationIrradiance(traits, config)),
     sufficiency,
     co2HalfSaturation: getCo2HalfSaturation(plant.species, config),
@@ -67,7 +67,7 @@ export function plantFixer(
  * Calculate photosynthesis gas effects for everything fixing carbon in the
  * tank, drawn together on the one CO₂ stock.
  *
- * Per fixer, with m_i its rate units:
+ * Per fixer, with m_i its metabolic rate units:
  *   carbon_i = m_i × lightResponse_i × sufficiency_i × basePhotosynthesisRate × co2PerRateUnit
  *
  * Aggregate outputs, all masses in mg:
@@ -84,7 +84,7 @@ export function calculatePhotosynthesis(
   let carbonHalfSaturationWeight = 0;
   for (const fixer of fixers) {
     const carbon =
-      fixer.rateUnits *
+      fixer.metabolicRateUnits *
       fixer.lightResponse *
       fixer.sufficiency *
       plantsConfig.basePhotosynthesisRate *

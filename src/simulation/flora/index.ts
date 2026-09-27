@@ -128,7 +128,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
 
   // 4. Respiration, on the rate units that fix.
   const respiration = calculateRespiration(
-    sum(fixers.map((fixer) => fixer.rateUnits)),
+    sum(fixers.map((fixer) => fixer.metabolicRateUnits)),
     state.resources.temperature,
     state.resources.oxygen,
     plantsConfig

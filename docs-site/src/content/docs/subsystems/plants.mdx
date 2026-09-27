@@ -211,14 +211,15 @@ tank goes a long way for it. No nutrient ever reads quite 100 %.
 
 ### A plant is made of its nutrients
 
-Tissue is the organic matter it rots into. A size point of a species is
-`fullRateUnits × tissuePerSize` grams of it, carrying food's recipe: the nitrogen
-of `foodNitrogenFraction`, as the nitrate it ends up as, and `foodMineralContent`
+Tissue is the organic matter it rots into. A plant is
+`rateUnits({species, size}) × tissuePerRateUnit` grams of it — a rate unit
+weighs `100 × tissuePerSize` — carrying food's recipe: the nitrogen of
+`foodNitrogenFraction`, as the nitrate it ends up as, and `foodMineralContent`
 of the rest. N:P ≈ 7 by mass is Redfield, so one recipe serves food, waste and
 tissue.
 
 ```
-grams_i       = (size bought_i + offshoot_i) × fullRateUnits × tissuePerSize
+grams_i       = rateUnits({species_i, size bought_i + offshoot_i}) × tissuePerRateUnit
 w_i,p         = 1 − r_i from the water, r_i from the bed
 grams_p       = Σ w_i,p × grams_i
 requested_p,n = Σ w_i,p × grams_i × share_i,p,n
@@ -308,10 +309,10 @@ fast grower starves first.
 
 Starvation is damage like any other: the bank heals it first, then condition
 falls, then the plant sheds. In total darkness at 25 °C a monte carlo spends
-its bank in under five days and is gone in two weeks, an amazon sword in a
-month; a java fern lasts some fifteen weeks, and an anubias outlasts five
-months. The hobby's three-day blackout costs a carpet its bank and some eight
-points of condition, and a java fern half its bank.
+its bank in 2.3 days and is gone in two weeks, an amazon sword in a month; a
+java fern lasts some fourteen weeks, and an anubias outlasts five months. The
+hobby's three-day blackout costs a carpet its bank and some eight points of
+condition, and a java fern 68–80 % of its bank.
 
 ### The bank
 
@@ -422,7 +423,7 @@ choice. The verbs are on [Actions](/subsystems/actions/).
 ```
 deficit   = 1 − condition / 100
 sizeLost  = maxSheddingRate × deficit² × size
-waste    += sizeLost × fullRateUnits × tissuePerSize
+waste    += rateUnits({species, sizeLost}) × tissuePerRateUnit
 ```
 
 Shedding is what low condition does to a plant. Squared in the deficit it is
@@ -432,7 +433,7 @@ than as fuel — a failing plant drops its oldest leaves rather than digesting
 them, which is why melting plants foul the water.
 
 A plant dies at condition 0, as a fish does. What remains becomes waste, at
-`size × fullRateUnits × tissuePerSize`, and it leaves the array, so a melting
+`rateUnits({species, size}) × tissuePerRateUnit`, and it leaves the array, so a melting
 sword fouls the water more than a carpet patch of the same size.
 
 ## Key tunables
@@ -453,7 +454,7 @@ sword fouls the water more than a carpet patch of the same size.
 | `growthDrawRate` | First-order rate the bank draws toward new tissue at, before the taper | `0.02` /hr |
 | `sizePerSurplus` | Size gained per bank point converted, before the species growth rate — the conversion growth and offshoots share | `0.4` %/pt |
 | `tissuePerSize` | Organic matter in a % of a rate unit of tissue — what growth draws the recipe for, and shedding and death return as waste | `0.01` g |
-| `lightStarvationSeverity` | Damage in a day without light, at the reference temperature | `0.3` %/hr |
+| `lightStarvationSeverity` | Damage in a day without light, at growth rate 1 and the reference temperature | `0.3` %/hr |
 | `lightExcessiveSeverity` | Damage per PAR over the species band | `0.015` %/PAR/hr |
 | `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the edge, and where a hardiness-0 plant's edge sits | `1.0` %/e-fold/hr · `100` ppm |
 | `maxSheddingRate` | Share of itself a plant drops per hour at condition 0 | `0.02` /hr |
