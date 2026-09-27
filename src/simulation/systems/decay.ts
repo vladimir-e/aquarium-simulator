@@ -13,7 +13,7 @@ import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { monodFactor, q10Factor } from '../core/kinetics.js';
-import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
+import { CACO3_PER_NH3_MINERALIZED, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
 import { ammoniaPerGramOfFood } from '../config/livestock.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { getPpm } from '../resources/index.js';
@@ -94,10 +94,17 @@ export const decaySystem: System = {
         });
 
         const oxidizedAmount = decayAmount * (1 - decayConfig.wasteConversionRatio);
+        const ammonia = oxidizedAmount * ammoniaPerGramOfFood(config.livestock);
         effects.push({
           tier: 'passive',
           resource: 'ammonia',
-          delta: oxidizedAmount * ammoniaPerGramOfFood(config.livestock),
+          delta: ammonia,
+          source: 'decay',
+        });
+        effects.push({
+          tier: 'passive',
+          resource: 'kh',
+          delta: ammonia * CACO3_PER_NH3_MINERALIZED,
           source: 'decay',
         });
         for (const nutrient of WASTE_NUTRIENTS) {

@@ -35,6 +35,7 @@ import {
 } from '../config/nitrogen-cycle.js';
 import { monodFactor, monodUptake, q10Factor } from '../core/kinetics.js';
 import {
+  CACO3_PER_NH3_MINERALIZED,
   CACO3_PER_NH3_NITRIFIED,
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
@@ -484,6 +485,12 @@ export const nitrogenCycleSystem: System = {
           tier: 'passive',
           resource: 'ammonia',
           delta: ammoniaProduced, // mg
+          source: 'nitrogen-cycle-mineralization',
+        });
+        effects.push({
+          tier: 'passive',
+          resource: 'kh',
+          delta: ammoniaProduced * CACO3_PER_NH3_MINERALIZED,
           source: 'nitrogen-cycle-mineralization',
         });
         for (const nutrient of WASTE_NUTRIENTS) {

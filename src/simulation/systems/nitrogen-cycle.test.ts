@@ -669,6 +669,22 @@ describe('nitrogenCycleSystem', () => {
       }
     });
 
+    it('returns KH on the ammonia it mints, so waste carried on to nitrate nets the 3.57 mg CaCO3 per mg N the wastewater texts quote', () => {
+      const effects = nitrogenCycleSystem.update(
+        createTestState({ waste: 10, ammonia: ppmToMass(1.0), aob: 100, water: 40 }),
+        DEFAULT_CONFIG
+      );
+      const perNitrogen = (source: string): number => {
+        const delta = (resource: 'kh' | 'ammonia'): number =>
+          effects.find((e) => e.resource === resource && e.source === source)!.delta;
+        return delta('kh') / Math.abs((delta('ammonia') * MW_N) / MW_NH3);
+      };
+      const returned = perNitrogen('nitrogen-cycle-mineralization');
+
+      expect(returned).toBeCloseTo(3.57, 2);
+      expect(returned + perNitrogen('nitrogen-cycle-aob')).toBeCloseTo(-3.57, 2);
+    });
+
     it('produces no ammonia when waste is 0', () => {
       const state = createTestState({ waste: 0 });
       const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);

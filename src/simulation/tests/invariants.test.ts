@@ -5,7 +5,7 @@ import { tick } from '../tick.js';
 import { DEFAULT_CONFIG, configRange, withTunable, type TunableConfig } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { NUTRIENTS, WASTE_NUTRIENTS, type WasteNutrient } from '../config/nutrients.js';
-import { MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
+import { MW_CACO3, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
 import { tissueMass } from '../systems/plant-lifecycle.js';
 import { ALGAE, bloomTissue } from '../algae/index.js';
 import { purchase } from '../systems/plant-growth.js';
@@ -46,6 +46,12 @@ function mineralsInPools(state: SimulationState, n: WasteNutrient): number {
     state.resources[n] +
     state.equipment.substrate.nutrients[n]
   );
+}
+
+function alkalinityNetOfNitrogen({ resources, equipment }: SimulationState): number {
+  const { kh, ammonia, nitrite, nitrate } = resources;
+  const charge = ammonia / MW_NH3 - nitrite / MW_NO2 - (nitrate + equipment.substrate.nutrients.nitrate) / MW_NO3;
+  return kh - (charge * MW_CACO3) / 2;
 }
 
 function tetra(id: string): Fish {
@@ -293,6 +299,42 @@ describe('a bloom fed on ammonia', () => {
 
   it('conserves nitrogen through the ammonia it builds into tissue', () => {
     expect(nitrogenInPools(fed) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+  });
+});
+
+describe('alkalinity around the nitrogen loop', () => {
+  const LIT_DAYS = 10;
+  const BLACKOUT_DAYS = 5;
+  let start: SimulationState;
+  let lit: SimulationState;
+  let dark: SimulationState;
+  beforeAll(() => {
+    start = produce(cycledBareTank(), (draft) => {
+      draft.fish = [tetra('a'), tetra('b'), tetra('c')];
+      draft.resources.food = 2;
+      draft.plants = (['java_fern', 'amazon_sword', 'monte_carlo'] as const).map((species) =>
+        plantRecord({ id: species, species, size: 40, condition: 100, surplus: 0 })
+      );
+      draft.algae = { mass: 5, condition: 100, surplus: 0 };
+      draft.resources.nitrate = 10 * draft.resources.water;
+      draft.resources.phosphate = 1 * draft.resources.water;
+      draft.resources.potassium = 10 * draft.resources.water;
+      draft.resources.iron = 0.2 * draft.resources.water;
+    });
+    lit = run(start, LIT_DAYS * 24);
+    dark = run(
+      produce(lit, (draft) => {
+        draft.equipment.light.enabled = false;
+      }),
+      BLACKOUT_DAYS * 24
+    );
+  });
+
+  it('moves KH exactly as far as the charge on the inorganic nitrogen moves, through gills, decay, growth, shedding and rot', () => {
+    for (const state of [lit, dark]) {
+      expect(Math.abs(state.resources.kh - start.resources.kh)).toBeGreaterThan(1);
+      expect(alkalinityNetOfNitrogen(state) / alkalinityNetOfNitrogen(start)).toBeCloseTo(1, 10);
+    }
   });
 });
 

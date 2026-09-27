@@ -104,6 +104,7 @@ water it is in, so a suffocating fish draws less *and* suffers more.
 | `food` | Feeding, elsewhere | Fish eating, hungriest first | g |
 | `waste` | Feces; half the body mass of a fish that dies | Mineralization, elsewhere | g |
 | `ammonia` | Gill excretion | Nitrification, elsewhere | mg |
+| `kh` | Gill excretion, an equivalent per mole of ammonia | Nitrification, elsewhere | mg CaCO₃ |
 | `oxygen` | Gas exchange, elsewhere | Respiration, itself throttled by the oxygen already standing | mg/L |
 | `co2` | Respiration, derived from the oxygen drawn | Photosynthesis and gas exchange, elsewhere | mg/L |
 
@@ -283,7 +284,7 @@ visible decline rather than a coin flip.
 | Neighbour | Read | Written |
 |---|---|---|
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, each past its tolerance edge | `ammonia`, `phosphate`, `potassium` and `iron` through the gills; `waste` as feces and death mass |
-| [Water & gases](/subsystems/water-and-gases/) | `oxygen` twice — as the Monod factor on the whole metabolism, and as a stressor under the fish's own edge and a benefit rising above the alert's; pH, derived from `co2` and `kh`, and `gh`, each as a tolerance band | `oxygen` drawn, `co2` exhaled |
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen` twice — as the Monod factor on the whole metabolism, and as a stressor under the fish's own edge and a benefit rising above the alert's; pH, derived from `co2` and `kh`, and `gh`, each as a tolerance band | `oxygen` drawn, `co2` exhaled, `kh` returned on the gill ammonia |
 | [Environment](/subsystems/environment/) | `temperature` as a tolerance band; `water` for every ppm and for the water-level stressor | — |
 | [Equipment](/subsystems/equipment/) | `flow`, divided by standing water into a turnover | — |
 | [Plants](/subsystems/plants/) | Plant power — the shelter benefit, saturating | — |

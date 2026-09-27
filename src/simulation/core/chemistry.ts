@@ -71,6 +71,15 @@ export const CACO3_PER_DEGREE = (10 * MW_CACO3) / MW_CAO;
 export const CACO3_PER_NH3_NITRIFIED = MW_CACO3 / MW_NH3;
 
 /**
+ * ≈ 2.939. Ammonia minted from organic nitrogen — at a fish's gills, or out of
+ * decaying food and mineralising waste — takes up an H⁺ as it becomes NH4⁺,
+ * which returns half a CaCO3 equivalent per mole. Organic nitrogen nitrified
+ * to nitrate nets half what nitrifying spends, and nitrogen that goes back
+ * into tissue in either form nets nothing.
+ */
+export const CACO3_PER_NH3_MINERALIZED = MW_CACO3 / 2 / MW_NH3;
+
+/**
  * ≈ 2.939. A cell taking up NH4⁺ pushes out an H⁺ to keep its charge, which
  * spends half a CaCO3 equivalent per mole of ammonia.
  */

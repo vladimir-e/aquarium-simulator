@@ -11,6 +11,7 @@ import type { Effect } from '../core/effects.js';
 import type { TunableConfig } from '../config/index.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
+import { CACO3_PER_NH3_MINERALIZED } from '../core/chemistry.js';
 import { processMetabolism, type MetabolismResult } from '../systems/metabolism.js';
 import type { VitalityResult } from '../systems/vitality.js';
 import { processHealth } from '../systems/fish-health.js';
@@ -81,6 +82,12 @@ export function processLivestock(
       tier: 'active',
       resource: 'ammonia',
       delta: metabolismResult.ammoniaProduced,
+      source: 'fish-gill-excretion',
+    });
+    effects.push({
+      tier: 'active',
+      resource: 'kh',
+      delta: metabolismResult.ammoniaProduced * CACO3_PER_NH3_MINERALIZED,
       source: 'fish-gill-excretion',
     });
   }
