@@ -30,7 +30,7 @@ import { nutrientsDefaults, type Nutrient } from '../config/nutrients.js';
 import { scheduledLightByHour } from '../equipment/light.js';
 import { emptyBlooms } from '../algae/blooms.js';
 import { ALGAE_KINDS } from '../algae/traits.js';
-import { lightLoss, waterExtinction } from '../algae/shade.js';
+import { lightLoss, waterExtinction } from '../algae/light-loss.js';
 import { produce } from 'immer';
 import { plantRecord } from '../tests/plant.js';
 import { mirroredPools } from '../tests/pools.js';

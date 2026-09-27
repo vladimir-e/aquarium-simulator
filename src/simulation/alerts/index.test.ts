@@ -5,6 +5,7 @@ import {
   checkAlerts,
   bloomAlert,
   bloomAlerts,
+  bloomLevel,
   highAmmoniaAlert,
   ammoniaAlertLine,
   highCo2Alert,
@@ -214,6 +215,13 @@ describe('waterLevelAlert', () => {
   });
 });
 
+describe('bloomLevel', () => {
+  it('is the further of its coverage and the plants’ light it takes, each over its line, led by that figure', () => {
+    expect(bloomLevel(2 * BLOOM_COVERAGE_LINE, PLANT_LIGHT_LINE)).toEqual({ level: 2, leads: 'coverage' });
+    expect(bloomLevel(BLOOM_COVERAGE_LINE, 3 * PLANT_LIGHT_LINE)).toEqual({ level: 3, leads: 'light' });
+  });
+});
+
 describe('bloomAlert', () => {
   const planted = (kind: AlgaeKind, mass: number): SimulationState =>
     produce(createSimulation({ tankCapacity: CAPACITY }), (draft) => {
@@ -253,6 +261,19 @@ describe('bloomAlert', () => {
     const { alertState } = checkAlerts(state, config);
     expect(alertState.film).toBe(true);
     expect(alertState.greenWater).toBe(false);
+  });
+
+  it.each(ALGAE_KINDS)('names for %s the figure that leads its level', (kind) => {
+    const message = (state: SimulationState, at: TunableConfig): string => bloomAlert(kind).check(state, at).log!.message;
+    const dense = attenuated(configRange('optics.algaeAttenuationPerGram')!.max);
+    const byLight = planted(kind, BLOOM_COVERAGE_LINE);
+    const byCoverage = unplanted(kind, 2 * BLOOM_COVERAGE_LINE);
+
+    expect(bloomLevel(BLOOM_COVERAGE_LINE, plantLightTaken(byLight, dense.optics)[kind] * 100).leads).toBe('light');
+    expect(message(byLight, dense)).toContain("of the plants' light");
+    expect(message(byLight, dense)).not.toContain('coverage');
+    expect(message(byCoverage, config)).toContain('coverage');
+    expect(message(byCoverage, config)).not.toContain("plants' light");
   });
 
   it('names the verb that takes its kind out', () => {

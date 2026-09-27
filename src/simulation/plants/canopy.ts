@@ -30,7 +30,7 @@ import { growthFormOf, plantTraits, type PlantSpecies } from './species.js';
 import { dailyLightEdge } from '../systems/flora.js';
 import type { AlgaeKind } from '../algae/traits.js';
 import { mapKinds } from '../algae/blooms.js';
-import { bloomPass, lightLoss, waterExtinction, type LightLoss } from '../algae/shade.js';
+import { bloomPass, lightLoss, waterExtinction, type LightLoss } from '../algae/light-loss.js';
 
 type Unit = Pick<Plant, 'species' | 'size'>;
 

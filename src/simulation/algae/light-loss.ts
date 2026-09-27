@@ -13,7 +13,7 @@ import type { OpticsConfig } from '../config/optics.js';
 import { ALGAE, ALGAE_KINDS, type AlgaeHabitat, type AlgaeKind, type AlgaeTraits } from './traits.js';
 import { mapKinds } from './blooms.js';
 
-export interface BloomShade {
+export interface BloomLightLoss {
   /** What it adds to the water's extinction, per cm. */
   extinction: number;
   /** The share of a lit surface's light its coat takes, 0–1. */
@@ -22,7 +22,7 @@ export interface BloomShade {
 
 const CM3_PER_LITRE = 1000;
 
-const SHADE: Record<AlgaeHabitat, (fill: number, traits: AlgaeTraits, perGram: number) => BloomShade> = {
+const LOSS: Record<AlgaeHabitat, (fill: number, traits: AlgaeTraits, perGram: number) => BloomLightLoss> = {
   column: (fill, { tissueDensity }, perGram) => ({
     extinction: (perGram * fill * tissueDensity) / CM3_PER_LITRE,
     coat: 0,
@@ -39,17 +39,17 @@ export interface LightLoss {
   extinction: number;
   /** The share of a leaf's light the blooms coating it let through. */
   leafPass: number;
-  blooms: Record<AlgaeKind, BloomShade>;
+  blooms: Record<AlgaeKind, BloomLightLoss>;
 }
 
 export function lightLoss(blooms: Blooms, optics: OpticsConfig): LightLoss {
-  const shade = mapKinds((kind) =>
-    SHADE[ALGAE[kind].habitat](blooms[kind].mass / 100, ALGAE[kind], optics.algaeAttenuationPerGram)
+  const loss = mapKinds((kind) =>
+    LOSS[ALGAE[kind].habitat](blooms[kind].mass / 100, ALGAE[kind], optics.algaeAttenuationPerGram)
   );
   return {
-    extinction: ALGAE_KINDS.reduce((k, kind) => k + shade[kind].extinction, optics.waterAttenuationPerCm),
-    leafPass: ALGAE_KINDS.reduce((passed, kind) => passed * (1 - shade[kind].coat), 1),
-    blooms: shade,
+    extinction: ALGAE_KINDS.reduce((k, kind) => k + loss[kind].extinction, optics.waterAttenuationPerCm),
+    leafPass: ALGAE_KINDS.reduce((passed, kind) => passed * (1 - loss[kind].coat), 1),
+    blooms: loss,
   };
 }
 
@@ -58,11 +58,11 @@ export function waterExtinction(blooms: Blooms, optics: OpticsConfig): number {
 }
 
 /** The share of the light a bloom lets through the column to `depthCm` under the surface. */
-export function columnPass(shade: BloomShade, depthCm: number): number {
-  return Math.exp(-shade.extinction * depthCm);
+export function columnPass(loss: BloomLightLoss, depthCm: number): number {
+  return Math.exp(-loss.extinction * depthCm);
 }
 
 /** The share of the light a bloom lets through to a leaf `depthCm` under the surface: down the column, then its coat. */
-export function bloomPass(shade: BloomShade, depthCm: number): number {
-  return columnPass(shade, depthCm) * (1 - shade.coat);
+export function bloomPass(loss: BloomLightLoss, depthCm: number): number {
+  return columnPass(loss, depthCm) * (1 - loss.coat);
 }

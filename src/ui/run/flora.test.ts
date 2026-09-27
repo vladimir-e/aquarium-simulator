@@ -118,6 +118,18 @@ describe('condition + algae words', () => {
       expect(algaeReading(kind, 3 * BLOOM_COVERAGE_LINE, 0).status).toBe('alert');
     });
 
+    it('on its coverage alone, turns amber and coral each on a word of its own', () => {
+      const tonesOf = new Map<string, Set<string>>();
+      for (let i = 0; i <= 300; i++) {
+        const { word, status } = algaeReading(kind, (i / 100) * BLOOM_COVERAGE_LINE, 0);
+        tonesOf.set(word, (tonesOf.get(word) ?? new Set()).add(status));
+      }
+      const tones = [...tonesOf.values()];
+      expect(tones.every((set) => set.size === 1)).toBe(true);
+      expect(tones.filter((set) => set.has('warn'))).toHaveLength(1);
+      expect(tones.filter((set) => set.has('alert'))).toHaveLength(1);
+    });
+
     it('turns amber exactly where the engine alerts, planted or not', () => {
       for (const bed of [tank(), planted(['monte_carlo', 'amazon_sword'])]) {
         for (let mass = 0; mass <= 95; mass += 5) {

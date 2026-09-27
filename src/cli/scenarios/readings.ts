@@ -4,6 +4,7 @@ import { floorCover, floorLight, floorShade } from '../../simulation/plants/cano
 import { freeAmmoniaPpm } from '../../simulation/systems/nitrogen-cycle.js';
 import { FREE_AMMONIA_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
 import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
+import { BLOOM_COVERAGE_LINE } from '../../simulation/alerts/bloom.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/helpers.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import { ALGAE, ALGAE_KINDS, type AlgaeKind } from '../../simulation/algae/index.js';
@@ -224,7 +225,7 @@ const DEFINITIONS = [
       unit: '/100',
       digits: 0,
       read: (s) => s.algae[kind].mass,
-      band: { green: [0, 30], amber: [0, 60], why: BLOOM_WHY[kind] },
+      band: { green: [0, BLOOM_COVERAGE_LINE], amber: [0, 2 * BLOOM_COVERAGE_LINE], why: BLOOM_WHY[kind] },
     })
   ),
 ] as const satisfies readonly Reading[];

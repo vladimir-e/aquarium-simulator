@@ -3,11 +3,10 @@ import { ALGAE_KINDS, createSimulation } from '../../simulation/index.js';
 import { getPresetById } from '../../simulation/presets.js';
 import { renderTrace, TRACE_FIELDS } from '../format.js';
 import { snapshot } from '../history.js';
+import { snakeCase } from '../names.js';
 
 const state = createSimulation(getPresetById('bare')!.config);
 const history = [snapshot(state)];
-
-const snakeCase = (key: string): string => key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
 describe('trace fields', () => {
   it('renders every field it publishes', () => {

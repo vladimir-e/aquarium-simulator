@@ -6,6 +6,7 @@ import {
   createSimulation,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
+  onTheGlass,
   placeHardscape,
   WATER_CHANGE_AMOUNTS,
   type SimulationState,
@@ -237,6 +238,14 @@ describe('the seven verbs', () => {
     const bareBottom = { ...bare, equipment: { ...bare.equipment, substrate: { ...bare.equipment.substrate, type: 'none' as const } } };
     expect(row(bareBottom, 'rootTab').blocked).toBe('no bed to push a tab into');
     expect(detail(bareBottom, 'rootTab').options.every((o) => o.disabled)).toBe(true);
+  });
+
+  it('gates the scrub on the coverage its row prints, not the walls’ share of it', () => {
+    const bare = tank();
+    const faint = { ...bare, algae: { ...bare.algae, film: { ...bare.algae.film, mass: 0.6 } } };
+    expect(onTheGlass(faint).film.toFixed(0)).toBe('0');
+    expect(row(faint, 'scrubAlgae').value).toBe('1 %');
+    expect(row(faint, 'scrubAlgae').blocked).toBeNull();
   });
 
   it('offers the tabs that cover a starving root feeder, and previews the bed they fill', () => {

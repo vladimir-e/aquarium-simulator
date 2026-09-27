@@ -1,8 +1,7 @@
 /**
- * A bloom alert per kind — fires once when its level passes 1: its coverage
- * past `BLOOM_COVERAGE_LINE`, or the share of the plants' light it takes past
- * `PLANT_LIGHT_LINE`. It names the figure further past its line and the action
- * that takes the kind out, and resets back under.
+ * A bloom alert per kind — fires once when its `bloomLevel` passes 1, names the
+ * figure that leads it and the action that takes the kind out, and resets back
+ * under.
  */
 
 import type { Alert, AlertResult } from './types.js';
@@ -18,13 +17,20 @@ export const PLANT_LIGHT_LINE = 25;
 /** Coverage a kind alerts past. */
 export const BLOOM_COVERAGE_LINE = 30;
 
+export interface BloomLevel {
+  level: number;
+  leads: 'coverage' | 'light';
+}
+
 /**
  * How far a bloom stands toward its alert: the further of its coverage and the
- * share of the plants' light it takes, %, each as a multiple of its line. Past
- * 1 it alerts.
+ * share of the plants' light it takes, %, each as a multiple of its line, and
+ * which of the two that is. Past 1 it alerts.
  */
-export function bloomLevel(mass: number, taken: number): number {
-  return Math.max(mass / BLOOM_COVERAGE_LINE, taken / PLANT_LIGHT_LINE);
+export function bloomLevel(mass: number, taken: number): BloomLevel {
+  const coverage = mass / BLOOM_COVERAGE_LINE;
+  const light = taken / PLANT_LIGHT_LINE;
+  return light >= coverage ? { level: light, leads: 'light' } : { level: coverage, leads: 'coverage' };
 }
 
 const ADVICE: Record<BloomRemoval, string> = {
@@ -41,12 +47,13 @@ export function bloomAlert(kind: AlgaeKind): Alert {
     check(state: SimulationState, config: TunableConfig): AlertResult {
       const { mass } = state.algae[kind];
       const taken = plantLightTaken(state, config.optics)[kind] * 100;
+      const { level, leads } = bloomLevel(mass, taken);
       return latch(
         state,
         kind,
-        bloomLevel(mass, taken) > 1,
+        level > 1,
         'algae',
-        taken / PLANT_LIGHT_LINE >= mass / BLOOM_COVERAGE_LINE
+        leads === 'light'
           ? `${name} taking ${ceiled(taken, 0)}% of the plants' light - ${advice}`
           : `${name} bloom: ${ceiled(mass, 1)}% coverage - ${advice}`
       );

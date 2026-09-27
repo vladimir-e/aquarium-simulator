@@ -476,8 +476,8 @@ const COVERAGE_SENTENCE: Record<AlgaeHabitat, (places: string) => string> = {
 
 /** What takes a bloom out of the tank, by the verb that does. */
 const REMOVAL_SENTENCE: Record<BloomRemoval, string> = {
-  waterChange: 'A water change carries them out.',
-  scrubAlgae: 'A scrub takes it off the glass.',
+  waterChange: 'A water change carries out the cells in the water it changes.',
+  scrubAlgae: 'A scrub takes the coat off the glass.',
 };
 
 /** What a bloom does to the plants, and where the engine alerts over it. */
@@ -488,7 +488,7 @@ function lightTakenSentence(kind: AlgaeKind, state: SimulationState, taken: numb
     : `Nothing is planted for it to shade; past ${coverage} the engine alerts.`;
 }
 
-/** A bloom's coverage, on its kind's ladder, in the tone of the worse of it and the plants' light it takes. */
+/** A bloom's coverage, on its kind's ladder, in the tone of its `bloomLevel`. */
 function bloomView(kind: AlgaeKind, state: SimulationState, ahead: HourAhead, taken: number, tape: Tape): ReadingView {
   const mass = state.algae[kind].mass;
   const { habitat } = ALGAE[kind];

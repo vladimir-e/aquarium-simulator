@@ -7,7 +7,7 @@ import { dailyLightIntegral } from '../equipment/light.js';
 import { floorShade } from '../plants/canopy.js';
 import { dailyLightEdge } from '../systems/flora.js';
 import type { AlgaeHabitat, AlgaeTraits } from './traits.js';
-import { waterExtinction } from './shade.js';
+import { waterExtinction } from './light-loss.js';
 
 /** What a habitat is read off: the tank's geometry, its hardscape, the canopy over its floor and the water over both. */
 export type HabitatTank = Pick<SimulationState, 'tank' | 'equipment' | 'plants' | 'algae'>;

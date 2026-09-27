@@ -31,7 +31,7 @@ import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
 import { applySeed, type PresetSeed, type TankSeed } from './seed.js';
 import type { AlgaeKind } from './algae/traits.js';
 import { emptyBlooms, mapKinds } from './algae/blooms.js';
-import { waterExtinction } from './algae/shade.js';
+import { waterExtinction } from './algae/light-loss.js';
 import { isPlantableSize, MIN_PLANTABLE_SIZE } from './plants/create-plant.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
@@ -298,9 +298,7 @@ export interface Equipment {
 /**
  * Tracks which alert conditions are currently active.
  * Used to only fire alerts once when crossing thresholds. Each kind of bloom
- * has its own, set while its `bloomLevel` is past 1: it covers more than
- * `BLOOM_COVERAGE_LINE` of its habitat, or takes more than `PLANT_LIGHT_LINE`
- * of the plants' light.
+ * has its own, set while its `bloomLevel` is past 1.
  */
 export interface AlertState extends Record<AlgaeKind, boolean> {
   /** Water is below `waterLevelAlertLine` % of capacity */

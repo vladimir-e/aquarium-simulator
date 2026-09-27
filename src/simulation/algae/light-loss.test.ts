@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { bloomPass, lightLoss, waterExtinction } from './shade.js';
+import { bloomPass, lightLoss, waterExtinction } from './light-loss.js';
 import { ALGAE, emptyBlooms } from './index.js';
 import { opticsDefaults } from '../config/optics.js';
 import type { Blooms } from '../state.js';
@@ -21,19 +21,19 @@ describe('lightLoss', () => {
   });
 
   it('adds green water to the water’s extinction by its tissue per cm³, and coats nothing', () => {
-    const shade = lightLoss(blooms(60, 0), opticsDefaults);
+    const loss = lightLoss(blooms(60, 0), opticsDefaults);
     const perCm3 = (0.6 * ALGAE.greenWater.tissueDensity) / 1000;
-    expect(shade.extinction).toBeCloseTo(opticsDefaults.waterAttenuationPerCm + κ * perCm3, 14);
-    expect(shade.blooms.greenWater.coat).toBe(0);
-    expect(shade.leafPass).toBe(1);
+    expect(loss.extinction).toBeCloseTo(opticsDefaults.waterAttenuationPerCm + κ * perCm3, 14);
+    expect(loss.blooms.greenWater.coat).toBe(0);
+    expect(loss.leafPass).toBe(1);
   });
 
   it('coats a surface with film at its coverage, each coated share passing e^(−κσ), and clouds no water', () => {
-    const shade = lightLoss(blooms(0, 40), opticsDefaults);
+    const loss = lightLoss(blooms(0, 40), opticsDefaults);
     const opacity = 1 - Math.exp(-κ * ALGAE.film.tissueDensity);
-    expect(shade.blooms.film.coat).toBeCloseTo(0.4 * opacity, 14);
-    expect(shade.leafPass).toBeCloseTo(1 - 0.4 * opacity, 14);
-    expect(shade.extinction).toBe(opticsDefaults.waterAttenuationPerCm);
+    expect(loss.blooms.film.coat).toBeCloseTo(0.4 * opacity, 14);
+    expect(loss.leafPass).toBeCloseTo(1 - 0.4 * opacity, 14);
+    expect(loss.extinction).toBe(opticsDefaults.waterAttenuationPerCm);
   });
 
   it('grows linearly in green water, and shades nothing at zero attenuation', () => {
@@ -46,10 +46,10 @@ describe('lightLoss', () => {
 
 describe('bloomPass', () => {
   it('is Beer–Lambert down the depth for green water, and the coat alone for film', () => {
-    const { blooms: shade } = lightLoss(blooms(50, 50), opticsDefaults);
-    expect(bloomPass(shade.greenWater, 20) * bloomPass(shade.greenWater, 10)).toBeCloseTo(bloomPass(shade.greenWater, 30), 14);
-    expect(bloomPass(shade.greenWater, 0)).toBe(1);
-    expect(bloomPass(shade.film, 0)).toBe(bloomPass(shade.film, 40));
-    expect(bloomPass(shade.film, 0)).toBeCloseTo(1 - shade.film.coat, 14);
+    const { blooms: loss } = lightLoss(blooms(50, 50), opticsDefaults);
+    expect(bloomPass(loss.greenWater, 20) * bloomPass(loss.greenWater, 10)).toBeCloseTo(bloomPass(loss.greenWater, 30), 14);
+    expect(bloomPass(loss.greenWater, 0)).toBe(1);
+    expect(bloomPass(loss.film, 0)).toBe(bloomPass(loss.film, 40));
+    expect(bloomPass(loss.film, 0)).toBeCloseTo(1 - loss.film.coat, 14);
   });
 });

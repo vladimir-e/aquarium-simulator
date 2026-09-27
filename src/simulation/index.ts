@@ -266,7 +266,7 @@ export {
 } from './equipment/hardscape.js';
 
 // Alerts
-export type { Alert, AlertResult, CheckAlertsResult } from './alerts/index.js';
+export type { Alert, AlertResult, BloomLevel, CheckAlertsResult } from './alerts/index.js';
 export {
   alerts,
   checkAlerts,
@@ -383,7 +383,7 @@ export type {
   BloomLight,
   HabitatPlace,
   HabitatTank,
-  BloomShade,
+  BloomLightLoss,
   LightLoss,
   BloomRemoval,
   BloomPurchase,

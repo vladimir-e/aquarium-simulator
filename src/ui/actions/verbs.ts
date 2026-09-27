@@ -3,9 +3,9 @@
  * preview and a commit. Every option set is the engine's own
  * (`WATER_CHANGE_AMOUNTS`, `MAX_ROOT_TABS`, `TRIM_TARGETS`) and every refusal
  * is an engine guard (`canDose`, `canRootTab`, `getPlantsToTrimCount`), or a
- * display gate on the reading the verb acts on — the coverage of each bloom on
- * the glass — stated where the verb would otherwise say what it is about to do,
- * so an unavailable verb is never a dead end.
+ * display gate on the reading the verb acts on — the coverage of each bloom
+ * whose habitat reaches the glass — stated where the verb would otherwise say
+ * what it is about to do, so an unavailable verb is never a dead end.
  */
 
 import {

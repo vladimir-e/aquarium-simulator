@@ -16,6 +16,7 @@ import { lowOxygenAlert } from './low-oxygen.js';
 import { highCo2Alert } from './high-co2.js';
 
 export type { Alert, AlertResult } from './types.js';
+export type { BloomLevel } from './bloom.js';
 export { waterLevelAlert, waterLevelAlertLine } from './water-level.js';
 export { bloomAlert, bloomAlerts, bloomLevel, BLOOM_COVERAGE_LINE, PLANT_LIGHT_LINE } from './bloom.js';
 export { highAmmoniaAlert, ammoniaAlertLine } from './high-ammonia.js';

@@ -79,15 +79,26 @@ function bloomShows(mass: number): boolean {
 }
 
 /**
- * A bloom's words above none, each rung reaching to a multiple of the coverage
- * a bloom alerts past — so on coverage alone its third word is where its tone
- * turns amber, and its fourth where it turns coral.
+ * Where a figure's tone turns, as a multiple of the line the engine alerts
+ * past. Low algae is good for the player, so the tones run green → coral as it
+ * climbs.
  */
-const ALGAE_LADDER = [0.5, 1, 2, Infinity] as const;
+const TONE_TURNS = { warn: 1, alert: 2 } as const;
+
+function lineStatus(multiple: number): Status {
+  return multiple > TONE_TURNS.alert ? 'alert' : multiple > TONE_TURNS.warn ? 'warn' : 'ok';
+}
+
+/**
+ * A bloom's words above none, each rung reaching to a multiple of the coverage
+ * a bloom alerts past; the rungs past the tone's turns are its amber and coral
+ * words.
+ */
+const ALGAE_LADDER = [0.5, TONE_TURNS.warn, TONE_TURNS.alert, Infinity] as const;
 
 /** The rung a coverage that shows stands on. */
 function rungOf(mass: number): number {
-  return ALGAE_LADDER.findIndex((upTo) => mass <= upTo * BLOOM_COVERAGE_LINE);
+  return ALGAE_LADDER.findIndex((upTo) => mass / BLOOM_COVERAGE_LINE <= upTo);
 }
 
 type WordPer<T extends readonly unknown[]> = { [K in keyof T]: string };
@@ -102,15 +113,6 @@ const ALGAE_WORDS: Record<AlgaeKind, LadderWords> = {
   film: ['clean', 'dusted', 'filmed', 'coated', 'smothered'],
 };
 
-/**
- * How a figure reads against the line the engine alerts past, as a multiple of
- * it: amber past it, coral past twice it. Low algae is good for the player, so
- * the tones run green → coral as it climbs.
- */
-function lineStatus(multiple: number): Status {
-  return multiple > 2 ? 'alert' : multiple > 1 ? 'warn' : 'ok';
-}
-
 /** How the share of the plants' light a bloom takes reads, %. */
 export function lightTakenStatus(taken: number): Status {
   return lineStatus(taken / PLANT_LIGHT_LINE);
@@ -118,13 +120,13 @@ export function lightTakenStatus(taken: number): Status {
 
 /**
  * How a bloom reads: its kind's word for its coverage — none while there is
- * none to see — in the tone of its level, the worse of that coverage and of
- * the share of the plants' light it takes, %: amber exactly where it alerts.
+ * none to see — in the tone of its `bloomLevel`, amber exactly where it
+ * alerts. `taken` is the share of the plants' light it takes, %.
  */
 export function algaeReading(kind: AlgaeKind, mass: number, taken: number): Reading {
   const words = ALGAE_WORDS[kind];
   return {
-    status: lineStatus(bloomLevel(mass, taken)),
+    status: lineStatus(bloomLevel(mass, taken).level),
     word: bloomShows(mass) ? words[rungOf(mass) + 1] : words[0],
   };
 }

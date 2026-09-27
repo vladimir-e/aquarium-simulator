@@ -23,7 +23,7 @@ import {
 import { createLog } from '../core/logging.js';
 import type { ActionResult } from './types.js';
 
-/** Coverage each kind has on the glass walls — what a scrub takes off it. */
+/** Each kind's mass times the walls' share of its habitat — what a scrub takes off. */
 export function onTheGlass(state: SimulationState): Record<AlgaeKind, number> {
   return coverageAt(state.algae, 'walls', state);
 }

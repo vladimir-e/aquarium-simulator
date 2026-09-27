@@ -180,8 +180,8 @@ export {
   REMOVED_BY,
 } from './habitat.js';
 export type { BloomLight, BloomRemoval, HabitatPlace, HabitatTank } from './habitat.js';
-export { bloomPass, columnPass, lightLoss, waterExtinction } from './shade.js';
-export type { BloomShade, LightLoss } from './shade.js';
+export { bloomPass, columnPass, lightLoss, waterExtinction } from './light-loss.js';
+export type { BloomLightLoss, LightLoss } from './light-loss.js';
 export {
   computeAlgaeVitality,
   buildAlgaeStressors,
