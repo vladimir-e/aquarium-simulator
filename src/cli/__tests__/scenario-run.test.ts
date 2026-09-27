@@ -37,24 +37,13 @@ describe('runScenario', () => {
 
 describe('keepTank', () => {
   const nano = findSetup('nano');
-  const tuned = (plants: Partial<TunableConfig['plants']>, optics: Partial<TunableConfig['optics']> = {}): TunableConfig => ({
+  const tuned = (optics: Partial<TunableConfig['optics']>): TunableConfig => ({
     ...DEFAULT_CONFIG,
-    plants: { ...DEFAULT_CONFIG.plants, ...plants },
     optics: { ...DEFAULT_CONFIG.optics, ...optics },
   });
 
-  it('plants only a size a unit can be planted at, under the run’s own floor', () => {
-    const planted = (size: number, config = DEFAULT_CONFIG) => (): SimulationState =>
-      keepTank({ ...nano, plants: [{ species: 'java_fern', count: 1, size }] }, { config, untilTick: 0 });
-
-    expect(planted(100)).not.toThrow();
-    expect(planted(101)).toThrow(/deathSizeThreshold \(1\) to 100/);
-    expect(planted(0.5)).toThrow(/deathSizeThreshold \(1\)/);
-    expect(planted(3, tuned({ deathSizeThreshold: 5 }))).toThrow(/deathSizeThreshold \(5\)/);
-  });
-
   it('opens on the day of light its tuned optics give, not the shipped ones', () => {
-    const config = tuned({}, { waterAttenuationPerCm: 2 * DEFAULT_CONFIG.optics.waterAttenuationPerCm });
+    const config = tuned({ waterAttenuationPerCm: 2 * DEFAULT_CONFIG.optics.waterAttenuationPerCm });
     let opened: SimulationState | undefined;
     keepTank(nano, { config, untilTick: 0, observe: (state) => (opened ??= state) });
 

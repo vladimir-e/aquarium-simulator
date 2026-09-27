@@ -19,7 +19,6 @@ import type { PlantSpecies } from '../plants/species.js';
 import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
-import { isPlantableSize } from './plant-lifecycle.js';
 
 /**
  * Get the growth rate for a plant species. Per-species multiplier on
@@ -62,9 +61,7 @@ export interface Propagation {
  * A full bank buys an offshoot, as a full bank buys a fish a brood. The offshoot
  * is the bank at the growth conversion, untapered, one full unit at most, and
  * the parent pays for exactly what it bought. Null while the bank is short of
- * the cap, at a cap of 0, where every bank would read full, and when the bank
- * would buy a unit under `deathSizeThreshold`: a bank too small to buy a unit
- * that lives buys nothing, and healing and growth keep drawing on it.
+ * the cap, and at a cap of 0, where every bank would read full.
  */
 export function propagate(plant: Plant, config: PlantsConfig = plantsDefaults): Propagation | null {
   if (!(config.surplusCap > 0 && plant.surplus >= config.surplusCap)) return null;
@@ -73,10 +70,44 @@ export function propagate(plant: Plant, config: PlantsConfig = plantsDefaults): 
   const spent = Math.min(plant.surplus, 100 / conversion);
   // (100 / c) · c can land a hair over 100.
   const offshootSize = Math.min(100, spent * conversion);
-  if (!isPlantableSize(offshootSize, config)) return null;
 
   return {
     parent: { ...plant, surplus: plant.surplus - spent },
     offshootSize,
+  };
+}
+
+/** An hour's purchase as the bank asks for it, before the water supplies it. */
+export interface Purchase {
+  before: Plant;
+  after: Plant;
+  offshootSize: number;
+}
+
+/** What a plant's bank buys this hour at full supply: a full bank's offshoot first, then growth. */
+export function purchase(plant: Plant, config: PlantsConfig = plantsDefaults): Purchase {
+  const propagation = propagate(plant, config);
+  return {
+    before: plant,
+    after: spendSurplus(propagation?.parent ?? plant, config),
+    offshootSize: propagation?.offshootSize ?? 0,
+  };
+}
+
+/** Size of new tissue a purchase asks for, the offshoot's included. */
+export function sizeBought({ before, after, offshootSize }: Purchase): number {
+  return after.size - before.size + offshootSize;
+}
+
+/** The purchase at the share of it the pools supplied. */
+export function supply({ before, after, offshootSize }: Purchase, share: number): Purchase {
+  return {
+    before,
+    after: {
+      ...after,
+      size: before.size + share * (after.size - before.size),
+      surplus: before.surplus + share * (after.surplus - before.surplus),
+    },
+    offshootSize: share * offshootSize,
   };
 }

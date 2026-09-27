@@ -4,8 +4,14 @@ import { createSimulation, type Fish, type SimulationState } from '../state.js';
 import { tick } from '../tick.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
-import { WASTE_NUTRIENTS, type WasteNutrient } from '../config/nutrients.js';
+import { NUTRIENTS, WASTE_NUTRIENTS, type WasteNutrient } from '../config/nutrients.js';
 import { MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
+import { tissueMass } from '../systems/plant-lifecycle.js';
+import { purchase } from '../systems/plant-growth.js';
+import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
+import { freshSubstrate } from '../equipment/substrate.js';
+import { getPpm } from '../resources/index.js';
+import { plantRecord } from './plant.js';
 // The scenario setups are the shared definition of a real tank, so the engine invariants run over them.
 import { SETUPS, type Setup } from '../../cli/scenarios/setups.js';
 import { keepTank } from '../../cli/scenarios/run.js';
@@ -16,18 +22,27 @@ function run(state: SimulationState, hours: number): SimulationState {
   return running;
 }
 
-function nitrogenInPools({ resources, equipment }: SimulationState): number {
-  const { food, waste, ammonia, nitrite, nitrate } = resources;
-  const organics = food + waste + equipment.substrate.organicReserve;
+/** Grams of organic matter in the tank: food, waste, the bed's reserve and plant tissue. */
+function organics({ resources, equipment, plants }: SimulationState): number {
+  const tissue = plants.reduce((sum, plant) => sum + tissueMass(plant.species, plant.size), 0);
+  return resources.food + resources.waste + equipment.substrate.organicReserve + tissue;
+}
+
+function nitrogenInPools(state: SimulationState): number {
+  const { ammonia, nitrite, nitrate } = state.resources;
+  const bed = state.equipment.substrate.nutrients.nitrate;
   return (
-    organics * DEFAULT_CONFIG.livestock.foodNitrogenFraction +
-    ((ammonia / MW_NH3 + nitrite / MW_NO2 + nitrate / MW_NO3) * MW_N) / 1000
+    organics(state) * DEFAULT_CONFIG.livestock.foodNitrogenFraction +
+    ((ammonia / MW_NH3 + nitrite / MW_NO2 + (nitrate + bed) / MW_NO3) * MW_N) / 1000
   );
 }
 
-function mineralsInPools({ resources, equipment }: SimulationState, n: WasteNutrient): number {
-  const organics = resources.food + resources.waste + equipment.substrate.organicReserve;
-  return organics * DEFAULT_CONFIG.nutrients.foodMineralContent[n] + resources[n];
+function mineralsInPools(state: SimulationState, n: WasteNutrient): number {
+  return (
+    organics(state) * DEFAULT_CONFIG.nutrients.foodMineralContent[n] +
+    state.resources[n] +
+    state.equipment.substrate.nutrients[n]
+  );
 }
 
 function tetra(id: string): Fish {
@@ -45,8 +60,8 @@ function tetra(id: string): Fish {
   };
 }
 
-function cycledBareTank(): SimulationState {
-  const state = createSimulation({ tankCapacity: 150 });
+function cycledBareTank(tankCapacity = 150): SimulationState {
+  const state = createSimulation({ tankCapacity });
   const colony = state.resources.surface * nitrogenCycleDefaults.bacteriaPerCm2;
   return produce(state, (draft) => {
     draft.resources.aob = colony;
@@ -147,6 +162,100 @@ describe('mineral mass', () => {
 
     expect(end.fish).toHaveLength(3);
     expectConserved(start, end);
+  });
+});
+
+describe('a planting over a charged bed', () => {
+  const LIT_DAYS = 30;
+  const BLACKOUT_DAYS = 90;
+  let start: SimulationState;
+  let grown: SimulationState;
+  let dark: SimulationState;
+  beforeAll(() => {
+    start = produce(cycledBareTank(), (draft) => {
+      draft.equipment.substrate = freshSubstrate('aqua_soil', draft.tank.capacity);
+      draft.plants = (['java_fern', 'amazon_sword', 'monte_carlo', 'anubias'] as const).map((species) =>
+        plantRecord({ id: species, species, size: 40, condition: 100, surplus: 0 })
+      );
+      draft.resources.nitrate = 10 * draft.resources.water;
+      draft.resources.phosphate = 1 * draft.resources.water;
+      draft.resources.potassium = 10 * draft.resources.water;
+      draft.resources.iron = 0.2 * draft.resources.water;
+    });
+    grown = run(start, LIT_DAYS * 24);
+    dark = run(
+      produce(grown, (draft) => {
+        draft.equipment.light.enabled = false;
+      }),
+      BLACKOUT_DAYS * 24
+    );
+  });
+
+  const tissue = (state: SimulationState): number =>
+    state.plants.reduce((sum, plant) => sum + tissueMass(plant.species, plant.size), 0);
+
+  it('grows under the lamp, the sword drawing the bed down past its leak', () => {
+    const leakedOnly =
+      start.equipment.substrate.nutrients.phosphate * (1 - DEFAULT_CONFIG.nutrients.bedLeakRate) ** (LIT_DAYS * 24);
+    expect(tissue(grown)).toBeGreaterThan(tissue(start));
+    expect(grown.equipment.substrate.nutrients.phosphate).toBeLessThan(leakedOnly);
+  });
+
+  it('conserves nitrogen through the bed’s leak, growth, offshoots, shedding and death', () => {
+    expect(nitrogenInPools(grown) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+    expect(nitrogenInPools(dark) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+  });
+
+  it('conserves every mineral the same way', () => {
+    for (const n of WASTE_NUTRIENTS) {
+      expect(mineralsInPools(grown, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
+      expect(mineralsInPools(dark, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
+    }
+  });
+
+  it('never takes a nutrient below zero or off the number line', () => {
+    for (const state of [grown, dark]) {
+      for (const n of NUTRIENTS) {
+        expect(state.resources[n]).toBeGreaterThanOrEqual(0);
+        expect(state.equipment.substrate.nutrients[n]).toBeGreaterThanOrEqual(0);
+      }
+      expect(nonFinitePaths(state)).toEqual([]);
+    }
+  });
+});
+
+describe('an offshoot bought on thin water', () => {
+  let start: SimulationState;
+  let budded: SimulationState;
+  beforeAll(() => {
+    start = produce(cycledBareTank(20), (draft) => {
+      draft.plants = [
+        plantRecord({ id: 'fern', species: 'java_fern', size: 99, condition: 100, surplus: DEFAULT_CONFIG.plants.surplusCap }),
+      ];
+      draft.resources.nitrate = 10 * draft.resources.water;
+      draft.resources.phosphate = 0.04 * draft.resources.water;
+      draft.resources.potassium = 10 * draft.resources.water;
+      draft.resources.iron = 0.2 * draft.resources.water;
+    });
+    budded = tick(start);
+  });
+
+  it('is a lump a draw read at the start of the tick would overdraw, and the pool meets it in part without going below zero', () => {
+    const { plants, livestock, nutrients } = DEFAULT_CONFIG;
+    const { offshootSize } = purchase(start.plants[0], plants);
+    const share = nutrientShare(getPpm(start.resources.phosphate, start.resources.water), 'java_fern', 'phosphate');
+    expect(tissueMass('java_fern', offshootSize) * organicNutrients(livestock, nutrients).phosphate * share).toBeGreaterThan(
+      start.resources.phosphate
+    );
+
+    expect(budded.plants).toHaveLength(2);
+    expect(budded.plants[1].size).toBeLessThan(offshootSize);
+    expect(budded.resources.phosphate).toBeGreaterThan(0);
+  });
+
+  it('conserves nitrogen and every mineral through the lump', () => {
+    expect(nitrogenInPools(budded) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+    for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(budded, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
   });
 });
 

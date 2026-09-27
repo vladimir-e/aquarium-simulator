@@ -41,7 +41,7 @@ readings that fit it. Hardscape starts as bought.
 | Substrate KH reserve | The share of a fresh soil bed's buffer left on day 30 |
 | KH | The tap's, or a fraction of it over aqua soil |
 | GH | The tap's, less whatever KH the soil took — the bed takes both alike, and no more than the tap's GH |
-| Nitrate | What a month of leaching leaves behind, discounted for the water changes a keeper would have done |
+| Nitrate, phosphate, potassium, iron | What a month of the bed's leaching and leak leaves behind, discounted for the water changes a keeper would have done |
 
 A tank seeded this way is handed the outcome, not a shortcut through the
 mechanism: the tick loop takes it from there, and nothing catches up afterward.

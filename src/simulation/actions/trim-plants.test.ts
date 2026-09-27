@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { canTrimPlants, getPlantsToTrimCount, trimPlants } from './trim-plants.js';
 import { createSimulation, type SimulationState, type Plant } from '../state.js';
-import { plantsDefaults } from '../config/plants.js';
+import { MIN_PLANTABLE_SIZE } from '../plants/create-plant.js';
 import { produce } from 'immer';
 import { plantRecord } from '../tests/plant.js';
 
@@ -20,12 +20,11 @@ describe('canTrimPlants', () => {
     const state = produce(tankWith(40, 95, 20, 60), (draft) => {
       draft.plants[1].familyId = 'p1';
     });
-    const plantsConfig = { ...plantsDefaults, deathSizeThreshold: 5 };
-    for (const targetSize of [0, 4, 5, 20, 30, 59, 60, 100, 101]) {
+    for (const targetSize of [0, MIN_PLANTABLE_SIZE - 0.1, MIN_PLANTABLE_SIZE, 20, 30, 59, 60, 100, 101]) {
       for (const scope of [{}, { familyId: 'p1' }, { familyId: 'p3' }, { plantId: 'p2' }, { plantId: 'p3' }, { plantId: 'gone' }]) {
         const action = { type: 'trimPlants' as const, targetSize, ...scope };
-        const trimmed = trimPlants(state, action, plantsConfig).state !== state;
-        expect(canTrimPlants(state, action, plantsConfig)).toBe(trimmed);
+        const trimmed = trimPlants(state, action).state !== state;
+        expect(canTrimPlants(state, action)).toBe(trimmed);
       }
     }
   });
@@ -75,13 +74,13 @@ describe('trimPlants — every plant', () => {
     }
   });
 
-  it.each([plantsDefaults.deathSizeThreshold, 25, 60, 100])('accepts a target of %d', (targetSize) => {
+  it.each([MIN_PLANTABLE_SIZE, 25, 60, 100])('accepts a target of %d', (targetSize) => {
     expect(trimPlants(tankWith(99), { type: 'trimPlants', targetSize }).message).not.toContain(
       'Invalid'
     );
   });
 
-  it.each([-1, 0, 101, NaN])('refuses a target of %d', (targetSize) => {
+  it.each([-1, 0, MIN_PLANTABLE_SIZE - 0.1, 101, NaN])('refuses a target of %d', (targetSize) => {
     const state = tankWith(99);
     const result = trimPlants(state, { type: 'trimPlants', targetSize });
 
@@ -89,15 +88,6 @@ describe('trimPlants — every plant', () => {
     expect(result.message).toContain('Invalid target size');
   });
 
-  it('refuses a cut under `deathSizeThreshold`, which the next tick would retire', () => {
-    const state = tankWith(99);
-    const plantsConfig = { ...plantsDefaults, deathSizeThreshold: 5 };
-    const trim = (targetSize: number): SimulationState =>
-      trimPlants(state, { type: 'trimPlants', targetSize }, plantsConfig).state;
-
-    expect(trim(4.9)).toBe(state);
-    expect(sizes(trim(5))).toEqual([5]);
-  });
 });
 
 describe('trimPlants — one plant', () => {

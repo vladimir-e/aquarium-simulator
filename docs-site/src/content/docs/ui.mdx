@@ -24,7 +24,7 @@ month-long run becomes something you can watch, scrub back through, and explain.
 | Module | Route | What it shows |
 |---|---|---|
 | Overview | `/` | The tank as widgets, each a window onto its module: the nitrogen cycle as a chain of stocks, life, water, gear and nutrients. A phone stacks them; a tablet runs the chain, the life roster and the rack full width with water and nutrients side by side; a desk-wide stage gives life and nutrients a column of their own beside the chain, water and gear. Whatever needs the keeper is named above them, one line each, with the verb that answers it |
-| Water | `/water` | The tank as a lab sheet, two columns of headed reading rows. Left: water (temperature, pH, KH, GH, level), the dissolved gases, and the four nutrients against what the plants ask for. Right: the nitrogen compounds on their alert lines, then the biofilter — each guild against its ceiling, what it converts an hour, whether the tank reads as cycled and where the nitrite peak falls — and the waste pool feeding it. Any row opens its reading in the drawer |
+| Water | `/water` | The tank as a lab sheet, two columns of headed reading rows. Left: water (temperature, pH, KH, GH, level), the dissolved gases, and the four nutrients and the bed against what the plants ask for. Right: the nitrogen compounds on their alert lines, then the biofilter — each guild against its ceiling, what it converts an hour, whether the tank reads as cycled and where the nitrite peak falls — and the waste pool feeding it. Any row opens its reading in the drawer |
 | Life | `/life` | Two tables on one row shape: the fish, and the plants with the algae riding along at their top as a population row — the roster, below. Bioload sits under the fish against the stocking guideline, and the plants' header reads how much of the floor the planting claims, saying so once it has outgrown it. Under the fish rows sit the clutches counting down to hatch and one row for every fry in the tank, which is the unit the sell-all-fry verb takes. Any row opens the vitality ledger in the drawer, addressed by the URL (`/life?inspect=…`) so the Overview opens one too — helping against hurting, each factor at its rate per day, and the bank between them, named by which way the next tick moves it: banking, healing, or buying growth, an offshoot or a brood; the bloom's bank covers damage, buys coverage while lit and holds while dark — and the module's "+" stocks a species through the same drawer |
 | Gear | `/gear` | A rack of eight device rows: a power switch, a silhouette, the name, and what it is set to — or, for the three that keep a clock, that day as a 24 h ribbon against the hour the tank is on. A row opens the device's inspector in the drawer, addressed by the URL, so each inspector is a link and back walks between devices; closing one lands on the rack. Under the rack the scape — the substrate, and each piece of hardscape with the surface it adds — and under that what the fittings add up to, which is what the tick reads. The day's light sits among them against what the worst-lit plant starves under at its own height, and opens its reading |
 | History | `/history` | The spine at full height: the four tracks stacked over one axis on the left, and on the right what the run cost — deaths, births, alerts, water changed — over the event log. A window switch scopes both. Dragging a track or the axis, or tapping a log line, parks the same playhead the spine writes |
@@ -108,8 +108,19 @@ with no band shows an unlit track and stays quiet.
 
 Where the engine has no threshold of its own, the band is the tank's: the
 temperature and pH spans every stocked species tolerates, plant demand for the
-four nutrients, and the daily light the worst-lit plant starves under at its
-own height. An unstocked tank has neither, and those readings go quiet.
+four nutrients and root feeders' demand on the bed, and the daily light the
+worst-lit plant starves under at its own height. An unstocked tank has neither,
+and those readings go quiet.
+
+The bed reads in root tabs' worth of the nutrient it runs shortest on against
+its root feeders' need — the one it holds least of where nothing roots — on a
+scale a fresh bag of aqua soil in this tank fills. A tab lifts every nutrient
+alike, so the band opens where that reading stands once tabs have covered
+every nutrient's need, and the advised tabs are the gap to it — withheld over
+a bare bottom, or while the bed lacks a nutrient the tab carries none of. A nutrient or the bed is short
+when topping it up, with everything else held at what the plants ask for,
+would raise the engine's own sufficiency for some plant — so a sword starving
+on an empty bed reads red on the bed however well the water is dosed.
 
 Nitrate is one reading with two readers, the fish and the plants, so it carries
 one band and one tone wherever it shows — in the cycle and among the plant
@@ -192,7 +203,7 @@ A phone has room for two tracks at a time, and a chip row picks the pair.
 ## Acting on the tank
 
 Every husbandry verb has a home: Feed, Trim and Scrub on Life, Water change and
-Top-off on Water, Dose on Nutrients. Each appears as a button in that widget's
+Top-off on Water, Dose and Root tab on Nutrients. Each appears as a button in that widget's
 footer and in its module header, carrying the amount it is standing on — a
 footer says what would happen rather than opening a menu to ask. The **Needs
 you** strip carries the same verb beside the condition that calls for it.
@@ -201,19 +212,19 @@ you** strip carries the same verb beside the condition that calls for it.
 |---|---|
 | Every alert the engine latches | The verb or the fitting that answers it — a water change, a top-off, a scrub, the air pump or the CO₂ injector |
 | Fish hungry or starving | Feed |
-| Fish sick — damage outrunning what their banks heal | The worst one's ledger |
+| Fish sick — damage outrunning their healing | The worst one's ledger |
 
 Each line states the reading behind it — its figure, its band in the engine's
 words, its tone — so the strip, the rail's dot and the top bar's count never
 colour one condition two ways. The count leads with its worst tone.
 
-The Act button in the top bar (and ⌘K) opens the palette: the six verbs with
+The Act button in the top bar (and ⌘K) opens the palette: the seven verbs with
 their amounts and their modules, then the three construction verbs, filtered as
 you type. Either route opens the identical sheet in the drawer.
 
 | Part of the sheet | What it is |
 |---|---|
-| Amount rungs | The engine's own option sets — the water-change fractions it accepts, the trim targets, the feed and dose presets, plus the dose the plants are currently short of, capped at the 50 ml the engine takes in one dose |
+| Amount rungs | The engine's own option sets — the water-change fractions it accepts, the trim targets, the feed, dose and tab presets, plus the dose the plants are currently short of, capped at the 50 ml the engine takes in one dose, and the tabs the bed is short of, capped at the 10 it takes in one push |
 | Preview | The action applied to a throwaway state, read back as reading rows: the standing value as a ghost marker, the value the commit would leave as the live one, on the strip the reading is read on everywhere else. Only what moves is listed |
 | Commit | One button, named for the verb and its amount — "Feed 0.5 g", "Change 25 % water". The sheet opens on it, so Enter commits without a click first |
 | Refusals | The engine's own guards, standing where the commit would be, so an unavailable verb is never a dead end |

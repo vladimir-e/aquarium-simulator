@@ -54,13 +54,16 @@ export {
   type Nutrient,
   WASTE_NUTRIENTS,
   type NutrientVector,
+  mapNutrients,
+  ZERO_NUTRIENTS,
   type WasteNutrient,
   type MineralVector,
   type NutrientsConfig,
   type FertilizerFormula,
   nutrientsDefaults,
+  nutrientsConfigMeta,
   fertilizerFormulaMeta,
-  uptakeMeta,
+  rootTabMeta,
   halfSaturationMeta,
   demandMeta,
   foodMineralContentMeta,
@@ -107,8 +110,9 @@ import { type PlantsConfig, plantsDefaults, plantsConfigMeta } from './plants.js
 import {
   type NutrientsConfig,
   nutrientsDefaults,
+  nutrientsConfigMeta,
   fertilizerFormulaMeta,
-  uptakeMeta,
+  rootTabMeta,
   halfSaturationMeta,
   demandMeta,
   foodMineralContentMeta,
@@ -157,7 +161,7 @@ interface RangedMeta {
 
 type NestedNutrientsPath =
   | 'nutrients.fertilizerFormula'
-  | 'nutrients.uptakePerRateUnit'
+  | 'nutrients.rootTab'
   | 'nutrients.halfSaturation'
   | 'nutrients.foodMineralContent'
   | `nutrients.demand.${keyof NutrientsConfig['demand']}`;
@@ -173,9 +177,9 @@ const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
     optics: opticsConfigMeta,
     waterChemistry: waterChemistryConfigMeta,
     plants: plantsConfigMeta,
-    nutrients: [],
+    nutrients: nutrientsConfigMeta,
     'nutrients.fertilizerFormula': fertilizerFormulaMeta,
-    'nutrients.uptakePerRateUnit': uptakeMeta,
+    'nutrients.rootTab': rootTabMeta,
     'nutrients.halfSaturation': halfSaturationMeta,
     'nutrients.demand.low': demandMeta,
     'nutrients.demand.medium': demandMeta,

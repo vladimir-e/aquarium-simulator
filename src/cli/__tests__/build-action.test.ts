@@ -46,6 +46,18 @@ describe('buildAction waterChange', () => {
   });
 });
 
+describe('buildAction rootTab', () => {
+  it('pushes one tab by default, or the count given', () => {
+    expect(buildAction('rootTab', [])).toEqual({ type: 'rootTab', count: 1 });
+    expect(buildAction('rootTab', ['4'])).toEqual({ type: 'rootTab', count: 4 });
+  });
+
+  it('rejects a part tab', () => {
+    expect(() => buildAction('rootTab', ['1.5'])).toThrow(/whole/);
+    expect(() => buildAction('rootTab', ['0'])).toThrow(/whole/);
+  });
+});
+
 describe('buildAction sellFry', () => {
   it('builds a no-arg sellFry action', () => {
     expect(buildAction('sellFry', [])).toEqual({ type: 'sellFry' });

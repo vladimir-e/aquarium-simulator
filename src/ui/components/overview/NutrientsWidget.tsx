@@ -1,6 +1,6 @@
 import React from 'react';
 import type { SimulationState } from '../../../simulation/index.js';
-import type { VerbId } from '../../actions';
+import { advisedAmount, type VerbId } from '../../actions';
 import type { ReadingBook, ReadingId } from '../../readings';
 import { nutrientAlert } from '../../run';
 import { NutrientRows } from '../water/rows';
@@ -20,7 +20,8 @@ interface NutrientsWidgetProps {
 /**
  * The four plant foods against what the plants are asking for — the one place
  * the tank's nitrate is read as food rather than as the toxin the cycle ends
- * in, and the millilitre that moves all four.
+ * in, and the millilitre that moves all four — then the bed the root feeders
+ * draw on, and the tab that refills it.
  */
 export function NutrientsWidget({
   book,
@@ -31,7 +32,10 @@ export function NutrientsWidget({
   className,
 }: NutrientsWidgetProps): React.JSX.Element {
   const { advice, perMl } = book.dose;
-  const alert = nutrientAlert(book.nutrients);
+  const { bed } = book;
+  const alert = nutrientAlert(book.nutrients, bed);
+  const ml = advisedAmount('dose', advice?.ml ?? null) ?? undefined;
+  const tabs = advisedAmount('rootTab', bed.advice) ?? undefined;
 
   return (
     <Widget
@@ -45,12 +49,21 @@ export function NutrientsWidget({
       className={className}
       footer={
         <>
-          <VerbButton
-            label={actLabel('dose', advice?.ml)}
-            hot={advice !== null}
-            onClick={() => onAct('dose', advice?.ml)}
-          />
-          <p className="text-[12px] text-ink-3">1 ml moves {perMl}</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <VerbButton
+              label={actLabel('dose', ml)}
+              hot={ml !== undefined}
+              onClick={() => onAct('dose', ml)}
+            />
+            <p className="text-[12px] text-ink-3">1 ml moves {perMl}</p>
+          </div>
+          {!bed.bare && (
+            <VerbButton
+              label={actLabel('rootTab', tabs)}
+              hot={tabs !== undefined}
+              onClick={() => onAct('rootTab', tabs)}
+            />
+          )}
         </>
       }
     >

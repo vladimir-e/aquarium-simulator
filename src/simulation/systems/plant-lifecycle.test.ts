@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  calculateShedding,
-  shouldPlantDie,
-  calculateDeathWaste,
-  isPlantableSize,
-} from './plant-lifecycle.js';
+import { calculateShedding, calculateDeathWaste } from './plant-lifecycle.js';
 import { plantsDefaults } from '../config/plants.js';
 import { fullRateUnits } from '../plants/canopy.js';
 import type { Plant } from '../state.js';
@@ -50,7 +45,7 @@ describe('calculateShedding', () => {
     const result = calculateShedding({ ...plant, condition: 20 });
 
     expect(result.wasteProduced).toBeCloseTo(
-      result.sizeReduction * fullRateUnits('java_fern') * plantsDefaults.wastePerSize,
+      result.sizeReduction * fullRateUnits('java_fern') * plantsDefaults.tissuePerSize,
       12
     );
   });
@@ -69,30 +64,6 @@ describe('calculateShedding', () => {
       fullRateUnits('amazon_sword') / fullRateUnits('monte_carlo'),
       12
     );
-  });
-});
-
-describe('shouldPlantDie', () => {
-  it('kills a plant at condition 0 or with too little of it left', () => {
-    const threshold = plantsDefaults.deathSizeThreshold;
-    expect(shouldPlantDie(makePlant({ size: 50, condition: 1 }))).toBe(false);
-    expect(shouldPlantDie(makePlant({ size: 50, condition: 0 }))).toBe(true);
-    expect(shouldPlantDie(makePlant({ size: threshold, condition: 50 }))).toBe(false);
-    expect(shouldPlantDie(makePlant({ size: threshold * 0.9, condition: 50 }))).toBe(true);
-  });
-});
-
-describe('isPlantableSize', () => {
-  it('admits a size with some tissue, up to a full unit, that the next tick would not retire, whatever the threshold', () => {
-    for (const deathSizeThreshold of [-1, 0, 0.5, 5]) {
-      const config = { ...plantsDefaults, deathSizeThreshold };
-      for (const size of [-1, 0, 0.25, 0.5, 4.9, 5, 50, 100]) {
-        const lives = size > 0 && !shouldPlantDie(makePlant({ size }), config);
-        expect(isPlantableSize(size, config)).toBe(lives);
-      }
-      expect(isPlantableSize(100.5, config)).toBe(false);
-      expect(isPlantableSize(NaN, config)).toBe(false);
-    }
   });
 });
 

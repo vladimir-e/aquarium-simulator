@@ -3,6 +3,7 @@ import {
   applyAction,
   calculateFloorArea,
   calculateNutrientSufficiency,
+  tankPools,
   calculateSurface,
   createSimulation,
   floorCover,
@@ -14,18 +15,21 @@ import {
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG, MAX_SUFFICIENCY_EDGE, NUTRIENTS } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, mapNutrients, MAX_SUFFICIENCY_EDGE, NUTRIENTS, type Nutrient } from '../../simulation/config/index.js';
+import { getMassFromPpm } from '../../simulation/resources/index.js';
 import { speciesHalfSaturation } from '../../simulation/systems/nutrients.js';
 import { MAX_DOSE_ML } from '../../simulation/actions/dose.js';
 import { produce } from 'immer';
 import {
   algaeReading,
   algaeStatus,
+  bedReading,
   doseDeltas,
   doseToCover,
   floorPlanted,
   formatDose,
   nutrientAlert,
+  nutrientProbe,
   nutrientReadings,
   groupPlantsBySpecies,
   plantLabels,
@@ -53,6 +57,10 @@ function planted(species: PlantSpecies[], capacity = 200): SimulationState {
   );
   expect(state.plants).toHaveLength(species.length);
   return state;
+}
+
+function alertOn(state: SimulationState): ReturnType<typeof nutrientAlert> {
+  return nutrientAlert(nutrientReadings(state, DEFAULT_CONFIG), bedReading(state, DEFAULT_CONFIG));
 }
 
 function dosed(state: SimulationState, ml: number): SimulationState {
@@ -376,14 +384,14 @@ describe('nutrientReadings', () => {
       const water = state.resources.water;
       const atNeed = { ...state.resources };
       for (const reading of nutrientReadings(state, config)) atNeed[reading.key] = reading.needed * water;
-      expect(calculateNutrientSufficiency(atNeed, water, 'monte_carlo', config.nutrients)).toBeCloseTo(edge, 6);
+      expect(calculateNutrientSufficiency(tankPools({ ...state, resources: atNeed }), 'monte_carlo', config.nutrients)).toBeCloseTo(edge, 6);
     }
   });
 
   it('has nothing to be short of when nothing is planted', () => {
     const readings = nutrientReadings(tank(), DEFAULT_CONFIG);
     expect(readings.map((r) => r.neededText)).toEqual(['—', '—', '—', '—']);
-    expect(nutrientAlert(readings)).toBeNull();
+    expect(alertOn(tank())).toBeNull();
   });
 
   it('fills each track against that need and stops at full', () => {
@@ -400,8 +408,7 @@ describe('nutrientReadings', () => {
 
 describe('nutrientAlert', () => {
   it('names the single deficiency, and says once when nothing is dosed at all', () => {
-    const bare = nutrientReadings(planted(['monte_carlo']), DEFAULT_CONFIG);
-    expect(nutrientAlert(bare)).toEqual({ text: 'nothing dosed', status: 'alert' });
+    expect(alertOn(planted(['monte_carlo']))).toEqual({ text: 'nothing dosed', status: 'alert' });
 
     const state = planted(['monte_carlo']);
     const fed = {
@@ -413,7 +420,7 @@ describe('nutrientAlert', () => {
         potassium: state.resources.water * 10,
       },
     };
-    expect(nutrientAlert(nutrientReadings(fed, DEFAULT_CONFIG))).toEqual({
+    expect(alertOn(fed)).toEqual({
       text: 'Fe depleted',
       status: 'alert',
     });
@@ -426,9 +433,140 @@ describe('nutrientAlert', () => {
       resources: { ...state.resources, nitrate: state.resources.water * 20 },
     };
     const dosedALittle = dosed(partly, 4);
-    expect(nutrientAlert(nutrientReadings(dosedALittle, DEFAULT_CONFIG))).toEqual({
+    expect(alertOn(dosedALittle)).toEqual({
       text: '3 nutrients low',
       status: 'warn',
+    });
+  });
+});
+
+describe('bedReading', () => {
+  const tab = (state: SimulationState, count: number): SimulationState =>
+    applyAction(state, { type: 'rootTab', count }).state;
+  const fed = (state: SimulationState): SimulationState =>
+    produce(state, (draft) => {
+      for (const r of nutrientReadings(state, DEFAULT_CONFIG)) draft.resources[r.key] = 2 * r.needed * state.resources.water;
+    });
+  const sword = (): SimulationState => fed(planted(['amazon_sword']));
+
+  it('holds nothing back over a bare bottom where nothing roots', () => {
+    expect(bedReading(createSimulation({ tankCapacity: 200 }), DEFAULT_CONFIG)).toMatchObject({
+      bare: true,
+      limiting: false,
+      advice: null,
+      status: 'neutral',
+    });
+  });
+
+  it('reads a sword over a bare bottom starving, and advises no tab the bottom cannot take', () => {
+    const state = produce(sword(), (draft) => {
+      draft.equipment.substrate.type = 'none';
+    });
+    expect(bedReading(state, DEFAULT_CONFIG)).toMatchObject({ bare: true, limiting: true, advice: null, status: 'alert' });
+    expect(alertOn(state)).toEqual({ text: 'no bed', status: 'alert' });
+  });
+
+  it('advises no tabs while the bed lacks a nutrient the tab carries none of, and still reads it short', () => {
+    const ironless = {
+      ...DEFAULT_CONFIG,
+      nutrients: { ...DEFAULT_CONFIG.nutrients, rootTab: { ...DEFAULT_CONFIG.nutrients.rootTab, iron: 0 } },
+    };
+    const bedded = (bed: Partial<Record<Nutrient, number>>): SimulationState =>
+      produce(sword(), (draft) => {
+        draft.equipment.substrate.nutrients = { nitrate: 1e6, phosphate: 1e6, potassium: 1e6, iron: 1e6, ...bed };
+      });
+
+    expect(bedReading(bedded({ iron: 0 }), ironless)).toMatchObject({ limiting: true, advice: null, status: 'warn' });
+    expect(bedReading(bedded({ iron: 0, nitrate: 0 }), ironless)).toMatchObject({ limiting: true, advice: null });
+    expect(bedReading(bedded({ nitrate: 0 }), ironless).advice).toBeGreaterThanOrEqual(1);
+  });
+
+  it('counts the bed in the tabs pushed into it', () => {
+    expect(bedReading(tab(tank(), 2), DEFAULT_CONFIG)!.tabs).toBeCloseTo(2, 10);
+  });
+
+  it('reads a sword starving on an empty bed, however well dosed the water', () => {
+    const state = sword();
+    const readings = nutrientReadings(state, DEFAULT_CONFIG);
+    const bed = bedReading(state, DEFAULT_CONFIG)!;
+
+    expect(readings.some((r) => r.limiting)).toBe(false);
+    expect(calculateNutrientSufficiency(tankPools(state), 'amazon_sword', DEFAULT_CONFIG.nutrients)).toBeLessThan(
+      DEFAULT_CONFIG.plants.sufficiencyEdge
+    );
+    expect(bed).toMatchObject({ limiting: true, status: 'alert' });
+    expect(nutrientAlert(readings, bed)).toEqual({ text: 'bed empty', status: 'alert' });
+  });
+
+  it('advises the tabs that lift the bed to its root feeders’ need, and reads it met once they are in', () => {
+    const state = sword();
+    const { advice } = bedReading(state, DEFAULT_CONFIG)!;
+    const tabbed = bedReading(tab(state, advice!), DEFAULT_CONFIG)!;
+
+    expect(tabbed).toMatchObject({ limiting: false, advice: null, status: 'ok' });
+    expect(tabbed.tabs).toBeGreaterThanOrEqual(tabbed.needed);
+    expect(calculateNutrientSufficiency(tankPools(tab(state, advice!)), 'amazon_sword', DEFAULT_CONFIG.nutrients)).toBeGreaterThanOrEqual(
+      DEFAULT_CONFIG.plants.sufficiencyEdge
+    );
+  });
+
+  it('reads short, amber, on a bed holding some of what its root feeders need', () => {
+    const bed = bedReading(tab(sword(), 1), DEFAULT_CONFIG)!;
+    expect(bed).toMatchObject({ limiting: true, status: 'warn' });
+    expect(bed.tabs).toBeLessThan(bed.needed);
+  });
+
+  it('reads value and band on one nutrient, so the marker sits in the band exactly when the bed reads met', () => {
+    const state = fed(planted(['amazon_sword'], 75.7));
+    const tab = DEFAULT_CONFIG.nutrients.rootTab;
+    const need = mapNutrients((n) => getMassFromPpm(nutrientProbe(state, DEFAULT_CONFIG).need.bed[n], 75.7));
+    const inTabs = (mg: number, n: Nutrient): number => mg / tab[n];
+    expect(inTabs(need.phosphate, 'phosphate')).toBeLessThan(inTabs(need.nitrate, 'nitrate'));
+
+    const phosphateMetShortOfNitrateInTabs = 1.1 * ((need.phosphate + (need.nitrate * tab.phosphate) / tab.nitrate) / 2);
+    const bedded = (nitrate: number): SimulationState =>
+      produce(state, (draft) => {
+        draft.equipment.substrate.nutrients = {
+          nitrate,
+          phosphate: phosphateMetShortOfNitrateInTabs,
+          potassium: 3 * need.potassium,
+          iron: 3 * need.iron,
+        };
+      });
+
+    const met = bedReading(bedded(1.1 * need.nitrate), DEFAULT_CONFIG)!;
+    expect(met).toMatchObject({ nutrient: 'nitrate', status: 'ok' });
+    expect(met.tabs).toBeGreaterThanOrEqual(met.needed);
+    expect(met.tabs).toBeLessThanOrEqual(met.scale);
+
+    const short = bedReading(bedded(0.5 * need.nitrate), DEFAULT_CONFIG)!;
+    expect(short.status).toBe('warn');
+    expect(short.tabs).toBeLessThan(short.needed);
+  });
+
+  it('needs what its advice covers: the advised tabs lift the reading past every nutrient’s need', () => {
+    const state = produce(sword(), (draft) => {
+      draft.equipment.substrate.nutrients = { nitrate: 800, phosphate: 5, potassium: 0, iron: 0 };
+    });
+    const bed = bedReading(state, DEFAULT_CONFIG)!;
+    const tabbed = bedReading(tab(state, bed.advice!), DEFAULT_CONFIG, undefined, bed.nutrient)!;
+
+    expect(bed.tabs + bed.advice!).toBeGreaterThanOrEqual(bed.needed);
+    expect(bed.tabs + bed.advice! - 1).toBeLessThan(bed.needed);
+    expect(tabbed).toMatchObject({ nutrient: bed.nutrient, status: 'ok' });
+    expect(tabbed.needed).toBeCloseTo(bed.needed, 10);
+  });
+
+  it('asks nothing of the bed where nothing roots in it', () => {
+    const bed = bedReading(fed(planted(['java_fern'])), DEFAULT_CONFIG)!;
+    expect(bed).toMatchObject({ needed: 0, neededText: '—', limiting: false, advice: null, status: 'neutral' });
+  });
+
+  it('names the water’s shortage beside the bed’s, at the worse tone', () => {
+    const state = planted(['amazon_sword']);
+    expect(alertOn(state)).toEqual({
+      text: 'nothing dosed · bed empty',
+      status: 'alert',
     });
   });
 });
@@ -445,7 +583,8 @@ describe('dose arithmetic', () => {
   it('recommends a dose that actually clears the deficit when the engine applies it', () => {
     const state = planted(['monte_carlo'], 40);
     const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG);
-    expect(advice).toMatchObject({ overSingleDose: false, covers: ['NO₃', 'PO₄', 'K', 'Fe'] });
+    expect(advice).toMatchObject({ covers: ['NO₃', 'PO₄', 'K', 'Fe'] });
+    expect(advice!.ml).toBeLessThanOrEqual(MAX_DOSE_ML);
 
     const after = dosed(state, advice?.ml ?? 0);
     expect(nutrientReadings(after, DEFAULT_CONFIG).some((r) => r.limiting)).toBe(false);
@@ -457,7 +596,7 @@ describe('dose arithmetic', () => {
   it('says when covering the deficit takes more than one dose', () => {
     const state = planted(['monte_carlo']);
     const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG);
-    expect(advice).toMatchObject({ overSingleDose: true, covers: ['NO₃', 'PO₄', 'K', 'Fe'] });
+    expect(advice).toMatchObject({ covers: ['NO₃', 'PO₄', 'K', 'Fe'] });
     expect(advice!.ml).toBeGreaterThan(MAX_DOSE_ML);
     expect(applyAction(state, { type: 'dose', amountMl: advice!.ml }).state).toBe(state);
   });

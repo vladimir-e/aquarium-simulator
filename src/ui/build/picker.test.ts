@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  applyAction,
   createSimulation,
+  DEFAULT_CONFIG,
   FISH_SPECIES_DATA,
   getMaxFishMass,
   calculateFloorArea,
@@ -13,6 +15,7 @@ import {
 import { getGhMass } from '../../simulation/resources/index.js';
 import { pickerOptions, type PickerOption } from './picker';
 import { bioload } from './stocking';
+import { bedReading, type BedReading } from '../run';
 
 function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
   return {
@@ -51,11 +54,11 @@ function option(options: PickerOption[], species: string): PickerOption {
 }
 
 function fish(state: SimulationState, count = 1): PickerOption[] {
-  return pickerOptions('fish', state, count, 'metric');
+  return pickerOptions('fish', state, count, 'metric', bedReading(state, DEFAULT_CONFIG));
 }
 
-function plants(state: SimulationState): PickerOption[] {
-  return pickerOptions('plant', state, 1, 'metric');
+function plants(state: SimulationState, bed: BedReading = bedReading(state, DEFAULT_CONFIG)): PickerOption[] {
+  return pickerOptions('plant', state, 1, 'metric', bed);
 }
 
 describe('fish options', () => {
@@ -147,11 +150,6 @@ describe('plant options', () => {
   });
 
   it('agrees with the engine’s floor check on the line and the headroom, to the last unit', () => {
-    const soil = (capacity: number): SimulationState => {
-      const state = tank(capacity);
-      state.equipment.substrate.type = 'aqua_soil';
-      return state;
-    };
     const carpet = GROWTH_FORMS.carpet.footprintCm2;
     const brim = Array.from({ length: 2000 }, (_, i) => i + 20).find(
       (capacity) => calculateFloorArea(capacity) % carpet >= carpet - 0.5
@@ -159,11 +157,11 @@ describe('plant options', () => {
     const edge = Math.floor(calculateFloorArea(brim) / carpet);
 
     const tanks = [
-      planted(edge, 'monte_carlo', soil(brim)),
-      planted(1, 'java_fern', soil(19)),
-      planted(floorFull, 'java_fern', soil(19)),
-      planted(3, 'amazon_sword', soil(200)),
-      planted(40, 'monte_carlo', soil(200)),
+      planted(edge, 'monte_carlo', tank(brim)),
+      planted(1, 'java_fern', tank(19)),
+      planted(floorFull, 'java_fern', tank(19)),
+      planted(3, 'amazon_sword', tank(200)),
+      planted(40, 'monte_carlo', tank(200)),
     ];
     for (const state of tanks) {
       for (const candidate of plants(state)) {
@@ -186,6 +184,24 @@ describe('plant options', () => {
     }
   });
 
+  it('tells a root feeder over an empty bed that its roots need tabs, without refusing it', () => {
+    const gravel = tank(200);
+    gravel.equipment.substrate.type = 'gravel';
+    const empty = plants(gravel, bedReading(gravel, DEFAULT_CONFIG));
+    const tabbed = applyAction(gravel, { type: 'rootTab', count: 2 }).state;
+
+    expect(option(empty, 'amazon_sword')).toMatchObject({ note: 'Its roots need tabs — the bed is empty.', refusal: null });
+    expect(option(empty, 'java_fern').note).toBeNull();
+    expect(option(plants(tabbed, bedReading(tabbed, DEFAULT_CONFIG)), 'amazon_sword').note).toBeNull();
+  });
+
+  it('tells a root feeder over a bare bottom that its roots have no bed', () => {
+    const bare = tank(200);
+    expect(bedReading(bare, DEFAULT_CONFIG).bare).toBe(true);
+    expect(option(plants(bare), 'amazon_sword')).toMatchObject({ note: 'Its roots have no bed to feed from.', refusal: null });
+    expect(option(plants(bare), 'monte_carlo').note).toBeNull();
+  });
+
   it('refuses in the action’s own words once the floor is taken', () => {
     const state = planted(floorFull, 'java_fern');
     const anubias = option(plants(state), 'anubias');
@@ -194,11 +210,9 @@ describe('plant options', () => {
     expect(anubias.refusal).toBe(checkPlantFootprint(state.plants, 'anubias', 19).message);
   });
 
-  it('names the substrate before the floor — a full tank is the lesser problem', () => {
-    const state = planted(floorFull, 'java_fern');
-    const carpet = option(plants(state), 'monte_carlo');
-
+  it('offers every species over a bare bottom — the bed decides how a plant feeds, not whether it goes in', () => {
+    const state = tank(200);
     expect(state.equipment.substrate.type).toBe('none');
-    expect(carpet.refusal).toContain('aqua soil');
+    for (const candidate of plants(state)) expect(candidate.refusal).toBeNull();
   });
 });

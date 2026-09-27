@@ -5,14 +5,11 @@
 import { produce } from 'immer';
 import { calculateFloorArea, type Plant, type SimulationState } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
-import type { SubstrateType } from '../equipment/substrate.js';
 import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
 import { floorShare, plantedFootprint } from '../plants/canopy.js';
 import { createLog } from '../core/logging.js';
-import { createPlant, DEFAULT_PLANT_SIZE } from '../plants/create-plant.js';
+import { createPlant, DEFAULT_PLANT_SIZE, isPlantableSize, MIN_PLANTABLE_SIZE } from '../plants/create-plant.js';
 import { disturbBed } from '../equipment/index.js';
-import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
-import { isPlantableSize } from '../systems/plant-lifecycle.js';
 import type { ActionResult, AddPlantAction, RemovePlantAction } from './types.js';
 
 export interface PlantFootprintResult {
@@ -54,63 +51,9 @@ export function canAddPlant(state: SimulationState, species: PlantSpecies): bool
 }
 
 /**
- * Check if a plant species is compatible with the current substrate.
- * - Plants with 'none' substrate requirement can always be added (attach to hardscape)
- * - Plants with 'sand' requirement need sand or aqua_soil substrate
- * - Plants with 'aqua_soil' requirement need aqua_soil substrate
+ * Add a plant to the tank, at a size between `MIN_PLANTABLE_SIZE` and a full unit.
  */
-export function isSubstrateCompatible(
-  plantSpecies: PlantSpecies,
-  substrateType: SubstrateType
-): boolean {
-  const requirement = PLANT_SPECIES_DATA[plantSpecies].substrateRequirement;
-
-  switch (requirement) {
-    case 'none':
-      // Epiphytes attach to hardscape, no substrate needed
-      return true;
-    case 'sand':
-      // Needs at least sand, aqua_soil also works
-      return substrateType === 'sand' || substrateType === 'aqua_soil';
-    case 'aqua_soil':
-      // Needs nutrient-rich substrate
-      return substrateType === 'aqua_soil';
-    default:
-      return false;
-  }
-}
-
-/**
- * Get a human-readable explanation of why a plant is incompatible.
- */
-export function getSubstrateIncompatibilityReason(
-  plantSpecies: PlantSpecies,
-  substrateType: SubstrateType
-): string | null {
-  if (isSubstrateCompatible(plantSpecies, substrateType)) {
-    return null;
-  }
-
-  const plantData = PLANT_SPECIES_DATA[plantSpecies];
-  const requirement = plantData.substrateRequirement;
-
-  if (requirement === 'sand') {
-    return `${plantData.name} requires sand or aqua soil substrate`;
-  }
-  if (requirement === 'aqua_soil') {
-    return `${plantData.name} requires nutrient-rich aqua soil substrate`;
-  }
-  return `${plantData.name} is not compatible with current substrate`;
-}
-
-/**
- * Add a plant to the tank, at a size between `deathSizeThreshold` and a full unit.
- */
-export function addPlant(
-  state: SimulationState,
-  action: AddPlantAction,
-  plantsConfig: PlantsConfig = plantsDefaults
-): ActionResult {
+export function addPlant(state: SimulationState, action: AddPlantAction): ActionResult {
   const { species, initialSize = DEFAULT_PLANT_SIZE } = action;
 
   // Validate species
@@ -121,26 +64,16 @@ export function addPlant(
     };
   }
 
-  if (!isPlantableSize(initialSize, plantsConfig)) {
+  if (!isPlantableSize(initialSize)) {
     return {
       state,
-      message: `Invalid initial size: ${initialSize}% (must be ${plantsConfig.deathSizeThreshold}–100%)`,
+      message: `Invalid initial size: ${initialSize}% (must be ${MIN_PLANTABLE_SIZE}–100%)`,
     };
   }
 
   const footprint = checkPlantFootprint(state.plants, species, state.tank.capacity);
   if (!footprint.ok) {
     return { state, message: footprint.message };
-  }
-
-  // Check substrate compatibility
-  const substrateType = state.equipment.substrate.type;
-  if (!isSubstrateCompatible(species, substrateType)) {
-    const reason = getSubstrateIncompatibilityReason(species, substrateType);
-    return {
-      state,
-      message: reason ?? 'Plant is not compatible with current substrate',
-    };
   }
 
   const plantData = PLANT_SPECIES_DATA[species];
@@ -188,7 +121,7 @@ export function removePlant(
 
   const newState = produce(state, (draft) => {
     draft.plants.splice(plantIndex, 1);
-    if (plantData.substrateRequirement !== 'none') {
+    if (plantData.growthForm !== 'attached') {
       disturbBed(draft, floorShare(plant.species, draft.tank.capacity));
     }
 

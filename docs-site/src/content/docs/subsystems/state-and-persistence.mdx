@@ -25,7 +25,7 @@ it was handed, so the state a tick began with is still readable when it ends.
 | Declared ranges | <Badge text="settled" variant="success" /> | Every tunable declares its bounds beside its label and unit, and a test walks every leaf — a new tunable without a range is a caught defect, not a silent one. |
 | Versioned saves | <Badge text="settled" variant="success" /> | One integer, no migration shims. A mismatch discards the stored tank rather than reading old numbers under new meanings. |
 | Nitrogen-cycle bounds | <Badge text="scaffolding" variant="caution" /> | The one section with unbounded leaves: only its two oxygen half-saturation constants declare a range, so a writer asking for any of the others gets nothing to hold them to. |
-| `'cycled'` seeding | <Badge text="settled" variant="success" /> | Resolved against the tank: the colony sized to its stock and bed at rest, floored at a share of its surface ceiling; the bed, nitrate and hardness off its capacity and tap. |
+| `'cycled'` seeding | <Badge text="settled" variant="success" /> | Resolved against the tank: the colony sized to its stock and bed at rest, floored at a share of its surface ceiling; the bed, the water's nutrients and hardness off its capacity and tap. |
 | Unnamed streams | <Badge text="scaffolding" variant="caution" /> | A tank with no named seed takes one off the clock plus a count of streams opened in this process. Two tanks in separate processes have only the millisecond between them. |
 | Section recovery on load | <Badge text="scaffolding" variant="caution" /> | Sections validate independently, but a refused config section is replaced wholesale rather than leaf by leaf — so one bad number costs every tuned constant in the file. |
 | Log persistence | <Badge text="missing" variant="danger" /> | Logs are outside the persisted shape. A reload returns the tank's whole biology and none of its history. |
@@ -92,7 +92,7 @@ again the way it first was: a retuned tap re-resolves KH and GH through it
 | Seedable | Accepts |
 |---|---|
 | `bacteria` | Absolute AOB and NOB counts, or the literal `'cycled'` |
-| `substrate` | The bed's remaining organic and KH reserves |
+| `substrate` | The bed's remaining organic and KH reserves, and its nutrient store |
 | `resources` | The three nitrogen compounds, the four nutrients, KH, GH, and both dissolved gases |
 | `fish` | Groups of species, count, age, sex and stage |
 | `plants` | Groups of species, count, size and age |
@@ -159,9 +159,10 @@ browser storage.
 | `CYCLED_AOB_COVERAGE` | Share of its surface ceiling a `'cycled'` AOB colony covers, rounded up off fishless soil tanks on day 30 (1.3–1.8 %, a 5 gal sponge to a 150 gal canister) | `0.02` |
 | `CYCLED_NOB_COVERAGE` | NOB coverage, off the same measurement (0.7–0.9 %) and rounded the same way | `0.01` |
 | `CYCLED_RESERVE_FRACTION` | Share of a fresh bed's organics still in it on day 30 — one curve every bed type follows | `0.1` |
+| `CYCLED_BED_NUTRIENT_FRACTION` | Share of a fresh bed's nutrient store left on day 30 — a plantless month of the leak, rounded down | `0.85` |
 | `CYCLED_SOIL_KH_RESERVE_FRACTION` | Share of a fresh soil bed's KH reserve left on day 30 under weekly 25 % changes | `0.8` |
 | `CYCLED_SOIL_KH_RETAINED` | Share of the tap's KH an aqua soil tank holds a month in, under weekly 25 % changes; inert beds keep all of it | `0.15` |
-| `CYCLED_NITRATE_RETAINED` | Share of the leached nitrogen still in the water, rounded to the low side because the handed-over tank has just been changed | `0.25` |
+| `CYCLED_WATER_RETAINED` | Share of what the bed leached and leaked still in the water, rounded to the low side because the handed-over tank has just been changed | `0.25` |
 | `HARDINESS_OFFSET_SPAN` | Per-individual hardiness spread, as a fraction of the species baseline | `0.15` |
 | Tank capacity bounds | What the save schema will accept as a tank | `1`–`10000` L |
 
@@ -169,10 +170,10 @@ browser storage.
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | A seed writes both colonies, and `'cycled'` writes the nitrate a month of leaching left behind |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | A seed writes both colonies, and `'cycled'` writes the nitrate a month of the bed's leaching and leak left behind |
 | [Equipment](/subsystems/equipment/) | `substrate.type`, which decides what a `'cycled'` bed resolves to | The bed's remaining reserves |
 | [Livestock](/subsystems/livestock/) | — | Seeded rosters, built through the same factory stocking uses and drawing on the same stream |
-| [Plants](/subsystems/plants/) | — | Seeded plantings, at a named size and age, each founding its own family at full condition with an empty bank; the draw stream for every unit's vigour and id, offshoots included |
+| [Plants](/subsystems/plants/) | — | Seeded plantings, at a named plantable size and age, each founding its own family at full condition with an empty bank; the draw stream for every unit's vigour and id, offshoots included |
 | [Water & gases](/subsystems/water-and-gases/) | `tapKh` and `tapGh`, which a `'cycled'` KH and GH resolve against | Both dissolved gases, KH and GH, where a seed names them |
 | [Environment](/subsystems/environment/) | `tank.capacity` — every per-litre seed figure resolves against it | — |
 | [Actions](/subsystems/actions/) | — | Supplies the draw stream for ids and the scrub's bite, and takes back the advanced position |

@@ -27,6 +27,7 @@ import { calculateNutrientSufficiency } from '../systems/nutrients.js';
 import { nutrientsDefaults, type Nutrient } from '../config/nutrients.js';
 import { scheduledLightByHour } from '../equipment/light.js';
 import { plantRecord } from '../tests/plant.js';
+import { mirroredPools } from '../tests/pools.js';
 
 type Unit = Pick<Plant, 'species' | 'size'>;
 
@@ -191,7 +192,7 @@ describe('the regulator', () => {
         resources: hour,
         waterVolume: resources.water,
         plantsConfig: plantsDefaults,
-        nutrientSufficiency: calculateNutrientSufficiency(resources, resources.water, species, nutrientsDefaults),
+        nutrientSufficiency: calculateNutrientSufficiency(mirroredPools(resources), species, nutrientsDefaults),
         algaeMass: 0,
         light: lightAtHeight(plant, canopy, hour, DEPTH),
       };

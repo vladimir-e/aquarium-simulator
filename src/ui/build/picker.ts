@@ -1,8 +1,8 @@
 /**
  * The construction pickers: every species the engine can stock, what it asks
  * of the tank, and how this tank would take it. A refusal is the engine's own
- * message — the capacity line and the substrate reason come from the actions
- * that would reject the commit, never from a paraphrase of them here.
+ * message — the capacity line comes from the action that would reject the
+ * commit, never from a paraphrase of it here.
  */
 
 import {
@@ -12,8 +12,6 @@ import {
   getDgh,
   getMaxFishMass,
   getPh,
-  getSubstrateIncompatibilityReason,
-  isSubstrateCompatible,
   PLANT_SPECIES_DATA,
   totalFishMass,
   type FishSpeciesData,
@@ -21,7 +19,7 @@ import {
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
-import type { Status } from '../run';
+import { feedsFromBed, printsAsZero, TAB_DECIMALS, type BedReading, type Status } from '../run';
 import { bioload } from './stocking.js';
 import { lightTier } from './scape.js';
 import {
@@ -44,6 +42,8 @@ export interface PickerOption {
   headroom: number;
   /** Why none can go in, in the engine's words. */
   refusal: string | null;
+  /** What to know before committing that the rows don't say. */
+  note: string | null;
 }
 
 export const FISH_SPECIES: FishSpecies[] = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
@@ -125,25 +125,34 @@ function fishOption(
     status: worst ? 'warn' : load.status === 'ok' ? 'neutral' : load.status,
     headroom,
     refusal: capacity.ok ? null : capacity.message,
+    note: 'Sex is random.',
   };
 }
 
-function plantOption(state: SimulationState, species: PlantSpecies): PickerOption {
+/** A root feeder's word on a bed with nothing in it for its roots. */
+function rootNote(species: PlantSpecies, bed: BedReading): string | null {
+  if (!feedsFromBed(species)) return null;
+  if (bed.bare) return 'Its roots have no bed to feed from.';
+  return printsAsZero(bed.tabs, TAB_DECIMALS) ? 'Its roots need tabs — the bed is empty.' : null;
+}
+
+function plantOption(
+  state: SimulationState,
+  species: PlantSpecies,
+  bed: BedReading
+): PickerOption {
   const data = PLANT_SPECIES_DATA[species];
-  const substrate = state.equipment.substrate.type;
-  const compatible = isSubstrateCompatible(species, substrate);
   const footprint = checkPlantFootprint(state.plants, species, state.tank.capacity);
-  const headroom = Math.floor(footprint.free / footprint.needed);
-  const reason = getSubstrateIncompatibilityReason(species, substrate);
 
   return {
     species,
     name: data.name,
     demand: `${data.nutrientDemand} demand · ${lightTier(species)} light · ${data.co2Requirement} CO₂`,
-    fit: compatible ? `${Math.floor(footprint.free)} cm² of floor free` : (reason ?? ''),
-    status: compatible && footprint.ok ? 'neutral' : 'warn',
-    headroom: compatible ? headroom : 0,
-    refusal: !compatible ? reason : footprint.ok ? null : footprint.message,
+    fit: `${Math.floor(footprint.free)} cm² of floor free`,
+    status: footprint.ok ? 'neutral' : 'warn',
+    headroom: Math.floor(footprint.free / footprint.needed),
+    refusal: footprint.ok ? null : footprint.message,
+    note: rootNote(species, bed),
   };
 }
 
@@ -152,9 +161,10 @@ export function pickerOptions(
   kind: PickerKind,
   state: SimulationState,
   count: number,
-  units: UnitSystem
+  units: UnitSystem,
+  bed: BedReading
 ): PickerOption[] {
   return kind === 'fish'
     ? FISH_SPECIES.map((species) => fishOption(state, species, count, units))
-    : PLANT_SPECIES.map((species) => plantOption(state, species));
+    : PLANT_SPECIES.map((species) => plantOption(state, species, bed));
 }

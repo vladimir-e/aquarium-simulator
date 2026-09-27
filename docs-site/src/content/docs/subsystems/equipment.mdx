@@ -11,7 +11,7 @@ Every fitting a tank can carry, and the two ways one acts. A **passive**
 contributor is recomputed from scratch at the top of each tick into one of four
 shared resources — surface, flow, light, aeration — so unplugging a filter takes
 its contribution away the same hour. An **active** emitter pushes a delta
-instead: heat, water, CO₂, fertiliser, or the bed's own organics.
+instead: heat, water, CO₂, fertiliser, or the bed's own organics and nutrients.
 
 ## Status
 
@@ -21,13 +21,15 @@ instead: heat, water, CO₂, fertiliser, or the bed's own organics.
 | Surface as colony ceiling | <Badge text="settled" variant="success" /> | Every colonisable cm² in one number, and the biofilm is a stock spread over it. Surface leaving the tank takes its share of the colony. |
 | Passive resources hold no state | <Badge text="settled" variant="success" /> | Rebuilt each tick from the fittings that are there. Nothing accumulates, so nothing can go stale. |
 | The bed as an ammonia source | <Badge text="settled" variant="success" /> | A per-litre organic reserve releasing a fraction of what it holds each tick, refilled by waste settling in as mulm. |
+| The bed as a nutrient store | <Badge text="settled" variant="success" /> | N, P, K and Fe the bed holds for root feeders: aqua soil comes charged, root tabs refill any bed, and a share leaks into the water each tick. |
+| Tab placement | <Badge text="scaffolding" variant="caution" /> | The store is mixed through the whole bed: a tab feeds every root in the tank, not the plant it was pushed beside, so a big tank dilutes it. |
 | CO₂ as a metered mass | <Badge text="settled" variant="success" /> | Bubble rate buys milligrams, not ppm, so an evaporated tank reads higher off the same setting. |
 | Heater thermostat | <Badge text="scaffolding" variant="caution" /> | A switch: full wattage below setpoint, nothing at or above it. No hysteresis, no proportional band, and no failure state. |
 | Air pump sizing | <Badge text="scaffolding" variant="caution" /> | Four capacity bands, not a rate. A 151 L tank gets twice the air of a 150 L one on the far side of the same step. |
 | Aeration as a boolean | <Badge text="scaffolding" variant="caution" /> | On or off. A sponge filter in a nano and a full air stone in a 400 L deliver the identical multiplier and the identical direct O₂. |
 | Lid | <Badge text="scaffolding" variant="caution" /> | Four hardcoded multipliers outside `config/`, and they reach evaporation only. |
 | ATO trigger | <Badge text="scaffolding" variant="caution" /> | A switch at 99 % of capacity that refills to exactly 100 % in a single tick, however far it fell. |
-| The doser | <Badge text="settled" variant="success" /> | A set volume of one fertiliser formula, once a day. The plants draw on their own need rather than the bottle's ratio ([Plants](/subsystems/plants/#nutrition)), so the water drifts toward whatever the planting leaves behind. |
+| The doser | <Badge text="settled" variant="success" /> | A set volume of one fertiliser formula, once a day. The plants draw at their tissue's recipe rather than the bottle's ratio ([Plants](/subsystems/plants/#a-plant-is-made-of-its-nutrients)), so the water drifts toward whatever the planting leaves behind. |
 | Hardscape and bed chemistry | <Badge text="scaffolding" variant="caution" /> | Calcite adds KH and GH, driftwood spends KH, aqua soil spends both. Wood and soil draw on finite hand-set reserves that taper as they are spent; calcite never runs out. |
 | Filter class limits | <Badge text="scaffolding" variant="caution" /> | `maxCapacityLiters` is display only — the tick never reads it. A sponge on a 500 L tank is undersized in the readout and unpunished in the model. |
 | Wear, clogging, failure | <Badge text="missing" variant="danger" /> | No fitting ages, fouls or breaks. Media is never consumed and never cleaned; the only maintenance the engine models at all is swapping the bed. |
@@ -137,10 +139,11 @@ the same tick it was metered.
 ### The bed
 
 Substrate carries independent per-litre properties: colony surface, an organic
-reserve that leaches into the waste pool, and — aqua soil only — a KH reserve
-the bed spends as it strips alkalinity, and the same mg of GH, out of the water. Neither reserve
-refills. What the organics do downstream belongs to the
-[nitrogen cycle](/subsystems/nitrogen-cycle/).
+reserve that leaches into the waste pool, a nutrient store, and — aqua soil
+only — a KH reserve the bed spends as it strips alkalinity, and the same mg of
+GH, out of the water. The KH reserve never refills. What the organics do
+downstream belongs to the [nitrogen cycle](/subsystems/nitrogen-cycle/); how
+roots draw on the store belongs to [Plants](/subsystems/plants/#nutrition).
 
 ### Stocks and rates
 
@@ -148,6 +151,7 @@ refills. What the organics do downstream belongs to the
 |---|---|---|---|
 | `organicReserve` | A bed swap, at the new type's rate × capacity; standing `waste` settling in | `0.3 %` of what remains per tick, into `waste`; disturbance; the gravel vac | g |
 | `khReserve` | A bed swap: `700` mg/L × capacity of aqua soil, none for inert beds | Every mg of KH the bed takes out of the water | mg CaCO₃ |
+| `nutrients` | A bed swap: NO₃ · PO₄ · K · Fe at `50` · `5` · `20` · `1` mg/L × capacity of aqua soil, none for inert beds; root tabs | `bedLeakRate` of what remains per tick, into the water; root feeders' new tissue | mg of each |
 | `tannins` | A new driftwood piece: `3,000` mg; none for other pieces | `tanninLeachRate` of what remains per tick, out of `kh` | mg CaCO₃ |
 | `dosedToday` | Firing the dose | The midnight reset | flag |
 
@@ -162,13 +166,14 @@ makes its contribution reversible the instant a fitting is switched off.
 | `substrateLeachRate` | Share of the bed's remaining reserve released per tick | `0.003` /hr |
 | `wasteSettlingRate` | Share of standing waste settling into the bed per tick in still water | `0.1` /hr |
 | `settlingHalfTurnover` | Tank turnovers an hour at which flow halves settling | `4` /hr |
+| `bedLeakRate` | Share of each nutrient the bed holds that leaks into the water per tick — a half-life of about five months | `0.0002` /hr |
 | `CO2_MASS_RATE` | CO₂ metered per bubble per second, off a ~0.1 mL bubble | `648` mg/hr/bps |
 | `WATER_LEVEL_THRESHOLD` | Fill fraction below which the ATO refills to full | `0.99` |
 | `baseOutputLph` | Air output of the smallest pump band | `60` L/h |
 | `flowPerAirLph` | Share of air output that becomes water movement | `0.1` |
 | `MAX_LIGHT_PAR` | Ceiling on a fixture rating — full noon sun at the surface | `2000` µmol/m²/s |
 
-Only the leach rate lives in `config/`. Every other number on this page is a
+Only the first four rows live in `config/`. Every other number on this page is a
 module constant with no declared range, so the rule that every tunable must
 declare bounds — enforced across the config layer by a test that walks each leaf
 — does not reach the equipment layer at all.
@@ -181,9 +186,9 @@ declare bounds — enforced across the config layer by a test that walks each le
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | `surface` is the colony ceiling; the bed's leach is `waste`, and a bed swap scales both guilds by the surface fraction it kept |
 | [Water & gases](/subsystems/water-and-gases/) | — | `flow` and `aeration` set the exchange rate; CO₂ injection adds `co2`; hardscape and aqua soil move `kh` and `gh`; the ATO blends `oxygen` and `co2` toward tap values and adds tap `kh` and `gh` as it refills |
 | [Light](/subsystems/light/) | — | The fixture's rating and photoperiod are the whole of the light chain's input |
-| [Plants](/subsystems/plants/) | — | The doser writes `nitrate`, `phosphate`, `potassium` and `iron`; the bed decides what can root |
+| [Plants](/subsystems/plants/) | — | The doser writes `nitrate`, `phosphate`, `potassium` and `iron`; the bed's store feeds root feeders and leaks the same four into the water |
 | [Livestock](/subsystems/livestock/) | — | Nothing directly. Fish meet equipment through the water it conditions |
-| [Actions](/subsystems/actions/) | — | Nothing. No verb in the action union reaches a fitting: settings are plain fields the host writes, and a bed swap is an equipment helper of its own — the one such call that costs an organism stock, since both colonies leave with the substrate |
+| [Actions](/subsystems/actions/) | — | A root tab fills the bed's store. No other verb reaches a fitting: settings are plain fields the host writes, and a bed swap is an equipment helper of its own — the one such call that costs an organism stock, since both colonies leave with the substrate |
 | [State & persistence](/subsystems/state-and-persistence/) | — | Every fitting's settings serialise; the passive four are recomputed rather than stored |
 
 ## Source

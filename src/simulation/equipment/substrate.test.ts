@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import {
+  calculateBedLeak,
   calculateSubstrateKhUptake,
   calculateSubstrateLeach,
   freshSubstrate,
   getSubstrateKhReserve,
+  getSubstrateNutrients,
   getSubstrateOrganicReserve,
   getSubstrateSurface,
   replaceSubstrate,
@@ -17,6 +19,7 @@ import {
 import { createSimulation, type SimulationState } from '../state.js';
 import { decayDefaults } from '../config/decay.js';
 import { waterChemistryDefaults } from '../config/water-chemistry.js';
+import { mapNutrients, NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 
 const SUBSTRATES: SubstrateType[] = ['none', 'sand', 'gravel', 'aqua_soil'];
 
@@ -45,7 +48,12 @@ describe('getSubstrateOrganicReserve', () => {
 });
 
 describe('replaceSubstrate', () => {
-  const spent = { type: 'aqua_soil', organicReserve: 0.4, khReserve: 10 } as const;
+  const spent: Substrate = {
+    type: 'aqua_soil',
+    organicReserve: 0.4,
+    khReserve: 10,
+    nutrients: { nitrate: 50, phosphate: 5, potassium: 20, iron: 1 },
+  };
 
   it('returns the same bed when the type does not change', () => {
     expect(replaceSubstrate(spent, 'aqua_soil', 100)).toBe(spent);
@@ -66,6 +74,7 @@ describe('replaceSubstrate', () => {
     expect(relaid).toEqual(freshSubstrate('aqua_soil', 100));
     expect(relaid.organicReserve).toBeGreaterThan(spent.organicReserve);
     expect(relaid.khReserve).toBeGreaterThan(spent.khReserve);
+    expect(relaid.nutrients.nitrate).toBeGreaterThan(spent.nutrients.nitrate);
   });
 
   it('cannot be used to top a bed up by re-selecting it', () => {
@@ -175,10 +184,24 @@ describe('substrateUpdate', () => {
     expect(result.state).toBe(state);
   });
 
+  it('leaks the bed’s nutrients into the water, mg for mg', () => {
+    const state = soilTank();
+    const { state: next, effects } = substrateUpdate(state, decayDefaults, waterChemistryDefaults, nutrientsDefaults);
+    const leaked = calculateBedLeak(state.equipment.substrate.nutrients, nutrientsDefaults);
+
+    for (const n of NUTRIENTS) {
+      const leak = effects.find((effect) => effect.resource === n && effect.source === 'substrate-leak');
+      expect(leak?.delta).toBeGreaterThan(0);
+      expect(leak?.delta).toBe(leaked[n]);
+      expect(next.equipment.substrate.nutrients[n]).toBeCloseTo(state.equipment.substrate.nutrients[n] - leaked[n], 12);
+    }
+  });
+
   it('stops when the reserves are spent', () => {
     const spent = produce(soilTank(), (draft) => {
       draft.equipment.substrate.organicReserve = 0;
       draft.equipment.substrate.khReserve = 0;
+      for (const n of NUTRIENTS) draft.equipment.substrate.nutrients[n] = 0;
     });
 
     expect(substrateUpdate(spent, decayDefaults).effects).toEqual([]);
@@ -197,6 +220,29 @@ describe('substrateUpdate', () => {
     expect(waste(effects)).toEqual([held]);
     expect(next.equipment.substrate.organicReserve).toBe(0);
     expect(waste(substrateUpdate(next, { ...decayDefaults, substrateLeachRate: 5 }).effects)).toEqual([]);
+  });
+});
+
+describe('getSubstrateNutrients', () => {
+  it('charges only aqua soil, scaled with the tank', () => {
+    for (const type of ['none', 'sand', 'gravel'] as const) {
+      for (const n of NUTRIENTS) expect(getSubstrateNutrients(type, 100)[n]).toBe(0);
+    }
+    for (const n of NUTRIENTS) {
+      expect(getSubstrateNutrients('aqua_soil', 100)[n]).toBeGreaterThan(0);
+      expect(getSubstrateNutrients('aqua_soil', 200)[n]).toBeCloseTo(2 * getSubstrateNutrients('aqua_soil', 100)[n], 10);
+    }
+  });
+});
+
+describe('calculateBedLeak', () => {
+  it('is a share of what the bed holds, so the leak tapers as it empties', () => {
+    const full = getSubstrateNutrients('aqua_soil', 100);
+    const half = mapNutrients((n) => full[n] / 2);
+    for (const n of NUTRIENTS) {
+      expect(calculateBedLeak(full)[n]).toBeCloseTo(full[n] * nutrientsDefaults.bedLeakRate, 12);
+      expect(calculateBedLeak(half)[n]).toBeCloseTo(calculateBedLeak(full)[n] / 2, 12);
+    }
   });
 });
 

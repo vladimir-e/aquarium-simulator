@@ -31,14 +31,18 @@ import type { StripBand } from '../components/ui/strip.js';
 import { DISPLAY_CEILING, onScale } from '../readings';
 import {
   algaeStatus,
+  bedReading,
   classifyVital,
+  nutrientProbe,
   nutrientReadings,
   readingAt,
   stockedBand,
   trackAt,
   toleranceStatus,
   waterReadings,
+  TAB_DECIMALS,
   WATER_DECIMALS,
+  type BedReading,
   type NutrientReading,
   type Status,
   type WaterKey,
@@ -79,18 +83,25 @@ interface Sheet {
   units: UnitSystem;
   water: Record<WaterKey, WaterReading>;
   nutrients: Record<Nutrient, NutrientReading>;
+  bed: BedReading;
 }
 
-function sheetOf(state: SimulationState, config: TunableConfig, units: UnitSystem): Sheet {
+function sheetOf(
+  state: SimulationState,
+  config: TunableConfig,
+  units: UnitSystem,
+  bedOn?: Nutrient | null
+): Sheet {
+  const probe = nutrientProbe(state, config);
   const nutrients = {} as Record<Nutrient, NutrientReading>;
-  for (const reading of nutrientReadings(state, config)) nutrients[reading.key] = reading;
+  for (const reading of nutrientReadings(state, config, probe)) nutrients[reading.key] = reading;
 
   const water = {} as Record<WaterKey, WaterReading>;
   for (const reading of waterReadings(state, config, units, nutrients.nitrate)) {
     water[reading.key] = reading;
   }
 
-  return { state, config, units, water, nutrients };
+  return { state, config, units, water, nutrients, bed: bedReading(state, config, probe, bedOn) };
 }
 
 function temperatureNote(value: number, _before: number, { state, units }: Sheet): string | null {
@@ -204,9 +215,9 @@ function nutrient(key: Nutrient, label: string, decimals: number): Reading {
 
 /**
  * Canonical order: the nitrogen cycle, then the physical readings, then the
- * dissolved gases, then plant food, then the two organic stocks, then the
- * planting's shade and its largest unit. A verb's rows come out in this order
- * however many of them move.
+ * dissolved gases, then plant food and the bed, then the two organic stocks,
+ * then the planting's shade and its largest unit. A verb's rows come out in
+ * this order however many of them move.
  */
 const READINGS: Reading[] = [
   fromWater('ammonia', {
@@ -311,6 +322,18 @@ const READINGS: Reading[] = [
   nutrient('potassium', 'K', PotassiumResource.precision),
   nutrient('iron', 'Fe', IronResource.precision),
   {
+    key: 'bed',
+    label: 'Bed',
+    read: ({ bed }) => bed.tabs,
+    unit: () => 'tabs',
+    display: same,
+    decimals: TAB_DECIMALS,
+    status: (_value, { bed }) => bed.status,
+    at: (value, { bed }) => onScale(bed.scale, value),
+    band: ({ bed }) => (bed.needed > 0 ? { from: onScale(bed.scale, bed.needed), to: 1 } : null),
+    note: none,
+  },
+  {
     key: 'food',
     label: 'Food',
     read: ({ state }) => state.resources.food,
@@ -378,7 +401,7 @@ export interface PreviewInput {
  */
 export function previewRows({ before, outcomes, config, units }: PreviewInput): PreviewRow[] {
   const standing = sheetOf(before, config, units);
-  const sheets = outcomes.map((state) => sheetOf(state, config, units));
+  const sheets = outcomes.map((state) => sheetOf(state, config, units, standing.bed.nutrient));
   const rows: PreviewRow[] = [];
 
   for (const reading of READINGS) {

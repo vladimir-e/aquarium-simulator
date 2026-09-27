@@ -13,7 +13,7 @@ were tuned against.
 ## Whole tanks: the scenario runner
 
 Whole-tank behaviour is judged by running the preset tanks headless — nano,
-low-tech, high-tech, community, low-flow and cold — on a keeper's schedule,
+low-tech, high-tech, community, sword-gravel, low-flow and cold — on a keeper's schedule,
 sampled at fixed days and always on the last one. Each reading is graded
 against a plausibility band:
 
@@ -37,7 +37,7 @@ The test suite pins what holds regardless of tuning:
 |---|---|
 | Formula | A function computes what it says |
 | Scaling | Doubling capacity doubles flow |
-| Conservation | Nitrogen mass survives NH₃ → NO₂ → NO₃ |
+| Conservation | Nitrogen and minerals survive NH₃ → NO₂ → NO₃ and plant tissue |
 | Soundness | No reading goes NaN or infinite |
 | Determinism | The same seed runs the same life |
 

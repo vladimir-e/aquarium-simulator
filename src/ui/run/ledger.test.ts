@@ -11,7 +11,8 @@ import {
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
 import { LEDGER_DECIMALS, readLedger, type Ledger, type LedgerTarget } from './ledger.js';
-import { projectedTrend } from './status.js';
+import { printsAsZero, projectedTrend } from './status.js';
+import { TICKS_PER_DAY } from '../utils/clock.js';
 
 function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
   return {
@@ -153,7 +154,7 @@ describe('readLedger', () => {
   describe('for a plant', () => {
     const half = DEFAULT_CONFIG.plants.surplusCap / 2;
     const planted = (hour: number, surplus = half): SimulationState => {
-      const dosed = applyAction(createSimulation({ tankCapacity: 200 }), { type: 'dose', amountMl: 20 }, DEFAULT_CONFIG);
+      const dosed = applyAction(createSimulation({ tankCapacity: 200 }, undefined, 1), { type: 'dose', amountMl: 20 }, DEFAULT_CONFIG);
       const state = applyAction(dosed.state, {
         type: 'addPlant',
         species: 'java_fern',
@@ -179,7 +180,13 @@ describe('readLedger', () => {
         const note = plantLedger(state).bank!.note;
 
         expect(note).toBe(
-          moved > 0 ? 'banking' : next.length > state.plants.length ? 'buying an offshoot' : 'buying growth'
+          printsAsZero(moved * TICKS_PER_DAY, 1)
+            ? 'held against a bad day'
+            : moved > 0
+              ? 'banking'
+              : next.length > state.plants.length
+                ? 'buying an offshoot'
+                : 'buying growth'
         );
         return note;
       });

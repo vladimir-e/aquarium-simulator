@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { spendSurplus, propagate, getSpeciesGrowthRate, growthTaper } from './plant-growth.js';
+import {
+  spendSurplus,
+  propagate,
+  purchase,
+  sizeBought,
+  supply,
+  getSpeciesGrowthRate,
+  growthTaper,
+} from './plant-growth.js';
 import type { Plant } from '../state.js';
 import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
 import { plantsConfigMeta, plantsDefaults, type PlantsConfig } from '../config/plants.js';
@@ -205,23 +213,61 @@ describe('propagate', () => {
       for (const sizePerSurplus of grid) {
         const config = { ...plantsDefaults, sizePerSurplus };
         const worth = CAP * conversion(species, config);
-        const bought = propagate(makePlant(species, { surplus: CAP }), config);
-        if (worth < config.deathSizeThreshold) {
-          expect(bought).toBeNull();
-          continue;
+        const { parent, offshootSize } = propagate(makePlant(species, { surplus: CAP }), config)!;
+        expect(offshootSize).toBeLessThanOrEqual(100);
+        expect(offshootSize).toBeCloseTo(Math.min(100, worth), 9);
+        expect(parent.surplus).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+});
+
+describe('purchase', () => {
+  const CAP = plantsDefaults.surplusCap;
+
+  it('buys a full bank its offshoot first, then growth on what is left', () => {
+    const plant = makePlant('monte_carlo', { surplus: CAP, size: 30 });
+    const { parent, offshootSize } = propagate(plant)!;
+    const bought = purchase(plant);
+    expect(bought.offshootSize).toBe(offshootSize);
+    expect(bought.after).toEqual(spendSurplus(parent));
+    expect(sizeBought(bought)).toBeCloseTo(offshootSize + spendSurplus(parent).size - plant.size, 12);
+  });
+
+  it('buys growth alone short of the cap', () => {
+    const plant = makePlant('java_fern', { surplus: 10, size: 30 });
+    expect(purchase(plant)).toEqual({ before: plant, after: spendSurplus(plant), offshootSize: 0 });
+  });
+});
+
+describe('supply', () => {
+  const CAP = plantsDefaults.surplusCap;
+  const conversion = (species: PlantSpecies): number =>
+    getSpeciesGrowthRate(species) * plantsDefaults.sizePerSurplus;
+
+  it('scales size, offshoot and price together, so the bank pays for exactly the tissue it got', () => {
+    for (const species of Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]) {
+      for (const surplus of [10, CAP]) {
+        const bought = purchase(makePlant(species, { surplus, size: 30 }));
+        for (const share of [0, 0.3, 1]) {
+          const got = supply(bought, share);
+          const paid = bought.before.surplus - got.after.surplus;
+          expect(sizeBought(got)).toBeCloseTo(share * sizeBought(bought), 12);
+          expect(sizeBought(got)).toBeCloseTo(paid * conversion(species), 10);
         }
-        expect(bought!.offshootSize).toBeLessThanOrEqual(100);
-        expect(bought!.offshootSize).toBeCloseTo(Math.min(100, worth), 9);
-        expect(bought!.parent.surplus).toBeGreaterThanOrEqual(0);
       }
     }
   });
 
-  it('buys nothing a unit could not live at, and leaves the bank to heal and grow on', () => {
-    const plant = makePlant('anubias', { surplus: CAP });
-    const threshold = CAP * conversion('anubias');
-    expect(propagate(plant, { ...plantsDefaults, deathSizeThreshold: threshold })).not.toBeNull();
-    expect(propagate(plant, { ...plantsDefaults, deathSizeThreshold: threshold * 1.01 })).toBeNull();
-    expect(propagate(plant, { ...plantsDefaults, sizePerSurplus: 0 })).toBeNull();
+  it('delivers the purchase whole at full supply, and nothing at none', () => {
+    const bought = purchase(makePlant('amazon_sword', { surplus: CAP, size: 30 }));
+    const whole = supply(bought, 1);
+    expect(whole.after.size).toBeCloseTo(bought.after.size, 12);
+    expect(whole.after.surplus).toBeCloseTo(bought.after.surplus, 12);
+    expect(whole.offshootSize).toBe(bought.offshootSize);
+    const none = supply(bought, 0);
+    expect(none.after.size).toBe(bought.before.size);
+    expect(none.after.surplus).toBe(bought.before.surplus);
+    expect(none.offshootSize).toBe(0);
   });
 });

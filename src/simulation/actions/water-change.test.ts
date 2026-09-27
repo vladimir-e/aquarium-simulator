@@ -103,6 +103,17 @@ describe('waterChange', () => {
     expect(vacuumed.message).toContain('vacuumed 30%');
   });
 
+  it('leaves the bed’s nutrient store alone, vacuumed or not', () => {
+    const before = produce(tank(), (draft) => {
+      draft.equipment.substrate.type = 'gravel';
+      draft.equipment.substrate.nutrients = { nitrate: 400, phosphate: 60, potassium: 200, iron: 10 };
+    });
+    for (const vacuum of [undefined, 0.3]) {
+      const result = waterChange(before, { type: 'waterChange', amount: 0.5, vacuum });
+      expect(result.state.equipment.substrate.nutrients).toEqual(before.equipment.substrate.nutrients);
+    }
+  });
+
   it('claims no mulm from a bare bottom or a bed with none left', () => {
     const bare = tank();
     const spent = produce(tank(), (draft) => {

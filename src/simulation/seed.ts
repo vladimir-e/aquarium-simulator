@@ -9,6 +9,7 @@ import type { PlantSpecies } from './plants/species.js';
 import {
   calculateSubstrateLeach,
   getSubstrateKhReserve,
+  getSubstrateNutrients,
   getSubstrateOrganicReserve,
   type Substrate,
   type SubstrateType,
@@ -18,14 +19,16 @@ import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js
 import { processMetabolism } from './systems/metabolism.js';
 import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
-import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './core/chemistry.js';
+import { mapNutrients, nutrientsDefaults, type NutrientVector } from './config/nutrients.js';
+import { organicNutrients } from './systems/nutrients.js';
+import { NH3_TO_NO2_MASS_RATIO } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import { createFish } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
 
 const SEEDABLE_BACTERIA = ['aob', 'nob'] as const;
 
-const SEEDABLE_SUBSTRATE = ['organicReserve', 'khReserve'] as const;
+const SEEDABLE_SUBSTRATE = ['organicReserve', 'khReserve', 'nutrients'] as const;
 
 const SEEDABLE_RESOURCES = [
   'ammonia',
@@ -86,7 +89,7 @@ export interface SeedPlantGroup {
   species: PlantSpecies;
   /** Defaults to 1. */
   count?: number;
-  /** % of one full unit, as `Plant.size`: `deathSizeThreshold` to 100 (`isPlantableSize`); under it the first tick retires the plant. */
+  /** % of one full unit, as `Plant.size`: `MIN_PLANTABLE_SIZE` to 100 (`isPlantableSize`). */
   size?: number;
   /** Ticks it has already stood in the tank, as `Plant.age`. Defaults to 0. */
   age?: number;
@@ -176,6 +179,19 @@ export function cycledReserve(type: SubstrateType, capacity: number): number {
 }
 
 /**
+ * Share of a fresh bed's nutrient store still in it on day 30: a plantless
+ * month of the leak leaves 0.866, rounded down so a scenario that says
+ * "cycled" is never handed a richer bed than one that waited.
+ */
+const CYCLED_BED_NUTRIENT_FRACTION = 0.85;
+
+/** mg of each nutrient a bed of this type and capacity still holds once cycled. */
+export function cycledBedNutrients(type: SubstrateType, capacity: number): NutrientVector {
+  const fresh = getSubstrateNutrients(type, capacity);
+  return mapNutrients((n) => fresh[n] * CYCLED_BED_NUTRIENT_FRACTION);
+}
+
+/**
  * Share of a fresh aqua soil bed's KH reserve left on day 30 under weekly 25 %
  * changes — read off a fresh high-tech soil tank on that keeper, rounded.
  */
@@ -187,27 +203,29 @@ export function cycledKhReserve(type: SubstrateType, capacity: number): number {
 }
 
 /**
- * mg of nitrate a gram of the bed's organics ends up as, once mineralised to
- * ammonia and oxidised the two steps to nitrate — each one keeping the
- * nitrogen and picking up the mass of the oxygen it gains.
+ * Share of what a cycled bed released that is still in the water. Nothing in
+ * a plantless, fishless tank consumes nitrate, phosphate, potassium or iron,
+ * so a month of release left alone puts 17.5 ppm of nitrate in the water over
+ * aqua soil — 10 from the leached organics, 7.5 from the store's leak — but a
+ * keeper changes water: a fresh soil tank's month keeps 0.28–0.32 of each
+ * nutrient under a weekly 30 % change and 0.15–0.19 under a weekly 50 %. A
+ * quarter sits between them, rounded to the low side because nitrate is a
+ * stressor and the tank a keeper hands over has just been changed, not left
+ * to load.
  */
-const NITRATE_PER_GRAM_LEACHED =
-  ammoniaPerGramOfFood(livestockDefaults) * NH3_TO_NO2_MASS_RATIO * NO2_TO_NO3_MASS_RATIO;
+const CYCLED_WATER_RETAINED = 0.25;
 
 /**
- * Share of that nitrate still in the water. Nothing in a fishless tank
- * consumes nitrate, so a month of leaching left alone reads 9.7 ppm over aqua
- * soil — but a keeper changes water: the same month measures 0.37 of it under
- * a weekly 30 % change and 0.17 under a weekly 50 %. A quarter sits between
- * them, rounded to the low side because nitrate is a stressor and the tank a
- * keeper hands over has just been changed, not left to load.
+ * mg of each nutrient a cycled tank of this bed and capacity carries: the
+ * organics its bed leached, rotted at the recipe, and what its nutrient store
+ * leaked, at the share the keeper's changes left.
  */
-const CYCLED_NITRATE_RETAINED = 0.25;
-
-/** mg of nitrate a cycled tank of this bed and capacity carries. */
-export function cycledNitrate(type: SubstrateType, capacity: number): number {
+export function cycledWaterNutrients(type: SubstrateType, capacity: number): NutrientVector {
   const leached = getSubstrateOrganicReserve(type, capacity) - cycledReserve(type, capacity);
-  return leached * NITRATE_PER_GRAM_LEACHED * CYCLED_NITRATE_RETAINED;
+  const recipe = organicNutrients(livestockDefaults, nutrientsDefaults);
+  const fresh = getSubstrateNutrients(type, capacity);
+  const kept = cycledBedNutrients(type, capacity);
+  return mapNutrients((n) => (leached * recipe[n] + fresh[n] - kept[n]) * CYCLED_WATER_RETAINED);
 }
 
 /**
@@ -274,8 +292,9 @@ function seedTank(state: SimulationState, seed: TankSeed): void {
     writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, {
       organicReserve: cycledReserve(type, capacity),
       khReserve: cycledKhReserve(type, capacity),
+      nutrients: cycledBedNutrients(type, capacity),
     });
-    state.resources.nitrate = cycledNitrate(type, capacity);
+    Object.assign(state.resources, cycledWaterNutrients(type, capacity));
   }
 
   writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, seed.substrate);

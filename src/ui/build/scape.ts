@@ -1,13 +1,14 @@
 /**
- * Scape model: substrate surface math, the substrate's plant-compatibility
- * consequence, the light tier a species asks for, and the hardscape rows with
- * the surface and pH effect the engine gives each piece.
+ * Scape model: substrate surface math, what each bed holds for roots, the
+ * light tier a species asks for, and the hardscape rows with the surface and
+ * pH effect the engine gives each piece.
  */
 
 import {
   getHardscapeName,
   getHardscapeHardnessEffect,
   getHardscapeSurface,
+  getSubstrateNutrients,
   PLANT_SPECIES_DATA,
   type HardscapeItem,
   type HardscapeType,
@@ -31,18 +32,11 @@ export const HARDSCAPE_TYPES: HardscapeType[] = [
   'plastic_decoration',
 ];
 
-/** What a substrate lets you plant — the consequence of switching it. */
+/** What a bed holds for the plants that feed through their roots — the consequence of switching it. */
 export function substrateConsequence(type: SubstrateType): string {
-  switch (type) {
-    case 'none':
-      return 'Bare bottom — epiphytes only';
-    case 'gravel':
-      return 'Inert — epiphytes only';
-    case 'sand':
-      return 'Roots sand plants + epiphytes';
-    case 'aqua_soil':
-      return 'Nutrient-rich — supports every plant';
-  }
+  if (type === 'none') return 'Bare bottom — nothing for roots, takes no tabs';
+  const charged = Object.values(getSubstrateNutrients(type, 1)).some((mg) => mg > 0);
+  return charged ? 'Comes charged — feeds roots for months' : 'Starts empty — roots need tabs';
 }
 
 export interface HardscapeRow {

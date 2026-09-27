@@ -25,10 +25,10 @@ for the next spawn.
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits — as `1 − hardiness` for most, and on the concentration axis for water quality. A hardy fish tolerates bad water but isn't more energised by good. |
 | Age | <Badge text="settled" variant="success" /> | A linear stressor ramp past the species lifespan, through the same channel as every other stressor. No probabilistic cliff. |
 | Staging and fry growth | <Badge text="settled" variant="success" /> | Mass is re-derived from age each tick and the fry flips to adult at `maturityAge`. Stage and age are stored independently, so the spawn gate asks both. |
-| Healing | <Badge text="settled" variant="success" /> | The bank heals health at a share that falls with adult mass to the −¼, as mass-specific metabolism does. A fish is sick while its damage outruns it. |
+| Healing | <Badge text="settled" variant="success" /> | The bank heals health at a share that falls with adult mass to the −¼, as mass-specific metabolism does. A fish is sick while its damage outruns its healing. |
 | Breeding | <Badge text="settled" variant="success" /> | A mature female spawns on a full bank, with no husbandry re-tests — the husbandry is already priced into how the bank filled. |
 | Death | <Badge text="settled" variant="success" /> | Condition reaching zero, from any stressor. Age-driven deaths are labelled in the log so the keeper can tell "got old" from "water went bad". |
-| Low health | <Badge text="missing" variant="danger" /> | Nothing but death reads it. A fish at 5 % eats, breathes, excretes and heals as one at 100 does; plants are the only organism that pays for low condition. |
+| Low health | <Badge text="settled" variant="success" /> | Only death reads it: health is the buffer between harm and death, so a fish at 5 % eats, breathes and excretes as one at 100 does ([Vitality](/concepts/vitality/)). |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge, and damage starts from zero at or past it. pH earns most at the band's centre; oxygen rises from the alert edge to comfort. |
 | Fry survival | <Badge text="missing" variant="danger" /> | Clutches hatch at 100 % with no density check and nothing eats the young, so any stocked pair breeds toward a wipeout. This is the cause of most "the preset is broken" findings. |
 | Colonies | <Badge text="missing" variant="danger" /> | Snails and shrimp do not exist. Fish are the only animals, and food they leave behind decays rather than feeding anything. |
@@ -139,7 +139,7 @@ Unfed, a stuffed fish reaches zero in about seven days.
 Health is the [vitality model](/concepts/vitality/): a fish heals out of its
 income first, then out of its bank at a share that falls with adult mass to the
 −¼, and banks only what a full health leaves over. It is sick while its damage
-outruns that healing, and its health falls.
+outruns its healing, so its health falls.
 
 | Stressor | Activates | Per |
 |---|---|---|

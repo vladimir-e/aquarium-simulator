@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { pickerOptions, type PickerKind, type PickerOption } from '../../build';
 import { toneOf } from '../../readings';
+import type { BedReading } from '../../run';
 import { useUnits } from '../../hooks/useUnits';
 import type { FishSpecies, PlantSpecies, SimulationState } from '../../../simulation/index.js';
 import { Drawer } from '../ui/Drawer';
@@ -49,11 +50,13 @@ function Option({
 export function AddDrawer({
   kind,
   state,
+  bed,
   onClose,
   onAdd,
 }: {
   kind: PickerKind | null;
   state: SimulationState;
+  bed: BedReading;
   onClose: () => void;
   onAdd: (species: FishSpecies | PlantSpecies, count: number) => void;
 }): React.JSX.Element | null {
@@ -63,7 +66,7 @@ export function AddDrawer({
 
   if (kind === null) return null;
 
-  const options = pickerOptions(kind, state, count, unitSystem);
+  const options = pickerOptions(kind, state, count, unitSystem, bed);
   const option = options.find((o) => o.species === picked) ?? options[0];
   const refusal = count > option.headroom ? (option.refusal ?? `Only ${option.headroom} fit`) : null;
 
@@ -93,7 +96,7 @@ export function AddDrawer({
             />
           </div>
 
-          {kind === 'fish' && <p className="text-[12px] text-ink-3">Sex is random.</p>}
+          {option.note && <p className="text-[12px] text-ink-3">{option.note}</p>}
 
           {refusal ? (
             <p className={`text-[13px] ${TONE_TEXT.warn}`}>{refusal}</p>

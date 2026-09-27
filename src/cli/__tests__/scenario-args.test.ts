@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { MAX_DOSE_ML, MAX_ROOT_TABS } from '../../simulation/index.js';
 import { parseScenarioArgs } from '../scenarios/command.js';
 import { parseScheduleFlag, type ScheduleEntry } from '../scenarios/keeper.js';
 import { findSetup, type Setup } from '../scenarios/setups.js';
@@ -20,6 +21,7 @@ describe('schedule flags', () => {
       action: { type: 'waterChange', amount: 0.5 },
     });
     expect(parseScheduleFlag('dose', '3ml/2w')?.entry).toEqual({ every: 14, action: { type: 'dose', amountMl: 3 } });
+    expect(parseScheduleFlag('root-tab', '4tab/30d')?.entry).toEqual({ every: 30, action: { type: 'rootTab', count: 4 } });
   });
 
   it('falls back to the usual cadence, and feeds a share of stock mass on a percentage', () => {
@@ -42,9 +44,21 @@ describe('schedule flags', () => {
     expect(parseScheduleFlag('water-change', 'off')).toEqual({ type: 'waterChange', entry: null });
   });
 
+  it('refuses a root tab schedule the engine would refuse at every push', () => {
+    expect(parseScheduleFlag('root-tab', `${MAX_ROOT_TABS}tab`)?.entry?.action).toEqual({ type: 'rootTab', count: MAX_ROOT_TABS });
+    expect(() => parseScheduleFlag('root-tab', '1.5tab')).toThrow(/whole tabs/);
+    expect(() => parseScheduleFlag('root-tab', `${MAX_ROOT_TABS + 1}tab`)).toThrow(/whole tabs/);
+  });
+
+  it('refuses a dose schedule over the engine’s cap', () => {
+    expect(parseScheduleFlag('dose', `${MAX_DOSE_ML}ml`)?.entry?.action).toEqual({ type: 'dose', amountMl: MAX_DOSE_ML });
+    expect(() => parseScheduleFlag('dose', `${MAX_DOSE_ML + 1}ml`)).toThrow(/at most/);
+  });
+
   it('refuses a missing or wrong unit, a zero amount or period, a third segment, and over 100 %', () => {
     expect(() => parseScheduleFlag('feed', '2')).toThrow(/g or %/);
     expect(() => parseScheduleFlag('dose', '3g')).toThrow(/ml/);
+    expect(() => parseScheduleFlag('root-tab', '4ml')).toThrow(/tab/);
     expect(() => parseScheduleFlag('feed', '0g')).toThrow(/positive/);
     expect(() => parseScheduleFlag('feed', '2g/0d')).toThrow(/at least a day/);
     expect(() => parseScheduleFlag('feed', '2g/1d/junk')).toThrow(/<amount>\[\/<period>\]/);

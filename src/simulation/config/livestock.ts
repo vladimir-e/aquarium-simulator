@@ -10,7 +10,7 @@
  */
 
 import { SURPLUS_CAP_DEFAULT } from './vitality.js';
-import { N_TO_NH3_MASS_RATIO } from '../core/chemistry.js';
+import { MW_N, MW_NO3, N_TO_NH3_MASS_RATIO } from '../core/chemistry.js';
 
 export interface LivestockConfig {
   // Metabolism
@@ -283,6 +283,11 @@ export const livestockDefaults: LivestockConfig = {
 /** mg of NH₃ a gram of food, or of the waste it becomes, yields once mineralized. */
 export function ammoniaPerGramOfFood(config: LivestockConfig): number {
   return config.foodNitrogenFraction * N_TO_NH3_MASS_RATIO * 1000;
+}
+
+/** mg of NO₃ the same gram's nitrogen makes once it is nitrate. */
+export function nitratePerGramOfFood(config: LivestockConfig): number {
+  return (config.foodNitrogenFraction * MW_NO3 * 1000) / MW_N;
 }
 
 export interface LivestockConfigMeta {

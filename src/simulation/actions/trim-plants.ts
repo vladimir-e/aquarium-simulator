@@ -10,8 +10,7 @@ import { produce } from 'immer';
 import type { Plant, SimulationState } from '../state.js';
 import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import { createLog } from '../core/logging.js';
-import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
-import { isPlantableSize } from '../systems/plant-lifecycle.js';
+import { isPlantableSize, MIN_PLANTABLE_SIZE } from '../plants/create-plant.js';
 import type { ActionResult, TrimPlantsAction } from './types.js';
 
 type TrimScope = Omit<TrimPlantsAction, 'type'>;
@@ -24,12 +23,8 @@ function cuts({ targetSize, plantId, familyId }: TrimScope): (plant: Plant) => b
 }
 
 /** Whether `trimPlants` would cut anything: a plantable target, and a plant in its scope over it. */
-export function canTrimPlants(
-  state: SimulationState,
-  scope: TrimScope,
-  plantsConfig: PlantsConfig = plantsDefaults
-): boolean {
-  return isPlantableSize(scope.targetSize, plantsConfig) && state.plants.some(cuts(scope));
+export function canTrimPlants(state: SimulationState, scope: TrimScope): boolean {
+  return isPlantableSize(scope.targetSize) && state.plants.some(cuts(scope));
 }
 
 /** Plants a trim of the whole tank to `targetSize` cuts. */
@@ -44,20 +39,15 @@ export function getPlantsToTrimCount(state: SimulationState, targetSize: number)
  * the plant is missing or already at/below target). Otherwise, reduces every plant
  * above `targetSize` to the target — every plant of `action.familyId` when that is
  * set. Trimmed material exits the system — the waste pool is untouched. A target
- * under `deathSizeThreshold` is refused: the cut would leave a plant the next
- * tick retires.
+ * under `MIN_PLANTABLE_SIZE` is refused.
  */
-export function trimPlants(
-  state: SimulationState,
-  action: TrimPlantsAction,
-  plantsConfig: PlantsConfig = plantsDefaults
-): ActionResult {
+export function trimPlants(state: SimulationState, action: TrimPlantsAction): ActionResult {
   const { targetSize, plantId, familyId } = action;
 
-  if (!isPlantableSize(targetSize, plantsConfig)) {
+  if (!isPlantableSize(targetSize)) {
     return {
       state,
-      message: `Invalid target size for trimming (must be a number in [${plantsConfig.deathSizeThreshold}, 100])`,
+      message: `Invalid target size for trimming (must be a number in [${MIN_PLANTABLE_SIZE}, 100])`,
     };
   }
 

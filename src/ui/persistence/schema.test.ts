@@ -20,6 +20,8 @@ import {
   FISH_SPECIES_DATA,
   HEATER_WATTAGE_OPTIONS,
   LIGHT_PAR_OPTIONS,
+  MAX_DOSE_ML,
+  MAX_ROOT_TABS,
   PLANT_SPECIES_DATA,
   POWERHEAD_FLOW_RATES,
   VIGOUR_SPAN,
@@ -78,6 +80,19 @@ describe('PersistedUISchema', () => {
       speed: '1w',
     };
     expect(PersistedUISchema.safeParse(fast).success).toBe(false);
+  });
+
+  it('takes a dose and a root tab setting only as amounts the engine would take', () => {
+    const ui = (settings: Partial<typeof DEFAULT_SETTINGS>): unknown => ({
+      units: 'metric',
+      tunablesOpen: false,
+      spineOpen: false,
+      acts: { settings: { ...DEFAULT_SETTINGS, ...settings }, promoted: null },
+      speed: '1h',
+    });
+    expect(PersistedUISchema.safeParse(ui({ rootTab: MAX_ROOT_TABS, dose: MAX_DOSE_ML })).success).toBe(true);
+    expect(PersistedUISchema.safeParse(ui({ rootTab: MAX_ROOT_TABS + 1 })).success).toBe(false);
+    expect(PersistedUISchema.safeParse(ui({ dose: MAX_DOSE_ML + 1 })).success).toBe(false);
   });
 
   it('rejects extra keys (strict mode)', () => {
@@ -216,7 +231,12 @@ describe('PersistedSimulationSchema', () => {
       ato: { enabled: false },
       filter: { enabled: true, type: 'hob' },
       powerhead: { enabled: false, flowRateGPH: 240 },
-      substrate: { type: 'gravel', organicReserve: 0.5, khReserve: 0 },
+      substrate: {
+        type: 'gravel',
+        organicReserve: 0.5,
+        khReserve: 0,
+        nutrients: { nitrate: 400, phosphate: 60, potassium: 200, iron: 10 },
+      },
       hardscape: { items: [] },
       light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
@@ -245,11 +265,18 @@ describe('PersistedSimulationSchema', () => {
   });
 
   it('keeps the seed a tank started from, and refuses one that names a stock it cannot seed', () => {
-    const seeded = { ...validSimulation, seed: { bacteria: 'cycled', resources: { nitrate: 20 } } };
+    const seeded = {
+      ...validSimulation,
+      seed: {
+        bacteria: 'cycled',
+        resources: { nitrate: 20 },
+        substrate: { nutrients: { nitrate: 400, phosphate: 60, potassium: 200, iron: 10 } },
+      },
+    };
     const colony = { ...validSimulation, seed: { bacteria: { aob: 5000 } } };
     const water = { ...validSimulation, seed: { resources: { water: 10 } } };
 
-    expect(PersistedSimulationSchema.safeParse(seeded).success).toBe(true);
+    expect(PersistedSimulationSchema.parse(seeded).seed).toEqual(seeded.seed);
     expect(PersistedSimulationSchema.safeParse(colony).success).toBe(true);
     expect(PersistedSimulationSchema.safeParse(water).success).toBe(false);
   });
@@ -534,7 +561,12 @@ describe('PersistedStateSchema', () => {
       ato: { enabled: false },
       filter: { enabled: true, type: 'hob' },
       powerhead: { enabled: false, flowRateGPH: 240 },
-      substrate: { type: 'gravel', organicReserve: 0.5, khReserve: 0 },
+      substrate: {
+        type: 'gravel',
+        organicReserve: 0.5,
+        khReserve: 0,
+        nutrients: { nitrate: 400, phosphate: 60, potassium: 200, iron: 10 },
+      },
       hardscape: { items: [] },
       light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
@@ -603,6 +635,7 @@ describe('PersistedStateSchema', () => {
     [16, 'the tank-carried draw stream'],
     [18, 'the collapsed carbon yield'],
     [19, 'the oxygen term every consumer carries'],
+    [31, 'the size death threshold'],
   ];
 
   it('rejects every prior version, so no save survives a breaking bump', () => {

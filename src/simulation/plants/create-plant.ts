@@ -12,6 +12,13 @@ import type { PlantSpecies } from './species.js';
 /** Size a plant goes in at when the caller doesn't say — a young specimen. */
 export const DEFAULT_PLANT_SIZE = 50;
 
+/** The least a plant is planted, seeded or trimmed to, % of one full unit. */
+export const MIN_PLANTABLE_SIZE = 1;
+
+export function isPlantableSize(size: number): boolean {
+  return size >= MIN_PLANTABLE_SIZE && size <= 100;
+}
+
 /** Vigour span either side of 0: clonal ramets differ in growth by 10–20 %. */
 export const VIGOUR_SPAN = 0.15;
 

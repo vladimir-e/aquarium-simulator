@@ -3,7 +3,7 @@ import type { PlantSpecies } from '../plants/species.js';
 import type { FishSpecies } from '../livestock/species.js';
 import type { WaterChangeAmount } from './water-change.js';
 
-/** Target size for trimming, % of a full unit, from `deathSizeThreshold` to 100. */
+/** Target size for trimming, % of a full unit, from `MIN_PLANTABLE_SIZE` to 100. */
 export type TrimTargetSize = number;
 
 export type ActionType =
@@ -15,6 +15,7 @@ export type ActionType =
   | 'addPlant'
   | 'removePlant'
   | 'dose'
+  | 'rootTab'
   | 'addFish'
   | 'removeFish'
   | 'sellFry';
@@ -50,7 +51,7 @@ export interface WaterChangeAction extends BaseAction {
 
 export interface TrimPlantsAction extends BaseAction {
   type: 'trimPlants';
-  /** Target size to trim plants down to (%), from `deathSizeThreshold` to 100 */
+  /** Target size to trim plants down to (%), from `MIN_PLANTABLE_SIZE` to 100 */
   targetSize: TrimTargetSize;
   /** If set, trim only the plant with this id; otherwise bulk-trim all plants above targetSize. */
   plantId?: string;
@@ -62,7 +63,7 @@ export interface AddPlantAction extends BaseAction {
   type: 'addPlant';
   /** Species of plant to add */
   species: PlantSpecies;
-  /** Initial size, % of a full unit, from `deathSizeThreshold` to 100 (default 50%) */
+  /** Initial size, % of a full unit, from `MIN_PLANTABLE_SIZE` to 100 (default 50%) */
   initialSize?: number;
 }
 
@@ -76,6 +77,12 @@ export interface DoseAction extends BaseAction {
   type: 'dose';
   /** Amount of fertilizer to add in ml */
   amountMl: number;
+}
+
+export interface RootTabAction extends BaseAction {
+  type: 'rootTab';
+  /** Tabs pushed into the bed, a whole number from 1 to `MAX_ROOT_TABS` */
+  count: number;
 }
 
 export interface AddFishAction extends BaseAction {
@@ -104,6 +111,7 @@ export type Action =
   | AddPlantAction
   | RemovePlantAction
   | DoseAction
+  | RootTabAction
   | AddFishAction
   | RemoveFishAction
   | SellFryAction;

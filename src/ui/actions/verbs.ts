@@ -1,18 +1,20 @@
 /**
- * The six husbandry verbs in one shape: a master row, an option row, a preview
- * and a commit. Every option set is the engine's own (`WATER_CHANGE_AMOUNTS`,
- * `TRIM_TARGETS`) and every refusal is an engine guard (`canDose`,
- * `canScrubAlgae`, `getPlantsToTrimCount`), stated where the verb would
- * otherwise say what it is about to do — so an unavailable verb is never a
- * dead end.
+ * The seven husbandry verbs in one shape: a master row, an option row, a
+ * preview and a commit. Every option set is the engine's own
+ * (`WATER_CHANGE_AMOUNTS`, `MAX_ROOT_TABS`, `TRIM_TARGETS`) and every refusal
+ * is an engine guard (`canDose`, `canRootTab`, `canScrubAlgae`,
+ * `getPlantsToTrimCount`), stated where the verb would otherwise say what it
+ * is about to do — so an unavailable verb is never a dead end.
  */
 
 import {
   applyAction,
   canDose,
+  canRootTab,
   canScrubAlgae,
   getPlantsToTrimCount,
   MAX_DOSE_ML,
+  MAX_ROOT_TABS,
   MAX_SCRUB_PERCENT,
   MIN_ALGAE_TO_SCRUB,
   MIN_SCRUB_PERCENT,
@@ -22,15 +24,28 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { FoodResource, getPpm, NitrateResource } from '../../simulation/resources/index.js';
-import type { TunableConfig } from '../../simulation/config/index.js';
-import { doseToCover, nutrientReadings, plantLabels, TRIM_TARGETS } from '../run';
+import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
+import {
+  bedReading,
+  doseToCover,
+  nutrientReadings,
+  plantLabels,
+  TRIM_TARGETS,
+} from '../run';
 import { formatVolume, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
 
-export type VerbId = 'feed' | 'waterChange' | 'topOff' | 'dose' | 'trimPlants' | 'scrubAlgae';
+export type VerbId =
+  | 'feed'
+  | 'waterChange'
+  | 'topOff'
+  | 'dose'
+  | 'rootTab'
+  | 'trimPlants'
+  | 'scrubAlgae';
 
-/** The four that need a setting before commit; top-off and scrub fire bare. */
-export type SettableVerb = Extract<VerbId, 'feed' | 'waterChange' | 'dose' | 'trimPlants'>;
+/** The five that need a setting before commit; top-off and scrub fire bare. */
+export type SettableVerb = Extract<VerbId, 'feed' | 'waterChange' | 'dose' | 'rootTab' | 'trimPlants'>;
 
 export type VerbSettings = Record<SettableVerb, number>;
 
@@ -50,6 +65,7 @@ export const VERB_IDS: VerbId[] = [
   'waterChange',
   'topOff',
   'dose',
+  'rootTab',
   'trimPlants',
   'scrubAlgae',
 ];
@@ -60,10 +76,14 @@ export const FEED_PRESETS = [0.25, 0.5, 1, 2];
 /** Millilitres per dose, well inside the engine's `MAX_DOSE_ML` accident guard. */
 export const DOSE_PRESETS = [1, 2, 4];
 
+/** Tabs per push, well inside the engine's `MAX_ROOT_TABS`. */
+export const ROOT_TAB_PRESETS = [1, 2, 4];
+
 export const DEFAULT_SETTINGS: VerbSettings = {
   feed: 0.5,
   waterChange: 0.25,
   dose: 2,
+  rootTab: 1,
   trimPlants: 75,
 };
 
@@ -76,6 +96,7 @@ const VERB: Record<VerbId, { name: string; title: string; home: string }> = {
   waterChange: { name: 'Water change', title: 'Water change', home: 'Water' },
   topOff: { name: 'Top off', title: 'Top off', home: 'Water' },
   dose: { name: 'Dose', title: 'Dose fertiliser', home: 'Nutrients' },
+  rootTab: { name: 'Root tab', title: 'Push root tabs', home: 'Nutrients' },
   trimPlants: { name: 'Trim', title: 'Trim plants', home: 'Life' },
   scrubAlgae: { name: 'Scrub', title: 'Scrub algae', home: 'Life' },
 };
@@ -132,6 +153,8 @@ export function verbAction(
       return { type: 'topOff' };
     case 'dose':
       return { type: 'dose', amountMl: settings.dose };
+    case 'rootTab':
+      return { type: 'rootTab', count: settings.rootTab };
     case 'trimPlants':
       return {
         type: 'trimPlants',
@@ -214,6 +237,8 @@ function blockedReason(
       return headroom(state) > 0 ? null : 'already at capacity';
     case 'dose':
       return canDose(state) ? null : 'no plants to fertilise';
+    case 'rootTab':
+      return canRootTab(state) ? null : 'no bed to push a tab into';
     case 'trimPlants':
       return getPlantsToTrimCount(reached(state, scope), settings.trimPlants) > 0
         ? null
@@ -241,6 +266,8 @@ function rowValue(
       return `+${formatVolume(headroom(state), units, 1)}`;
     case 'dose':
       return `${settings.dose} ml`;
+    case 'rootTab':
+      return plural(settings.rootTab, 'tab');
     case 'trimPlants':
       return `to ${settings.trimPlants} %`;
     case 'scrubAlgae':
@@ -347,24 +374,35 @@ function rungsFor(
         }),
       };
     case 'dose': {
-      const advice = doseToCover(nutrientReadings(state, config), state, config);
-      // The engine takes 50 ml in one dose; a bigger ask is offered as far as it goes.
-      const advised = advice === null ? null : Math.min(advice.ml, MAX_DOSE_ML);
-      const asked =
-        advice?.overSingleDose === true ? `capped at ${MAX_DOSE_ML} ml` : 'covers the ask';
+      const advised = advisedRungs(
+        DOSE_PRESETS,
+        doseToCover(nutrientReadings(state, config), state, config)?.ml ?? null,
+        'dose',
+        'ml'
+      );
       return {
-        values:
-          advised === null
-            ? DOSE_PRESETS
-            : [...new Set([...DOSE_PRESETS, advised])].sort((a, b) => a - b),
+        values: advised.values,
         rung: (ml) => ({
           value: ml,
           label: `${ml} ml`,
           hint:
-            ml === advised
-              ? asked
-              : `+${nitrateRise(state, ml, config).toFixed(NitrateResource.precision)} NO₃`,
+            advised.hint(ml) ??
+            `+${nitrateRise(state, ml, config).toFixed(NitrateResource.precision)} NO₃`,
           disabled: false,
+        }),
+      };
+    }
+    case 'rootTab': {
+      const bed = bedReading(state, config);
+      const advised = advisedRungs(ROOT_TAB_PRESETS, bed.advice, 'rootTab', 'tabs');
+      const tabbable = !bed.bare;
+      return {
+        values: advised.values,
+        rung: (count) => ({
+          value: count,
+          label: String(count),
+          hint: advised.hint(count) ?? (tabbable ? `bed ${bedAfter(state, count, config, bed.nutrient)}` : '—'),
+          disabled: !tabbable,
         }),
       };
     }
@@ -382,6 +420,34 @@ function rungsFor(
         },
       };
   }
+}
+
+const MOST_AT_ONCE = { dose: MAX_DOSE_ML, rootTab: MAX_ROOT_TABS } as const;
+
+/** Advice held to the most the engine takes in one go, so a bigger ask is offered as far as it goes. */
+export function advisedAmount(id: keyof typeof MOST_AT_ONCE, advice: number | null): number | null {
+  return advice === null ? null : Math.min(advice, MOST_AT_ONCE[id]);
+}
+
+/** The presets with the advised amount slotted in, and the hint that rung carries in place of its own. */
+function advisedRungs(
+  presets: number[],
+  advice: number | null,
+  id: keyof typeof MOST_AT_ONCE,
+  unit: string
+): { values: number[]; hint: (value: number) => string | null } {
+  const advised = advisedAmount(id, advice);
+  if (advised === null) return { values: presets, hint: () => null };
+  return {
+    values: [...new Set([...presets, advised])].sort((a, b) => a - b),
+    hint: (value) =>
+      value !== advised ? null : advised !== advice ? `capped at ${advised} ${unit}` : 'covers the ask',
+  };
+}
+
+function bedAfter(state: SimulationState, count: number, config: TunableConfig, on: Nutrient | null): string {
+  const after = applyAction(state, { type: 'rootTab', count }, config).state;
+  return bedReading(after, config, undefined, on).text;
 }
 
 function nitrateRise(state: SimulationState, ml: number, config: TunableConfig): number {
@@ -421,6 +487,12 @@ function meta(
       return `refills to ${formatVolume(state.tank.capacity, units, 0)}`;
     case 'dose':
       return `into ${formatVolume(water, units, 1)}`;
+    case 'rootTab': {
+      const bed = bedReading(state, config);
+      if (bed.bare) return 'bare bottom';
+      const holds = `bed holds ${bed.text} tabs`;
+      return bed.needed > 0 ? `${holds} · roots need ${bed.neededText} tabs` : holds;
+    }
     case 'trimPlants': {
       const reach = reached(state, scope);
       const { plants } = reach;
@@ -461,6 +533,8 @@ function commitLabel(
       return `Top off +${formatVolume(headroom(state), units, 1)}`;
     case 'dose':
       return `Dose ${settings.dose} ml`;
+    case 'rootTab':
+      return `Push ${plural(settings.rootTab, 'tab')}`;
     case 'trimPlants':
       return `Trim ${scope ? 'family ' : ''}to ${settings.trimPlants} %`;
     case 'scrubAlgae':
@@ -491,6 +565,7 @@ const OPTIONS_LABEL: Record<SettableVerb, string> = {
   feed: 'Amount',
   waterChange: 'Replace',
   dose: 'Amount',
+  rootTab: 'Tabs',
   trimPlants: 'Trim to',
 };
 

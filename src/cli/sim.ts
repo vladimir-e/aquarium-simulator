@@ -142,6 +142,13 @@ export function buildAction(type: string, args: string[]): Action {
       }
       return { type: 'dose', amountMl: ml };
     }
+    case 'rootTab': {
+      const count = Number(args[0] ?? '1');
+      if (!Number.isInteger(count) || count < 1) {
+        throw new Error('rootTab requires a whole number of tabs.');
+      }
+      return { type: 'rootTab', count };
+    }
     case 'scrubAlgae': {
       const raw = args[0];
       if (!raw) return { type: 'scrubAlgae' };
@@ -220,13 +227,14 @@ function printHelp(): void {
       '  trace --fields=<csv> [--last=<duration>] [--every=<duration>]',
       '  config get [<dotted.path>]',
       '  config set <dotted.path> <value>',
-      '  action <type> [args...]   (feed 2.5, waterChange 40, dose 1, topOff,',
-      '                             scrubAlgae 20, trimPlants 85, sellFry)',
+      '  action <type> [args...]   (feed 2.5, waterChange 40, dose 1, rootTab 2,',
+      '                             topOff, scrubAlgae 20, trimPlants 85, sellFry)',
       '  smoke',
       '  scenarios [<setup>...] [--days=<n>] [--json[=<file>]] [--diff=<file>] [--trace=<day>] [--bands]',
       '      [--plant=<species>:<n>[:<size>]] [--fish=<species>:<n>] [--light=<factor>]',
       '      [--gal=<n>] [--set=<dotted.path>=<value>] [--uncycled]',
       '      [--feed=<n>g|<n>%[/<period>]] [--water-change=<n>%[/<period>]] [--dose=<n>ml[/<period>]]',
+      '      [--root-tab=<n>tab[/<period>]]',
       '      [--trim[=<period>]] [--scrub[=<period>]] [--top-off[=<period>]]',
       '                            (<period> is <n>d or <n>w; overrides the keeper; =off drops a chore)',
       '                            (headless preset tanks, readings banded G/A/R; no session)',

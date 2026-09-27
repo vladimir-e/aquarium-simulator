@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { MAX_LIGHT_PAR, VIGOUR_SPAN } from '../../simulation/index.js';
+import { MAX_DOSE_ML, MAX_LIGHT_PAR, MAX_ROOT_TABS, VIGOUR_SPAN } from '../../simulation/index.js';
 import {
   MAX_LEAF_ATTENUATION_PER_LAI,
   MAX_SUFFICIENCY_EDGE,
@@ -15,6 +15,14 @@ import {
 import { VERB_IDS, type VerbId } from '../actions/verbs.js';
 import { PERSISTENCE_VERSION } from './types.js';
 import { SPEED_PRESETS, type SpeedPreset } from '../run/speed.js';
+
+const numbersFor = <K extends string>(
+  keys: readonly K[],
+  leaf: z.ZodNumber = z.number()
+): z.ZodObject<Record<K, z.ZodNumber>, z.core.$strict> =>
+  z.object(Object.fromEntries(keys.map((k) => [k, leaf])) as Record<K, z.ZodNumber>).strict();
+
+const NutrientVectorSchema = numbersFor(NUTRIENTS);
 
 // ============================================================================
 // Schedule Schema
@@ -137,6 +145,7 @@ const SubstrateSchema = z
     type: z.enum(['none', 'sand', 'gravel', 'aqua_soil']),
     organicReserve: z.number(),
     khReserve: z.number(),
+    nutrients: NutrientVectorSchema,
   })
   .strict();
 
@@ -293,7 +302,7 @@ const TankSeedSchema = z
         ResourcesSchema.pick({ aob: true, nob: true }).partial().strict(),
       ])
       .optional(),
-    substrate: SubstrateSchema.pick({ organicReserve: true, khReserve: true })
+    substrate: SubstrateSchema.pick({ organicReserve: true, khReserve: true, nutrients: true })
       .partial()
       .strict()
       .optional(),
@@ -472,24 +481,17 @@ const PlantsConfigSchema = z
     temperatureBenefitPeak: z.number(),
     phBenefitPeak: z.number(),
     maxSheddingRate: z.number(),
-    wastePerSize: z.number(),
-    deathSizeThreshold: z.number(),
+    tissuePerSize: z.number(),
   })
   .strict();
 
-const numbersFor = <K extends string>(
-  keys: readonly K[],
-  leaf: z.ZodNumber = z.number()
-): z.ZodObject<Record<K, z.ZodNumber>, z.core.$strict> =>
-  z.object(Object.fromEntries(keys.map((k) => [k, leaf])) as Record<K, z.ZodNumber>).strict();
-
-const NutrientVectorSchema = numbersFor(NUTRIENTS);
 const DemandVectorSchema = numbersFor(NUTRIENTS, z.number().min(0.01));
 
 const NutrientsConfigSchema = z
   .object({
     fertilizerFormula: NutrientVectorSchema,
-    uptakePerRateUnit: NutrientVectorSchema,
+    rootTab: NutrientVectorSchema,
+    bedLeakRate: z.number(),
     halfSaturation: NutrientVectorSchema,
     demand: z
       .object({ low: DemandVectorSchema, medium: DemandVectorSchema, high: DemandVectorSchema })
@@ -560,7 +562,8 @@ const VerbSettingsSchema = z
   .object({
     feed: z.number().min(0),
     waterChange: z.number().min(0).max(1),
-    dose: z.number().min(0),
+    dose: z.number().min(0).max(MAX_DOSE_ML),
+    rootTab: z.number().int().min(1).max(MAX_ROOT_TABS),
     trimPlants: z.number().min(0).max(100),
   })
   .strict();

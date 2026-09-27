@@ -1,5 +1,6 @@
 /**
- * Substrate equipment for bacteria colonization and plant rooting.
+ * Substrate equipment for bacteria colonization and plant rooting, and the
+ * store of nutrients a root feeder draws on.
  */
 
 import { produce } from 'immer';
@@ -7,6 +8,14 @@ import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { type WaterChemistryConfig, waterChemistryDefaults } from '../config/water-chemistry.js';
+import {
+  mapNutrients,
+  NUTRIENTS,
+  nutrientsDefaults,
+  ZERO_NUTRIENTS,
+  type NutrientsConfig,
+  type NutrientVector,
+} from '../config/nutrients.js';
 
 export type SubstrateType = 'none' | 'sand' | 'gravel' | 'aqua_soil';
 
@@ -17,12 +26,15 @@ export interface Substrate {
   organicReserve: number;
   /** Alkalinity the bed can still take up, mg of CaCO3 — spent as it buffers and never refills */
   khReserve: number;
+  /** mg of each nutrient the bed holds — filled by root tabs, drained by roots and the leak */
+  nutrients: NutrientVector;
 }
 
 export const DEFAULT_SUBSTRATE: Substrate = {
   type: 'none',
   organicReserve: 0,
   khReserve: 0,
+  nutrients: ZERO_NUTRIENTS,
 };
 
 /** Substrate bacteria surface per liter of tank (cm²/L) */
@@ -58,6 +70,17 @@ export const SUBSTRATE_KH_RESERVE_PER_LITER: Record<SubstrateType, number> = {
 };
 
 /**
+ * Nutrients a fresh bed holds per liter of tank (mg/L). Aqua soil comes
+ * charged — enough to carry a sword for months untabbed; inert beds hold none.
+ */
+export const SUBSTRATE_NUTRIENTS_PER_LITER: Record<SubstrateType, NutrientVector> = {
+  none: ZERO_NUTRIENTS,
+  sand: ZERO_NUTRIENTS,
+  gravel: ZERO_NUTRIENTS,
+  aqua_soil: { nitrate: 50, phosphate: 5, potassium: 20, iron: 1 },
+};
+
+/**
  * Gets the bacteria surface area for a substrate type (cm²).
  * Surface scales with tank capacity.
  */
@@ -78,12 +101,19 @@ export function getSubstrateKhReserve(type: SubstrateType, tankCapacity: number)
   return SUBSTRATE_KH_RESERVE_PER_LITER[type] * tankCapacity;
 }
 
+/** mg of each nutrient a fresh bed of this type holds. */
+export function getSubstrateNutrients(type: SubstrateType, tankCapacity: number): NutrientVector {
+  const perLiter = SUBSTRATE_NUTRIENTS_PER_LITER[type];
+  return mapNutrients((n) => perLiter[n] * tankCapacity);
+}
+
 /** A bed of this type straight out of the bag. */
 export function freshSubstrate(type: SubstrateType, tankCapacity: number): Substrate {
   return {
     type,
     organicReserve: getSubstrateOrganicReserve(type, tankCapacity),
     khReserve: getSubstrateKhReserve(type, tankCapacity),
+    nutrients: getSubstrateNutrients(type, tankCapacity),
   };
 }
 
@@ -116,6 +146,14 @@ export function calculateSubstrateLeach(
 ): number {
   if (organicReserve <= 0) return 0;
   return Math.min(organicReserve, organicReserve * config.substrateLeachRate);
+}
+
+/** mg of each nutrient the bed leaks into the water this tick — a share of what it holds. */
+export function calculateBedLeak(
+  nutrients: NutrientVector,
+  config: NutrientsConfig = nutrientsDefaults
+): NutrientVector {
+  return mapNutrients((n) => nutrients[n] * config.bedLeakRate);
 }
 
 /**
@@ -161,13 +199,16 @@ export interface SubstrateUpdateResult {
  * it holds on to Ca²⁺ and Mg²⁺ and gives back H⁺, which spends carbonate —
  * so every mg it takes up leaves the water as KH and as GH alike, and never
  * more than the water has of either. Both come out of the bed's reserves.
+ * Its nutrient store leaks into the water.
  */
 export function substrateUpdate(
   state: SimulationState,
   decay: DecayConfig = decayDefaults,
-  chemistry: WaterChemistryConfig = waterChemistryDefaults
+  chemistry: WaterChemistryConfig = waterChemistryDefaults,
+  nutrients: NutrientsConfig = nutrientsDefaults
 ): SubstrateUpdateResult {
   const { substrate } = state.equipment;
+  const leaked = calculateBedLeak(substrate.nutrients, nutrients);
   const leached = calculateSubstrateLeach(substrate.organicReserve, decay);
   const settled = state.resources.waste * wasteSettlingShare(state, decay);
   const uptake =
@@ -178,11 +219,17 @@ export function substrateUpdate(
         )
       : 0;
 
-  if (leached <= 0 && settled <= 0 && uptake <= 0) {
+  const leaking = NUTRIENTS.filter((n) => leaked[n] > 0);
+  if (leached <= 0 && settled <= 0 && uptake <= 0 && leaking.length === 0) {
     return { state, effects: [] };
   }
 
-  const effects: Effect[] = [];
+  const effects: Effect[] = leaking.map((n) => ({
+    tier: 'immediate',
+    resource: n,
+    delta: leaked[n],
+    source: 'substrate-leak',
+  }));
   if (leached > 0) {
     effects.push({ tier: 'immediate', resource: 'waste', delta: leached, source: 'substrate-leach' });
   }
@@ -200,6 +247,7 @@ export function substrateUpdate(
     state: produce(state, (draft) => {
       draft.equipment.substrate.organicReserve += settled - leached;
       draft.equipment.substrate.khReserve -= uptake;
+      for (const n of leaking) draft.equipment.substrate.nutrients[n] -= leaked[n];
     }),
     effects,
   };

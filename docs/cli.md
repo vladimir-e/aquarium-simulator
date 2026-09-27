@@ -15,7 +15,7 @@ npm run scenarios -- --json=/tmp/before.json       # machine-readable results
 npm run scenarios -- --feed=1g --diff=/tmp/before.json  # only readings that moved against a saved run
 ```
 
-Setups: `nano`, `low-tech`, `high-tech`, `community`, `low-flow`, `cold`.
+Setups: `nano`, `low-tech`, `high-tech`, `community`, `sword-gravel`, `low-flow`, `cold`.
 
 Tweaks apply to every setup in the run:
 
@@ -24,11 +24,12 @@ Tweaks apply to every setup in the run:
 | `--feed=2g/1d`, `--feed=3%` | Feed grams, or a share of stocked fish mass; optional period |
 | `--water-change=30%/1w` | Water-change share, optional period |
 | `--vac=15%`, `--vac=off` | Share of the bed's mulm vacuumed at every water change; setups vac 15 % |
-| `--dose=2ml/1w` | Fertilizer dose, optional period |
+| `--dose=2ml/1w` | Fertilizer dose, up to the engine's per-dose cap, optional period |
+| `--root-tab=4tab/30d` | Root tabs pushed into the bed — whole tabs, up to the engine's per-push cap — optional period; monthly by default |
 | `--trim[=2w]` | Cut every plant to 85 % and thin the youngest until the planting fits its floor; planted setups trim weekly |
 | `--scrub[=1w]`, `--top-off[=1d]` | Maintenance chores, optional period |
 | `--<chore>=off` | Drop that chore from the schedule |
-| `--plant=java_fern:3:40` | Add a plant group (species:count:size, size a % of one full unit, from `deathSizeThreshold` to 100) |
+| `--plant=java_fern:3:40` | Add a plant group (species:count:size, size a % of one full unit, from `MIN_PLANTABLE_SIZE` (1) to 100) |
 | `--fish=neon_tetra:6` | Add a fish group (species:count) |
 | `--rock=calcite_rock:2` | Add hardscape pieces (type:count) |
 | `--tap-kh=8` | Tap water carbonate hardness, dKH |
@@ -39,9 +40,9 @@ Tweaks apply to every setup in the run:
 | `--rescape=30` | On that day, lift and reset every hardscape piece and uproot every other plant |
 | `--set=path.to.tunable=value` | Override a tunable |
 
-Periods are `<n>d` or `<n>w`; without one, feeding and top-off are daily and every other chore weekly.
+Periods are `<n>d` or `<n>w`; without one, feeding and top-off are daily, root tabs monthly and every other chore weekly.
 
-`--diff` prints, per setup, only the readings whose grade changed or whose value moved past display rounding and 5 %, or `no change`. Baselines match on setup name, so a tweaked run diffs against a plain one. A chore the engine refuses (a dose over its cap, say) warns once on stderr.
+`--diff` prints, per setup, only the readings whose grade changed or whose value moved past display rounding and 5 %, or `no change`. Baselines match on setup name, so a tweaked run diffs against a plain one. A chore the engine refuses (a root tab over a bare bottom, say) warns once on stderr.
 
 ## Interactive session
 
@@ -61,6 +62,7 @@ npx tsx src/cli/sim.ts trace --fields=temperature,ph,dkh,dgh,nh3_ppm,no3_ppm --e
 npx tsx src/cli/sim.ts action feed 0.5
 npx tsx src/cli/sim.ts action waterChange 40
 npx tsx src/cli/sim.ts action dose 1
+npx tsx src/cli/sim.ts action rootTab 2
 
 npx tsx src/cli/sim.ts config get nitrogenCycle
 npx tsx src/cli/sim.ts config set nitrogenCycle.bacteriaPerCm2 260

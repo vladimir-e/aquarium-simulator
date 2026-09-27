@@ -4,17 +4,20 @@ import {
   calculateSurface,
   createSimulation,
   MAX_DOSE_ML,
+  MAX_ROOT_TABS,
   MIN_ALGAE_TO_SCRUB,
   WATER_CHANGE_AMOUNTS,
   type SimulationState,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, mapNutrients, type Nutrient, type TunableConfig } from '../../simulation/config/index.js';
+import { getMassFromPpm } from '../../simulation/resources/index.js';
 import { produce } from 'immer';
-import { doseToCover, nutrientReadings, TRIM_TARGETS } from '../run';
+import { bedReading, doseToCover, nutrientProbe, nutrientReadings, TRIM_TARGETS } from '../run';
 import {
   DEFAULT_SETTINGS,
   DOSE_PRESETS,
   FEED_PRESETS,
+  ROOT_TAB_PRESETS,
   VERB_IDS,
   verbAction,
   verbDetail,
@@ -57,7 +60,7 @@ function row(state: SimulationState, id: VerbId, settings: VerbSettings = DEFAUL
   return found!;
 }
 
-describe('the six verbs', () => {
+describe('the seven verbs', () => {
   it('offers the engine’s own option sets rather than a retyped copy', () => {
     const state = planted([80, 60]);
 
@@ -108,7 +111,7 @@ describe('the six verbs', () => {
   it('offers the engine’s biggest single dose where the ask is bigger still', () => {
     const state = starved();
     const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
-    expect(advice.overSingleDose).toBe(true);
+    expect(advice.ml).toBeGreaterThan(MAX_DOSE_ML);
 
     const options = detail(state, 'dose').options;
     expect(options.map((o) => o.value)).toEqual([...DOSE_PRESETS, MAX_DOSE_ML]);
@@ -185,11 +188,12 @@ describe('the six verbs', () => {
   });
 
   it('dispatches the shape the engine reads, and lets it roll its own scrub', () => {
-    const settings: VerbSettings = { feed: 2, waterChange: 0.9, dose: 4, trimPlants: 50 };
+    const settings: VerbSettings = { feed: 2, waterChange: 0.9, dose: 4, rootTab: 3, trimPlants: 50 };
 
     expect(verbAction('feed', settings)).toEqual({ type: 'feed', amount: 2 });
     expect(verbAction('waterChange', settings)).toEqual({ type: 'waterChange', amount: 0.9 });
     expect(verbAction('dose', settings)).toEqual({ type: 'dose', amountMl: 4 });
+    expect(verbAction('rootTab', settings)).toEqual({ type: 'rootTab', count: 3 });
     expect(verbAction('trimPlants', settings)).toEqual({ type: 'trimPlants', targetSize: 50 });
     expect(verbAction('topOff', settings)).toEqual({ type: 'topOff' });
     expect(verbAction('scrubAlgae', settings)).toEqual({ type: 'scrubAlgae' });
@@ -228,6 +232,66 @@ describe('the six verbs', () => {
     expect(row(full, 'topOff').blocked).toBe('already at capacity');
     expect(row(clean, 'scrubAlgae').blocked).toBe(`needs ${MIN_ALGAE_TO_SCRUB} % algae, now 3 %`);
     expect(row(planted([40]), 'trimPlants').blocked).toBe('nothing above 75 %');
+    const bareBottom = { ...bare, equipment: { ...bare.equipment, substrate: { ...bare.equipment.substrate, type: 'none' as const } } };
+    expect(row(bareBottom, 'rootTab').blocked).toBe('no bed to push a tab into');
+    expect(detail(bareBottom, 'rootTab').options.every((o) => o.disabled)).toBe(true);
+  });
+
+  it('offers the tabs that cover a starving root feeder, and previews the bed they fill', () => {
+    const sword = applyAction(tank(), { type: 'addPlant', species: 'amazon_sword' }).state;
+    const { advice } = bedReading(sword, DEFAULT_CONFIG)!;
+    const sheet = detail(sword, 'rootTab');
+
+    expect(advice).toBeGreaterThan(0);
+    expect(sheet.options.map((o) => o.value)).toEqual([...new Set([...ROOT_TAB_PRESETS, advice!])].sort((a, b) => a - b));
+    expect(sheet.options.find((o) => o.value === advice)?.hint).toBe('covers the ask');
+    expect(sheet.options.every((o) => o.value <= MAX_ROOT_TABS)).toBe(true);
+    expect(sheet.preview.map((r) => r.key)).toEqual(['bed']);
+    expect(sheet.preview[0]).toMatchObject({ before: '0.0', after: '1.0', unit: 'tabs' });
+  });
+
+  it('holds the preview and the rung hints on the standing reading’s nutrient when the tabs flip which one binds', () => {
+    const sword = applyAction(tank(), { type: 'addPlant', species: 'amazon_sword' }).state;
+    const count = DEFAULT_SETTINGS.rootTab;
+    const tab = DEFAULT_CONFIG.nutrients.rootTab;
+    const need = mapNutrients((n) =>
+      getMassFromPpm(nutrientProbe(sword, DEFAULT_CONFIG).need.bed[n], sword.tank.capacity)
+    );
+    const coverPerTab = (n: Nutrient): number => tab[n] / need[n];
+    const nitrateCoverPhosphateOvertakes = (count * (coverPerTab('phosphate') - coverPerTab('nitrate'))) / 2;
+    const state = produce(sword, (draft) => {
+      draft.equipment.substrate.nutrients = {
+        nitrate: nitrateCoverPhosphateOvertakes * need.nitrate,
+        phosphate: 0,
+        potassium: 3 * need.potassium,
+        iron: 3 * need.iron,
+      };
+    });
+    const after = applyAction(state, { type: 'rootTab', count }).state;
+    expect(bedReading(state, DEFAULT_CONFIG)!.nutrient).toBe('phosphate');
+    expect(bedReading(after, DEFAULT_CONFIG)!.nutrient).toBe('nitrate');
+
+    const onPhosphate = bedReading(after, DEFAULT_CONFIG, undefined, 'phosphate')!.text;
+    expect(onPhosphate).not.toBe(bedReading(after, DEFAULT_CONFIG)!.text);
+    const sheet = detail(state, 'rootTab');
+    expect(sheet.preview.find((r) => r.key === 'bed')?.after).toBe(onPhosphate);
+    expect(sheet.options.find((o) => o.value === count)?.hint).toBe(`bed ${onPhosphate}`);
+  });
+
+  it('offers the most tabs the engine takes where a starved bed asks for more, and says it is capped', () => {
+    const big = createSimulation({ tankCapacity: 400 });
+    big.equipment.substrate.type = 'gravel';
+    const swords = ['amazon_sword', 'amazon_sword'] as const;
+    const state = swords.reduce(
+      (current, species) => applyAction(current, { type: 'addPlant', species }).state,
+      big
+    );
+    const { advice } = bedReading(state, DEFAULT_CONFIG)!;
+    const options = detail(state, 'rootTab').options;
+
+    expect(advice).toBeGreaterThan(MAX_ROOT_TABS);
+    expect(options.map((o) => o.value)).toEqual([...ROOT_TAB_PRESETS, MAX_ROOT_TABS]);
+    expect(options.find((o) => o.value === MAX_ROOT_TABS)?.hint).toBe(`capped at ${MAX_ROOT_TABS} tabs`);
   });
 
   it('blocks a trim rung by rung, not once for the verb', () => {
@@ -281,6 +345,7 @@ describe('the six verbs', () => {
       'Change 25 % water',
       'Top off +3.6 L',
       'Dose 2 ml',
+      'Push 1 tab',
       'Trim to 75 %',
       'Scrub algae',
     ]);

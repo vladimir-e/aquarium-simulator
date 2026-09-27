@@ -84,11 +84,12 @@ export type {
   SeedPlantGroup,
 } from './seed.js';
 export {
+  cycledBedNutrients,
   cycledColony,
   cycledHardness,
   cycledKhReserve,
-  cycledNitrate,
   cycledReserve,
+  cycledWaterNutrients,
   startingHardness,
 } from './seed.js';
 
@@ -103,7 +104,7 @@ export {
 } from './presets.js';
 
 // Configuration
-export type { TunableConfig, FertilizerFormula } from './config/index.js';
+export type { TunableConfig, FertilizerFormula, NutrientVector } from './config/index.js';
 export { DEFAULT_CONFIG } from './config/index.js';
 
 // Resources
@@ -203,9 +204,11 @@ export {
   getSubstrateSurface,
   getSubstrateOrganicReserve,
   getSubstrateKhReserve,
+  getSubstrateNutrients,
   freshSubstrate,
   replaceSubstrate,
   calculateSubstrateLeach,
+  calculateBedLeak,
   wasteSettlingShare,
   calculateSubstrateKhUptake,
   substrateUpdate,
@@ -215,6 +218,7 @@ export {
   SUBSTRATE_SURFACE_PER_LITER,
   SUBSTRATE_ORGANIC_PER_LITER,
   SUBSTRATE_KH_RESERVE_PER_LITER,
+  SUBSTRATE_NUTRIENTS_PER_LITER,
   BUBBLE_RATE_OPTIONS,
   type BubbleRate,
   getAirPumpOutput,
@@ -284,6 +288,7 @@ export type {
   AddPlantAction,
   RemovePlantAction,
   DoseAction,
+  RootTabAction,
   AddFishAction,
   RemoveFishAction,
   SellFryAction,
@@ -305,8 +310,6 @@ export {
   getPlantsToTrimCount,
   addPlant,
   removePlant,
-  isSubstrateCompatible,
-  getSubstrateIncompatibilityReason,
   canAddPlant,
   checkPlantFootprint,
   dose,
@@ -314,6 +317,9 @@ export {
   getDosePreview,
   calculateDoseNutrients,
   MAX_DOSE_ML,
+  rootTab,
+  canRootTab,
+  MAX_ROOT_TABS,
   addFish,
   removeFish,
   sellFry,
@@ -346,12 +352,20 @@ export {
   speciesDemand,
   speciesHalfSaturation,
   nutrientShare,
+  nutrientShares,
+  tankPools,
+  poolDraws,
+  plantShares,
+  organicNutrients,
+  tissueMass,
   calculateCo2Factor,
   calculateRespiration,
   getRespirationTemperatureFactor,
   spendSurplus,
   propagate,
   VIGOUR_SPAN,
+  MIN_PLANTABLE_SIZE,
+  isPlantableSize,
   getSpeciesGrowthRate,
   computePlantVitality,
   plantHealingRate,
@@ -369,7 +383,14 @@ export {
   floorShade,
   isOvergrown,
 } from './plants/index.js';
-export type { PlantLight, CanopyLight, Propagation } from './plants/index.js';
+export type {
+  PlantLight,
+  CanopyLight,
+  Propagation,
+  NutrientPool,
+  TankPools,
+  PoolDraw,
+} from './plants/index.js';
 
 // Livestock
 export {

@@ -21,4 +21,5 @@ export {
   verbRows,
   verbDetail,
   withAmount,
+  advisedAmount,
 } from './verbs.js';
