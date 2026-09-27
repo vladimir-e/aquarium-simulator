@@ -140,6 +140,12 @@ export interface LivestockConfig {
    */
   broodCost: number;
 
+  // Clutches
+  /** How many times harder the water harms an egg than a fish; an egg's harm is the share of the clutch lost an hour. */
+  eggSensitivity: number;
+  /** Share of a clutch's eggs an hour one gram of fish per litre finds, before the clutch's exposure. */
+  eggPredationRate: number;
+
   // Death
   /** Fraction of fish mass added as waste on death */
   deathDecayFactor: number;
@@ -244,6 +250,13 @@ export const livestockDefaults: LivestockConfig = {
   // A full bank buys a grown female a brood about her own weight: twenty
   // guppy fry, fifty angelfish eggs.
   broodCost: 50,
+
+  // Water at a fish's 96-hour LC50 costs a clutch about 5 %/h — most of a
+  // neon clutch before it hatches — while the adults ride it out on their banks.
+  eggSensitivity: 3,
+  // A grown neon pair in 40 L finds about 5 % of an open clutch an hour, so a
+  // fifth of it hatches; ten neons leave next to none.
+  eggPredationRate: 2,
 
   // Death
   deathDecayFactor: 0.5, // Half fish mass becomes waste
@@ -357,6 +370,9 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'growthDrawRate', label: 'Growth Draw Rate', unit: '/hr', min: 0.005, max: 0.2, step: 0.005 },
   { key: 'sizePerSurplus', label: 'Size per Bank Point', unit: '%/pt', min: 0.01, max: MAX_FISH_SIZE_PER_SURPLUS, step: 0.01 },
   { key: 'broodCost', label: 'Brood Cost', unit: 'pts/body mass', min: 5, max: 500, step: 5 },
+  // Clutches
+  { key: 'eggSensitivity', label: 'Egg Sensitivity', unit: '× fish', min: 0, max: 10, step: 0.5 },
+  { key: 'eggPredationRate', label: 'Egg Predation Rate', unit: 'L/g/hr', min: 0, max: 20, step: 0.5 },
   // Death
   { key: 'deathDecayFactor', label: 'Death Decay Factor', unit: '', min: 0.1, max: 1.0, step: 0.1 },
 ];

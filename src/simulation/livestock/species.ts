@@ -16,13 +16,7 @@ export type FishSex = 'male' | 'female';
 /** What a fish's size reads as — a word for the keeper, never a switch. */
 export type FishLifeStage = 'fry' | 'adult';
 
-/**
- * How a species reproduces. Livebearers release free-swimming fry
- * directly; every egg-laying mode deposits an inert clutch that hatches
- * into fry after `hatchTime`. The mode is the anchor for the future
- * predation/guarding layer — nothing downstream branches on it yet
- * beyond livebearer-vs-clutch.
- */
+/** How a species reproduces: a livebearer carries its clutch, every other mode lays it. */
 export type BreedingMode =
   | 'livebearer'
   | 'egg-scatterer'
@@ -33,11 +27,12 @@ export type BreedingMode =
 /** Per-species reproduction parameters, in sim units (ticks = hours). */
 export interface FishBreedingData {
   mode: BreedingMode;
-  /**
-   * Ticks from clutch laid to hatch. Unused by livebearers (they skip
-   * the clutch stage — gestation is already paid for by accrual).
-   */
-  hatchTime: number;
+  /** Hours a clutch takes to develop at the metabolic reference temperature in unlimited oxygen. */
+  developmentTime: number;
+  /** Share of the tank's egg predation that reaches its clutch: 1 left in the open, 0 carried. */
+  clutchExposure: number;
+  /** Grams one egg weighs — a livebearer's, one embryo late in gestation. */
+  eggMass: number;
   /** Fry starting mass as a fraction of `adultMass`. */
   fryMassFraction: number;
   /** The male's share of a brood's cost, paid from his own bank. */
@@ -84,11 +79,13 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     ghRange: [1, 12],
     maxTurnover: 10, // Slow tributaries, but fine on a community canister
     growthRate: 0.5,
-    // Egg-scatterer: sheds adhesive eggs over plants and leaves them. Fast
-    // incubation (~24 h); grown in four to six months.
+    // Egg-scatterer: sheds adhesive eggs over plants and leaves them to be
+    // eaten. Hatches in a day or so; grown in four to six months.
     breeding: {
       mode: 'egg-scatterer',
-      hatchTime: 24,
+      developmentTime: 24,
+      clutchExposure: 1,
+      eggMass: 0.0004,
       fryMassFraction: 0.05,
       maleShare: 0.2,
     },
@@ -104,10 +101,13 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     maxTurnover: 5, // Still blackwater, long fins - a sponge filter and no more
     growthRate: 0.7,
     // Bubble-nester: the male builds the nest and guards the eggs, so he
-    // pays most of the brood. Quick hatch (~36 h); grown in three to four months.
+    // pays most of the brood and few are eaten. Hatches in a day and a half;
+    // grown in three to four months.
     breeding: {
       mode: 'bubble-nester',
-      hatchTime: 36,
+      developmentTime: 32,
+      clutchExposure: 0.3,
+      eggMass: 0.0005,
       fryMassFraction: 0.03,
       maleShare: 0.6,
     },
@@ -122,11 +122,14 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     ghRange: [6, 25],
     maxTurnover: 13, // Hardy, tolerates a lot
     growthRate: 1.0,
-    // Livebearer: drops free-swimming fry directly (no clutch stage, so
-    // `hatchTime` is unused). Grown in two to three months.
+    // Livebearer: the female carries the clutch through a four-week
+    // gestation, out of reach, and drops free-swimming fry. Grown in two to
+    // three months.
     breeding: {
       mode: 'livebearer',
-      hatchTime: 0,
+      developmentTime: 600,
+      clutchExposure: 0,
+      eggMass: 0.005,
       fryMassFraction: 0.05,
       maleShare: 0.2,
     },
@@ -141,11 +144,14 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     ghRange: [3, 15],
     maxTurnover: 10, // Tall body catches current, but its canonical home is a big canister tank
     growthRate: 0.35,
-    // Substrate-spawner: a pair cleans a leaf and fans the eggs together.
-    // Hatches in ~2.5 days; big fish, tiny fry, grown in six to eight months.
+    // Substrate-spawner: a pair cleans a leaf and fans and guards the eggs
+    // together. Hatches in two and a half days; big fish, tiny fry, grown in
+    // six to eight months.
     breeding: {
       mode: 'substrate-spawner',
-      hatchTime: 60,
+      developmentTime: 54,
+      clutchExposure: 0.5,
+      eggMass: 0.002,
       fryMassFraction: 0.02,
       maleShare: 0.5,
     },
@@ -160,11 +166,13 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     ghRange: [2, 15],
     maxTurnover: 15, // Bottom dweller, appreciates current
     growthRate: 0.45,
-    // Egg-depositor: presses eggs onto glass and leaves them. Slow hatch
-    // (~4 days); grown in five to six months.
+    // Egg-depositor: presses eggs onto glass and leaves them. Slow hatch,
+    // three to five days; grown in five to six months.
     breeding: {
       mode: 'egg-depositor',
-      hatchTime: 96,
+      developmentTime: 90,
+      clutchExposure: 1,
+      eggMass: 0.004,
       fryMassFraction: 0.04,
       maleShare: 0.2,
     },

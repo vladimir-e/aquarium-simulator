@@ -462,12 +462,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         draft.equipment.hardscape = fresh.equipment.hardscape;
         if (draft.seed?.bacteria === 'cycled') Object.assign(draft.resources, cycledColony(draft));
 
-        // Clear in-flight clutches: they hatch at an absolute
-        // `laidTick + hatchTime`, so rewinding the clock to 0 would
-        // strand them until sim time climbed back past their hatch tick.
-        // (Fish age is relative, so livestock is left in place.)
-        draft.clutches = [];
-
         draft.alertState = quietAlerts();
 
         // Clear logs and add reset message

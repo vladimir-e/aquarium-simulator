@@ -495,7 +495,7 @@ describe('PersistedSimulationSchema', () => {
           surplus: 0,
         },
       ],
-      clutches: [{ id: 'c1', species: 'neon_tetra', eggCount: 25, laidTick: 90 }],
+      clutches: [{ id: 'c1', species: 'neon_tetra', eggs: 24.3, development: 0.6 }],
     };
     expect(PersistedSimulationSchema.safeParse(withOffspring).success).toBe(true);
   });
@@ -503,7 +503,7 @@ describe('PersistedSimulationSchema', () => {
   it('rejects an invalid clutch species', () => {
     const badClutch = {
       ...validSimulation,
-      clutches: [{ id: 'c1', species: 'not_a_fish', eggCount: 10, laidTick: 0 }],
+      clutches: [{ id: 'c1', species: 'not_a_fish', eggs: 10, development: 0 }],
     };
     expect(PersistedSimulationSchema.safeParse(badClutch).success).toBe(false);
   });

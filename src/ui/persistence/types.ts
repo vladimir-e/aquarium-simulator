@@ -33,7 +33,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      `Equipment` gains `autoFeeder`, and `AutoDoser.schedule` becomes
  *      `startHour`. Fish grow on their banks: `Fish.stage` goes, and
  *      `LivestockConfig` gains `growthDrawRate`, `sizePerSurplus` and
- *      `broodCost`.
+ *      `broodCost`. A `Clutch` is a stock: `eggs` and `development` replace
+ *      `eggCount` and `laidTick`, and `LivestockConfig` gains
+ *      `eggSensitivity` and `eggPredationRate`.
  * v33: Algae runs on the plants' vitality model, as two kinds. `state.algae`
  *      holds a bloom per kind — `greenWater` and `film` — and `AlgaeState`
  *      gains `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`,

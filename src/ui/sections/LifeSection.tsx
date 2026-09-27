@@ -77,7 +77,6 @@ export function LifeSection({
           plants: book.roster.plants,
           fry: book.roster.fry,
           clutches: state.clutches,
-          tick: state.tick,
         },
         expanded
       ),

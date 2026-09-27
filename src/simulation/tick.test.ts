@@ -203,8 +203,8 @@ describe('tick determinism', () => {
   const ROSTER: PresetSeed = {
     bacteria: 'cycled',
     fish: [
-      { species: 'guppy', count: 3, sex: 'female' },
-      { species: 'guppy', count: 2, sex: 'male' },
+      { species: 'neon_tetra', count: 3, sex: 'female' },
+      { species: 'neon_tetra', count: 2, sex: 'male' },
     ],
     plants: [{ species: 'java_fern', count: 2, size: 90 }],
   };

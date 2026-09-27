@@ -11,6 +11,7 @@ import { tissueMass } from '../systems/plant-lifecycle.js';
 import { ALGAE, ALGAE_KINDS } from '../algae/index.js';
 import { purchase } from '../systems/plant-growth.js';
 import { fishSize, frySize } from '../systems/fish-growth.js';
+import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
 import { freshSubstrate } from '../equipment/substrate.js';
 import { getPpm } from '../resources/index.js';
@@ -27,12 +28,15 @@ function run(state: SimulationState, hours: number, config = DEFAULT_CONFIG): Si
   return running;
 }
 
-/** Grams of organic matter in the tank: food, in the water and in the fish's guts, waste, the bed's reserve, plant tissue and the blooms'. */
+/** Grams of organic matter in the tank: food, in the water and in the fish's guts, waste, the bed's reserve, plant tissue, the blooms' and the eggs'. */
 function organics(state: SimulationState): number {
-  const { resources, equipment, plants, fish } = state;
+  const { resources, equipment, plants, fish, clutches } = state;
   const tissue = plants.reduce((sum, plant) => sum + tissueMass(plant.species, plant.size), 0);
   const guts = fish.reduce((sum, f) => sum + f.gut, 0);
-  return resources.food + guts + resources.waste + equipment.substrate.organicReserve + tissue + bloomsTissue(state);
+  const eggs = clutches.reduce((sum, clutch) => sum + clutch.eggs * FISH_SPECIES_DATA[clutch.species].breeding.eggMass, 0);
+  return (
+    resources.food + guts + resources.waste + equipment.substrate.organicReserve + tissue + bloomsTissue(state) + eggs
+  );
 }
 
 /** Nitrogen in the water column, dissolved, mg as N. */
@@ -148,6 +152,22 @@ describe('nitrogen mass', () => {
     expect(end.fish).toHaveLength(3);
     expect(nitrogenInPools(fed) / nitrogenInPools(start)).toBeCloseTo(1, 10);
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+  });
+
+  it('is conserved through a clutch the fish eat and the water kills', () => {
+    const start = produce(cycledBareTank(), (draft) => {
+      draft.fish = [tetra('a'), tetra('b'), tetra('c')];
+      draft.clutches = [{ id: 'c', species: 'corydoras', eggs: 30, development: 0 }];
+      draft.resources.nitrite = 5 * draft.resources.water;
+    });
+    const end = run(start, 48);
+
+    expect(end.clutches).toHaveLength(1);
+    expect(end.clutches[0].eggs).toBeLessThan(30);
+    expect(end.clutches[0].eggs).toBeGreaterThan(0);
+    expect(end.fish).toHaveLength(3);
+    expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+    for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(end, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
   });
 });
 
@@ -499,7 +519,7 @@ describe('a guppy stocked as a fry', () => {
         id ??= state.fish[0].id;
         const she = state.fish.find((f) => f.id === id);
         if (she) sizes.push(fishSize(she));
-        const spawned = state.logs.slice(logsRead).some((log) => log.event === 'fish-spawned');
+        const spawned = state.logs.slice(logsRead).some((log) => log.event === 'eggs-laid');
         if (firstBrood < 0 && spawned) firstBrood = state.tick;
         logsRead = state.logs.length;
       },

@@ -258,8 +258,8 @@ describe('rosterSummary', () => {
 
   it('pluralises the clutch clause on the count, and keeps clause order', () => {
     const fish = [makeFish({ id: 'a' })];
-    const one: Clutch = { id: 'c1', species: 'neon_tetra', eggCount: 25, laidTick: 0 };
-    const two: Clutch = { id: 'c2', species: 'neon_tetra', eggCount: 25, laidTick: 4 };
+    const one: Clutch = { id: 'c1', species: 'neon_tetra', eggs: 25, development: 0 };
+    const two: Clutch = { id: 'c2', species: 'neon_tetra', eggs: 25, development: 0.1 };
 
     expect(rosterSummary(tank(fish, [one]))).toBe('1 fish · 1 species · 1 clutch');
     expect(rosterSummary(tank(fish, [one, two]))).toBe('1 fish · 1 species · 2 clutches');

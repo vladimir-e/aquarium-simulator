@@ -37,7 +37,7 @@
 
 import type { Fish, Plant, Resources } from '../state.js';
 import { getPh } from '../core/carbonate.js';
-import { FISH_SPECIES_DATA } from '../livestock/species.js';
+import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { getDgh, getPpm } from '../resources/index.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
@@ -76,15 +76,15 @@ export interface HealthResult {
 }
 
 /**
- * Compute the effective hardiness for a fish.
- *
- * Species baseline + per-individual offset, clamped to [0.1, 0.95]
- * so an extreme offset can't push a fish into invincible or instantly-
- * dying territory.
+ * Hardiness clamped to [0.1, 0.95], so no offset makes an organism
+ * invincible or instantly doomed.
  */
+export function speciesHardiness(species: FishSpecies, offset = 0): number {
+  return Math.max(0.1, Math.min(0.95, FISH_SPECIES_DATA[species].hardiness + offset));
+}
+
 function effectiveHardiness(fish: Fish): number {
-  const base = FISH_SPECIES_DATA[fish.species].hardiness;
-  return Math.max(0.1, Math.min(0.95, base + fish.hardinessOffset));
+  return speciesHardiness(fish.species, fish.hardinessOffset);
 }
 
 interface FishFactorContext {
@@ -119,20 +119,23 @@ function plantBenefitAmount(plants: Plant[], config: LivestockConfig): number {
 }
 
 /**
- * Build the hardened stressor list for a fish: water-quality channels move
- * their edge by hardiness, the rest are scaled by it. Inactive stressors are
- * emitted with `amount: 0` so the breakdown shape stays stable for downstream
- * UI / tests that look up by name.
+ * What the water charges an organism of this species and hardiness, in %/h:
+ * the tolerance bands scaled by `1 − hardiness`, the toxins and oxygen with
+ * hardiness moving their edge instead. Fish and their clutches both read it.
  */
-function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
-  const { fish, resources, waterVolume, tankCapacity, config } = ctx;
-  const speciesData = FISH_SPECIES_DATA[fish.species];
-  const tolerance = toleranceFactor(ctx.hardiness);
+export function waterStressors(
+  species: FishSpecies,
+  hardiness: number,
+  resources: Resources,
+  waterVolume: number,
+  config: LivestockConfig
+): VitalityFactor[] {
+  const speciesData = FISH_SPECIES_DATA[species];
+  const tolerance = toleranceFactor(hardiness);
 
   const tempStress =
     config.temperatureStressSeverity * outsideBand(resources.temperature, speciesData.temperatureRange);
-  const ph = getPh(resources);
-  const phStress = config.phStressSeverity * outsideBand(ph, speciesData.phRange);
+  const phStress = config.phStressSeverity * outsideBand(getPh(resources), speciesData.phRange);
   const ghStress =
     config.ghStressSeverity * outsideBand(getDgh(resources.gh, waterVolume), speciesData.ghRange);
 
@@ -143,9 +146,34 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     config.nitriteStressSeverity * eFoldsPast(getPpm(resources.nitrite, waterVolume), NITRITE_EDGE * tolerance);
   const nitrateStress =
     config.nitrateStressSeverity * eFoldsPast(getPpm(resources.nitrate, waterVolume), NITRATE_EDGE * tolerance);
-
   const oxygenStress =
     config.oxygenStressSeverity * eFoldsUnder(resources.oxygen, OXYGEN_EDGE / tolerance, OXYGEN_LOG_OFFSET);
+
+  return [
+    ...hardened(
+      [
+        { key: 'temperature', label: 'Temperature', amount: tempStress },
+        { key: 'ph', label: 'pH', amount: phStress },
+        { key: 'gh', label: 'GH', amount: ghStress },
+      ],
+      hardiness
+    ),
+    { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
+    { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
+    { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
+    { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
+  ];
+}
+
+/**
+ * Build the hardened stressor list for a fish: the water's, then its own
+ * body's, scaled by hardiness. Inactive stressors are emitted with
+ * `amount: 0` so the breakdown shape stays stable for downstream UI / tests
+ * that look up by name.
+ */
+function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
+  const { fish, waterVolume, tankCapacity, config, resources } = ctx;
+  const speciesData = FISH_SPECIES_DATA[fish.species];
 
   // Water level stress (below the configured threshold of capacity)
   let waterLevelStress = 0;
@@ -175,11 +203,9 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   const hungerStress = config.hungerSeverity * shortfall(ctx.digested, ctx.need);
 
   return [
+    ...waterStressors(fish.species, ctx.hardiness, resources, waterVolume, config),
     ...hardened(
       [
-        { key: 'temperature', label: 'Temperature', amount: tempStress },
-        { key: 'ph', label: 'pH', amount: phStress },
-        { key: 'gh', label: 'GH', amount: ghStress },
         { key: 'hunger', label: 'Hunger', amount: hungerStress },
         { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
         { key: 'flow', label: 'Flow', amount: flowStress },
@@ -187,10 +213,6 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
       ],
       ctx.hardiness
     ),
-    { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
-    { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
-    { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
-    { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
   ];
 }
 

@@ -84,11 +84,10 @@ export function tick(
   newState = livestockResult.state;
   newState = applyEffects(newState, livestockResult.effects, config);
 
-  // Reproduction reads the surplus banks livestock just updated. It's an
-  // orchestrator, not an effect source, because it adds organisms (fry,
-  // clutches).
+  // Reproduction reads the surplus banks livestock just updated. It adds
+  // organisms (fry, clutches) itself; only the waste of dead eggs is an effect.
   const breedingResult = processBreeding(newState, config);
-  newState = breedingResult.state;
+  newState = applyEffects(breedingResult.state, breedingResult.effects, config);
 
   // Then other active systems
   const activeEffects = collectSystemEffects(newState, 'active', config);

@@ -478,6 +478,13 @@ export {
   type Brood,
 } from './systems/fish-growth.js';
 export {
+  eggHarmRate,
+  eggPredationRate,
+  developmentRate,
+  settleClutch,
+  type ClutchHour,
+} from './systems/clutch.js';
+export {
   gutCapacity,
   appetite,
   serve,

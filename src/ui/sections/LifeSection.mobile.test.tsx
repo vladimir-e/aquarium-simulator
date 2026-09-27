@@ -30,8 +30,8 @@ function busy(): Run {
   const clutch: Clutch = {
     id: 'clutch_a_1',
     species: 'neon_tetra',
-    eggCount: 20,
-    laidTick: run.state.tick,
+    eggs: 20,
+    development: 0,
   };
   const state: SimulationState = {
     ...run.state,

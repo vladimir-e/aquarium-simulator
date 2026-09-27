@@ -27,11 +27,10 @@ function mkFish(o: Partial<Fish> = {}): Fish {
   };
 }
 
-function withTank(fish: Fish[], clutches: Clutch[] = [], atTick = 1000): SimulationState {
+function withTank(fish: Fish[], clutches: Clutch[] = []): SimulationState {
   return produce(createSimulation({ tankCapacity: 100 }), (draft) => {
     draft.fish = fish;
     draft.clutches = clutches;
-    draft.tick = atTick;
   });
 }
 
@@ -53,8 +52,8 @@ describe('processBreeding', () => {
     const short = pair(CAP - 0.01);
     const full = pair(CAP);
 
-    expect(born(short, processBreeding(withTank(short), DEFAULT_CONFIG).state.fish)).toHaveLength(0);
-    expect(born(full, processBreeding(withTank(full), DEFAULT_CONFIG).state.fish).length).toBeGreaterThan(0);
+    expect(processBreeding(withTank(short), DEFAULT_CONFIG).state.clutches).toHaveLength(0);
+    expect(processBreeding(withTank(full), DEFAULT_CONFIG).state.clutches).toHaveLength(1);
   });
 
   it('broods before growth draws the bank down', () => {
@@ -63,7 +62,7 @@ describe('processBreeding', () => {
       mkFish({ sex: 'male', surplus: CAP }),
     ];
     const out = processBreeding(withTank(nearlyGrown), DEFAULT_CONFIG);
-    expect(born(nearlyGrown, out.state.fish).length).toBeGreaterThan(0);
+    expect(out.state.clutches).toHaveLength(1);
   });
 
   it('a lone female spends her brood share and bears nothing', () => {
@@ -78,7 +77,7 @@ describe('processBreeding', () => {
     const small = mkFish({ id: 'small', sex: 'female', surplus: CAP, mass: FISH_SPECIES_DATA.guppy.adultMass / 2 });
     const male = mkFish({ id: 'male', sex: 'male', surplus: 10, mass: FISH_SPECIES_DATA.guppy.adultMass / 2 });
     const broods = (fish: Fish[]): number[] =>
-      events(processBreeding(withTank(fish), DEFAULT_CONFIG).state, 'fish-spawned').map((log) => log.count!);
+      events(processBreeding(withTank(fish), DEFAULT_CONFIG).state, 'eggs-laid').map((log) => log.count!);
 
     const forward = broods([big, small, male]);
     const eggs = [big, small].map((f) => Math.floor(eggsLaid(f, DEFAULT_CONFIG.livestock)));
@@ -87,61 +86,76 @@ describe('processBreeding', () => {
     forward.forEach((n, i) => expect(n).toBeLessThanOrEqual(eggs[i]));
   });
 
-  it('a livebearer drops fry at fry size, and no clutch', () => {
-    const pair = [mkFish({ sex: 'female', surplus: CAP }), mkFish({ sex: 'male', surplus: CAP })];
-    const out = processBreeding(withTank(pair), DEFAULT_CONFIG);
-    const fry = born(pair, out.state.fish);
-
-    expect(out.state.clutches).toHaveLength(0);
-    expect(fry.length).toBeGreaterThan(0);
-    for (const f of fry) {
-      expect(fishSize(f)).toBeCloseTo(frySize('guppy'), 10);
-      expect(f.age).toBe(0);
-    }
-    expect(events(out.state, 'fish-spawned')[0].count).toBe(fry.length);
-  });
-
-  const eggModes: FishSpecies[] = ['neon_tetra', 'betta', 'angelfish', 'corydoras'];
-  for (const species of eggModes) {
-    it(`${species} lays a clutch the size of its brood`, () => {
+  const ALL: FishSpecies[] = ['guppy', 'neon_tetra', 'betta', 'angelfish', 'corydoras'];
+  for (const species of ALL) {
+    it(`${species} broods a clutch the size of its brood, undeveloped`, () => {
       const female = mkFish({ species, sex: 'female', surplus: CAP });
       const pair = [female, mkFish({ species, sex: 'male', surplus: CAP })];
       const out = processBreeding(withTank(pair), DEFAULT_CONFIG);
 
       expect(born(pair, out.state.fish)).toHaveLength(0);
       expect(out.state.clutches).toHaveLength(1);
-      expect(out.state.clutches[0].eggCount).toBeLessThanOrEqual(eggsLaid(female, DEFAULT_CONFIG.livestock));
-      expect(out.state.clutches[0].laidTick).toBe(1000);
-      expect(events(out.state, 'eggs-laid')).toHaveLength(1);
+      expect(out.state.clutches[0].eggs).toBeLessThanOrEqual(eggsLaid(female, DEFAULT_CONFIG.livestock));
+      expect(out.state.clutches[0].development).toBe(0);
+      expect(events(out.state, 'eggs-laid')[0].count).toBe(out.state.clutches[0].eggs);
     });
   }
 
-  it('hatches a clutch at exactly laidTick + hatchTime, not before', () => {
-    const { hatchTime } = FISH_SPECIES_DATA.neon_tetra.breeding;
-    const clutch: Clutch = { id: 'c', species: 'neon_tetra', eggCount: 12, laidTick: 100 };
+  it('hatches a clutch when its development completes, not before', () => {
+    const clutch = (development: number): Clutch => ({ id: 'c', species: 'neon_tetra', eggs: 12, development });
 
-    const before = processBreeding(withTank([], [clutch], 100 + hatchTime - 1), DEFAULT_CONFIG);
+    const before = processBreeding(withTank([], [clutch(0.5)]), DEFAULT_CONFIG);
     expect(before.state.clutches).toHaveLength(1);
+    expect(before.state.clutches[0].development).toBeGreaterThan(0.5);
     expect(before.state.fish).toHaveLength(0);
 
-    const at = processBreeding(withTank([], [clutch], 100 + hatchTime), DEFAULT_CONFIG);
+    const at = processBreeding(withTank([], [clutch(0.9999)]), DEFAULT_CONFIG);
     expect(at.state.clutches).toHaveLength(0);
     expect(at.state.fish).toHaveLength(12);
-    expect(events(at.state, 'eggs-hatched')).toHaveLength(1);
+    expect(events(at.state, 'eggs-hatched')[0].count).toBe(12);
+  });
+
+  it('a livebearer gives birth to its carried clutch', () => {
+    const brood: Clutch = { id: 'c', species: 'guppy', eggs: 8, development: 0.9999 };
+    const out = processBreeding(withTank([], [brood]), DEFAULT_CONFIG);
+    expect(out.state.fish).toHaveLength(8);
+    expect(events(out.state, 'fish-spawned')[0].count).toBe(8);
+  });
+
+  it('hatches the whole eggs left, the part egg to waste', () => {
+    const clutch: Clutch = { id: 'c', species: 'neon_tetra', eggs: 7.6, development: 0.9999 };
+    const out = processBreeding(withTank([], [clutch]), DEFAULT_CONFIG);
+    expect(out.state.fish).toHaveLength(7);
+    const waste = out.effects.find((e) => e.resource === 'waste')!.delta;
+    expect(waste).toBeCloseTo(0.6 * FISH_SPECIES_DATA.neon_tetra.breeding.eggMass, 10);
   });
 
   it('hatches fry at fry size and about half of each sex', () => {
-    const clutch: Clutch = { id: 'c', species: 'guppy', eggCount: 3000, laidTick: 0 };
-    const hatched = processBreeding(withTank([], [clutch], 0), DEFAULT_CONFIG).state.fish;
+    const clutch: Clutch = { id: 'c', species: 'guppy', eggs: 3000, development: 0.9999 };
+    const hatched = processBreeding(withTank([], [clutch]), DEFAULT_CONFIG).state.fish;
 
     expect(hatched).toHaveLength(3000);
     for (const f of hatched.slice(0, 50)) {
       expect(fishSize(f)).toBeCloseTo(frySize('guppy'), 10);
+      expect(f.age).toBe(0);
       expect(f.health).toBeGreaterThanOrEqual(95);
     }
     const males = hatched.filter((f) => f.sex === 'male').length / hatched.length;
     expect(males).toBeGreaterThan(0.45);
     expect(males).toBeLessThan(0.55);
+  });
+
+  it('feeds the eggs the fish eat to their guts by mass, and nothing is lost on the way', () => {
+    const big = mkFish({ id: 'big', species: 'angelfish', sex: 'male' });
+    const small = mkFish({ id: 'small', species: 'neon_tetra', sex: 'male' });
+    const clutch: Clutch = { id: 'c', species: 'neon_tetra', eggs: 40, development: 0 };
+    const out = processBreeding(withTank([big, small], [clutch]), DEFAULT_CONFIG);
+
+    const [bigAfter, smallAfter] = out.state.fish;
+    const eaten = (clutch.eggs - out.state.clutches[0].eggs) * FISH_SPECIES_DATA.neon_tetra.breeding.eggMass;
+    const waste = out.effects.reduce((sum, e) => sum + e.delta, 0);
+    expect(bigAfter.gut + smallAfter.gut + waste).toBeCloseTo(eaten, 12);
+    expect(bigAfter.gut / smallAfter.gut).toBeCloseTo(big.mass / small.mass, 8);
   });
 
   it('grows every fish on its bank', () => {

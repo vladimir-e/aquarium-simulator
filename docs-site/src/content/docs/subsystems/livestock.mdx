@@ -1,6 +1,6 @@
 ---
 title: Livestock
-description: Fish as individuals — a gut whose digestion is the fish's income, one oxygen factor over the whole metabolism, and a bank that heals a fish and buys its growth and the next generation.
+description: Fish as individuals — a gut whose digestion is the fish's income, one oxygen factor over the whole metabolism, a bank that heals a fish and buys its growth and broods, and clutches the water and the fish thin.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -15,7 +15,8 @@ oxygen it draws, the carbon it exhales — rides on one oxygen factor, so a
 suffocating fish loads the water less and suffers more. Health is the vitality
 model: income at full health banks, the bank heals the fish, and the bank buys
 its growth and its broods, so a bigger ration grows a fish sooner and buys more
-broods.
+broods. A brood is a clutch — a count of eggs that the water and the tank's
+fish thin as it develops — so a crowded tank eats its own eggs.
 
 ## Status
 
@@ -35,7 +36,8 @@ broods.
 | Death | <Badge text="settled" variant="success" /> | Condition reaching zero, from any stressor. Age-driven deaths are labelled in the log so the keeper can tell "got old" from "water went bad". |
 | Low health | <Badge text="settled" variant="success" /> | Only death reads it: health is the buffer between harm and death, so a fish at 5 % eats, breathes and excretes as one at 100 does ([Vitality](/concepts/vitality/)). |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge, and damage starts from zero at or past it. pH earns most at the band's centre; oxygen rises from the alert edge to comfort. |
-| Fry survival | <Badge text="missing" variant="danger" /> | Clutches hatch at 100 % with no density check and nothing eats the young, so any stocked pair breeds toward a wipeout. This is the cause of most "the preset is broken" findings. |
+| Clutches | <Badge text="settled" variant="success" /> | A stock of eggs two rates thin — the fish's own water harm, and predation by the fish per litre — developing on the metabolic factor until it hatches. No timer and no crowding rule. |
+| Fry predation | <Badge text="missing" variant="danger" /> | Nothing eats a hatched fry, and a livebearer's carried brood is out of every mouth, so a guppy pair still breeds toward a wipeout. A carried brood outlives a mother that dies. |
 | Colonies | <Badge text="missing" variant="danger" /> | Snails and shrimp do not exist. Fish are the only animals, and food they leave behind decays rather than feeding anything. |
 | General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only band per species: no benefit inside it, and one pooled GH rather than calcium and magnesium apart. |
 | Dissolved CO₂ | <Badge text="missing" variant="danger" /> | Fish carry no carbon stressor. A tank can sit at any CO₂ the injector reaches without a fish noticing. |
@@ -109,10 +111,12 @@ water it is in, so a suffocating fish draws less *and* suffers more.
 | `health` | Benefits; healing from the bank | Stressors | %, normal at 100 |
 | `gut` | Eating, up to `gutCapacity × mass` | Digestion, first order | g |
 | `surplus` | Income at full health | Healing; growth; a brood | condition points, capped at `surplusCap` |
+| clutch `eggs` | A brood | Water harm and predation, first order; hatching | eggs |
+| clutch `development` | The metabolic factor over the species' development time | Hatching, at 1 | share of the way to hatching |
 | `age` | One tick per hour, always | — | ticks |
 | `mass` | Growth, out of the bank | — | g |
 | `food` | Feeding and the feeder, elsewhere | Fish eating, a share of their appetite each | g |
-| `waste` | Feces; half the body mass of a fish that dies, and its gut | Mineralization, elsewhere | g |
+| `waste` | Feces; half the body mass of a fish that dies, and its gut; dead eggs | Mineralization, elsewhere | g |
 | `ammonia` | Gill excretion | Nitrification, elsewhere | mg |
 | `kh` | Gill excretion, an equivalent per mole of ammonia | Nitrification, elsewhere | mg CaCO₃ |
 | `oxygen` | Gas exchange, elsewhere | Respiration, itself throttled by the oxygen already standing | mg/L |
@@ -222,8 +226,8 @@ indistinguishable in shape.
 
 A fish's size is its mass in % of its species' adult mass, and it splits the
 bank: `size / 100` is its brood share, the rest its growth share. After
-vitality settles, the females on full banks brood, then every fish's bank draws
-toward growth.
+vitality settles, the clutches live their hour, the females on full banks
+brood, then every fish's bank draws toward growth.
 
 ```
 drawn  = bank × (1 − e^−growthDrawRate) × (1 − size / 100)
@@ -255,26 +259,48 @@ Eggs nobody fathers are lost with what she paid for them. A male with an empty
 bank fathers nothing, and each brood drains him, so one male cannot father
 brood after brood. Refilling the banks is the cooldown — there are no timers.
 
-| Species | Mode | Hatch | Fry mass | Male share | Grown brood |
-|---|---|---|---|---|---|
-| Guppy | livebearer | direct | 5 % | 0.2 | 20 fry |
-| Neon Tetra | egg-scatterer | 24 h | 5 % | 0.2 | 20 eggs |
-| Betta | bubble-nester | 36 h | 3 % | 0.6 | 33 eggs |
-| Corydoras | egg-depositor | 96 h | 4 % | 0.2 | 25 eggs |
-| Angelfish | substrate-spawner | 60 h | 2 % | 0.5 | 50 eggs |
-
-The male share is the father's investment: a bubble-nesting betta builds and
-guards the nest, an angelfish pair fans its eggs together, a guppy or a neon
-only mates. Livebearers drop free-swimming fry directly; every other mode lays
-an inert clutch that hatches into fry at its hatch time, guarded by nobody and
-eaten by nothing.
-
 Stocking names a size, grown when none is named, from a fry's up to 100. Age
 starts at 0 and is read only by old age.
 
 Breeding is uncapped. The physical stocking ceiling gates the keeper's hand
 only, so a bred cohort can push total mass past it, at which point further
 stocking is refused while the population is left to its own dynamics.
+
+### Clutches
+
+A brood is a clutch: a count of eggs, not individuals, each weighing what a
+real egg of its species does. Every hour two first-order rates thin it and one develops it, the
+losses competing for the same eggs, so a bad hour thins a clutch and never
+empties it.
+
+| Rate | Per hour |
+|---|---|
+| Harm | `eggSensitivity × Σ water stressors / 100` — the fish's own water channel at the species' hardiness, as a share of the eggs, since an egg has no bank |
+| Predation | `eggPredationRate × exposure × fish mass / water` — every fish hunts, by its mass per litre |
+| Development | `metabolic factor / developmentTime` — the fish's Q10 and oxygen factor, so a warm clutch hatches sooner |
+
+When development reaches 1 the whole eggs left hatch as fry at the species' fry
+size — the bank that bought the brood paid for the fry — and the part egg goes
+to waste. Eggs the water kills go to waste; eggs the fish eat go into their
+guts, shared by mass, and digest as food. Every gram of a clutch stays in the
+tank until it hatches. A crowded tank eats its
+own eggs: predation grows with the fish per litre, so every fish added thins
+the next clutch, and water that only strains the adults kills the eggs.
+
+| Species | Mode | Hatches in, at 25 °C | Exposure | Egg | Fry mass | Male share | Grown brood |
+|---|---|---|---|---|---|---|---|
+| Guppy | livebearer | 4 weeks, carried | 0 | 5 mg | 5 % | 0.2 | 20 fry |
+| Neon Tetra | egg-scatterer | 27 h | 1 | 0.4 mg | 5 % | 0.2 | 20 eggs |
+| Betta | bubble-nester | 36 h | 0.3 | 0.5 mg | 3 % | 0.6 | 33 eggs |
+| Corydoras | egg-depositor | 4 days | 1 | 4 mg | 4 % | 0.2 | 25 eggs |
+| Angelfish | substrate-spawner | 2½ days | 0.5 | 2 mg | 2 % | 0.5 | 50 eggs |
+
+Hatch times are read in air-saturated water. The male share is the father's
+investment: a bubble-nesting betta builds and guards the nest, an angelfish
+pair fans its eggs together, a guppy or a neon only mates. Exposure is how
+much of the tank's predation reaches the clutch — a guarded nest loses less,
+and a livebearer's clutch is the brood its mother carries through gestation,
+out of reach, until she gives birth.
 
 ### Death
 
@@ -308,19 +334,21 @@ visible decline rather than a coin flip.
 | `growthDrawRate` | First-order rate the bank draws toward growth at, before the growth share | `0.02` /hr |
 | `sizePerSurplus` | Size, in % of adult mass, a bank point buys at growth rate 1 — a fed guppy grows out in about two and a half months, a neon in about five | `0.15` %/pt |
 | `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his share | `50` pts |
+| `eggSensitivity` | How many times harder the water harms an egg than a fish | `3` × |
+| `eggPredationRate` | Share of a clutch an hour one gram of fish per litre eats, before its exposure | `2` L/g/hr |
 | `deathDecayFactor` | Share of body mass that becomes waste on death | `0.5` |
 
 ## Seams
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, each past its tolerance edge | `ammonia`, `phosphate`, `potassium` and `iron` through the gills; `waste` as feces and death mass |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, each past its tolerance edge, for fish and clutches | `ammonia`, `phosphate`, `potassium` and `iron` through the gills; `waste` as feces, death mass and dead eggs |
 | [Water & gases](/subsystems/water-and-gases/) | `oxygen` twice — as the Monod factor on the whole metabolism, and as a stressor under the fish's own edge and a benefit rising above the alert's; pH, derived from `co2` and `kh`, and `gh`, each as a tolerance band | `oxygen` drawn, `co2` exhaled, `kh` returned on the gill ammonia |
 | [Environment](/subsystems/environment/) | `temperature` as a tolerance band; `water` for every ppm and for the water-level stressor | — |
 | [Equipment](/subsystems/equipment/) | `flow`, divided by standing water into a turnover; `food` the feeder drops | — |
 | [Plants](/subsystems/plants/) | Plant power — the shelter benefit, saturating | — |
 | [Actions](/subsystems/actions/) | `food` put in the tank by feeding | Stocking, removal and selling fry write the array directly |
-| [Alerts & logging](/subsystems/alerts-and-logging/) | — | `fish-died`, `fish-spawned`, `eggs-laid` and `eggs-hatched` entries; `fish-spawned` and `eggs-hatched` carry a count |
+| [Alerts & logging](/subsystems/alerts-and-logging/) | — | `fish-died`, `eggs-laid`, `eggs-hatched` and — a livebearer's birth — `fish-spawned` entries; all but deaths carry a count |
 | [State & persistence](/subsystems/state-and-persistence/) | The tank's draw stream, for sex, hardiness offset, health jitter and every id | The advanced stream position |
 
 ## Source

@@ -200,6 +200,8 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `growthDrawRate` | First-order rate the bank draws toward growth at, before the growth share `1 − size / 100` | /hr |
 | `sizePerSurplus` | Size, in % of adult mass, a bank point buys at species growth rate 1 | %/pt |
 | `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his species' share | pts per body mass |
+| `eggSensitivity` | How many times harder the water harms an egg than a fish, as a share of the clutch an hour | × |
+| `eggPredationRate` | Share of a clutch an hour one gram of fish per litre eats, before the clutch's exposure | L/g/hr |
 | `deathDecayFactor` | Share of a dead fish's mass that becomes waste | — |
 
 ## Fixed tables
@@ -210,7 +212,7 @@ can move them at runtime.
 
 | Table | Holds |
 |---|---|
-| Fish species | Per species: adult mass, growth rate, lifespan, hardiness, temperature / pH / flow tolerance bands, and a breeding block — mode, hatch time, fry mass, the male's share of a brood |
+| Fish species | Per species: adult mass, growth rate, lifespan, hardiness, temperature / pH / flow tolerance bands, and a breeding block — mode, development time, clutch exposure, egg mass, fry mass, the male's share of a brood |
 | Plant species | Per species: growth rate, growth form, hardiness, CO₂ requirement, nutrient demand tier, and the PAR band it tolerates, whose low end sets the daily light it starves under |
 | Growth forms | Per form: what one full unit is — its height and how height grows with size, its footprint, its leaf area index — the share of its food it draws through its roots, and what its offshoot is called |
 | Filters | Per type: biological surface, target turnover, flow ceiling, tank-size ceiling, and whether it is air-driven |

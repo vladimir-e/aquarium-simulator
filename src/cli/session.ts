@@ -18,6 +18,10 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v19 made a clutch a stock that rates drain. `Clutch` trades `eggCount` and
+ *    `laidTick` for `eggs` and `development`, and `LivestockConfig` gains
+ *    `eggSensitivity` and `eggPredationRate`. A v18 session parses, and the
+ *    first tick with a clutch standing drains it by keys it does not carry.
  * v18 fed fish through a gut and let their banks buy their growth and broods.
  *    `Fish.satiation` becomes `Fish.gut` and `Fish.stage` goes — mass is a
  *    stock the bank grows; `LivestockConfig` trades its satiation knobs for
@@ -148,7 +152,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 18;
+export const SESSION_VERSION = 19;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

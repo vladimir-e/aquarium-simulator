@@ -35,8 +35,8 @@ function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
   };
 }
 
-function tank(fish: Fish[], clutches: Clutch[] = [], tick = 0): SimulationState {
-  return { ...createSimulation({ tankCapacity: 200 }), fish, clutches, tick };
+function tank(fish: Fish[], clutches: Clutch[] = []): SimulationState {
+  return { ...createSimulation({ tankCapacity: 200 }), fish, clutches };
 }
 
 /** A bank that heals whatever the hour charges, so only an empty one lets condition fall. */
@@ -52,7 +52,6 @@ function input(state: SimulationState, config: TunableConfig): RosterInput {
     plants: groupPlantsBySpecies(plantRows(state, config, readHourAhead(state, config))),
     fry: groupFry(fish),
     clutches: state.clutches,
-    tick: state.tick,
   };
 }
 
@@ -154,19 +153,22 @@ describe('rosterTables', () => {
     expect(inspection('fish_gone', input(state, DEFAULT_CONFIG))).toBeNull();
   });
 
-  it('counts down to hatch from the current tick, not from when the clutch was laid', () => {
-    const clutch: Clutch = {
-      id: 'clutch_x_7',
-      species: 'angelfish',
-      eggCount: 24,
-      laidTick: 1602,
-    };
-    const [row] = tables(tank([], [clutch], 1622)).fish as ClutchRosterRow[];
+  it('reads a clutch as the whole eggs standing and how far it has developed', () => {
+    const clutch: Clutch = { id: 'clutch_x_7', species: 'angelfish', eggs: 24.7, development: 0.337 };
+    const [row] = tables(tank([], [clutch])).fish as ClutchRosterRow[];
 
     expect(row.kind).toBe('clutch');
     expect(row.name).toBe('Angelfish clutch');
     expect(row.figure).toBe('24 eggs');
-    expect(row.age).toBe('hatches in 40 h');
+    expect(row.age).toBe('33 % developed');
+  });
+
+  it('reads a livebearer clutch as the brood its mother carries', () => {
+    const brood: Clutch = { id: 'clutch_x_8', species: 'guppy', eggs: 12, development: 0.5 };
+    const [row] = tables(tank([], [brood])).fish as ClutchRosterRow[];
+
+    expect(row.name).toBe('Guppy brood');
+    expect(row.figure).toBe('12 fry');
   });
 
   it('puts every fry in one row after the adults and the clutches', () => {
@@ -176,8 +178,8 @@ describe('rosterTables', () => {
       makeFish({ id: 'fry2', species: 'guppy', age: 24 * 12, mass: 0.3 }),
       makeFish({ id: 'fry3', species: 'betta', age: 24 * 9, mass: 0.5 }),
     ];
-    const clutch: Clutch = { id: 'c_1', species: 'neon_tetra', eggCount: 25, laidTick: 0 };
-    const { fish: rows } = tables(tank(fish, [clutch], 12));
+    const clutch: Clutch = { id: 'c_1', species: 'neon_tetra', eggs: 25, development: 0 };
+    const { fish: rows } = tables(tank(fish, [clutch]));
 
     expect(rows.map((row) => row.kind)).toEqual(['species', 'species', 'clutch', 'fry']);
     const fry = rows[3] as FryRosterRow;

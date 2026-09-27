@@ -84,23 +84,16 @@ export interface AlgaeState {
 export type Blooms = Record<AlgaeKind, AlgaeState>;
 
 /**
- * A batch of eggs waiting to hatch.
- *
- * Egg-laying species deposit a clutch on spawn; it sits inert until
- * `laidTick + species.breeding.hatchTime`, then hatches into `eggCount`
- * fry at 100 % survival. Eggs aren't guarded or eaten — the clutch is
- * the hook the future predation system attaches to. Livebearers never
- * produce a clutch (fry appear directly).
+ * A clutch: a stock of eggs, not individuals. Water harm and predators thin
+ * `eggs` as rates; `development` fills toward 1 on the parents' metabolic
+ * factor, and the whole eggs left then hatch as fry. A livebearer's clutch is
+ * the brood its mother carries.
  */
 export interface Clutch {
-  /** Unique identifier */
   id: string;
-  /** Species that laid the clutch — determines the fry produced. */
   species: FishSpecies;
-  /** Number of eggs, each of which hatches into one fry. */
-  eggCount: number;
-  /** Tick the clutch was laid; hatches at `laidTick + hatchTime`. */
-  laidTick: number;
+  eggs: number;
+  development: number;
 }
 
 /**

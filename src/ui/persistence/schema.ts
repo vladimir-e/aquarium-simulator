@@ -282,8 +282,8 @@ const ClutchSchema = z
   .object({
     id: z.string(),
     species: z.enum(FISH_SPECIES),
-    eggCount: z.number().int().min(0),
-    laidTick: z.number().int().min(0),
+    eggs: z.number().min(0),
+    development: z.number().min(0),
   })
   .strict();
 
@@ -539,6 +539,8 @@ const LivestockConfigSchema = z
     growthDrawRate: z.number().min(0),
     sizePerSurplus: z.number().positive().max(MAX_FISH_SIZE_PER_SURPLUS),
     broodCost: z.number().positive(),
+    eggSensitivity: z.number().min(0),
+    eggPredationRate: z.number().min(0),
     deathDecayFactor: z.number(),
   })
   .strict();

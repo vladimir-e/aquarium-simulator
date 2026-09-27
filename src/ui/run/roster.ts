@@ -154,7 +154,7 @@ export interface ClutchRosterRow {
   key: string;
   species: FishSpecies;
   name: string;
-  /** Eggs, and when they hatch. */
+  /** Eggs standing, and how far developed. */
   figure: string;
   age: string;
 }
@@ -330,16 +330,16 @@ function fryRow(batch: FryBatch): FryRosterRow {
   };
 }
 
-function clutchRow(clutch: Clutch, tick: number): ClutchRosterRow {
+function clutchRow(clutch: Clutch): ClutchRosterRow {
   const data = FISH_SPECIES_DATA[clutch.species];
-  const hatchTick = clutch.laidTick + data.breeding.hatchTime;
+  const carried = data.breeding.mode === 'livebearer';
   return {
     kind: 'clutch',
     key: clutch.id,
     species: clutch.species,
-    name: `${data.name} clutch`,
-    figure: `${clutch.eggCount} eggs`,
-    age: `hatches in ${Math.max(0, hatchTick - tick)} h`,
+    name: `${data.name} ${carried ? 'brood' : 'clutch'}`,
+    figure: `${Math.floor(clutch.eggs)} ${carried ? 'fry' : 'eggs'}`,
+    age: `${Math.floor(clutch.development * 100)} % developed`,
   };
 }
 
@@ -349,13 +349,12 @@ export interface RosterInput {
   /** Every fry in the tank, as the one row the sell action matches. */
   fry: FryBatch | null;
   clutches: Clutch[];
-  tick: number;
 }
 
 /**
  * The two tables, in render order: species rows with what is under them
- * directly beneath when open, then — under the fish — the clutches waiting to
- * hatch and the batches growing out.
+ * directly beneath when open, then — under the fish — the clutches
+ * developing and the batches growing out.
  */
 export function rosterTables(
   input: RosterInput,
@@ -364,7 +363,7 @@ export function rosterTables(
   return {
     fish: [
       ...fishRows(input.fish, expanded),
-      ...input.clutches.map((clutch) => clutchRow(clutch, input.tick)),
+      ...input.clutches.map(clutchRow),
       ...(input.fry ? [fryRow(input.fry)] : []),
     ],
     plants: plantTable(input.plants, expanded),
