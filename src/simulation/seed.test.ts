@@ -522,9 +522,9 @@ describe('createSimulation seeding', () => {
       expect(state.resources.ammonia).toBe(0);
     });
 
-    it('plants a species the substrate would refuse, and overstocks past the action caps', () => {
+    it('overstocks past the action caps: plants past the floor, fish past the tank’s capacity', () => {
       const state = createSimulation(
-        { tankCapacity: 20, substrate: { type: 'none' } },
+        { tankCapacity: 20 },
         {
           fish: [{ species: 'angelfish', count: 40 }],
           plants: [{ species: 'monte_carlo', count: 30 }],

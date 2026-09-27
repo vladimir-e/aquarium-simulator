@@ -39,11 +39,12 @@ export interface GrowthFormData {
  * about 10 × 10 cm, a sword is given 30 cm across, and an epiphyte clump takes
  * a hand's width of rock. Leaf area index is leaf over footprint: herb mats run
  * 2–4, a sword is some 25 leaves of 55 cm² over its 700, a fern clump a dozen
- * fronds of 40 cm² over its 200. A sword is the hobby's root feeder; carpets
- * and epiphytes live off the water column.
+ * fronds of 40 cm² over its 200. A sword draws most of its food through its
+ * roots; a carpet roots a dense mat into the bed but lies spread under the
+ * water, so it takes half from each; an epiphyte on wood has no roots in the bed.
  */
 export const GROWTH_FORMS: Record<GrowthForm, GrowthFormData> = {
-  carpet: { heightCm: 5, heightExponent: 0, footprintCm2: 100, leafAreaIndex: 2.5, rootShare: 0, offshootVerb: 'sent a runner' },
+  carpet: { heightCm: 5, heightExponent: 0, footprintCm2: 100, leafAreaIndex: 2.5, rootShare: 0.5, offshootVerb: 'sent a runner' },
   rosette: { heightCm: 40, heightExponent: 1 / 3, footprintCm2: 700, leafAreaIndex: 2.0, rootShare: 0.7, offshootVerb: 'threw a plantlet' },
   attached: { heightCm: 20, heightExponent: 1 / 3, footprintCm2: 200, leafAreaIndex: 2.5, rootShare: 0, offshootVerb: 'branched at the rhizome' },
 };

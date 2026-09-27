@@ -21,7 +21,7 @@ import { getKhMass } from '../resources/helpers.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
 import { NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
-import { CARE_SHEET_PHOTOPERIOD, GROWTH_FORMS, PLANT_SPECIES_DATA, dailyLightEdge } from './species.js';
+import { CARE_SHEET_PHOTOPERIOD, PLANT_SPECIES_DATA, dailyLightEdge, growthFormOf } from './species.js';
 import { getSubstrateNutrients } from '../equipment/substrate.js';
 import { plantRecord } from '../tests/plant.js';
 import { VIGOUR_SPAN } from './create-plant.js';
@@ -348,19 +348,19 @@ describe('processPlants', () => {
       }
     });
 
-    it('draws a carpet and a fern from the water alone, and a sword from the bed at its root share', () => {
+    it('draws a fern from the water alone, and a sword and a carpet from the bed at their root shares', () => {
       const rich = { phosphate: 1000 * nutrientsDefaults.halfSaturation.phosphate * 100 };
-      const bedOf = (plants: Plant[]): number => {
-        const state = night(plants, rich);
-        return fromBed(state, processPlants(state, DEFAULT_CONFIG), 'phosphate');
+      const bedShare = (plant: Plant): number => {
+        const state = night([plant], rich);
+        const result = processPlants(state, DEFAULT_CONFIG);
+        const bed = fromBed(state, result, 'phosphate');
+        return bed / (bed + fromWater(result, 'phosphate'));
       };
-      const [, fern, carpet] = growers();
-      expect(bedOf([fern, carpet])).toBe(0);
-
-      const state = night([growers()[0]], rich);
-      const result = processPlants(state, DEFAULT_CONFIG);
-      const bed = fromBed(state, result, 'phosphate');
-      expect(bed / (bed + fromWater(result, 'phosphate'))).toBeCloseTo(GROWTH_FORMS.rosette.rootShare, 2);
+      const [sword, fern, carpet] = growers();
+      expect(bedShare(fern)).toBe(0);
+      for (const plant of [sword, carpet]) {
+        expect(bedShare(plant)).toBeCloseTo(growthFormOf(plant.species).rootShare, 2);
+      }
     });
 
     it('slows on short water rather than stopping, and the bank pays only for what arrived', () => {

@@ -34,7 +34,7 @@ family. Low condition sheds tissue.
 | Epiphyte footprint | <Badge text="scaffolding" variant="caution" /> | A java fern or anubias on the rock claims floor like a rooted plant; there is no hardscape budget. |
 | Nitrate | <Badge text="settled" variant="success" /> | Log dose past the plant's own edge, the fish shape at an edge only a runaway doser reaches. |
 | Nutrition | <Badge text="settled" variant="success" /> | Every nutrient saturates on its own Monod curve against a per-species demand, in the water and in the bed. Tissue is drawn at one recipe where growth buys it, never at the fertilizer's ratio. |
-| Root feeding | <Badge text="settled" variant="success" /> | A fixed root share by growth form: a sword draws most of its need from the bed, carpets and epiphytes from the water. No species is refused a bed — a sword in bare gravel declines slowly until it is tabbed. |
+| Root feeding | <Badge text="settled" variant="success" /> | A fixed root share by growth form: a sword draws most of its need from the bed, a carpet half, an epiphyte none. No species is refused a bed — a rooted plant in untabbed gravel declines until it is tabbed. |
 | Carbon limitation | <Badge text="settled" variant="success" /> | Monod on dissolved CO₂, half rate at the species' carbon-need half-saturation. It scales photosynthesis and the CO₂ income channel, and never damages: a carbon-short plant earns and grows less. |
 | Tolerance bands | <Badge text="settled" variant="success" /> | Temperature and pH earn most at the band's centre and nothing at its edge, where damage starts from zero: net is continuous across every edge. |
 | Algae shading | <Badge text="scaffolding" variant="caution" /> | A damage rate on bloom mass past `algaeShadingThreshold`, not light: a bloom never dims the PAR a plant reads, so it costs condition without costing photosynthesis. |
@@ -97,7 +97,7 @@ grown patch, specimen or clump. The form fixes what that means.
 | Leaf area index | 2.5 | 2.0 | 2.5 |
 | Rate units at full | 0.5 | 2.8 | 1.0 |
 | Offshoot | sends a runner | throws a plantlet | branches at the rhizome |
-| Root share `r` | 0 — feeds from the water | 0.7 — feeds mostly from the bed | 0 — feeds from the water |
+| Root share `r` | 0.5 — half from each | 0.7 — feeds mostly from the bed | 0 — feeds from the water |
 
 ```
 height    = min(depth, fullHeight × (size / 100)^exponent)
@@ -194,8 +194,8 @@ share_n     = r × share_bed,n + (1 − r) × share_water,n
 sufficiency = min over n of share_n
 ```
 
-The bed's ppm reads its store against the tank's capacity. A sword over a bare
-bed tops out at `1 − r` however rich the water, under the
+The bed's ppm reads its store against the tank's capacity. A rooted plant over a
+bare bed tops out at `1 − r` however rich the water, under the
 [deficiency edge](#income-and-harm). A dry tank feeds nothing from either pool.
 
 | Demand tier | NO₃ · PO₄ | K · Fe |
