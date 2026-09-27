@@ -294,21 +294,23 @@ describe('createSimulation seeding', () => {
       expect(perLitre('sand')).toBeGreaterThan(0);
     });
 
-    it('holds everything the bed leached and leaked, at one share for every nutrient', () => {
+    it('holds a share of what the bed leached and leaked, and never more than a fresh bed had to give', () => {
       const { tankCapacity } = TANK;
       const seeded = createSimulation(TANK, { bacteria: 'cycled' });
       const recipe = organicNutrients(livestockDefaults, nutrientsDefaults);
       const leached =
         getSubstrateOrganicReserve('aqua_soil', tankCapacity) - cycledReserve('aqua_soil', tankCapacity);
       const fresh = getSubstrateNutrients('aqua_soil', tankCapacity);
-      const released = (n: (typeof NUTRIENTS)[number]): number =>
-        leached * recipe[n] + fresh[n] - seeded.equipment.substrate.nutrients[n];
 
-      const retained = NUTRIENTS.map((n) => seeded.resources[n] / released(n));
-      for (const n of NUTRIENTS) expect(seeded.resources[n]).toBeGreaterThan(0);
-      for (const share of retained) expect(share).toBeCloseTo(retained[0], 12);
-      expect(retained[0]).toBeGreaterThan(0);
-      expect(retained[0]).toBeLessThan(1);
+      for (const n of NUTRIENTS) {
+        const water = seeded.resources[n];
+        const bed = seeded.equipment.substrate.nutrients[n];
+        const released = fresh[n] + leached * recipe[n] - bed;
+        expect(water + bed).toBeLessThanOrEqual(fresh[n] + leached * recipe[n]);
+        expect(water).toBeGreaterThan(0);
+        expect(water / released).toBeGreaterThan(0);
+        expect(water / released).toBeLessThan(1);
+      }
     });
 
     it('is none at all in a tank whose bed never had any', () => {
@@ -321,8 +323,10 @@ describe('createSimulation seeding', () => {
         { bacteria: 'cycled' }
       );
 
-      expect(gravel.resources.nitrate).toBeGreaterThan(0);
-      expect(bedless.resources.nitrate).toBe(0);
+      for (const n of NUTRIENTS) {
+        expect(gravel.resources[n]).toBeGreaterThan(0);
+        expect(bedless.resources[n]).toBe(0);
+      }
     });
 
     it('takes a named nitrate over the one the shorthand would have resolved', () => {

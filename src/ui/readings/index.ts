@@ -187,7 +187,7 @@ export interface ReadingBook {
   byId: ReadingsById;
   demand: NeedView[];
   nutrients: NutrientReading[];
-  /** The bed's store for root feeders; null over a bare bottom. */
+  /** The bed's store for root feeders. */
   bed: BedReading;
   bacteria: BacteriaReadout;
   waste: WasteReadout;
@@ -435,7 +435,7 @@ function bedView(bed: BedReading): NeedView {
     name: 'Bed',
     value: bed.bare ? '—' : bed.text,
     unit: 'tabs',
-    at: bed.bare ? 0 : onScale(bed.scale, bed.tabs),
+    at: onScale(bed.scale, bed.tabs),
     band: asked ? { from: onScale(bed.scale, bed.needed), to: 1 } : null,
     tone: toneOf(bed.status),
     trend: '',

@@ -377,7 +377,7 @@ function rungsFor(
       const advised = advisedRungs(
         DOSE_PRESETS,
         doseToCover(nutrientReadings(state, config), state, config)?.ml ?? null,
-        MAX_DOSE_ML,
+        'dose',
         'ml'
       );
       return {
@@ -394,8 +394,8 @@ function rungsFor(
     }
     case 'rootTab': {
       const bed = bedReading(state, config);
-      const advised = advisedRungs(ROOT_TAB_PRESETS, bed.advice, MAX_ROOT_TABS, 'tabs');
-      const tabbable = canRootTab(state);
+      const advised = advisedRungs(ROOT_TAB_PRESETS, bed.advice, 'rootTab', 'tabs');
+      const tabbable = !bed.bare;
       return {
         values: advised.values,
         rung: (count) => ({
@@ -422,23 +422,26 @@ function rungsFor(
   }
 }
 
-/**
- * The presets with the advised amount slotted in — held to the most the engine
- * takes in one go, so a bigger ask is offered as far as it goes — and the hint
- * that rung carries in place of its own.
- */
+const MOST_AT_ONCE = { dose: MAX_DOSE_ML, rootTab: MAX_ROOT_TABS } as const;
+
+/** Advice held to the most the engine takes in one go, so a bigger ask is offered as far as it goes. */
+export function advisedAmount(id: keyof typeof MOST_AT_ONCE, advice: number | null): number | null {
+  return advice === null ? null : Math.min(advice, MOST_AT_ONCE[id]);
+}
+
+/** The presets with the advised amount slotted in, and the hint that rung carries in place of its own. */
 function advisedRungs(
   presets: number[],
   advice: number | null,
-  max: number,
+  id: keyof typeof MOST_AT_ONCE,
   unit: string
 ): { values: number[]; hint: (value: number) => string | null } {
-  if (advice === null) return { values: presets, hint: () => null };
-  const advised = Math.min(advice, max);
+  const advised = advisedAmount(id, advice);
+  if (advised === null) return { values: presets, hint: () => null };
   return {
     values: [...new Set([...presets, advised])].sort((a, b) => a - b),
     hint: (value) =>
-      value !== advised ? null : advice > max ? `capped at ${max} ${unit}` : 'covers the ask',
+      value !== advised ? null : advised !== advice ? `capped at ${advised} ${unit}` : 'covers the ask',
   };
 }
 

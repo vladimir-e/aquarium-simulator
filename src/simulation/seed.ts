@@ -205,11 +205,13 @@ export function cycledKhReserve(type: SubstrateType, capacity: number): number {
 /**
  * Share of what a cycled bed released that is still in the water. Nothing in
  * a plantless, fishless tank consumes nitrate, phosphate, potassium or iron,
- * so a month of release left alone reads 9.7 ppm of nitrate over aqua soil —
- * but a keeper changes water: the same month measures 0.37 of it under a
- * weekly 30 % change and 0.17 under a weekly 50 %. A quarter sits between
- * them, rounded to the low side because nitrate is a stressor and the tank a
- * keeper hands over has just been changed, not left to load.
+ * so a month of release left alone puts 17.5 ppm of nitrate in the water over
+ * aqua soil — 10 from the leached organics, 7.5 from the store's leak — but a
+ * keeper changes water: a fresh soil tank's month keeps 0.28–0.32 of each
+ * nutrient under a weekly 30 % change and 0.15–0.19 under a weekly 50 %. A
+ * quarter sits between them, rounded to the low side because nitrate is a
+ * stressor and the tank a keeper hands over has just been changed, not left
+ * to load.
  */
 const CYCLED_WATER_RETAINED = 0.25;
 

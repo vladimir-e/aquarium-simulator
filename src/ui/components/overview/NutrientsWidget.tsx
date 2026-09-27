@@ -1,6 +1,6 @@
 import React from 'react';
-import { MAX_DOSE_ML, MAX_ROOT_TABS, type SimulationState } from '../../../simulation/index.js';
-import type { VerbId } from '../../actions';
+import type { SimulationState } from '../../../simulation/index.js';
+import { advisedAmount, type VerbId } from '../../actions';
 import type { ReadingBook, ReadingId } from '../../readings';
 import { nutrientAlert } from '../../run';
 import { NutrientRows } from '../water/rows';
@@ -34,8 +34,8 @@ export function NutrientsWidget({
   const { advice, perMl } = book.dose;
   const { bed } = book;
   const alert = nutrientAlert(book.nutrients, bed);
-  const ml = advice === null ? undefined : Math.min(advice.ml, MAX_DOSE_ML);
-  const tabs = bed.advice === null ? undefined : Math.min(bed.advice, MAX_ROOT_TABS);
+  const ml = advisedAmount('dose', advice?.ml ?? null) ?? undefined;
+  const tabs = advisedAmount('rootTab', bed.advice) ?? undefined;
 
   return (
     <Widget
