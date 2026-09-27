@@ -157,7 +157,7 @@ describe('calculateNutrientSufficiency', () => {
 });
 
 describe('where a plant feeds', () => {
-  it('weights each pool’s share by its growth form’s root share: a sword leans on the bed, a carpet and a fern on the water alone', () => {
+  it('weights each pool’s share by its growth form’s root share: a sword and a carpet draw on the bed, a fern on the water alone', () => {
     const pools = poolsAt(1, 5);
     for (const species of ['amazon_sword', 'monte_carlo', 'java_fern'] as const) {
       const roots = growthFormOf(species).rootShare;
@@ -167,7 +167,7 @@ describe('where a plant feeds', () => {
       for (const n of NUTRIENTS) expect(shares[n]).toBeCloseTo(roots * bed[n] + (1 - roots) * water[n], 12);
     }
     expect(growthFormOf('amazon_sword').rootShare).toBeGreaterThan(0);
-    expect(growthFormOf('monte_carlo').rootShare).toBe(0);
+    expect(growthFormOf('monte_carlo').rootShare).toBeGreaterThan(0);
     expect(growthFormOf('java_fern').rootShare).toBe(0);
   });
 
@@ -237,10 +237,10 @@ describe('drawTissue', () => {
 
   it('supplies a lone water feeder its scarcest nutrient’s monodUptake share of its tissue', () => {
     const pools = mirroredPools(resourcesAt(multiplesOfHalfSaturation(0.5)));
-    const { supplied } = drawTissue([need('monte_carlo', pools, 0.5)], pools, recipe);
+    const { supplied } = drawTissue([need('java_fern', pools, 0.5)], pools, recipe);
     const met = NUTRIENTS.map(
       (n) =>
-        monodUptake(pools[0].stock[n], 0.5 * recipe[n], speciesHalfSaturation('monte_carlo', n) * WATER) /
+        monodUptake(pools[0].stock[n], 0.5 * recipe[n], speciesHalfSaturation('java_fern', n) * WATER) /
         (0.5 * recipe[n])
     );
     expect(supplied[0]).toBeCloseTo(Math.min(...met), 12);
@@ -255,7 +255,7 @@ describe('drawTissue', () => {
 
   it('meets two plants short of the same nutrient at the same fraction of their shares', () => {
     const water = resourcesAt({ ...multiplesOfHalfSaturation(100), phosphate: 0.05 * nutrientsDefaults.halfSaturation.phosphate });
-    const pools = mirroredPools(water);
+    const pools: TankPools = [mirroredPools(water)[0], { stock: ZERO_NUTRIENTS, volume: WATER }];
     const needs = [need('monte_carlo', pools, 1), need('anubias', pools, 1)];
     const { supplied } = drawTissue(needs, pools, recipe);
     expect(supplied[0]).toBeLessThan(shares(needs[0]).phosphate);
@@ -290,12 +290,14 @@ describe('drawTissue', () => {
 
   it('splits a root feeder’s draw between the pools as each met it, and takes nothing from a bed it doesn’t root in', () => {
     const pools = poolsAt(2, 2);
-    const sword = drawTissue([need('amazon_sword', pools)], pools, recipe).drawn;
-    const roots = growthFormOf('amazon_sword').rootShare;
-    for (const n of NUTRIENTS) expect(sword[1][n] / total(sword, n)).toBeCloseTo(roots, 3);
+    for (const species of ['amazon_sword', 'monte_carlo'] as const) {
+      const drawn = drawTissue([need(species, pools)], pools, recipe).drawn;
+      const roots = growthFormOf(species).rootShare;
+      for (const n of NUTRIENTS) expect(drawn[1][n] / total(drawn, n)).toBeCloseTo(roots, 3);
+    }
 
-    const carpet = drawTissue([need('monte_carlo', pools)], pools, recipe).drawn;
-    expect(carpet[1]).toEqual(ZERO_NUTRIENTS);
+    const fern = drawTissue([need('java_fern', pools)], pools, recipe).drawn;
+    expect(fern[1]).toEqual(ZERO_NUTRIENTS);
   });
 
   it('never draws a pool past what it holds, however large the crowd or the lump', () => {

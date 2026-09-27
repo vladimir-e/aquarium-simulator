@@ -10,6 +10,7 @@ import {
   getDosePreview,
   growthFormOf,
   getPlantsToTrimCount,
+  getSubstrateNutrients,
   readPlantLight,
   tick,
   type PlantSpecies,
@@ -381,10 +382,12 @@ describe('nutrientReadings', () => {
     const state = planted(['java_fern', 'monte_carlo']);
     for (const edge of [0.8, DEFAULT_CONFIG.plants.sufficiencyEdge, MAX_SUFFICIENCY_EDGE]) {
       const config = { ...DEFAULT_CONFIG, plants: { ...DEFAULT_CONFIG.plants, sufficiencyEdge: edge } };
-      const water = state.resources.water;
-      const atNeed = { ...state.resources };
-      for (const reading of nutrientReadings(state, config)) atNeed[reading.key] = reading.needed * water;
-      expect(calculateNutrientSufficiency(tankPools({ ...state, resources: atNeed }), 'monte_carlo', config.nutrients)).toBeCloseTo(edge, 6);
+      const { need } = nutrientProbe(state, config);
+      const atNeed = produce(state, (draft) => {
+        for (const reading of nutrientReadings(state, config)) draft.resources[reading.key] = reading.needed * state.resources.water;
+        draft.equipment.substrate.nutrients = mapNutrients((n) => getMassFromPpm(need.bed[n], state.tank.capacity));
+      });
+      expect(calculateNutrientSufficiency(tankPools(atNeed), 'monte_carlo', config.nutrients)).toBeCloseTo(edge, 6);
     }
   });
 
@@ -407,10 +410,15 @@ describe('nutrientReadings', () => {
 });
 
 describe('nutrientAlert', () => {
-  it('names the single deficiency, and says once when nothing is dosed at all', () => {
-    expect(alertOn(planted(['monte_carlo']))).toEqual({ text: 'nothing dosed', status: 'alert' });
+  const carpetOnSoil = (): SimulationState =>
+    produce(planted(['monte_carlo']), (draft) => {
+      draft.equipment.substrate.nutrients = getSubstrateNutrients('aqua_soil', draft.tank.capacity);
+    });
 
-    const state = planted(['monte_carlo']);
+  it('names the single deficiency, and says once when nothing is dosed at all', () => {
+    expect(alertOn(carpetOnSoil())).toEqual({ text: 'nothing dosed', status: 'alert' });
+
+    const state = carpetOnSoil();
     const fed = {
       ...state,
       resources: {
@@ -427,7 +435,7 @@ describe('nutrientAlert', () => {
   });
 
   it('counts them instead of naming them when several are short', () => {
-    const state = planted(['monte_carlo']);
+    const state = carpetOnSoil();
     const partly = {
       ...state,
       resources: { ...state.resources, nitrate: state.resources.water * 20 },

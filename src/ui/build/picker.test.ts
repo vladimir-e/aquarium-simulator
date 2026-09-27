@@ -199,7 +199,7 @@ describe('plant options', () => {
     const bare = tank(200);
     expect(bedReading(bare, DEFAULT_CONFIG).bare).toBe(true);
     expect(option(plants(bare), 'amazon_sword')).toMatchObject({ note: 'Its roots have no bed to feed from.', refusal: null });
-    expect(option(plants(bare), 'monte_carlo').note).toBeNull();
+    expect(option(plants(bare), 'java_fern').note).toBeNull();
   });
 
   it('refuses in the action’s own words once the floor is taken', () => {
