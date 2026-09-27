@@ -36,19 +36,18 @@ export type AlgaeKind = 'greenWater' | 'film';
  * pick the winner.
  *
  * Both saturate by 12 PAR and live in any water a plant does: green microalgae
- * grow from about pH 4 to past 9, so CO₂ over a stripped soil holds them as
- * well as hard, alkaline tap does. Free CO₂ half-saturation for microalgae with
+ * grow from about pH 4 to past 9. Free CO₂ half-saturation for microalgae with
  * carbon-concentrating mechanisms runs well under 1 mg/L, since they take
  * bicarbonate too: 93 % on the 4 mg/L an uninjected tank holds, 99 % at an
- * injected 25. Both take ammonia first and nitrate readily.
+ * injected 25. In culture, microalgae half-saturate on 0.05–2 ppm of nitrate,
+ * and film sits in that range. Green water's 25 ppm departs from it: a
+ * stand-in fitted from whole-tank runs.
  *
  * Green water is the sprinter: a lit, rich day doubles it in about a day, but
- * it needs rich water. A cycled tank's trace of ammonia meets 6 % of its
- * nitrogen need and a 2 ppm spike 80 %; a maintained tank's 25 ppm of nitrate
- * meets half — far looser than the 0.05–2 ppm microalgae half-saturate on in
- * culture, and what holds a maintained tank's column clear until ammonia or
- * richer water tips it. Phosphate at 0.1 ppm meets a third of its need, a fed
- * tank's 2 ppm 91 %. Heavy green water carries some 10–50 mg/L of dry cells.
+ * it needs richer water than film. A cycled tank's trace of ammonia meets 6 %
+ * of its nitrogen need, a 2 ppm spike 80 %, and 10 ppm of nitrate 29 %.
+ * Phosphate at 0.1 ppm meets a third of its need, a fed tank's 2 ppm 91 %.
+ * Heavy green water carries some 10–50 mg/L of dry cells.
  *
  * Film is the stayer: a third of green water's pace, so it takes a week or two
  * to show on the glass, but efficient on lean water — a cycled tank's trace of

@@ -17,7 +17,7 @@ import { plantsConfigMeta, type PlantsConfig } from '../config/plants.js';
 import { dailyLightIntegral } from '../equipment/light.js';
 import { bankConversion, bankDraw, dailyLightEdge, shedShare, tissuePerRateUnit } from '../systems/flora.js';
 import { formHalfSaturations, poolDraws } from '../systems/nutrients.js';
-import { PLANT_SPECIES_DATA } from '../plants/species.js';
+import { PLANT_SPECIES_DATA, plantTraits, type PlantSpecies } from '../plants/species.js';
 import type { AlgaeState } from '../state.js';
 
 const config = DEFAULT_CONFIG;
@@ -30,10 +30,10 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
   const conversion = bankConversion(traits, plants);
 
   it('lives in any water a plant does: its temperature and pH bands hold every species’ own', () => {
-    for (const species of Object.values(PLANT_SPECIES_DATA)) {
+    for (const plant of (Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]).map(plantTraits)) {
       for (const band of ['tolerableTemp', 'tolerablePH'] as const) {
-        expect(traits[band][0]).toBeLessThanOrEqual(species[band][0]);
-        expect(traits[band][1]).toBeGreaterThanOrEqual(species[band][1]);
+        expect(traits[band][0]).toBeLessThanOrEqual(plant[band][0]);
+        expect(traits[band][1]).toBeGreaterThanOrEqual(plant[band][1]);
       }
     }
   });
@@ -212,9 +212,9 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
   });
 });
 
-describe('the kinds', () => {
-  it('green water needs richer water than film: every nitrogen and phosphorus form half-saturates it higher', () => {
-    for (const key of ['ammoniaHalfSaturation', 'nitrateHalfSaturation', 'phosphateHalfSaturation'] as const) {
+describe('green water beside film', () => {
+  it('is faster and hungrier: it grows faster, and every nitrogen and phosphorus form half-saturates it higher', () => {
+    for (const key of ['growthRate', 'ammoniaHalfSaturation', 'nitrateHalfSaturation', 'phosphateHalfSaturation'] as const) {
       expect(ALGAE.greenWater[key]).toBeGreaterThan(ALGAE.film[key]);
     }
   });
