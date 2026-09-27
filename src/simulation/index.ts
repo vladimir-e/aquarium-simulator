@@ -135,7 +135,7 @@ export type { DailySchedule } from './core/schedule.js';
 export { isScheduleActive, isValidSchedule, formatSchedule } from './core/schedule.js';
 
 // Logging
-export { celsius, createLog, liters, logText, measured, metricQuantity } from './core/logging.js';
+export { celsius, coverage, createLog, liters, logText, measured, metricQuantity } from './core/logging.js';
 
 // Blending
 export { blendTemperature, blendConcentration } from './core/blending.js';
@@ -332,13 +332,18 @@ export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 // Flora — plants and the bloom in one pass, on one law
 export { processFlora } from './flora/index.js';
 export type { FloraProcessingResult, BloomHour } from './flora/index.js';
-export { saturationIrradiance, dailyLightEdge, floraHealingRate } from './systems/flora.js';
-export type { FloraTraits } from './systems/flora.js';
+export {
+  saturationIrradiance,
+  dailyLightEdge,
+  floraHealingRate,
+  tissuePerRateUnit,
+  shedShare,
+} from './systems/flora.js';
+export type { FloraTraits, FloraLoss } from './systems/flora.js';
 
 // Algae
 export {
   ALGAE,
-  bloomPace,
   bloomLight,
   columnGain,
   bloomTissue,
@@ -359,7 +364,6 @@ export type {
   AlgaeTraits,
   BloomLight,
   BloomPurchase,
-  BloomLoss,
   AlgaeVitalityContext,
 } from './algae/index.js';
 
@@ -378,8 +382,6 @@ export {
   feederShares,
   organicNutrients,
   tissueMass,
-  tissuePerRateUnit,
-  shedShare,
   losePlant,
   calculateCo2Factor,
   calculateRespiration,
@@ -414,7 +416,6 @@ export type {
   NutrientPool,
   TankPools,
   PoolDraw,
-  PlantLoss,
 } from './plants/index.js';
 
 // Livestock

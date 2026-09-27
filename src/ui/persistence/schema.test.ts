@@ -172,6 +172,23 @@ describe('TunableConfigSchema', () => {
     expect(edge(-0.1)).toBe(false);
   });
 
+  it('takes draw rates from 0, the growth draw up to the whole bank, and refuses any a bank would run negative on', () => {
+    const plants = (overrides: Partial<typeof DEFAULT_CONFIG.plants>): boolean =>
+      TunableConfigSchema.safeParse({ ...DEFAULT_CONFIG, plants: { ...DEFAULT_CONFIG.plants, ...overrides } }).success;
+    const fishHealing = (healingDrawRate: number): boolean =>
+      TunableConfigSchema.safeParse({
+        ...DEFAULT_CONFIG,
+        livestock: { ...DEFAULT_CONFIG.livestock, healingDrawRate },
+      }).success;
+    expect(plants({ growthDrawRate: 0, healingDrawRate: 0 })).toBe(true);
+    expect(plants({ growthDrawRate: 1 })).toBe(true);
+    expect(fishHealing(0)).toBe(true);
+    expect(plants({ growthDrawRate: 1.01 })).toBe(false);
+    expect(plants({ growthDrawRate: -0.01 })).toBe(false);
+    expect(plants({ healingDrawRate: -0.01 })).toBe(false);
+    expect(fishHealing(-0.01)).toBe(false);
+  });
+
   it('refuses a species demand of nothing, which no plant has', () => {
     const { nutrients } = DEFAULT_CONFIG;
     const config = {

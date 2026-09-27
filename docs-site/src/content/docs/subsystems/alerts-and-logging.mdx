@@ -18,7 +18,7 @@ a reader would want to see afterwards.
 | Mechanic | Status | Why |
 |---|---|---|
 | The latch | <Badge text="settled" variant="success" /> | One line per crossing, a flag that lives in state, and no repetition while the condition holds. It does exactly what it says. |
-| Log entry shape | <Badge text="settled" variant="success" /> | Free text for humans with its volumes and temperatures kept as quantities, a typed `event` discriminator for code, and a `count` wherever an entry accounts for more than one organism. |
+| Log entry shape | <Badge text="settled" variant="success" /> | Free text for humans with its volumes, temperatures and coverages kept as quantities, a typed `event` discriminator for code, and a `count` wherever an entry accounts for more than one organism. |
 | Water-quality thresholds | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen alert at their tolerance edge, and hardiness moves each fish's own harm edge out from it. Ammonia reads the free fraction, so the total it takes moves with pH and temperature. |
 | Algae · water-level thresholds | <Badge text="settled" variant="success" /> | Each alerts where its harm starts, read off the tunable that starts it, so retuning the harm moves the alert with it. |
 | CO₂ threshold | <Badge text="scaffolding" variant="caution" /> | The line keepers treat as too much, with nothing behind it — no organism in the engine reads dissolved CO₂ as a stressor. |
@@ -90,7 +90,7 @@ everything else is `info`.
 | `source` | The system that emitted it |
 | `severity` | `info` or `warning` |
 | `message` | Free text, for humans only; `{0}`, `{1}`… stand for its quantities |
-| `quantities` | Present where a line states a volume or a temperature, kept in litres and °C |
+| `quantities` | Present where a line states a volume, a temperature or a bloom's coverage, kept in litres, °C and its 0–100 mass |
 | `event` | Present only on the lifecycle moments a caller reacts to |
 | `count` | Present where one entry accounts for many organisms |
 
@@ -103,7 +103,8 @@ Eight typed events exist: `fish-spawned`, `eggs-laid`, `eggs-hatched`,
 `fish-died`, `plant-died`, `plant-propagated`, `algae-died` and `fry-sold`.
 Three of them carry a count — a live birth, a hatch and a fry sale — because the
 number is the point. Deaths, offshoots and a bloom's die-back are one entry per
-organism, so they need none.
+organism, so they need none; a die-back states the coverage it took instead, so
+a reader can weigh a crash against spores dying back as dust.
 
 The discriminator is the contract. A caller that parses the free text is
 reading a field that exists to be rewritten.
@@ -149,7 +150,7 @@ rate can. The four water-quality lines are the fish tolerance edges, defined wit
 | [Algae](/subsystems/algae/) | `algae.mass` directly — algae is an organism, not a resource | — |
 | [Plants](/subsystems/plants/) | `algaeShadingThreshold`, the bloom's line | — |
 | [Plants](/subsystems/plants/) | — | Receives a `plant-died` entry per plant lost and a `plant-propagated` entry per offshoot |
-| [Algae](/subsystems/algae/) | — | Receives an `algae-died` entry per die-back |
+| [Algae](/subsystems/algae/) | — | Receives an `algae-died` entry per die-back, stating the coverage it took |
 | [Livestock](/subsystems/livestock/) | — | Receives death, spawn, laying and hatch entries |
 | [Actions](/subsystems/actions/) | — | Receives one entry per applied action |
 | [State & persistence](/subsystems/state-and-persistence/) | — | `alertState` is persisted; `logs` are not |

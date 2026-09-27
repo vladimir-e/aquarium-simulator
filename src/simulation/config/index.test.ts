@@ -23,6 +23,7 @@ import {
 } from './index.js';
 import { AIR_SATURATED_O2 } from './nitrogen-cycle.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
+import { leaves } from '../tests/leaves.js';
 
 describe('DEFAULT_CONFIG', () => {
   it('uses the correct defaults for each system', () => {
@@ -126,15 +127,7 @@ describe('isConfigModified', () => {
 });
 
 describe('configRange', () => {
-  const leaves = (value: object, prefix = ''): Array<[string, number]> =>
-    Object.entries(value).flatMap(([key, child]) => {
-      const path = prefix ? `${prefix}.${key}` : key;
-      return typeof child === 'object' && child !== null
-        ? leaves(child, path)
-        : [[path, child as number] as [string, number]];
-    });
-
-  const tunables = leaves(DEFAULT_CONFIG);
+  const tunables = leaves<number>(DEFAULT_CONFIG);
   const paths = tunables.map(([path]) => path);
 
   it('answers nothing for a path the config does not have', () => {

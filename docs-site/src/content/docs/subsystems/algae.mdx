@@ -25,15 +25,15 @@ coded: plants beat a bloom or lose to it on the rates.
 | Condition and bank | <Badge text="settled" variant="success" /> | The shared vitality step. It heals on the plants' law, `healingDrawRate × growthRate`, integrated over the hour. |
 | Income | <Badge text="settled" variant="success" /> | The plants' three channels on `tanh(PAR/Ik) × sufficiency`, read at the column's mean PAR. |
 | Growth | <Badge text="settled" variant="success" /> | Logistic, exact over the hour: the plants' draw sets its rate, every bank point buys the same e-fold, and no bank or tunable takes mass past a full habitat. Day and night. |
-| Spores | <Badge text="settled" variant="success" /> | Its offshoots: a constant rate through the taper, landing at condition 100 and joining the bloom by mass, so an empty tank is never closed to a bloom and an empty bloom is the same whatever came before. Whether they take is the condition's business. |
+| Spores | <Badge text="settled" variant="success" /> | Its offshoots: a constant rate through the taper, landing at condition 100 on an empty bank and joining the bloom by mass, so an empty tank is never closed to a bloom and an empty bloom is the same whatever came before. Whether they take is the condition's business. |
 | Nutrients | <Badge text="settled" variant="success" /> | The plants' recipe, from the water alone, in one draw with every plant: no feeder is served before another. |
-| Carbon and oxygen | <Badge text="settled" variant="success" /> | The plants' photosynthesis and respiration on one CO₂ stock, its tissue rated at the plants' relation and run at its growth rate. |
+| Carbon and oxygen | <Badge text="settled" variant="success" /> | The plants' photosynthesis and respiration on one CO₂ stock, its tissue rated at the plants' relation and run at its pace. |
 | Allelopathy | <Badge text="settled" variant="success" /> | One harm rate on thriving plant leaf per litre, with no threshold. It stands in for the small competition the model leaves out as well. |
-| Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape — the square of the deficit — and condition 0 kills what is left, bank and all. Both return it as waste, and a die-back is logged. |
+| Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape — the square of the deficit — and condition 0 kills what is left, bank and all. Both return it as waste, and a die-back is logged with the coverage it took. |
 | Scrubbing | <Badge text="scaffolding" variant="caution" /> | A random 10–30 % bite off the standing mass, refused below mass `5`. The bite is waste in the water. |
 | Habitats | <Badge text="missing" variant="danger" /> | One bloom in the water column. Film on glass, hardscape and leaves is not a separate kind, and a water change does not dilute it. |
 | Nitrogen form | <Badge text="scaffolding" variant="caution" /> | It draws its nitrogen as nitrate, as every plant does; ammonia feeds no one directly. |
-| Shading plants | <Badge text="scaffolding" variant="caution" /> | A flat damage on plants past `algaeShadingThreshold`, not light ([Plants](/subsystems/plants/#status)). |
+| Shading plants | <Badge text="scaffolding" variant="caution" /> | A damage rate on plants from its mass past `algaeShadingThreshold`, standing in for the light it would take from their leaves ([Plants](/subsystems/plants/#status)). |
 | Calibration | <Badge text="scaffolding" variant="caution" /> | Traits and knobs are first-pass: believable, not fitted. |
 
 ## How it works
@@ -44,7 +44,7 @@ coded: plants beat a bloom or lose to it on the rates.
 |---|---|---|
 | CO₂ | income | Monod on dissolved CO₂ at its `co2HalfSaturation` — far under any plant's, since algae take bicarbonate too |
 | Temperature · pH | income, then harm | The plants' band helpers on its own bands: comfort peaks mid-band, damage starts at the edge |
-| Light starvation | harm | The day's light over the column against its daily light edge, at respiration's Q10 and its pace — its growth rate: a bloom respires fast, so it starves fast |
+| Light starvation | harm | The day's light over the column against its daily light edge, at respiration's Q10 and its pace: a bloom respires fast, so it starves fast |
 | Nutrient deficiency | harm | Liebig sufficiency under `sufficiencyEdge`, on the light curve |
 | Allelopathy | harm | `allelopathySeverity × Σ(plant rate units × condition/100) / litres` |
 
@@ -58,7 +58,7 @@ The rate is the plants': `growthDrawRate` of the bank at their conversion,
 hour. Mass follows the logistic exactly over that hour,
 
 ```
-m₁ = m₀·eʳ / (1 + m₀(eʳ − 1)/100)
+m₁ = 100·m₀ / (m₀ + (100 − m₀)·e⁻ʳ)
 ```
 
 and every bank point buys the same e-fold, so the bank pays
@@ -70,11 +70,13 @@ On a lit day's income a bloom doubles in two or three days.
 
 ### Spores
 
-Spores are the bloom's offshoots. They land at `sporeRate` an hour, through the
-taper at the mass the hour leaves, once the bloom's own losses are taken, and
-they arrive at condition 100: they join the bloom by mass, so a struggling bloom
-is lifted by their share of it. A bloom that died back is replaced by the spores
-that land — the same empty bloom a clean tank holds.
+Spores are the bloom's offshoots. They come at `sporeRate` an hour, through the
+taper at the mass the hour's growth reaches at full supply — their tissue is
+drawn in the same call as that growth — and land once the bloom's own losses are
+taken. They arrive at condition 100 on an empty bank and join the bloom by mass,
+so a struggling bloom is lifted by their share of it and its bank is diluted by
+the same share. A bloom that died back, or an empty one, is replaced by the
+spores that land — the same empty bloom a clean tank holds.
 
 ### Light, gases, nutrients
 
@@ -83,7 +85,7 @@ Beer–Lambert averaged from surface to floor, a little above the substrate
 figure. It saturates at low light.
 
 Its tissue is organic matter at the plants' recipe. A gram of it is the same
-rate units a gram of leaf is, run at the bloom's growth rate, so a dense bloom
+rate units a gram of leaf is, run at the bloom's pace, so a dense bloom
 strips CO₂ by day and draws oxygen down by night. Growth draws its N, P, K and
 Fe from the water in the same pooled call as the plants; shed, dead and scrubbed
 tissue goes back as waste, so a crashing bloom spikes ammonia as it rots.
@@ -101,7 +103,8 @@ about every day and a half.
 
 | Name | Meaning | Value |
 |---|---|---|
-| `growthRate` | Bank-to-mass conversion, healing rate and metabolic pace, on the plants' scale | `30` |
+| `growthRate` | Bank-to-mass conversion and healing rate, on the plants' scale | `30` |
+| `pace` | How many times faster than a leaf its tissue fixes, respires and starves: its growth rate | `30` |
 | `hardiness` | Scales every harm by `1 − hardiness` | `0.4` |
 | `lowLight` | PAR at the bottom of its band: its daily light edge over a care-sheet day, and `Ik` at `saturationIrradianceFactor ×` it | `6` PAR |
 | `nutrientDemand` | Its demand tier, as a plant's | low |
@@ -122,7 +125,7 @@ All but the last are traits, beside the plant species; `allelopathySeverity` is 
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | NO₃ and PO₄, K and Fe, as the water holds them | Tissue drawn out; shed, dead and scrubbed tissue in as waste |
 | [Water & gases](/subsystems/water-and-gases/) | CO₂, O₂, temperature, pH | CO₂ fixed and O₂ released by day, respired day and night |
 | [Actions](/subsystems/actions/) | — | A scrub takes 10–30 % of mass into the waste |
-| [Alerts & logging](/subsystems/alerts-and-logging/) | — | Mass above `algaeShadingThreshold` raises the bloom alert once per crossing; an `algae-died` entry per die-back |
+| [Alerts & logging](/subsystems/alerts-and-logging/) | — | Mass above `algaeShadingThreshold` raises the bloom alert once per crossing; an `algae-died` entry per die-back, stating the coverage it took |
 
 ## Source
 

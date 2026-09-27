@@ -20,6 +20,7 @@ import {
   PLANT_SPECIES_DATA,
   plantNitrateEdge,
   speciesHalfSaturation,
+  type LogEntry,
   type Plant,
   type PlantSpecies,
   type Resources,
@@ -64,10 +65,20 @@ import {
  */
 export const TRIM_TARGETS = [50, 75, 85];
 
+/** Coverage prints in whole percent. */
+export const COVERAGE_DECIMALS = 0;
+
+/** Whether there is any bloom to see: its coverage prints as more than none. */
+export function bloomShows(mass: number): boolean {
+  return !printsAsZero(mass, COVERAGE_DECIMALS);
+}
+
+const CLEAR: Reading = { status: 'ok', word: 'clear' };
+
 /**
- * The bloom's ladder, each rung a multiple of the line it alerts over, so its
- * word and its tone move together. Low algae is good for the player, so the
- * tones run green → coral as it climbs.
+ * The bloom's ladder above clear, each rung a multiple of the line it alerts
+ * over, so its word and its tone move together. Low algae is good for the
+ * player, so the tones run green → coral as it climbs.
  */
 const ALGAE_LADDER: readonly { upTo: number; reading: Reading }[] = [
   { upTo: 0.5, reading: { status: 'ok', word: 'sparse' } },
@@ -76,9 +87,21 @@ const ALGAE_LADDER: readonly { upTo: number; reading: Reading }[] = [
   { upTo: Infinity, reading: { status: 'alert', word: 'booming' } },
 ];
 
-/** How the bloom reads off its coverage, against the line it alerts over. */
+/** How the bloom reads off its coverage, against the line it alerts over: clear while there is none to see. */
 export function algaeReading(mass: number, line: number): Reading {
-  return ALGAE_LADDER.find((rung) => mass <= rung.upTo * line)!.reading;
+  return bloomShows(mass) ? ALGAE_LADDER.find((rung) => mass <= rung.upTo * line)!.reading : CLEAR;
+}
+
+/**
+ * Whether the console reports a log line. The engine logs every die-back,
+ * spores that starved in a dark tank among them; the console reports one only
+ * where it took a bloom there was any of to see.
+ */
+export function isReported(log: LogEntry): boolean {
+  return (
+    log.event !== 'algae-died' ||
+    (log.quantities ?? []).some((quantity) => quantity.kind === 'coverage' && bloomShows(quantity.percent))
+  );
 }
 
 export function algaeStatus(mass: number, line: number): Status {

@@ -11,7 +11,7 @@ function makePlant(overrides: Partial<Plant> = {}): Plant {
 
 describe('losePlant', () => {
   const plant = makePlant();
-  const lost = (condition: number): number => plant.size - (losePlant({ ...plant, condition }).plant?.size ?? 0);
+  const lost = (condition: number): number => plant.size - (losePlant({ ...plant, condition }).survivor?.size ?? 0);
 
   it('sheds nothing at full condition and the max rate at 0', () => {
     expect(lost(100)).toBe(0);
@@ -45,7 +45,7 @@ describe('losePlant', () => {
   });
 
   it('turns what it sheds into waste by the leaf it carried', () => {
-    const { plant: after, shed } = losePlant(makePlant({ condition: 20 }));
+    const { survivor: after, shed } = losePlant(makePlant({ condition: 20 }));
     expect(shed).toBeCloseTo((100 - after!.size) * fullRateUnits('java_fern') * plantsDefaults.tissuePerSize, 12);
   });
 
@@ -58,14 +58,14 @@ describe('losePlant', () => {
   });
 
   it('kills a plant at condition 0, every gram of it to waste', () => {
-    const { plant: after, shed, died } = losePlant(makePlant({ size: 60, condition: 0 }));
+    const { survivor: after, shed, died } = losePlant(makePlant({ size: 60, condition: 0 }));
     expect(after).toBeNull();
     expect(died).toBeGreaterThan(0);
     expect(shed + died).toBeCloseTo(tissueMass('java_fern', 60), 12);
   });
 
   it('keeps every gram a living plant holds: what is left and what is shed add up to what it was', () => {
-    const { plant: after, shed, died } = losePlant(makePlant({ size: 60, condition: 30 }));
+    const { survivor: after, shed, died } = losePlant(makePlant({ size: 60, condition: 30 }));
     expect(died).toBe(0);
     expect(tissueMass('java_fern', after!.size) + shed).toBeCloseTo(tissueMass('java_fern', 60), 12);
   });

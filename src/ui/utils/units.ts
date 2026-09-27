@@ -8,7 +8,7 @@
 /* eslint-disable no-undef */
 // Browser globals are available in the UI runtime environment
 
-import type { QuantityFormat } from '../../simulation/index.js';
+import { metricQuantity, type QuantityFormat } from '../../simulation/index.js';
 
 export type UnitSystem = 'metric' | 'imperial';
 
@@ -47,10 +47,16 @@ export function formatVolume(liters: number, system: UnitSystem, precision = 1):
 }
 
 export function logQuantityIn(system: UnitSystem): QuantityFormat {
-  return (quantity) =>
-    quantity.kind === 'volume'
-      ? formatVolume(quantity.liters, system)
-      : formatTemperature(quantity.celsius, system);
+  return (quantity) => {
+    switch (quantity.kind) {
+      case 'volume':
+        return formatVolume(quantity.liters, system);
+      case 'temperature':
+        return formatTemperature(quantity.celsius, system);
+      default:
+        return metricQuantity(quantity);
+    }
+  };
 }
 
 /**

@@ -1,8 +1,9 @@
 /**
  * The flora law — what a plant and a bloom share, written over the traits both
- * are described in: the light they saturate and starve at, how fast they heal,
- * how the bank draws toward growth, and the vitality channels both have. Each
- * caller adds the channels only it has and hardens the list itself.
+ * are described in: the light they saturate and starve at, the pace their
+ * tissue runs at, how fast they heal, how the bank draws toward growth, what
+ * low condition sheds, and the vitality channels both have. Each caller adds
+ * the channels only it has and hardens the list itself.
  */
 
 import type { Resources } from '../state.js';
@@ -10,14 +11,18 @@ import type { PlantsConfig } from '../config/plants.js';
 import { getPh } from '../core/carbonate.js';
 import { lightSaturationFactor, monodFactor } from '../core/kinetics.js';
 import { parHoursToDli } from '../equipment/light.js';
-import { CARE_SHEET_PHOTOPERIOD } from '../plants/species.js';
 import { getRespirationTemperatureFactor } from './respiration.js';
 import { bandComfort, outsideBand, shortfall, type VitalityFactor } from './vitality.js';
+
+/** Hours a day the care-sheet PAR bands assume the lamps are on. */
+export const CARE_SHEET_PHOTOPERIOD = 8;
 
 /** What a plant species and a bloom are both written in. */
 export interface FloraTraits {
   /** Relative growth rate: what a bank point buys, and how fast the bank heals. */
   growthRate: number;
+  /** How many times faster than a leaf its tissue fixes, respires and starves. */
+  pace: number;
   /** PAR at the low end of its band. */
   lowLight: number;
   tolerableTemp: readonly [number, number];
@@ -50,18 +55,55 @@ export function growthTaper(fill: number): number {
   return 1 - fill / 100;
 }
 
-/**
- * Bank points drawn toward growth this hour: `growthDrawRate` of the bank,
- * through the taper. A restored save carries any finite `growthDrawRate`; one
- * above 1 would otherwise drive the bank negative.
- */
+/** Bank points drawn toward growth this hour: `growthDrawRate` of the bank, through the taper. */
 export function bankDraw(surplus: number, fill: number, config: PlantsConfig): number {
-  return Math.max(0, surplus) * Math.min(1, config.growthDrawRate) * growthTaper(fill);
+  return Math.max(0, surplus) * config.growthDrawRate * growthTaper(fill);
 }
 
 /** Growth one bank point buys: a plant's size in points, a bloom's mass in percent e-folds. */
 export function bankConversion(traits: FloraTraits, config: PlantsConfig): number {
   return traits.growthRate * config.sizePerSurplus;
+}
+
+/** Grams of organic matter in a rate unit of tissue, a leaf's or a bloom's. */
+export function tissuePerRateUnit(config: PlantsConfig): number {
+  return 100 * config.tissuePerSize;
+}
+
+/** Rate units its metabolism runs at: the rate units its tissue is, at its pace. */
+export function metabolicRateUnits(tissueRateUnits: number, traits: FloraTraits): number {
+  return tissueRateUnits * traits.pace;
+}
+
+/** Share of itself it sheds in an hour at this condition: the square of its deficit, at `maxSheddingRate`. */
+export function shedShare(condition: number, config: PlantsConfig): number {
+  const deficit = Math.max(0, Math.min(1, 1 - condition / 100));
+  return config.maxSheddingRate * deficit * deficit;
+}
+
+/** The organism after the hour's losses — none where condition 0 killed it — and the grams of waste each loss left. */
+export interface FloraLoss<T> {
+  survivor: T | null;
+  shed: number;
+  died: number;
+}
+
+/**
+ * Low condition sheds its `shedShare` of the stand — a plant's size, a
+ * bloom's mass — and condition 0 kills what is left, bank and all. `grams`
+ * weighs an amount of the stand.
+ */
+export function loseFlora<K extends string, T extends { condition: number } & Record<K, number>>(
+  organism: T,
+  stand: K,
+  grams: (amount: number) => number,
+  config: PlantsConfig
+): FloraLoss<T> {
+  const lost = shedShare(organism.condition, config) * organism[stand];
+  const left = organism[stand] - lost;
+  const shed = grams(lost);
+  if (organism.condition > 0) return { survivor: { ...organism, [stand]: left }, shed, died: 0 };
+  return { survivor: null, shed, died: grams(left) };
 }
 
 /** One feeder's hour, as the channels a plant and a bloom share read it. */
@@ -77,8 +119,6 @@ export interface FloraHour {
   co2HalfSaturation: number;
   /** Scales everything it earns by `1 + vigour`. */
   vigour: number;
-  /** How fast its tissue metabolises against a leaf's: what starving costs it. */
-  pace: number;
 }
 
 function lightResponse({ traits, plantsConfig, light }: FloraHour): number {
@@ -92,14 +132,14 @@ function lightResponse({ traits, plantsConfig, light }: FloraHour): number {
  * curve, as income does: a feeder in the dark asks for nothing.
  */
 export function floraStressors(hour: FloraHour): VitalityFactor[] {
-  const { traits, resources, plantsConfig, nutrientSufficiency, light, pace } = hour;
+  const { traits, resources, plantsConfig, nutrientSufficiency, light } = hour;
   return [
     {
       key: 'lightStarvation',
       label: 'Light starvation',
       amount:
         plantsConfig.lightStarvationSeverity *
-        pace *
+        traits.pace *
         shortfall(light.dailyLight, dailyLightEdge(traits)) *
         getRespirationTemperatureFactor(resources.temperature, plantsConfig),
     },

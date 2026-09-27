@@ -444,8 +444,8 @@ const PlantsConfigSchema = z
     respirationReferenceTemp: z.number(),
     respirationOxygenHalfSaturation: z.number(),
     co2PerRateUnit: z.number(),
-    growthDrawRate: z.number(),
-    healingDrawRate: z.number(),
+    growthDrawRate: z.number().min(0).max(1),
+    healingDrawRate: z.number().min(0),
     sizePerSurplus: z.number(),
     surplusCap: z.number().min(0),
     // Vitality stressor severities
@@ -517,7 +517,7 @@ const LivestockConfigSchema = z
     plantBenefitPeak: z.number(),
     plantBenefitSaturationPoint: z.number(),
     surplusCap: z.number().min(0),
-    healingDrawRate: z.number(),
+    healingDrawRate: z.number().min(0),
     deathDecayFactor: z.number(),
   })
   .strict();

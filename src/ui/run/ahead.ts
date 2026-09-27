@@ -25,7 +25,7 @@ import { ammoniaPerGramOfFood } from '../../simulation/config/livestock.js';
 /** One organism on the hour ahead. */
 export interface OrganismAhead {
   vitality: VitalityResult;
-  /** What its bank buys over the hour — a plant's growth and offshoot, a fish's brood; nothing where it dies. */
+  /** What its bank buys over the hour — a plant's growth and offshoot, a bloom's mass, a fish's brood; nothing where it dies. */
   spent: number;
 }
 
@@ -41,6 +41,8 @@ export interface BloomAhead extends OrganismAhead {
   condition: number;
   /** Coverage as the tick leaves the bloom. */
   mass: number;
+  /** The bank as the tick leaves the bloom, the spores' share of it empty. */
+  surplus: number;
   /** Grams of waste it sheds — its steady rate, apart from a die-back's lump. */
   shedding: number;
 }
@@ -110,10 +112,11 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     })),
     algae: {
       vitality: flora.algae.vitality,
-      spent: flora.algae.vitality.newCondition > 0 ? flora.algae.vitality.surplus - bloom.surplus : 0,
+      spent: flora.algae.spent,
       light: flora.algae.light,
       condition: bloom.condition,
       mass: bloom.mass,
+      surplus: bloom.surplus,
       shedding: flora.algae.shedding,
     },
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),

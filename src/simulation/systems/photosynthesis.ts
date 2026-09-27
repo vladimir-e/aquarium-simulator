@@ -13,7 +13,7 @@ import { plantsDefaults } from '../config/plants.js';
 import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
 import { lightSaturationFactor, monodFactor, monodUptake } from '../core/kinetics.js';
 import { getCo2HalfSaturation, plantTraits, type PlantSpecies } from '../plants/species.js';
-import { saturationIrradiance } from './flora.js';
+import { metabolicRateUnits, saturationIrradiance } from './flora.js';
 import { getMassFromPpm } from '../resources/index.js';
 import { rateUnits } from '../plants/canopy.js';
 
@@ -54,9 +54,10 @@ export function plantFixer(
   sufficiency: number,
   config: PlantsConfig = plantsDefaults
 ): CarbonFixer {
+  const traits = plantTraits(plant.species);
   return {
-    rateUnits: rateUnits(plant),
-    lightResponse: lightSaturationFactor(par, saturationIrradiance(plantTraits(plant.species), config)),
+    rateUnits: metabolicRateUnits(rateUnits(plant), traits),
+    lightResponse: lightSaturationFactor(par, saturationIrradiance(traits, config)),
     sufficiency,
     co2HalfSaturation: getCo2HalfSaturation(plant.species, config),
   };

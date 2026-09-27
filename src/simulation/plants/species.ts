@@ -80,7 +80,7 @@ export interface PlantSpeciesData {
   hardiness: number;
   /**
    * Tolerable PAR range (µmol/m²/s) on the plant's own leaves, as care sheets
-   * quote it for a {@link CARE_SHEET_PHOTOPERIOD}-hour day. The low end held
+   * quote it for the flora law's care-sheet day. The low end held
    * that long is the daily light the species starves under (see
    * {@link plantTraits}); past the high end the light-excessive stressor
    * burns the top of its crown while the lamps are on. The hobby's published
@@ -176,9 +176,6 @@ export function growthFormOf(species: PlantSpecies): GrowthFormData {
   return GROWTH_FORMS[PLANT_SPECIES_DATA[species].growthForm];
 }
 
-/** Hours a day the care-sheet PAR bands assume the lamps are on. */
-export const CARE_SHEET_PHOTOPERIOD = 8;
-
 /**
  * A species in the terms the flora law reads. The low end of its PAR band is
  * where it starves over a care-sheet day and, at `saturationIrradianceFactor ×`
@@ -189,7 +186,7 @@ export const CARE_SHEET_PHOTOPERIOD = 8;
  */
 export function plantTraits(species: PlantSpecies): FloraTraits {
   const { growthRate, tolerableLight, tolerableTemp, tolerablePH } = PLANT_SPECIES_DATA[species];
-  return { growthRate, lowLight: tolerableLight[0], tolerableTemp, tolerablePH };
+  return { growthRate, pace: 1, lowLight: tolerableLight[0], tolerableTemp, tolerablePH };
 }
 
 export function getCo2HalfSaturation(species: PlantSpecies, config: PlantsConfig): number {

@@ -23,6 +23,7 @@ import { MAX_DOSE_ML } from '../../simulation/actions/dose.js';
 import { produce } from 'immer';
 import {
   algaeReading,
+  COVERAGE_DECIMALS,
   algaeStatus,
   bedReading,
   doseDeltas,
@@ -85,6 +86,15 @@ describe('condition + algae words', () => {
     expect(algaeReading(1, 30).word).toBe('sparse');
     expect(algaeReading(45, 30).word).toBe('spreading');
     expect(algaeReading(95, 30).word).toBe('booming');
+  });
+
+  it('reads clear while the coverage prints as none, whatever the line', () => {
+    const printed = 0.5 / 10 ** COVERAGE_DECIMALS;
+    for (const line of [20, 80]) {
+      expect(algaeReading(0, line)).toEqual({ status: 'ok', word: 'clear' });
+      expect(algaeReading(0.9 * printed, line).word).toBe('clear');
+      expect(algaeReading(printed, line).word).toBe('sparse');
+    }
   });
 
   it('cuts the word ladder from the same line as the tone, wherever it is tuned', () => {

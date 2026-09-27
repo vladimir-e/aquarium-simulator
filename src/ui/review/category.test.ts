@@ -6,7 +6,8 @@ import {
   classifyAlert,
   LOG_FILTERS,
 } from './category';
-import { createLog, type LogEntry } from '../../simulation/index.js';
+import { COVERAGE_DECIMALS } from '../run/flora';
+import { coverage, createLog, measured, type LogEntry } from '../../simulation/index.js';
 
 describe('categorizeLog', () => {
   it('tags an offshoot as life, and not an alert', () => {
@@ -57,6 +58,15 @@ describe('filterLogs', () => {
     expect(filterLogs(logs, 'cycle').map((l) => l.tick)).toEqual([2]);
     expect(filterLogs(logs, 'user').map((l) => l.tick)).toEqual([1]);
     expect(filterLogs(logs, 'life').map((l) => l.tick)).toEqual([3]);
+  });
+
+  it('shows a die-back only where the bloom it took printed any coverage, under every filter that holds it', () => {
+    const dieBacks = [0.1 / 10 ** COVERAGE_DECIMALS, 12].map((mass) =>
+      createLog(4, 'simulation', 'warning', measured`Algae died back from ${coverage(mass)} coverage`, 'algae-died')
+    );
+    for (const filter of ['all', 'life'] as const) {
+      expect(filterLogs([...logs, ...dieBacks], filter).filter((l) => l.event === 'algae-died')).toEqual([dieBacks[1]]);
+    }
   });
 
   it('leaves sim-only lines reachable only through all', () => {

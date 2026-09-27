@@ -30,6 +30,7 @@ import {
 import {
   algaeReading,
   algaeStatus,
+  COVERAGE_DECIMALS,
   bacteriaReadout,
   bedReading,
   dailyLightReading,
@@ -258,7 +259,7 @@ export const DECIMALS: Record<ReadingId, number> = {
   potassium: 1,
   iron: 2,
   bed: TAB_DECIMALS,
-  algae: 0,
+  algae: COVERAGE_DECIMALS,
   dailyLight: DAILY_LIGHT_DECIMALS,
 };
 

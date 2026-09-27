@@ -88,13 +88,13 @@ it rather than inventing one again.
 
 ## Where switches still live
 
-One in the organism layer, and it is scaffolding: a bloom's shade on plants is a
-flat damage that starts past a mass threshold rather than light taken from
-their leaves ([Plants](/subsystems/plants/#status)). Everything else an organism
-earns, suffers and grows on is a rate. Two things look like switches and are
-not. A band edge where a rate *starts from zero* is a rate — nothing jumps, the
-slope merely stops being zero. And death at condition 0 is a real
-discontinuity, because an organism past it is genuinely a different thing.
+None in the organism layer: everything an organism earns, suffers and grows on
+is a rate. The nearest is scaffolding — a bloom's shade on plants is a rate on
+its mass past `algaeShadingThreshold`, standing in for the light it would take
+from their leaves ([Plants](/subsystems/plants/#status)). Two things look like
+switches and are not. A band edge where a rate *starts from zero* is a rate —
+nothing jumps, the slope merely stops being zero. And death at condition 0 is a
+real discontinuity, because an organism past it is genuinely a different thing.
 
 ## Source
 

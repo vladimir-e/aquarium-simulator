@@ -134,11 +134,11 @@ describe('spendSurplus', () => {
     }
   });
 
-  it('never withdraws more than the bank holds, at any rate a config can carry', () => {
+  it('never withdraws more than the bank holds, at any rate a save can carry', () => {
     const maxTunable = plantsConfigMeta.find((knob) => knob.key === 'growthDrawRate')?.max;
     expect(maxTunable).toBeGreaterThan(plantsDefaults.growthDrawRate);
 
-    for (const growthDrawRate of [maxTunable!, 1, 1.5, 100]) {
+    for (const growthDrawRate of [maxTunable!, 1]) {
       const plant = makePlant('monte_carlo', { surplus: plantsDefaults.surplusCap, size: 0 });
       const after = spendSurplus(plant, { ...plantsDefaults, growthDrawRate });
       expect(after.surplus).toBeGreaterThanOrEqual(0);

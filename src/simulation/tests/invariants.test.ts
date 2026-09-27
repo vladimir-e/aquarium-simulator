@@ -13,6 +13,7 @@ import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
 import { freshSubstrate } from '../equipment/substrate.js';
 import { getPpm } from '../resources/index.js';
 import { plantRecord } from './plant.js';
+import { leaves, nonFinitePaths } from './leaves.js';
 // The scenario setups are the shared definition of a real tank, so the engine invariants run over them.
 import { SETUPS, type Setup } from '../../cli/scenarios/setups.js';
 import { keepTank } from '../../cli/scenarios/run.js';
@@ -73,12 +74,6 @@ function cycledBareTank(tankCapacity = 150): SimulationState {
 
 const keep = (setup: Setup, days: number): SimulationState =>
   keepTank(setup, { config: DEFAULT_CONFIG, untilTick: days * 24 });
-
-function nonFinitePaths(value: unknown, path = 'state'): string[] {
-  if (typeof value === 'number') return Number.isFinite(value) ? [] : [path];
-  if (value === null || typeof value !== 'object') return [];
-  return Object.entries(value).flatMap(([key, child]) => nonFinitePaths(child, `${path}.${key}`));
-}
 
 describe('nitrogen mass', () => {
   it('is conserved through NH3 → NO2 → NO3', () => {
@@ -206,7 +201,7 @@ describe('a planting over a charged bed', () => {
     expect(growing.equipment.substrate.nutrients.phosphate).toBeLessThan(leakedOnly);
   });
 
-  it('conserves nitrogen through the bed’s leak, growth, offshoots, spores, shedding and death, the bloom drawing beside the plants', () => {
+  it('conserves nitrogen through the bed’s leak, growth, spores, shedding and death, the bloom drawing beside the plants', () => {
     for (const state of [growing, grown, dark]) {
       expect(nitrogenInPools(state) / nitrogenInPools(start)).toBeCloseTo(1, 10);
     }
@@ -254,10 +249,11 @@ describe('a bloom and its crash', () => {
     }
   });
 
-  it('grows on the water and loses itself in the dark, its tissue fouling the water', () => {
+  it('grows on the water and dies back in the dark, its tissue fouling the water', () => {
+    const dieBacks = crashed.logs.slice(bloomed.logs.length).filter((log) => log.event === 'algae-died');
     expect(bloomed.algae.mass).toBeGreaterThan(start.algae.mass);
     expect(bloomed.resources.nitrate).toBeLessThan(start.resources.nitrate);
-    expect(crashed.algae.mass).toBeLessThan(bloomed.algae.mass);
+    expect(dieBacks.length).toBeGreaterThan(0);
     expect(peakAmmonia).toBeGreaterThan(bloomed.resources.ammonia);
   });
 
@@ -270,12 +266,7 @@ describe('a bloom and its crash', () => {
 });
 
 describe('a bloom at every tunable’s maximum', () => {
-  const leaves = (value: object, prefix = ''): string[] =>
-    Object.entries(value).flatMap(([key, child]) => {
-      const path = prefix ? `${prefix}.${key}` : key;
-      return typeof child === 'object' && child !== null ? leaves(child, path) : [path];
-    });
-  const maxed = leaves(DEFAULT_CONFIG).flatMap((path): [string, TunableConfig][] => {
+  const maxed = leaves(DEFAULT_CONFIG).flatMap(([path]): [string, TunableConfig][] => {
     const range = configRange(path);
     return range === undefined ? [] : [[path, withTunable(DEFAULT_CONFIG, path, range.max)]];
   });
@@ -284,12 +275,16 @@ describe('a bloom at every tunable’s maximum', () => {
     for (const n of NUTRIENTS) draft.resources[n] = 1000 * DEFAULT_CONFIG.nutrients.halfSaturation[n] * draft.resources.water;
   });
 
-  it.each(maxed)('keeps its mass within [0, 100] with %s at its max', (_path, config) => {
+  it.each(maxed)('keeps its mass within [0, 100], its condition within [0, 100] and its bank ≥ 0 with %s at its max', (_path, config) => {
     let state = crowded;
     for (let hour = 0; hour < 48; hour++) {
       state = tick(state, config);
-      expect(state.algae.mass).toBeGreaterThanOrEqual(0);
-      expect(state.algae.mass).toBeLessThanOrEqual(100);
+      const { mass, condition, surplus } = state.algae;
+      expect(mass).toBeGreaterThanOrEqual(0);
+      expect(mass).toBeLessThanOrEqual(100);
+      expect(condition).toBeGreaterThanOrEqual(0);
+      expect(condition).toBeLessThanOrEqual(100);
+      expect(surplus).toBeGreaterThanOrEqual(0);
     }
   });
 });

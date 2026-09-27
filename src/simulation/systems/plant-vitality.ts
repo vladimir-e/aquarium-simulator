@@ -51,7 +51,6 @@ function floraHour({ plant, resources, plantsConfig, nutrientSufficiency, light 
     nutrientSufficiency,
     co2HalfSaturation: getCo2HalfSaturation(plant.species, plantsConfig),
     vigour: plant.vigour,
-    pace: 1,
   };
 }
 

@@ -178,8 +178,19 @@ describe('readHourAhead', () => {
       const ahead = readHourAhead(state, config);
 
       expect(ahead.algae.condition).toBe(next.algae.condition);
-      expect(ahead.algae.vitality.surplus - ahead.algae.spent).toBeCloseTo(next.algae.surplus, 12);
+      expect(ahead.algae.surplus).toBe(next.algae.surplus);
       expect(ahead.algae.mass).toBe(next.algae.mass);
     }
+  });
+
+  it('reads the spores diluting a bloom’s bank as nothing spent', () => {
+    const empty = produce(recovering(), (draft) => {
+      Object.assign(draft.algae, { mass: 0, surplus: 5 });
+    });
+    const ahead = readHourAhead(empty, config);
+
+    expect(ahead.algae.spent).toBe(0);
+    expect(ahead.algae.surplus).toBe(0);
+    expect(tick(empty, config).algae.surplus).toBe(0);
   });
 });

@@ -5,7 +5,8 @@ import {
   accrueTicks,
   accrueWaterChanged,
 } from './aggregates';
-import { createLog, type LogEntry } from '../../simulation/index.js';
+import { COVERAGE_DECIMALS } from './flora';
+import { coverage, createLog, measured, type LogEntry } from '../../simulation/index.js';
 
 describe('emptyAggregates', () => {
   it('starts every counter at zero', () => {
@@ -70,6 +71,14 @@ describe('accrueLogs', () => {
     const result = accrueLogs(emptyAggregates(), logs);
     expect(result.alerts).toBe(0);
     expect(result.deaths).toBe(1);
+  });
+
+  it('counts a die-back as a death only where the bloom it took printed any coverage', () => {
+    const printed = 0.5 / 10 ** COVERAGE_DECIMALS;
+    const dieBack = (mass: number): LogEntry =>
+      createLog(1, 'simulation', 'warning', measured`Algae died back from ${coverage(mass)} coverage`, 'algae-died');
+    const result = accrueLogs(emptyAggregates(), [dieBack(0), dieBack(0.9 * printed), dieBack(printed), dieBack(35)]);
+    expect(result).toMatchObject({ deaths: 2, alerts: 0 });
   });
 
   it('ignores info entries that carry no lifecycle event', () => {

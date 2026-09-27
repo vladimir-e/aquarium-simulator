@@ -10,7 +10,7 @@ import { dailyLightEdge, floraHealingRate, saturationIrradiance } from './flora.
 import { getPlantPower } from './plant-power.js';
 import { getRespirationTemperatureFactor } from './respiration.js';
 import { monodFactor } from '../core/kinetics.js';
-import { ALGAE, bloomPace } from '../algae/traits.js';
+import { ALGAE } from '../algae/traits.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { createSimulation, type Plant } from '../state.js';
 import { plantRecord } from '../tests/plant.js';
@@ -103,7 +103,7 @@ describe('light starvation', () => {
   it('costs what respiration does, at the bloom’s pace', () => {
     expect(starvation(0)).toBeCloseTo(
       plantsConfig.lightStarvationSeverity *
-        bloomPace(ALGAE) *
+        ALGAE.pace *
         getRespirationTemperatureFactor(25, plantsConfig) *
         (1 - ALGAE.hardiness),
       12

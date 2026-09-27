@@ -16,7 +16,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
 import type { VerbId, VerbScope } from '../actions/verbs.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 import type { HourAhead } from './ahead.js';
-import { algaeReading, plantLabels, sharePercent, unitTitle } from './flora.js';
+import { algaeReading, COVERAGE_DECIMALS, plantLabels, sharePercent, unitTitle } from './flora.js';
 import { crownBurns, lightStatus, plantLightStatus } from './light.js';
 import { fishNumbers, fishReading, fishSatiation, fishTitle, type Satiation } from './livestock.js';
 import { CONDITION_BAND, type SpeciesId } from './roster.js';
@@ -323,7 +323,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     satiation: null,
     light: lightRow(light.needShare, lightStatus(light.needShare), 'through the water column'),
     coverage: {
-      text: String(Math.round(mass)),
+      text: mass.toFixed(COVERAGE_DECIMALS),
       at: mass / 100,
       band: { from: 0, to: line / 100 },
       status: coverage.status,
@@ -338,7 +338,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
       text: surplus.toFixed(BANK_DECIMALS),
       unit: `of ${cap}`,
       ...bankOf(
-        { now: surplus, next: vitality.surplus - spent, cap, covered: breakdown.healed, spent },
+        { now: surplus, next: ahead.algae.surplus, cap, covered: breakdown.healed, spent },
         'buying growth'
       ),
     },

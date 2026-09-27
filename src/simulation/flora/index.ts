@@ -31,11 +31,11 @@ import { produce } from 'immer';
 import type { SimulationState, Plant } from '../state.js';
 import { calculateTankHeight } from '../state.js';
 import type { Effect } from '../core/effects.js';
-import { createLog, type LogEvent, type LogSeverity } from '../core/logging.js';
+import { coverage, createLog, measured, type LogEvent, type LogSeverity, type LogText } from '../core/logging.js';
 import { NUTRIENTS, type Nutrient, type TunableConfig } from '../config/index.js';
 import { getPpm } from '../resources/index.js';
 import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
-import { getTotalRateUnits, type PlantLight } from '../plants/canopy.js';
+import type { PlantLight } from '../plants/canopy.js';
 import { readPlantLight } from '../plants/index.js';
 import { createOffshoot } from '../plants/create-plant.js';
 import {
@@ -43,7 +43,6 @@ import {
   bloomFeeder,
   bloomFixer,
   bloomLight,
-  bloomRateUnits,
   bloomTissue,
   landSpores,
   loseBloom,
@@ -76,6 +75,8 @@ export interface BloomHour {
   light: BloomLight;
   /** Grams of waste shed, apart from a die-back's one-off lump. */
   shedding: number;
+  /** Bank points its growth cost — nothing the hour it dies back. */
+  spent: number;
 }
 
 export interface FloraProcessingResult {
@@ -117,21 +118,17 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
 
   // 3. Photosynthesis: the gases only. Only the gases are stored as a
   //    concentration, so only they convert through the water volume.
-  const photosynthesis = calculatePhotosynthesis(
-    [
-      ...state.plants.map((plant, i) => plantFixer(plant, light[i].par, sufficiency[i], plantsConfig)),
-      bloomFixer(bloom, litres, bloomLit, bloomSufficiency, ALGAE, plantsConfig),
-    ],
-    state.resources.co2,
-    waterVolume,
-    plantsConfig
-  );
+  const fixers = [
+    ...state.plants.map((plant, i) => plantFixer(plant, light[i].par, sufficiency[i], plantsConfig)),
+    bloomFixer(bloom, litres, bloomLit, bloomSufficiency, ALGAE, plantsConfig),
+  ];
+  const photosynthesis = calculatePhotosynthesis(fixers, state.resources.co2, waterVolume, plantsConfig);
   pushDelta('oxygen', getPpm(photosynthesis.oxygenProducedMg, waterVolume), 'photosynthesis');
   pushDelta('co2', -getPpm(photosynthesis.co2ConsumedMg, waterVolume), 'photosynthesis');
 
-  // 4. Respiration.
+  // 4. Respiration, on the rate units that fix.
   const respiration = calculateRespiration(
-    getTotalRateUnits(state.plants) + bloomRateUnits(bloom.mass, litres, ALGAE, plantsConfig),
+    sum(fixers.map((fixer) => fixer.rateUnits)),
     state.resources.temperature,
     state.resources.oxygen,
     plantsConfig
@@ -203,8 +200,8 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   // 9. Offshoots and spores join, the survivors age a tick. An offshoot's id and vigour come off the tank's stream.
   const newState = produce(state, (draft) => {
     for (const n of NUTRIENTS) draft.equipment.substrate.nutrients[n] -= fromBed[n];
-    const log = (severity: LogSeverity, message: string, event: LogEvent): void => {
-      draft.logs.push(createLog(draft.tick, 'simulation', severity, message, event));
+    const log = (severity: LogSeverity, text: string | LogText, event: LogEvent): void => {
+      draft.logs.push(createLog(draft.tick, 'simulation', severity, text, event));
     };
 
     const survivors: Plant[] = [];
@@ -215,14 +212,16 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
         offshoots.push(createOffshoot(after, offshootSize, draft.rng));
         log('info', `${species.name} ${growthFormOf(after.species).offshootVerb}`, 'plant-propagated');
       }
-      const { plant } = plantLosses[i];
-      if (plant === null) log('warning', `${species.name} died from poor conditions`, 'plant-died');
-      else survivors.push({ ...plant, age: plant.age + 1 });
+      const { survivor } = plantLosses[i];
+      if (survivor === null) log('warning', `${species.name} died from poor conditions`, 'plant-died');
+      else survivors.push({ ...survivor, age: survivor.age + 1 });
     });
     draft.plants = [...survivors, ...offshoots];
 
-    if (bloomLoss.bloom === null) log('warning', `${ALGAE.name} died back`, 'algae-died');
-    draft.algae = landSpores(bloomLoss.bloom, bloomSupplied.spores);
+    if (bloomLoss.survivor === null) {
+      log('warning', measured`${ALGAE.name} died back from ${coverage(bloomSupplied.after.mass)} coverage`, 'algae-died');
+    }
+    draft.algae = landSpores(bloomLoss.survivor, bloomSupplied.spores);
   });
 
   return {
@@ -231,6 +230,11 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     vitalities,
     light,
     shedding: plantShedding,
-    algae: { vitality: bloomVitality, light: bloomLit, shedding: bloomLoss.shed },
+    algae: {
+      vitality: bloomVitality,
+      light: bloomLit,
+      shedding: bloomLoss.shed,
+      spent: bloomLoss.survivor === null ? 0 : bloomVitality.surplus - bloomSupplied.after.surplus,
+    },
   };
 }

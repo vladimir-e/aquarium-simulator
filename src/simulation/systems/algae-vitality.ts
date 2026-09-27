@@ -7,7 +7,7 @@
 import type { AlgaeState, Plant, Resources } from '../state.js';
 import type { AlgaeConfig } from '../config/algae.js';
 import type { PlantsConfig } from '../config/plants.js';
-import { bloomPace, type AlgaeTraits } from '../algae/traits.js';
+import type { AlgaeTraits } from '../algae/traits.js';
 import type { BloomLight } from '../algae/light.js';
 import { floraBenefits, floraHealingRate, floraStressors, type FloraHour } from './flora.js';
 import { getPlantPower } from './plant-power.js';
@@ -37,7 +37,6 @@ function floraHour({ traits, resources, plantsConfig, nutrientSufficiency, light
     nutrientSufficiency,
     co2HalfSaturation: traits.co2HalfSaturation,
     vigour: 0,
-    pace: bloomPace(traits),
   };
 }
 
