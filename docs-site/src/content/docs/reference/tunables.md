@@ -191,15 +191,17 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band | %/unit/hr |
 | `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own tolerance edge, which hardiness moves out — free NH₃, not total ammonia; oxygen counts e-folds under | %/e-fold/hr |
 | `waterLevelStressSeverity` · `flowStressSeverity` | Damage per unit of deviation | %/unit/hr |
-| `ageStressSeverity` | Damage per hour lived past the species' `maxAge`, climbing with the excess | %/(h past maxAge)/h |
 | `waterLevelStressThreshold` | Share of capacity the water-level stressor switches on under | % |
 | `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor at its best, at full nourishment | %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which the planted-tank benefit stops growing | power |
 | `surplusCap` | Ceiling on the fish's bank; a female broods on a full one | pts |
-| `healingDrawRate` | First-order rate a 1 g fish's bank heals it at, scaled by adult mass to the −¼ | /hr at 1 g |
+| `healingDrawRate` | First-order rate a young 1 g fish's bank heals it at, scaled by adult mass to the −¼ | /hr at 1 g |
 | `growthDrawRate` | First-order rate the bank draws toward growth at, before the growth share `1 − size / 100` | /hr |
 | `sizePerSurplus` | Size, in % of adult mass, a bank point buys at species growth rate 1 | %/pt |
 | `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his species' share | pts per body mass |
+| `wearAtLifespan` | Wear at the species lifespan, for a fish of its species' hardiness | %/hr |
+| `wearDoublingShare` | Span wear doubles over, as a share of the species lifespan | — |
+| `healingHalvingShare` | Age healing halves over, as a share of the species lifespan | — |
 | `eggSensitivity` | How many times harder the water harms a laid egg than a fish, as a share of the clutch an hour; a carried brood takes its mother's harm | × |
 | `eggPredationRate` | Share of a clutch an hour one gram of fish per litre eats, before the clutch's exposure | L/g/hr |
 | `fryPredationRate` | Damage an hour, before hardiness, one gram per litre of predator mass — the grams each larger fish outweighs the prey — does a fish at no size | %/hr per g/L |

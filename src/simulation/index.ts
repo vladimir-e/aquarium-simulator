@@ -486,7 +486,7 @@ export {
   settleClutch,
   type ClutchHour,
 } from './systems/clutch.js';
-export { predationStress, predatorWeight, predatorMasses, fryVulnerability } from './systems/fish-health.js';
+export { predationStress, predatorWeight, predatorMasses, fryVulnerability, fishWear } from './systems/fish-health.js';
 export {
   gutCapacity,
   appetite,

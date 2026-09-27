@@ -47,8 +47,8 @@ export interface FishSpeciesData {
   name: string;
   /** Adult body mass in grams */
   adultMass: number;
-  /** Maximum lifespan in ticks (hours) */
-  maxAge: number;
+  /** Median age, in ticks, a well-kept fish dies of wear at. */
+  lifespan: number;
   /** Hardiness factor 0-1 (higher = more tolerant of stressors) */
   hardiness: number;
   /** Preferred temperature range [min, max] in °C */
@@ -72,7 +72,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
   neon_tetra: {
     name: 'Neon Tetra',
     adultMass: 0.5,
-    maxAge: 24 * 365 * 5, // ~5 years
+    lifespan: 24 * 365 * 5,
     hardiness: 0.5,
     temperatureRange: [22, 28],
     phRange: [5.0, 7.8],
@@ -93,7 +93,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
   betta: {
     name: 'Betta',
     adultMass: 3.0,
-    maxAge: 24 * 365 * 3, // ~3 years
+    lifespan: 24 * 365 * 3,
     hardiness: 0.6,
     temperatureRange: [24, 30],
     phRange: [6.0, 8.0],
@@ -115,7 +115,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
   guppy: {
     name: 'Guppy',
     adultMass: 1.0,
-    maxAge: 24 * 365 * 3, // ~3 years
+    lifespan: 24 * 365 * 3,
     hardiness: 0.8,
     temperatureRange: [22, 28],
     phRange: [6.5, 8.5],
@@ -137,7 +137,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
   angelfish: {
     name: 'Angelfish',
     adultMass: 15.0,
-    maxAge: 24 * 365 * 10, // ~10 years
+    lifespan: 24 * 365 * 10,
     hardiness: 0.4,
     temperatureRange: [24, 30],
     phRange: [6.0, 8.0],
@@ -159,7 +159,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
   corydoras: {
     name: 'Corydoras',
     adultMass: 4.0,
-    maxAge: 24 * 365 * 5, // ~5 years
+    lifespan: 24 * 365 * 5,
     hardiness: 0.7,
     temperatureRange: [22, 26],
     phRange: [6.0, 8.0],

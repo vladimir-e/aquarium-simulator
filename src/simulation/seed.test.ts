@@ -515,7 +515,7 @@ describe('createSimulation seeding', () => {
 
   describe('impossible states are constructible on purpose', () => {
     it('takes a fish older than its species lifespan', () => {
-      const past = FISH_SPECIES_DATA.betta.maxAge * 2;
+      const past = FISH_SPECIES_DATA.betta.lifespan * 2;
       const state = createSimulation(TANK, { fish: [{ species: 'betta', age: past }] });
 
       expect(state.fish[0].age).toBe(past);

@@ -6,8 +6,9 @@
  *   about a day at 25 °C, slower cold
  * - Health: per-factor benefits sum to ~1 %/h at full nourishment in ideal
  *   conditions; what a fish digests scales them all
- * - Death: vitality-driven (no probabilistic check); past `maxAge` the
- *   age stressor kicks in for a smooth decline.
+ * - Death: vitality-driven (no probabilistic check); wear rising on a
+ *   Gompertz curve and healing falling with age carry a well-kept fish off
+ *   near its species lifespan.
  */
 
 import { MAX_SURPLUS_CAP, SURPLUS_CAP_DEFAULT } from './vitality.js';
@@ -88,12 +89,6 @@ export interface LivestockConfig {
   waterLevelStressSeverity: number;
   /** Health damage per turnover (tank volumes/h) above species tolerance */
   flowStressSeverity: number;
-  /**
-   * Health damage per hour past species `maxAge`, applied per hour: past its
-   * lifespan a fish takes damage that grows with how far past it is, scaled
-   * by `1 − hardiness`, until health reaches zero.
-   */
-  ageStressSeverity: number;
 
   /** Water below this % of capacity activates the stressor. */
   waterLevelStressThreshold: number;
@@ -139,6 +134,14 @@ export interface LivestockConfig {
    * the female in full, the male at his species' share.
    */
   broodCost: number;
+
+  // Ageing
+  /** Wear, %/h, a fish of average vigour takes at its species lifespan. */
+  wearAtLifespan: number;
+  /** Span wear doubles over, as a share of the species lifespan. */
+  wearDoublingShare: number;
+  /** Age healing halves over, as a share of the species lifespan. */
+  healingHalvingShare: number;
 
   // Clutches
   /** How many times harder the water harms a laid egg than a fish; an egg's harm is the share of the clutch lost an hour. */
@@ -228,10 +231,6 @@ export const livestockDefaults: LivestockConfig = {
   // powerhead. The same powerhead alone in a 20 L is 45×, 5.3 %/h,
   // dead inside a day.
   flowStressSeverity: 0.3,
-  // 0.05 %/h per hour past maxAge. At 24 h past, 1.2 %/h damage —
-  // just exceeds the all-good benefit budget of ~1.2 %/h, so a fish
-  // begins a slow decline. By a week past, 8.4 %/h — clear decline.
-  ageStressSeverity: 0.05,
 
   waterLevelStressThreshold: 50, // % capacity — below this water level damages fish
 
@@ -256,6 +255,14 @@ export const livestockDefaults: LivestockConfig = {
   // A full bank buys a grown female a brood about her own weight: twenty
   // guppy fry, fifty angelfish eggs.
   broodCost: 50,
+
+  // Wear passes a fed fish's income a little before its lifespan and eats
+  // through its bank and health over the months after. It doubles over an
+  // eighth of the lifespan — seven months for a neon, a modest share, as
+  // Gompertz fits to fish find — so at birth it is 2^−8 of its figure here.
+  wearAtLifespan: 0.6,
+  wearDoublingShare: 0.125,
+  healingHalvingShare: 1,
 
   // Water at a fish's 96-hour LC50 costs a clutch about 5 %/h — most of a
   // neon clutch before it hatches — while the adults ride it out on their banks.
@@ -359,14 +366,6 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     max: 1.5,
     step: 0.05,
   },
-  {
-    key: 'ageStressSeverity',
-    label: 'Age Stress Severity',
-    unit: '%/(h past maxAge)/h',
-    min: 0.01,
-    max: 0.5,
-    step: 0.01,
-  },
   { key: 'waterLevelStressThreshold', label: 'Water Level Stress Threshold', unit: '%', min: 20, max: 80, step: 5 },
   // Vitality benefit peaks
   { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
@@ -379,6 +378,10 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'growthDrawRate', label: 'Growth Draw Rate', unit: '/hr', min: 0.005, max: 0.2, step: 0.005 },
   { key: 'sizePerSurplus', label: 'Size per Bank Point', unit: '%/pt', min: 0.01, max: MAX_FISH_SIZE_PER_SURPLUS, step: 0.01 },
   { key: 'broodCost', label: 'Brood Cost', unit: 'pts/body mass', min: 5, max: 500, step: 5 },
+  // Ageing
+  { key: 'wearAtLifespan', label: 'Wear at Lifespan', unit: '%/hr', min: 0.1, max: 5, step: 0.1 },
+  { key: 'wearDoublingShare', label: 'Wear Doubling Span', unit: '× lifespan', min: 0.05, max: 0.5, step: 0.005 },
+  { key: 'healingHalvingShare', label: 'Healing Halving Age', unit: '× lifespan', min: 0.25, max: 10, step: 0.25 },
   // Clutches
   { key: 'eggSensitivity', label: 'Egg Sensitivity', unit: '× fish', min: 0, max: 10, step: 0.5 },
   { key: 'eggPredationRate', label: 'Egg Predation Rate', unit: 'L/g/hr', min: 0, max: 20, step: 0.5 },

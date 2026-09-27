@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   computeFishVitality,
   fishHealingRate,
+  fishWear,
   fryVulnerability,
   predationStress,
   predatorMasses,
@@ -113,6 +114,9 @@ function makePlant(overrides: Partial<Plant> = {}): Plant {
   });
 }
 
+/** The defaults with no wear, so a young fish in clean water takes no damage at all. */
+const AGELESS = { ...livestockDefaults, wearAtLifespan: 0 };
+
 const NEED = maintenance(makeFish(), 1, livestockDefaults);
 /** A fish digesting three times its maintenance ration, and the share of its benefits that earns. */
 const FED = 3 * NEED;
@@ -125,7 +129,7 @@ function vitality(
     plants = [],
     water = resources.water ?? 100,
     capacity = 100,
-    config = livestockDefaults,
+    config = AGELESS,
     digested = FED,
     metabolicFactor = 1,
     predatorMass = 0,
@@ -156,7 +160,8 @@ function health(
   fish: Fish[],
   resources: ResourceOverrides = {},
   plants: Plant[] = [],
-  carried: number[] = fish.map(() => 0)
+  carried: number[] = fish.map(() => 0),
+  config = AGELESS
 ): ReturnType<typeof processHealth> {
   return processHealth(
     fish,
@@ -164,7 +169,7 @@ function health(
     plants,
     100,
     100,
-    livestockDefaults,
+    config,
     fish.map(() => FED),
     1,
     carried
@@ -649,19 +654,57 @@ describe('predation', () => {
   });
 });
 
-describe('age', () => {
-  const { maxAge } = FISH_SPECIES_DATA.neon_tetra;
+describe('ageing', () => {
+  const { lifespan } = FISH_SPECIES_DATA.neon_tetra;
+  const doubling = livestockDefaults.wearDoublingShare * lifespan;
+  const worn = (fish: Partial<Fish> = {}): number => fishWear(makeFish(fish), livestockDefaults);
+  const healing = (age: number): number => fishHealingRate(makeFish({ age }), livestockDefaults);
 
-  it('charges nothing up to maxAge and linearly past it', () => {
-    expect(stressorAmount(vitality({ age: 100 }), 'age')).toBe(0);
-    expect(stressorAmount(vitality({ age: maxAge }), 'age')).toBe(0);
-    const day = stressorAmount(vitality({ age: maxAge + 24 }), 'age');
-    expect(day).toBeGreaterThan(0);
-    expect(stressorAmount(vitality({ age: maxAge + 48 }), 'age')).toBeCloseTo(2 * day, 10);
+  it('charges wear as its own stressor, rising exponentially and doubling over the span', () => {
+    const config = livestockDefaults;
+    expect(stressorAmount(vitality({ age: lifespan }, {}, { config }), 'wear')).toBeCloseTo(worn({ age: lifespan }), 12);
+    for (const age of [0, lifespan / 2, lifespan, 2 * lifespan]) {
+      expect(worn({ age: age + doubling })).toBeCloseTo(2 * worn({ age }), 9);
+      expect(worn({ age: age + 1 })).toBeGreaterThan(worn({ age }));
+    }
   });
 
-  it('attributes a death past maxAge to old age', () => {
-    const result = health([makeFish({ age: maxAge + 24, health: 1 })], { oxygen: 0 });
+  it('is negligible in youth', () => {
+    expect(worn({ age: 0 })).toBeLessThan(worn({ age: lifespan }) / 100);
+  });
+
+  it('is shielded by no species hardiness', () => {
+    const atLifespan = (species: FishSpecies): number =>
+      worn({ species, age: FISH_SPECIES_DATA[species].lifespan });
+    expect(atLifespan('guppy')).toBeCloseTo(atLifespan('angelfish'), 12);
+  });
+
+  it('wears a fish hardier than its species slower, and one frailer faster', () => {
+    const base = worn({ age: lifespan });
+    expect(worn({ age: lifespan, hardinessOffset: 0.05 })).toBeLessThan(base);
+    expect(worn({ age: lifespan, hardinessOffset: -0.05 })).toBeGreaterThan(base);
+  });
+
+  it('heals slower with every hour of age, halving over the set share of the lifespan', () => {
+    const halving = livestockDefaults.healingHalvingShare * lifespan;
+    for (const age of [0, lifespan / 3, lifespan, 3 * lifespan]) {
+      expect(healing(age + 1)).toBeLessThan(healing(age));
+      expect(healing(age + halving)).toBeCloseTo(healing(age) / 2, 12);
+    }
+  });
+
+  it('stays a number at birth and at absurd ages', () => {
+    for (const age of [0, 1e3 * lifespan]) {
+      const result = vitality({ age, surplus: 50 }, {}, { config: livestockDefaults });
+      expect(Number.isNaN(result.newCondition)).toBe(false);
+      expect(Number.isNaN(result.surplus)).toBe(false);
+      expect(Number.isNaN(healing(age))).toBe(false);
+    }
+    expect(vitality({ age: 1e3 * lifespan }, {}, { config: livestockDefaults }).newCondition).toBe(0);
+  });
+
+  it('attributes a death mostly of wear to old age', () => {
+    const result = health([makeFish({ age: 3 * lifespan, health: 1 })], {}, [], [0], livestockDefaults);
     expect(result.survivingFish).toHaveLength(0);
     expect(result.deadFishNames[0]).toContain('old age');
   });

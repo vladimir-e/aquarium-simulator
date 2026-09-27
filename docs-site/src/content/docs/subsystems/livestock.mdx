@@ -29,11 +29,11 @@ fish thin as it develops — and the tank's larger fish hunt the fry that hatch.
 | Serving | <Badge text="settled" variant="success" /> | Every fish eats at once. Short food is split in proportion to appetite, so a school eats and thins together. |
 | Water quality | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen harm on log dose from each fish's own edge, which hardiness moves out from the alert's. Chloride, which blunts nitrite, is not modelled. |
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits — as `1 − hardiness` for most, and on the concentration axis for water quality. A hardy fish tolerates bad water but isn't more energised by good. |
-| Age | <Badge text="settled" variant="success" /> | A linear stressor ramp past the species lifespan, through the same channel as every other stressor. No probabilistic cliff. |
+| Old age | <Badge text="settled" variant="success" /> | Wear, a damage rate rising on a Gompertz curve that no care or hardiness stops, and healing that falls with age. Lifespans spread around the species figure: a stressed fish goes first, a well-kept one outlives it. |
 | Growth | <Badge text="settled" variant="success" /> | Mass is a stock the bank buys, slowing as the fish nears adult size. Fry and adult are words for its size, not states. |
-| Healing | <Badge text="settled" variant="success" /> | The bank heals health at a rate that falls with adult mass to the −¼, as mass-specific metabolism does, integrated over the hour. A fish is sick while its damage outruns its healing. |
+| Healing | <Badge text="settled" variant="success" /> | The bank heals health at a rate that falls with adult mass to the −¼, as mass-specific metabolism does, and with age, integrated over the hour. A fish is sick while its damage outruns its healing. |
 | Broods | <Badge text="settled" variant="success" /> | A female broods on a full bank, laying the eggs her brood share buys, and the males pay their share from theirs. No husbandry re-tests — the husbandry is already priced into how the banks filled. |
-| Death | <Badge text="settled" variant="success" /> | Condition reaching zero, from any stressor. Age-driven deaths are labelled in the log so the keeper can tell "got old" from "water went bad". |
+| Death | <Badge text="settled" variant="success" /> | Condition reaching zero, from any stressor. A death mostly of wear is logged as old age, so the keeper can tell "got old" from "water went bad". |
 | Low health | <Badge text="settled" variant="success" /> | Only death reads it: health is the buffer between harm and death, so a fish at 5 % eats, breathes and excretes as one at 100 does ([Vitality](/concepts/vitality/)). |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge, and damage starts from zero at or past it. pH earns most at the band's centre; oxygen rises from the alert edge to comfort. |
 | Clutches | <Badge text="settled" variant="success" /> | A stock of eggs two rates thin — the fish's own water harm, and predation by the fish per litre — developing on the metabolic factor until it hatches. |
@@ -155,7 +155,7 @@ three with a full bank.
 
 Health is the [vitality model](/concepts/vitality/): a fish heals out of its
 income first, then out of its bank at a rate that falls with adult mass to the
-−¼, and banks only what a full health leaves over. It is sick while its damage
+−¼ and with age, and banks only what a full health leaves over. It is sick while its damage
 outruns its healing, so its health falls.
 
 | Stressor | Activates | Per |
@@ -170,7 +170,7 @@ outruns its healing, so its health falls.
 | Water level | below `waterLevelStressThreshold` of capacity | % under |
 | Flow | above the species `maxTurnover` | tank volumes/h over |
 | Hunger | digesting under its maintenance ration | share short of it |
-| Age | past the species `maxAge` | hour over |
+| Wear | always, doubling every `wearDoublingShare` of the species lifespan | hour of age |
 | Hunted | larger fish in the tank, on any fish short of adult size | g of them per litre |
 
 Every benefit is its peak times the fish's nourishment.
@@ -230,6 +230,25 @@ through it; among twenty grown guppies about 0.6 %/h, most of what a fed fry
 earns — so a tank breeds until its own fish hold the fry back. At a third of
 adult size a fish is a fifth as exposed as a newborn.
 
+#### Ageing
+
+Age harms a fish two ways, both smooth in its age against its species
+lifespan `L`:
+
+```
+wear    = wearAtLifespan × 2^((age − L) / (wearDoublingShare × L)) × species hardiness / its own
+healing = healingDrawRate × adultMass^−¼ × 2^(−age / (healingHalvingShare × L))
+```
+
+Wear is Gompertz, the shape of real mortality: 2⁻⁸ of its figure at birth, it
+doubles every eighth of the lifespan and passes a fed fish's income a little
+before `L`, then eats through the bank and health over the months after. No
+species hardiness shields it — only an individual's offset does, in proportion —
+so even a pristine tank loses its old fish. Healing halves over a lifespan, so an
+old fish recovers slower from every harm. A well-kept fish dies near `L`; one
+under chronic stress already spends part of its income, so wear overtakes it
+sooner.
+
 ### Individual variation
 
 Sex, a hardiness offset of ±15 % of the species baseline, and a small health
@@ -238,7 +257,7 @@ hardiness is clamped to `[0.1, 0.95]`, so no offset makes a fish invincible or
 instantly doomed.
 
 The offset is what staggers deaths. Weaker individuals fail first as conditions
-degrade, instead of a synchronised die-off. Stocked adults and bred fry come out
+degrade, and wear the faster, instead of a synchronised die-off. Stocked adults and bred fry come out
 of the same factory, so a purchased fish and a tank-born one are
 indistinguishable in shape.
 
@@ -280,7 +299,7 @@ bank fathers nothing, and each brood drains him, so one male cannot father
 brood after brood. Refilling the banks is the cooldown — there are no timers.
 
 Stocking names a size, grown when none is named, from a fry's up to 100. Age
-starts at 0 and is read only by old age.
+starts at 0 and is read only by wear and healing.
 
 Breeding is uncapped. The physical stocking ceiling gates the keeper's hand
 only, so a bred cohort can push total mass past it, at which point further
@@ -333,10 +352,9 @@ fish. Its remains — `deathDecayFactor` of its body mass, its gut and the brood
 it carried — rot to waste, less the share its predators eat: the share of its
 dying hour's damage they did, into the guts of the larger fish by their weight
 on it and as far as each gut has room, so an eaten fry feeds the tank rather
-than fouling it. Old age arrives
-through the same channel — past the species lifespan the age stressor
-accumulates until it outruns the benefit budget, which gives the keeper a
-visible decline rather than a coin flip.
+than fouling it. Old age arrives through the same channel — wear outruns the
+benefit budget and drains the bank, which gives the keeper a visible decline
+rather than a coin flip.
 
 ## Key tunables
 
@@ -354,13 +372,15 @@ visible decline rather than a coin flip.
 | `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own edge; oxygen's per e-fold under | `0.56` · `0.75` · `1.0` · `2.7` %/e-fold/hr |
 | `flowStressSeverity` | Damage per turnover unit above species tolerance | `0.3` %/×/hr |
 | `ghStressSeverity` | Damage per dGH outside the species range — a chronic harm, so a guppy five degrees short stays inside a fed tank's recovery | `0.1` %/dGH/hr |
-| `ageStressSeverity` | Damage per hour past the species lifespan | `0.05` %/hr/hr |
 | `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | The three benefit channels, at full nourishment | `0.4` · `0.3` · `0.2` %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which shelter tops out — three full healthy java fern clumps, or a little over one sword | `3.0` |
 | `surplusCap` | Ceiling on the bank; a female broods on a full one | `50` condition points |
 | `healingDrawRate` | First-order rate a 1 g fish's bank heals it at, scaled by adult mass to the −¼ | `0.05` /hr |
 | `growthDrawRate` | First-order rate the bank draws toward growth at, before the growth share | `0.02` /hr |
 | `sizePerSurplus` | Size, in % of adult mass, a bank point buys at growth rate 1 — a fed guppy grows out in about two and a half months, a neon in about five | `0.15` %/pt |
+| `wearAtLifespan` | Wear at the species lifespan, for a fish of its species' hardiness — about a keeper-fed fish's income | `0.6` %/hr |
+| `wearDoublingShare` | Span wear doubles over, as a share of the species lifespan | `0.125` |
+| `healingHalvingShare` | Age healing halves over, as a share of the species lifespan | `1` |
 | `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his share | `50` pts |
 | `eggSensitivity` | How many times harder the water harms a laid egg than a fish | `3` × |
 | `eggPredationRate` | Share of a clutch an hour one gram of fish per litre eats, before its exposure | `2` L/g/hr |

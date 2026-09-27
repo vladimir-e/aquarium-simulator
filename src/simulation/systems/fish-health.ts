@@ -5,14 +5,16 @@
  * factors, fed through {@link computeVitality}, and the result drives
  * `health` (the fish-side name for vitality's `condition`). Income at full
  * health banks on `Fish.surplus`; the bank heals health below 100 at
- * {@link fishHealingRate}, and a full one is what a female spawns on (see
- * `livestock/breeding.ts`).
+ * {@link fishHealingRate}, falling with age, and a full one is what a female
+ * spawns on (see `livestock/breeding.ts`).
  *
  * Stressors, hardened here before they reach the vitality engine:
- * - Temperature, pH, GH, hunger, water level, flow, age (past species
- *   `maxAge`) and predation are scaled by `1 − effectiveHardiness`.
+ * - Temperature, pH, GH, hunger, water level, flow and predation are scaled
+ *   by `1 − effectiveHardiness`.
  * - Free NH3, nitrite, nitrate and oxygen instead carry hardiness on the
  *   concentration axis: it moves where harm starts, not how steeply it grows.
+ * - Wear, rising with age on a Gompertz curve, is intrinsic: no hardiness
+ *   shields it, only the individual's vigour scales it (see {@link fishWear}).
  *
  * Benefit factors (peaks tunable via `LivestockConfig`), every one earned on
  * what the fish digested — its nourishment, half at its maintenance ration:
@@ -203,6 +205,18 @@ export function predationStress(
 }
 
 /**
+ * Damage a fish's age does it an hour, Gompertz: `wearAtLifespan` at its
+ * species lifespan, doubling every `wearDoublingShare` of it, so negligible in
+ * youth. Species hardiness never shields it; a fish hardier than its species
+ * wears slower in proportion, which staggers a cohort's deaths.
+ */
+export function fishWear(fish: Pick<Fish, 'species' | 'age' | 'hardinessOffset'>, config: LivestockConfig): number {
+  const { lifespan, hardiness } = FISH_SPECIES_DATA[fish.species];
+  const vigour = speciesHardiness(fish.species, fish.hardinessOffset) / hardiness;
+  return (config.wearAtLifespan / vigour) * 2 ** ((fish.age - lifespan) / (config.wearDoublingShare * lifespan));
+}
+
+/**
  * Build the hardened stressor list for a fish: the water's, then its own
  * body's, scaled by hardiness. Inactive stressors are emitted with
  * `amount: 0` so the breakdown shape stays stable for downstream UI / tests
@@ -227,16 +241,6 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     flowStress = config.flowStressSeverity * (turnover - speciesData.maxTurnover);
   }
 
-  // Age stress — past `maxAge` damage grows linearly with the excess,
-  // through the same channel as every other stressor: a hardy species in
-  // good conditions outlives a sensitive species at the same age, and
-  // visible declining health gives the player a chance to react. Death
-  // itself is the same `newHealth <= 0` check the other stressors share.
-  let ageStress = 0;
-  if (fish.age > speciesData.maxAge) {
-    ageStress = config.ageStressSeverity * (fish.age - speciesData.maxAge);
-  }
-
   const hungerStress = config.hungerSeverity * shortfall(ctx.digested, ctx.need);
   const huntedStress = predationStress(fish, ctx.predatorMass, waterVolume, config);
 
@@ -247,11 +251,11 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
         { key: 'hunger', label: 'Hunger', amount: hungerStress },
         { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
         { key: 'flow', label: 'Flow', amount: flowStress },
-        { key: 'age', label: 'Age', amount: ageStress },
         { key: 'hunted', label: 'Hunted', amount: huntedStress },
       ],
       ctx.hardiness
     ),
+    { key: 'wear', label: 'Wear', amount: fishWear(fish, config) },
   ];
 }
 
@@ -288,11 +292,13 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
 }
 
 /**
- * Rate a fish's bank heals it at, per hour: `healingDrawRate` for a 1 g fish,
- * scaled by adult mass to the −¼ power, as mass-specific metabolism is.
+ * Rate a fish's bank heals it at, per hour: `healingDrawRate` for a young 1 g
+ * fish, scaled by adult mass to the −¼ power, as mass-specific metabolism is,
+ * and halving every `healingHalvingShare` of its species lifespan.
  */
-export function fishHealingRate(fish: Fish, config: LivestockConfig): number {
-  return config.healingDrawRate * FISH_SPECIES_DATA[fish.species].adultMass ** -0.25;
+export function fishHealingRate(fish: Pick<Fish, 'species' | 'age'>, config: LivestockConfig): number {
+  const { adultMass, lifespan } = FISH_SPECIES_DATA[fish.species];
+  return config.healingDrawRate * adultMass ** -0.25 * 2 ** (-fish.age / (config.healingHalvingShare * lifespan));
 }
 
 /**
@@ -334,11 +340,11 @@ export function computeFishVitality(
   });
 }
 
-/** Share of a fish's damage this hour that its predators did. */
-function huntedShare(vitality: VitalityResult): number {
+/** Share of a fish's damage this hour that one stressor did. */
+function damageShare(vitality: VitalityResult, key: string): number {
   const { damageRate, stressors } = vitality.breakdown;
-  const hunted = stressors.find((factor) => factor.key === 'hunted')?.amount ?? 0;
-  return damageRate > 0 ? hunted / damageRate : 0;
+  const amount = stressors.find((factor) => factor.key === key)?.amount ?? 0;
+  return damageRate > 0 ? amount / damageRate : 0;
 }
 
 /**
@@ -384,7 +390,7 @@ export function processHealth(
     const speciesData = FISH_SPECIES_DATA[f.species];
     const remains = f.mass * config.deathDecayFactor + f.gut + carried[i];
     const weights = survivingFish.map((survivor) => predatorWeight(survivor, f));
-    const share = weights.some((w) => w > 0) ? huntedShare(vitalities[i]) : 0;
+    const share = weights.some((w) => w > 0) ? damageShare(vitalities[i], 'hunted') : 0;
 
     const eaten = swallow(survivingFish, weights, share * remains, config);
     eaten.taken.forEach((grams, j) => {
@@ -392,10 +398,7 @@ export function processHealth(
     });
     deathWaste += (1 - share) * remains + eaten.overflow;
 
-    // Past maxAge the age stressor is on, so "got old" reads apart from
-    // "the water went bad"; a fish mostly eaten reads as eaten.
-    const overAge = f.age > speciesData.maxAge;
-    const cause = overAge ? ' (old age)' : share > 0.5 ? ' (eaten)' : '';
+    const cause = damageShare(vitalities[i], 'wear') > 0.5 ? ' (old age)' : share > 0.5 ? ' (eaten)' : '';
     deadFishNames.push(`${speciesData.name}${cause}`);
   });
 

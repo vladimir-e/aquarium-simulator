@@ -36,7 +36,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      `broodCost`. A `Clutch` is a stock: `eggs` and `development` replace
  *      `eggCount` and `laidTick`, a carried one names its `motherId`, and
  *      `LivestockConfig` gains `eggSensitivity`, `eggPredationRate`,
- *      `fryPredationRate` and `fryVulnerabilityExponent`.
+ *      `fryPredationRate` and `fryVulnerabilityExponent`. Old age is wear:
+ *      `ageStressSeverity` gives way to `wearAtLifespan`,
+ *      `wearDoublingShare` and `healingHalvingShare`.
  * v33: Algae runs on the plants' vitality model, as two kinds. `state.algae`
  *      holds a bloom per kind — `greenWater` and `film` — and `AlgaeState`
  *      gains `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`,

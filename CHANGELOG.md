@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Old age is wear** - a Gompertz damage rate no hardiness shields, and healing that falls with age, spread lifespans around the species figure; breaking: `FishSpeciesData.lifespan` replaces `maxAge`, `ageStressSeverity` goes (v34).
 - **Fry predation** - larger fish hunt small ones by mass per litre and eat what they kill; breaking: `computeFishVitality`, `readyToBrood` args (v34).
 - **Eggs are a stock** - water and the tank's fish thin a clutch as it develops; livebearers carry theirs; breaking: `Clutch` holds `eggs`, `development` (v34).
 - **Fish grow on their banks** - mass toward adult size, broods sized by the female, the male paying his share; stocking names a size; breaking: `Fish.stage` goes (v34).
