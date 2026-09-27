@@ -69,3 +69,15 @@ export const CACO3_PER_DEGREE = (10 * MW_CACO3) / MW_CAO;
  * wastewater texts quote.
  */
 export const CACO3_PER_NH3_NITRIFIED = MW_CACO3 / MW_NH3;
+
+/**
+ * ≈ 2.939. A cell taking up NH4⁺ pushes out an H⁺ to keep its charge, which
+ * spends half a CaCO3 equivalent per mole of ammonia.
+ */
+export const CACO3_PER_NH3_ASSIMILATED = MW_CACO3 / 2 / MW_NH3;
+/**
+ * ≈ 0.807. A cell taking up NO3⁻ takes an H⁺ in with it, which returns half a
+ * CaCO3 equivalent per mole of nitrate — so ammonia nitrified and then
+ * assimilated as nitrate spends what ammonia assimilated directly does.
+ */
+export const CACO3_PER_NO3_ASSIMILATED = MW_CACO3 / 2 / MW_NO3;

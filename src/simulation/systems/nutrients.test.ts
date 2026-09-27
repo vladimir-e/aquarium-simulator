@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  alkalinitySpent,
   bedPool,
   calculateNutrientSufficiency,
   drawTissue,
@@ -35,7 +36,15 @@ import {
 } from '../config/nutrients.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { plantsDefaults } from '../config/plants.js';
-import { MW_N, MW_NH3, MW_NO3 } from '../core/chemistry.js';
+import {
+  CACO3_PER_NH3_NITRIFIED,
+  MW_CACO3,
+  MW_N,
+  MW_NH3,
+  MW_NO3,
+  NH3_TO_NO2_MASS_RATIO,
+  NO2_TO_NO3_MASS_RATIO,
+} from '../core/chemistry.js';
 import { monodUptake } from '../core/kinetics.js';
 import { createSimulation, type Resources } from '../state.js';
 import { growthFormOf, type PlantSpecies } from '../plants/species.js';
@@ -237,7 +246,7 @@ describe('nitrogen in two forms', () => {
 
   it('takes a lone feeder’s nitrogen from ammonia at the share ammonia meets, and from nitrate for the rest nitrate meets', () => {
     const pools = nitrogenAt(1, 3);
-    const [[water]] = drawTissue([fern(pools, 1e-6)], pools, recipe).taken;
+    const [[water]] = drawTissue([fern(pools, 1e-6)], pools, recipe).uptake;
     const fromAmmonia = nutrientsIn({ ...ZERO_FORMS, ammonia: water.ammonia }).nitrate;
     const a = 0.5;
     const b = 0.75;
@@ -248,9 +257,7 @@ describe('nitrogen in two forms', () => {
     const lump = 5;
     const pools = nitrogenAt(10, 1000);
     const draw = drawTissue([fern(pools, lump)], pools, recipe);
-    const [[water]] = draw.taken;
     expect(nutrientsIn({ ...ZERO_FORMS, ammonia: pools[0].stock.ammonia }).nitrate).toBeLessThan(0.1 * lump * recipe.nitrate);
-    expect(water.ammonia).toBeLessThanOrEqual(pools[0].stock.ammonia);
     const nitrateOnly = nitrogenAt(0, 1000);
     expect(draw.supplied[0]).toBeCloseTo(drawTissue([fern(nitrateOnly, lump)], nitrateOnly, recipe).supplied[0], 2);
   });
@@ -259,7 +266,7 @@ describe('nitrogen in two forms', () => {
     expect(nutrientsIn({ ...ZERO_FORMS, ammonia: MW_NH3 }).nitrate).toBeCloseTo(MW_NO3, 12);
     const pools = nitrogenAt(2, 2);
     const draw = drawTissue([fern(pools, 0.4), feed('monte_carlo', pools, 0.3)], pools, recipe);
-    draw.taken.forEach((feeder, i) => {
+    draw.uptake.forEach((feeder, i) => {
       const nitrogen = feeder.reduce((sum, pool) => sum + nutrientsIn(pool).nitrate, 0);
       expect(nitrogen).toBeCloseTo([0.4, 0.3][i] * draw.supplied[i] * recipe.nitrate, 10);
     });
@@ -269,7 +276,7 @@ describe('nitrogen in two forms', () => {
     const tank = createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } });
     const pools = tankPools({ ...tank, resources: { ...tank.resources, ammonia: 50 } });
     expect(pools[1]).toEqual(bedPool(tank.equipment.substrate.nutrients, 100));
-    const [[water, bed]] = drawTissue([feed('amazon_sword', pools, 0.5)], pools, recipe).taken;
+    const [[water, bed]] = drawTissue([feed('amazon_sword', pools, 0.5)], pools, recipe).uptake;
     expect(water.ammonia).toBeGreaterThan(0);
     expect(bed.ammonia).toBe(0);
   });
@@ -279,8 +286,8 @@ describe('nitrogen in two forms', () => {
       const pools = nitrogenAt(multiple, multiple);
       const crowd = Array.from({ length: 200 }, () => fern(pools, 5));
       for (const needs of [crowd, [fern(pools, 1000)]]) {
-        const taken = drawTissue(needs, pools, recipe).taken.reduce((sum, [water]) => sum + water.ammonia, 0);
-        expect(taken).toBeLessThanOrEqual(pools[0].stock.ammonia);
+        const ammonia = drawTissue(needs, pools, recipe).uptake.reduce((sum, [water]) => sum + water.ammonia, 0);
+        expect(ammonia).toBeLessThanOrEqual(pools[0].stock.ammonia);
       }
     }
   });
@@ -313,8 +320,8 @@ describe('drawTissue', () => {
   });
   const shares = ({ draws }: TissueNeed): NutrientVector => feederShares(draws);
   /** mg of each form every feeder together took from each pool. */
-  const pooled = ({ taken }: { taken: readonly (readonly FormVector[])[] }): FormVector[] =>
-    [0, 1].map((p) => mapForms((f) => taken.reduce((sum, feeder) => sum + feeder[p][f], 0)));
+  const pooled = ({ uptake }: { uptake: readonly (readonly FormVector[])[] }): FormVector[] =>
+    [0, 1].map((p) => mapForms((f) => uptake.reduce((sum, feeder) => sum + feeder[p][f], 0)));
   /** mg of a nutrient, as the recipe counts it, taken across both pools. */
   const total = (drawn: readonly FormVector[], n: (typeof NUTRIENTS)[number]): number =>
     drawn.reduce((sum, pool) => sum + nutrientsIn(pool)[n], 0);
@@ -449,5 +456,24 @@ describe('ghDrawn', () => {
       expect(ghDrawn(50, water)).toBeCloseTo(monodUptake(gh, 50 * GH_PER_NITRATE_DRAWN, GH_HALF_SATURATION * WATER), 12);
       expect(ghDrawn(50, water)).toBeLessThanOrEqual(gh);
     }
+  });
+});
+
+describe('alkalinitySpent', () => {
+  const EQUIVALENT = MW_CACO3 / 2;
+
+  it('spends an equivalent per mole of nitrogen taken as ammonia and returns one per mole taken as nitrate', () => {
+    expect(alkalinitySpent({ ...ZERO_FORMS, ammonia: MW_NH3 })).toBeCloseTo(EQUIVALENT, 10);
+    expect(alkalinitySpent({ ...ZERO_FORMS, nitrate: MW_NO3 })).toBeCloseTo(-EQUIVALENT, 10);
+    expect(alkalinitySpent({ ...ZERO_FORMS, phosphate: 5, potassium: 5, iron: 5 })).toBe(0);
+  });
+
+  it('spends as much on ammonia taken directly as on ammonia nitrified and taken as nitrate', () => {
+    const ammonia = 3;
+    const nitrate = ammonia * NH3_TO_NO2_MASS_RATIO * NO2_TO_NO3_MASS_RATIO;
+    expect(ammonia * CACO3_PER_NH3_NITRIFIED + alkalinitySpent({ ...ZERO_FORMS, nitrate })).toBeCloseTo(
+      alkalinitySpent({ ...ZERO_FORMS, ammonia }),
+      10
+    );
   });
 });

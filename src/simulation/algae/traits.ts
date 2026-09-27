@@ -30,11 +30,11 @@ export interface AlgaeTraits extends FloraTraits {
  * runs well under 1 mg/L, since they take bicarbonate too: 93 % on the 4 mg/L
  * an uninjected tank holds, 99 % at an injected 25. It takes ammonia as keenly
  * as a plant — 0.05 ppm is 0.04 mg/L of nitrogen — but nitrate poorly, since
- * reducing it costs energy a plant's leaf can spare: 15–20 ppm meets a
- * quarter to a third of its need. Heavy green water carries
- * some 10–50 mg/L of dry cells; 30 mg/L of organic matter ties up about 7 ppm of
- * nitrate-equivalent nitrogen. Spores land at 0.05 of the scale a day: nothing
- * a reader sees, but an empty tank is never closed to a bloom.
+ * reducing it costs energy a plant's leaf can spare: 15–20 ppm meets a quarter
+ * to a third of its need. Heavy green water carries some 10–50 mg/L of dry
+ * cells; 30 mg/L of organic matter ties up about 7 ppm of nitrate-equivalent
+ * nitrogen. Spores land at 0.05 of the scale a day: nothing a reader sees, but
+ * an empty tank is never closed to a bloom.
  */
 export const ALGAE: AlgaeTraits = {
   name: 'Algae',

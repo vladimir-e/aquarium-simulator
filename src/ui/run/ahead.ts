@@ -19,7 +19,7 @@ import {
   type VitalityResult,
 } from '../../simulation/index.js';
 import { settleEnvironment } from '../../simulation/tick.js';
-import type { TunableConfig } from '../../simulation/config/index.js';
+import type { FormVector, TunableConfig } from '../../simulation/config/index.js';
 import { ammoniaPerGramOfFood } from '../../simulation/config/livestock.js';
 
 /** One organism on the hour ahead. */
@@ -45,6 +45,8 @@ export interface BloomAhead extends OrganismAhead {
   surplus: number;
   /** Grams of waste it sheds — its steady rate, apart from a die-back's lump. */
   shedding: number;
+  /** mg of each form its new tissue takes up from the water. */
+  waterUptake: FormVector;
 }
 
 export interface HourAhead {
@@ -65,10 +67,8 @@ export interface HourAhead {
   foodWaste: number;
   /** mg of NH₃ the oxidised share of that food releases straight into the water. */
   foodAmmonia: number;
-  /** mg of NH₃ the plants' new tissue takes from the water. */
-  plantAmmonia: number;
-  /** mg of NH₃ the bloom's new tissue takes from the water. */
-  algaeAmmonia: number;
+  /** mg of each form the plants' new tissue takes up from the water. */
+  waterUptake: FormVector;
 }
 
 /**
@@ -122,6 +122,7 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
       mass: bloom.mass,
       surplus: bloom.surplus,
       shedding: flora.algae.shedding,
+      waterUptake: flora.algae.waterUptake,
     },
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),
     shedding: flora.shedding,
@@ -129,7 +130,6 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     gillAmmonia: livestock.metabolism.ammoniaProduced,
     foodWaste: decayed * wasteShare,
     foodAmmonia: decayed * (1 - wasteShare) * ammoniaPerGramOfFood(config.livestock),
-    plantAmmonia: flora.drawn.ammonia,
-    algaeAmmonia: flora.algae.drawn.ammonia,
+    waterUptake: flora.waterUptake,
   };
 }

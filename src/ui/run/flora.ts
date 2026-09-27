@@ -22,7 +22,6 @@ import {
   PLANT_SPECIES_DATA,
   plantFeeder,
   plantNitrateEdge,
-  speciesHalfSaturation,
   tankPools,
   type LogEntry,
   type NutrientPool,
@@ -362,13 +361,16 @@ const FEEDS_FROM = {
  */
 function neededPpm(plants: readonly Plant[], key: Nutrient, pool: NutrientPool, config: TunableConfig): number {
   const edge = config.plants.sufficiencyEdge;
+  const forms = FORMS_OF[key];
+  const before = forms.slice(0, forms.indexOf(key));
   return Math.max(
     0,
     ...plants.map((plant) => {
-      const shares = formShares(pool, plantFeeder(plant.species, config.nutrients));
-      const left = FORMS_OF[key].filter((f) => f !== key).reduce((unmet, f) => unmet * (1 - shares[f]), 1);
+      const feeder = plantFeeder(plant.species, config.nutrients);
+      const shares = formShares(pool, feeder);
+      const left = before.reduce((unmet, f) => unmet * (1 - shares[f]), 1);
       const share = 1 - (1 - edge) / left;
-      return share > 0 ? (speciesHalfSaturation(plant.species, key, config.nutrients) * share) / (1 - share) : 0;
+      return share > 0 ? (feeder.halfSaturation[key] * share) / (1 - share) : 0;
     })
   );
 }

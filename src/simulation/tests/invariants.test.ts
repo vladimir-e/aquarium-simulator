@@ -279,9 +279,16 @@ describe('a bloom fed on ammonia', () => {
     fed = run(start, 3 * 24);
   });
 
-  it('grows on ammonia with no nitrate to take', () => {
+  it('builds the ammonia the water loses into its tissue, with no nitrate to take', () => {
+    const tissueNitrogen = (state: SimulationState): number =>
+      bloomTissue(state.algae.mass, state.tank.capacity, ALGAE) * DEFAULT_CONFIG.livestock.foodNitrogenFraction;
+    const ammoniaNitrogen = (state: SimulationState): number => (state.resources.ammonia / MW_NH3) * MW_N / 1000;
+
+    const gained = tissueNitrogen(fed) - tissueNitrogen(start);
+    const lost = ammoniaNitrogen(start) - ammoniaNitrogen(fed);
+
     expect(start.resources.nitrate).toBe(0);
-    expect(fed.algae.mass).toBeGreaterThan(start.algae.mass);
+    expect(gained / lost).toBeCloseTo(1, 2);
   });
 
   it('conserves nitrogen through the ammonia it builds into tissue', () => {

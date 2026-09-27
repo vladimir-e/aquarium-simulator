@@ -45,7 +45,7 @@ coded: plants beat a bloom or lose to it on the rates.
 | CO₂ | income | Monod on dissolved CO₂ at its `co2HalfSaturation` — far under any plant's, since algae take bicarbonate too |
 | Temperature · pH | income, then harm | The plants' band helpers on its own bands: comfort peaks mid-band, damage starts at the edge |
 | Light starvation | harm | The day's light over the column against its daily light edge, at respiration's Q10 and its growth rate: a bloom respires fast, so it starves fast |
-| Nutrient deficiency | harm | Liebig sufficiency under `sufficiencyEdge`, on the light curve; its nitrogen from ammonia first, then nitrate |
+| Nutrient deficiency | harm | Liebig sufficiency under `sufficiencyEdge`, on the light curve |
 | Allelopathy | harm | `allelopathySeverity × Σ(plant rate units × condition/100) / litres` |
 
 Every harm is hardened by the bloom's hardiness. Income runs only while the lamp
@@ -129,8 +129,8 @@ All but the last are traits, beside the plant species; `allelopathySeverity` is 
 |---|---|---|
 | [Plants](/subsystems/plants/) | Thriving leaf per litre, as the hour starts | Its mass, read by the plants' shading stressor; a share of every pooled draw and of the CO₂ |
 | [Light](/subsystems/light/) | The column's mean PAR and the day of it | — |
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | NH₃ and NO₃, PO₄, K and Fe, as the water holds them | Tissue drawn out, its ammonia ahead of the colony; shed, dead and scrubbed tissue in as waste |
-| [Water & gases](/subsystems/water-and-gases/) | CO₂, O₂, temperature, pH | CO₂ fixed and O₂ released by day, respired day and night |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | NH₃ and NO₃, PO₄, K and Fe, as the water holds them | Tissue drawn out, its ammonia from what the colony left; shed, dead and scrubbed tissue in as waste |
+| [Water & gases](/subsystems/water-and-gases/) | CO₂, O₂, temperature, pH | CO₂ fixed and O₂ released by day, respired day and night; KH moved by the form its nitrogen comes in |
 | [Actions](/subsystems/actions/) | — | A scrub takes 10–30 % of mass into the waste |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Mass above `algaeShadingThreshold` raises the bloom alert once per crossing; an `algae-died` entry per die-back, stating the coverage it took |
 

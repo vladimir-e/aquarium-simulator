@@ -9,7 +9,8 @@
 export interface AlgaeConfig {
   /**
    * Damage per rate unit of thriving plant per litre: the allelochemicals a
-   * healthy planting leaks, and the small competition this model leaves out.
+   * healthy planting leaks, the minor term beside the nitrogen the two compete
+   * for.
    */
   allelopathySeverity: number;
 }

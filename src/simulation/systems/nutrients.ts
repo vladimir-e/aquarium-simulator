@@ -32,7 +32,11 @@ import {
   type NutrientsConfig,
   type NutrientVector,
 } from '../config/nutrients.js';
-import { NO3_TO_NH3_MASS_RATIO } from '../core/chemistry.js';
+import {
+  CACO3_PER_NH3_ASSIMILATED,
+  CACO3_PER_NO3_ASSIMILATED,
+  NO3_TO_NH3_MASS_RATIO,
+} from '../core/chemistry.js';
 import { monodFactor, monodUptake } from '../core/kinetics.js';
 import { getMassFromPpm, getPpm } from '../resources/index.js';
 import { nitratePerGramOfFood, type LivestockConfig } from '../config/livestock.js';
@@ -195,8 +199,8 @@ export interface TissueNeed<P extends readonly NutrientPool[] = TankPools> {
 export interface TissueDraw<P extends readonly NutrientPool[] = TankPools> {
   /** Share of each feeder's tissue the pools supplied, 0–1, in the order of the needs. */
   supplied: number[];
-  /** mg of each form each feeder took from each pool, in the order of the needs. */
-  taken: PerPool<P, FormVector>[];
+  /** mg of each form each feeder took up from each pool, in the order of the needs. */
+  uptake: PerPool<P, FormVector>[];
 }
 
 /**
@@ -224,7 +228,7 @@ export function drawTissue<P extends readonly NutrientPool[]>(
   );
   const supplied = supply.map((share) => Math.min(...NUTRIENTS.map((n) => (recipe[n] > 0 ? share[n] : 1))));
 
-  const taken = needs.map(({ grams }, i) =>
+  const uptake = needs.map(({ grams }, i) =>
     pools.map((_, p) =>
       mapForms((f) => {
         const r = reach[p][i][f];
@@ -232,7 +236,7 @@ export function drawTissue<P extends readonly NutrientPool[]>(
       })
     )
   ) as PerPool<P, FormVector>[];
-  return { supplied, taken };
+  return { supplied, uptake };
 }
 
 /**
@@ -245,6 +249,14 @@ export function ghDrawn(nitrate: number, water: Pick<Resources, 'gh' | 'water'>)
     nitrate * GH_PER_NITRATE_DRAWN,
     getMassFromPpm(GH_HALF_SATURATION, water.water)
   );
+}
+
+/**
+ * mg of KH, as CaCO3, taking up these forms spends: the proton each ammonia
+ * pushes out spends it, the one each nitrate takes in returns it.
+ */
+export function alkalinitySpent(uptake: FormVector): number {
+  return uptake.ammonia * CACO3_PER_NH3_ASSIMILATED - uptake.nitrate * CACO3_PER_NO3_ASSIMILATED;
 }
 
 /**

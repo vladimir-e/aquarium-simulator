@@ -19,6 +19,7 @@ import { ALGAE, bloomTissue } from '../algae/index.js';
 import { dailyLightIntegral } from '../equipment/light.js';
 import { produce } from 'immer';
 import { carbonateKh } from '../core/carbonate.js';
+import { CACO3_PER_NH3_ASSIMILATED, CACO3_PER_NO3_ASSIMILATED } from '../core/chemistry.js';
 import { getKhMass } from '../resources/helpers.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
@@ -355,8 +356,22 @@ describe('processFlora — plants', () => {
       const nitrogen = nutrientsIn({ ...ZERO_FORMS, ammonia, nitrate: fromWater(result, 'nitrate') }).nitrate;
 
       expect(ammonia).toBeGreaterThan(0);
-      expect(ammonia).toBeCloseTo(result.drawn.ammonia + result.algae.drawn.ammonia, 12);
+      expect(ammonia).toBeCloseTo(result.waterUptake.ammonia + result.algae.waterUptake.ammonia, 12);
       expect(nitrogen + fromBed(state, result, 'nitrate')).toBeCloseTo(tissueAdded(state, result.state) * recipe.nitrate, 10);
+    });
+
+    it('spends KH on the ammonia its tissue takes and returns it on the nitrate, from either pool', () => {
+      const state = night(growers(), { ammonia: 0.5 * 100 });
+      const result = processFlora(state, DEFAULT_CONFIG);
+      const ammonia = -total(result.effects, 'ammonia', 'growth');
+      const nitrate = fromWater(result, 'nitrate') + fromBed(state, result, 'nitrate');
+
+      expect(ammonia).toBeGreaterThan(0);
+      expect(fromBed(state, result, 'nitrate')).toBeGreaterThan(0);
+      expect(total(result.effects, 'kh', 'growth')).toBeCloseTo(
+        nitrate * CACO3_PER_NO3_ASSIMILATED - ammonia * CACO3_PER_NH3_ASSIMILATED,
+        10
+      );
     });
 
     it('draws a fern from the water alone, and a sword and a carpet from the bed at their root shares', () => {

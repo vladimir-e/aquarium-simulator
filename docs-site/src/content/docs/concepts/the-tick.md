@@ -30,7 +30,10 @@ this hour. Plants and the bloom read the equipment's hour, livestock read a tank
 the flora has already been through. Reversing any pair would not break anything
 visibly — it would quietly make one of them an hour stale. Plants and the bloom
 share one pass because they share the water: they draw their tissue in one
-call, so neither gets first pick, and each reads the other as the hour starts.
+call, so neither gets first pick of the water, and each reads the other as the
+hour starts. Against the nitrifying colony the order does pick: the flora take
+their ammonia from what the colony left, and the colony oxidises what they
+leave beside the hour's excretion and mineralization.
 
 Inside a stage the opposite rule holds. Systems in the same tier all read the
 same state and their results are applied together, so two of them drawing on one

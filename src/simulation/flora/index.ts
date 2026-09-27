@@ -18,7 +18,7 @@
  * 7. The pools supply that tissue: each form in each delivers on every
  *    request at one fraction — nitrogen from ammonia first, then nitrate for
  *    what ammonia left — and each feeder gets the share of its purchase they
- *    allow.
+ *    allow. The uptake moves GH, and KH by the protons each form carries.
  * 8. Shedding and death — low condition sheds tissue, and condition 0 kills.
  *    Both return it as waste.
  * 9. Offshoots and spores join at condition 100 — offshoots at the end of the
@@ -56,6 +56,7 @@ import {
 import { computeAlgaeVitality } from '../systems/algae-vitality.js';
 import { calculatePhotosynthesis, plantFixer } from '../systems/photosynthesis.js';
 import {
+  alkalinitySpent,
   drawTissue,
   feederShares,
   ghDrawn,
@@ -80,13 +81,13 @@ export interface BloomHour {
   shedding: number;
   /** Bank points its growth cost — nothing the hour it dies back. */
   spent: number;
-  /** mg of each form its new tissue took from the water. */
-  drawn: FormVector;
+  /** mg of each form its new tissue took up from the water. */
+  waterUptake: FormVector;
 }
 
 export interface FloraProcessingResult {
   state: SimulationState;
-  /** Resource changes (O2, CO2, nutrients, GH, waste); the bed's draw lands on the state. */
+  /** Resource changes (O2, CO2, nutrients, GH, KH, waste); the bed's draw lands on the state. */
   effects: Effect[];
   /** Each plant's vitality this tick, in the handed `state.plants` order. */
   vitalities: VitalityResult[];
@@ -94,8 +95,8 @@ export interface FloraProcessingResult {
   light: PlantLight[];
   /** Grams of waste the plants shed this tick, apart from a death's one-off lump. */
   shedding: number;
-  /** mg of each form the plants' new tissue took from the water. */
-  drawn: FormVector;
+  /** mg of each form the plants' new tissue took up from the water. */
+  waterUptake: FormVector;
   algae: BloomHour;
 }
 
@@ -111,7 +112,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const waterVolume = state.resources.water;
   const bloom = state.algae;
 
-  const pushDelta = (resource: NutrientForm | 'oxygen' | 'co2' | 'gh' | 'waste', delta: number, source: string): void => {
+  const pushDelta = (resource: NutrientForm | 'oxygen' | 'co2' | 'gh' | 'kh' | 'waste', delta: number, source: string): void => {
     if (delta !== 0) effects.push({ tier: 'active', resource, delta, source });
   };
 
@@ -192,12 +193,14 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     pools,
     organicNutrients(config.livestock, nutrientsConfig)
   );
-  const plantsDrew = sumForms(tissue.taken.slice(0, state.plants.length).map(([water]) => water));
-  const [bloomDrew] = tissue.taken[state.plants.length];
-  const fromWater = sumForms(tissue.taken.map(([water]) => water));
-  const fromBed = sumForms(tissue.taken.map(([, bed]) => bed));
+  const plantUptake = sumForms(tissue.uptake.slice(0, state.plants.length).map(([water]) => water));
+  const [bloomUptake] = tissue.uptake[state.plants.length];
+  const fromWater = sumForms([plantUptake, bloomUptake]);
+  const fromBed = sumForms(tissue.uptake.map(([, bed]) => bed));
+  const uptake = sumForms([fromWater, fromBed]);
   for (const f of NUTRIENT_FORMS) pushDelta(f, -fromWater[f], 'growth');
-  pushDelta('gh', -ghDrawn(nutrientsIn(fromWater).nitrate + nutrientsIn(fromBed).nitrate, state.resources), 'growth');
+  pushDelta('gh', -ghDrawn(nutrientsIn(uptake).nitrate, state.resources), 'growth');
+  pushDelta('kh', -alkalinitySpent(uptake), 'growth');
   const supplied = purchases.map((bought, i) => supply(bought, tissue.supplied[i]));
   const bloomSupplied = supplyBloom(bloomPurchase, tissue.supplied[state.plants.length], ALGAE, plantsConfig);
 
@@ -243,13 +246,13 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     vitalities,
     light,
     shedding: plantShedding,
-    drawn: plantsDrew,
+    waterUptake: plantUptake,
     algae: {
       vitality: bloomVitality,
       light: bloomLit,
       shedding: bloomLoss.shed,
       spent: bloomLoss.survivor === null ? 0 : bloomVitality.surplus - bloomSupplied.after.surplus,
-      drawn: bloomDrew,
+      waterUptake: bloomUptake,
     },
   };
 }

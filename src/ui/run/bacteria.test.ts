@@ -10,10 +10,17 @@ import {
   type CycleProjection,
 } from './bacteria';
 import { DEFAULT_CONFIG, nitrogenCycleDefaults } from '../../simulation/config/index.js';
-import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from '../../simulation/core/chemistry.js';
 import {
+  NH3_TO_NO2_MASS_RATIO,
+  NO2_TO_NO3_MASS_RATIO,
+  NO3_TO_NH3_MASS_RATIO,
+} from '../../simulation/core/chemistry.js';
+import {
+  ALGAE,
   applyAction,
+  bloomTissue,
   createSimulation,
+  organicNutrients,
   tick,
   type Resources,
   type SimulationState,
@@ -103,7 +110,7 @@ function engineNitrite(state: SimulationState): { produced: number; cleared: num
   };
 }
 
-function enginePeak(state: SimulationState): CycleProjection {
+function enginePeak(state: SimulationState): Pick<CycleProjection, 'hours' | 'ppm'> {
   let running = state;
   let ppm = 0;
   let hours = 0;
@@ -201,6 +208,30 @@ describe('bacteriaReadout', () => {
     expect(readBiofilter(aobClearingAtTrace(1.5)).cycled).toBe(true);
   });
 
+  it('reads the colony’s load net of what the flora take, down to none where they take it all', () => {
+    const state = produce(aobClearingAtTrace(0.5), (draft) => {
+      draft.resources.ammonia = getMassFromPpm(TRACE_PPM / 2, draft.resources.water);
+    });
+    const ahead = readHourAhead(state, config);
+    const { rates } = bacteriaReadout(state, config, ahead);
+    const arriving = getMassFromPpm(
+      rates.wasteToAmmonia + rates.gillsToAmmonia + rates.foodToAmmonia,
+      state.resources.water
+    );
+    const withFlora = (share: number): BacteriaReadout =>
+      bacteriaReadout(state, config, {
+        ...ahead,
+        waterUptake: { ...ahead.waterUptake, ammonia: share * arriving },
+        algae: { ...ahead.algae, waterUptake: { ...ahead.algae.waterUptake, ammonia: 0 } },
+      });
+
+    expect(withFlora(0).cycled).toBe(false);
+    expect(withFlora(0.4).cycled).toBe(false);
+    expect(withFlora(0.6).cycled).toBe(true);
+    expect(2 * arriving).toBeLessThan(state.resources.ammonia);
+    expect(withFlora(2).cycled).toBe(true);
+  });
+
   it('reports no conversion at all on a tank with nothing in it', () => {
     const { rates } = readBiofilter(tank());
     expect(rates.wasteToAmmonia).toBe(0);
@@ -234,6 +265,30 @@ describe('bacteriaReadout', () => {
     expect(rates.netAmmonia).toBeCloseTo(moved, 4);
   });
 
+  it('nets ammonia and reads the bloom’s uptake the way the next tick moves them while it feeds', () => {
+    const blooming = produce(tank(), (draft) => {
+      draft.algae = { mass: 40, condition: 100, surplus: 20 };
+      draft.resources.ammonia = getMassFromPpm(0.3, draft.resources.water);
+      draft.resources.nitrate = 0;
+      draft.resources.phosphate = getMassFromPpm(1, draft.resources.water);
+      draft.resources.potassium = getMassFromPpm(10, draft.resources.water);
+      draft.resources.iron = getMassFromPpm(0.2, draft.resources.water);
+    });
+    const { rates } = readBiofilter(blooming);
+    const next = tick(blooming, config);
+    const water = blooming.resources.water;
+    const tissue = (state: SimulationState): number => bloomTissue(state.algae.mass, state.tank.capacity, ALGAE);
+    const ammoniaTaken =
+      (tissue(next) - tissue(blooming)) *
+      organicNutrients(config.livestock, config.nutrients).nitrate *
+      NO3_TO_NH3_MASS_RATIO;
+    const moved = (next.resources.ammonia - blooming.resources.ammonia) / water;
+
+    expect(rates.algaeAmmoniaUptake).toBeGreaterThan(0);
+    expect(rates.algaeAmmoniaUptake / getPpm(ammoniaTaken, water)).toBeCloseTo(1, 6);
+    expect(Math.abs(rates.netAmmonia - moved)).toBeLessThan(0.01 * rates.algaeAmmoniaUptake);
+  });
+
   it('nets nitrite the way the next tick moves it, climbing and falling', () => {
     const climbing = colonised(stocked(), { aob: 0.5, nob: 0.001, ammonia: 1 });
     const falling = colonised(stocked(), { aob: 0.001, nob: 0.5, nitrite: 1 });
@@ -259,23 +314,26 @@ describe('projectNitritePeak', () => {
     const projection = projectPeak(state)!;
     const engine = enginePeak(state);
 
+    expect(projection.upperBound).toBe(false);
     expect(Math.abs(projection.hours - engine.hours)).toBeLessThanOrEqual(2);
     expect(Math.abs(projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.01);
+    expect(bacteriaSummary(readBiofilter(state), projection)).toContain(
+      `Nitrite peaks in ${Math.round(projection.hours / 24)} d at ${projection.ppm.toFixed(2)} ppm.`
+    );
   });
 
-  it('holds what the flora take out of the ammonia as a drain beside the colony', () => {
-    const start = soilTank({ lit: false });
-    let state = start;
-    for (let hour = 0; hour < 24 * 5; hour++) state = tick(state, config);
-    const bloomed = produce(state, (draft) => {
-      draft.equipment.light.enabled = true;
-      draft.algae = { mass: 40, condition: 100, surplus: 20 };
-    });
-    const ahead = readHourAhead(bloomed, config);
-    expect(ahead.algaeAmmonia).toBeGreaterThan(0);
-    expect(projectNitritePeak(bloomed, config, ahead)!.ppm).toBeLessThan(
-      projectNitritePeak(bloomed, config, { ...ahead, algaeAmmonia: 0 })!.ppm
+  it('reads the peak as a ceiling wherever plants or a bloom can take the ammonia', () => {
+    const lit = soilTank();
+    const projection = projectPeak(lit)!;
+
+    expect(projection.upperBound).toBe(true);
+    expect(enginePeak(lit).ppm).toBeLessThanOrEqual(projection.ppm);
+    expect(bacteriaSummary(readBiofilter(lit), projection)).toContain(
+      `at no more than ${projection.ppm.toFixed(2)} ppm`
     );
+
+    const plantedDark = applyAction(soilTank({ lit: false }), { type: 'addPlant', species: 'anubias' }).state;
+    expect(projectPeak(plantedDark)!.upperBound).toBe(true);
   });
 
   it('finds a lower peak once an ATO is holding the volume up', () => {
@@ -322,7 +380,7 @@ describe('bacteriaSummary', () => {
 
   it('blames the lagging colony while nitrite is climbing', () => {
     const readout = readBiofilter(colonised(stocked(), { aob: 0.5, nob: 0.001, ammonia: 1 }));
-    const summary = bacteriaSummary(readout, { hours: 30, ppm: 2 });
+    const summary = bacteriaSummary(readout, { hours: 30, ppm: 2, upperBound: false });
 
     expect(summary).toContain('NOB trail AOB by');
     expect(summary).toContain('Nitrite peaks in');

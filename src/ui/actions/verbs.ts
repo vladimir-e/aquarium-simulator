@@ -12,6 +12,7 @@ import {
   canDose,
   canRootTab,
   canScrubAlgae,
+  coverage,
   getPlantsToTrimCount,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
@@ -32,7 +33,7 @@ import {
   plantLabels,
   TRIM_TARGETS,
 } from '../run';
-import { COVERAGE_DECIMALS, formatVolume, type UnitSystem } from '../utils/units.js';
+import { formatVolume, logQuantityIn, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
 
 export type VerbId =
@@ -271,7 +272,7 @@ function rowValue(
     case 'trimPlants':
       return `to ${settings.trimPlants} %`;
     case 'scrubAlgae':
-      return `${state.algae.mass.toFixed(COVERAGE_DECIMALS)} %`;
+      return logQuantityIn(units)(coverage(state.algae.mass));
   }
 }
 
@@ -503,7 +504,7 @@ function meta(
         : line;
     }
     case 'scrubAlgae':
-      return `algae ${state.algae.mass.toFixed(COVERAGE_DECIMALS)} %`;
+      return `algae ${logQuantityIn(units)(coverage(state.algae.mass))}`;
   }
 }
 

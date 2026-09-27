@@ -420,7 +420,7 @@ function nutrientView(
     sentence:
       reading.needed > 0
         ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops${harm && `; ${harm}`}.`
-        : reading.asked
+        : reading.key === 'nitrate' && reading.asked
           ? `Ammonia, which plants take first, meets all the nitrogen they ask for${harm && `; ${harm}`}.`
           : `Nothing planted, so nothing is asking for it${harm && `; ${harm}`}.`,
     net: null,
@@ -534,8 +534,8 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       ],
       drains: [
         { label: 'AOB oxidising', rate: ratePerHour(-rates.ammoniaOxidised, 'ppm') },
-        { label: 'Plants feeding', rate: ratePerHour(-rates.plantUptake, 'ppm') },
-        { label: 'Algae feeding', rate: ratePerHour(-rates.algaeUptake, 'ppm') },
+        { label: 'Plants feeding', rate: ratePerHour(-rates.plantAmmoniaUptake, 'ppm') },
+        { label: 'Algae feeding', rate: ratePerHour(-rates.algaeAmmoniaUptake, 'ppm') },
       ],
     }),
     nitrite: fromWater('nitrite', tape, {

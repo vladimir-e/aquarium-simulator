@@ -174,7 +174,7 @@ draws oxygen with the lamps on.
 | `surplus` | Income at full condition | Healing; an offshoot; growth | condition points, capped at `surplusCap` |
 | `oxygen` | Photosynthesis | Respiration | mg/L |
 | `co2` | Respiration | Photosynthesis, on its own Monod curve | mg/L |
-| `ammonia` | Fish and mineralized waste, elsewhere | New tissue's nitrogen, first — ahead of the colony's oxidation, elsewhere | mg, as NH₃ |
+| `ammonia` | Fish and mineralized waste, elsewhere | New tissue's nitrogen, before nitrate's, from what the colony left; AOB oxidation, elsewhere | mg, as NH₃ |
 | `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; the bed's leak; nitrification for NO₃, and mineralized waste and fish excretion for the rest, elsewhere | New tissue — growth and offshoots — at the tissue recipe; nitrate only for the nitrogen ammonia leaves | mg |
 | The bed's `nutrients` | Aqua soil and root tabs ([Equipment](/subsystems/equipment/#the-bed)) | Root feeders' new tissue, at the same recipe; the leak | mg |
 | `waste` | Shed tissue and plant death, at the same grams growth drew for | Mineralization, elsewhere | g |
@@ -193,9 +193,9 @@ Liebig's law over saturating shares. Sufficiency sets what a plant earns
 
 Nitrogen comes in two forms. Ammonia goes straight into protein where nitrate
 has to be reduced first, so a plant takes ammonia first, half-saturating at a
-twentieth of nitrate's ppm, and asks nitrate only for what ammonia leaves: its nitrogen share
-in a pool is what the two meet between them. Water with ammonia and no nitrate
-still feeds a plant. The bed holds its nitrogen as nitrate.
+twentieth of nitrate's ppm, and asks nitrate only for what ammonia leaves: its
+nitrogen share in a pool is what the two meet between them. Water with ammonia
+and no nitrate still feeds a plant. The bed holds its nitrogen as nitrate.
 
 ```
 share_p,f   = ppm_p,f / (demand_n × K_f + ppm_p,f)      p: the water, the bed; f: a form of n
@@ -239,7 +239,7 @@ met_p,f       = delivered_p,f / (requested_p,f × recipe_f)
 reach_i,p,f   = w_i,p × left_i,p,f × share_i,p,f × met_p,f
 supply_i,n    = Σ over p and n's forms of reach_i,p,f
 supply_i      = min over n of supply_i,n
-taken_i,p,f   = grams_i × supply_i × recipe_f × reach_i,p,f / supply_i,n
+uptake_i,p,f  = grams_i × supply_i × recipe_f × reach_i,p,f / supply_i,n
 ```
 
 The bank asks; the pools decide how much arrives. Each plant requests its
@@ -267,7 +267,9 @@ its ammonia ([Nitrogen cycle](/subsystems/nitrogen-cycle/)) — into the water,
 whichever pool the tissue came from. A tank that dies back releases exactly
 what its plants took. Calcium and magnesium are drawn from the water on their
 own Monod curve, off the nitrogen actually taken from either pool, counted as
-nitrate (under Key tunables), and are not returned.
+nitrate (under Key tunables), and are not returned. The nitrogen moves KH as it
+goes in: a proton out per ammonia, one in per nitrate
+([Water & gases](/subsystems/water-and-gases/#kh-and-ph)).
 
 ### Income and harm
 
@@ -489,8 +491,8 @@ The canopy's own constant, `leafAttenuationPerLai`, is under [Light](/subsystems
 | Neighbour | Read | Written |
 |---|---|---|
 | [Light](/subsystems/light/) | `light` and `lightByHour`, read at each plant's own height through the canopy: PAR at the mean leaf multiplies the photosynthetic rate, every benefit channel and the deficiency stressor; the day's light there is what starvation reads; PAR at the crown top charges the light-high stressor | Every unit's crown, which shades the plants below it |
-| [Water & gases](/subsystems/water-and-gases/) | `co2` for the carbon Monod, `oxygen` for the respiration Monod, pH and `gh` for the tolerance bands | `oxygen` and `co2`, both directions, on one carbon yield; `gh` drawn with the nutrients |
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia` and `nitrate`, and the `phosphate`, `potassium` and `iron` mineralized beside the ammonia | `ammonia` first and `nitrate` for the rest, with the other three, drawn as tissue grows — ahead of the colony; `waste` from shedding and death |
+| [Water & gases](/subsystems/water-and-gases/) | `co2` for the carbon Monod, `oxygen` for the respiration Monod, pH and `gh` for the tolerance bands | `oxygen` and `co2`, both directions, on one carbon yield; `gh` drawn with the nutrients; `kh` by the form their nitrogen comes in |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia` and `nitrate`, and the `phosphate`, `potassium` and `iron` mineralized beside the ammonia | `ammonia` first and `nitrate` for the rest, with the other three, drawn as tissue grows — the ammonia from what the colony left; `waste` from shedding and death |
 | [Environment](/subsystems/environment/) | `temperature` for the Q10 on respiration and starvation, `water` for every ppm, the box's depth and floor | — |
 | [Equipment](/subsystems/equipment/) | `substrate.nutrients` — the bed's store, for root feeders | The same store, drawn down as root feeders grow |
 | [Algae](/subsystems/algae/) | `algae.mass` — the shading stressor, as the hour starts; the bloom's share of the pooled tissue draw and of the CO₂ | Plant power per litre, the bloom's allelopathy |
