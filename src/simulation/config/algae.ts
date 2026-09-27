@@ -9,8 +9,7 @@
 export interface AlgaeConfig {
   /**
    * Damage per rate unit of thriving plant per litre: the allelochemicals a
-   * healthy planting leaks, the minor term beside the nitrogen the two compete
-   * for.
+   * healthy planting leaks.
    */
   allelopathySeverity: number;
 }
@@ -18,7 +17,7 @@ export interface AlgaeConfig {
 export const algaeDefaults: AlgaeConfig = {
   // A healthy planting of 0.1 rate units per litre — a well-planted tank —
   // charges 0.05 %/h before hardiness, half what a fed bloom earns averaged
-  // over a lit day: it tips a bloom short of nitrogen, and cannot hold a fed one.
+  // over a lit day.
   allelopathySeverity: 0.5,
 };
 
