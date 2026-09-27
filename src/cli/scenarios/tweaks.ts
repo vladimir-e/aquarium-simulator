@@ -42,7 +42,7 @@ function positive(raw: string | undefined, what: string): number {
 
 function stockable(species: FishSpecies, raw: string): number {
   const size = Number(raw);
-  if (raw.trim() === '' || !isStockableSize(species, size)) {
+  if (!isStockableSize(species, size)) {
     throw new Error(`${unstockableSizeMessage(species)}, got "${raw}".`);
   }
   return size;

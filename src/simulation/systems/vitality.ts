@@ -15,6 +15,14 @@
 import { hourlyDraw } from '../core/kinetics.js';
 
 /**
+ * Whether a bank is full, the moment it buys a plant an offshoot or a female a
+ * brood. Never at a cap of 0, where every bank would read full.
+ */
+export function bankFull(surplus: number, cap: number): boolean {
+  return cap > 0 && surplus >= cap;
+}
+
+/**
  * A single contribution to either damage or benefit, kept for UI display.
  *
  * Direction (damage vs. benefit) is carried by which array a factor lives

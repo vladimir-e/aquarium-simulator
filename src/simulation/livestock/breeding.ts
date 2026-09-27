@@ -77,7 +77,7 @@ function hatchClutches(draft: SimulationState, config: LivestockConfig): void {
 
 /** The ready females of each species brood together, fathered by the males of their species. */
 function spawn(draft: SimulationState, config: LivestockConfig): void {
-  const ready = draft.fish.filter((f) => f.sex === 'female' && readyToBrood(f, config));
+  const ready = draft.fish.filter((f) => readyToBrood(f, config));
 
   for (const species of new Set(ready.map((f) => f.species))) {
     const females = ready.filter((f) => f.species === species);

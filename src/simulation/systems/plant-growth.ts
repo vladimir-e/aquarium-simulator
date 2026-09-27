@@ -19,7 +19,7 @@ import type { PlantSpecies } from '../plants/species.js';
 import { PLANT_SPECIES_DATA, plantTraits } from '../plants/species.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
-import { bankFull } from '../config/vitality.js';
+import { bankFull } from './vitality.js';
 import { bankConversion, bankDraw } from './flora.js';
 
 /**

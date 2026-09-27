@@ -54,11 +54,11 @@ function option(options: PickerOption[], species: string): PickerOption {
 }
 
 function fish(state: SimulationState, count = 1, size = STOCKED_FISH_SIZE): PickerOption[] {
-  return pickerOptions('fish', state, { count, size }, 'metric', bedReading(state, DEFAULT_CONFIG));
+  return pickerOptions('fish', state, 'metric', bedReading(state, DEFAULT_CONFIG), { count, size });
 }
 
 function plants(state: SimulationState, bed: BedReading = bedReading(state, DEFAULT_CONFIG)): PickerOption[] {
-  return pickerOptions('plant', state, { count: 1, size: STOCKED_FISH_SIZE }, 'metric', bed);
+  return pickerOptions('plant', state, 'metric', bed);
 }
 
 describe('fish options', () => {

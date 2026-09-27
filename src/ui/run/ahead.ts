@@ -13,6 +13,7 @@ import {
   mapKinds,
   processBreeding,
   processFlora,
+  paysTowardBrood,
   processLivestock,
   readyToBrood,
   type AlgaeKind,
@@ -104,9 +105,10 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
   const bred = processBreeding(applyEffects(livestock.state, livestock.effects, config), config).state;
   const plantSpent = spentBy(planted.plants);
   const fishSpent = spentBy(bred.fish);
-  const ready = livestock.state.fish.filter((fish) => readyToBrood(fish, config.livestock));
-  const paying = new Set(ready.map((fish) => fish.id));
-  const brooding = new Set(ready.filter((fish) => fish.sex === 'female').map((fish) => fish.species));
+  const layers = livestock.state.fish.filter((fish) => readyToBrood(fish, config.livestock));
+  const brooding = new Set(layers.map((fish) => fish.species));
+  const fathers = livestock.state.fish.filter((fish) => brooding.has(fish.species) && paysTowardBrood(fish));
+  const broods = new Set([...layers, ...fathers].map((fish) => fish.id));
   const standing = new Set(state.plants.map((plant) => plant.id));
   const budded = new Set(
     planted.plants.filter((plant) => !standing.has(plant.id)).map((plant) => plant.parentId)
@@ -125,7 +127,7 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     fish: state.fish.map((fish, i) => ({
       vitality: livestock.vitalities[i],
       spent: fishSpent(fish.id, livestock.vitalities[i]),
-      broods: paying.has(fish.id) && brooding.has(fish.species),
+      broods: broods.has(fish.id),
     })),
     algae: mapKinds((kind) => ({ ...flora.algae[kind], ...planted.algae[kind] })),
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),

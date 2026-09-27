@@ -508,7 +508,7 @@ describe('a guppy stocked as a fry', () => {
 
   it('grows on her bank until she broods', () => {
     expect(firstBrood).toBeGreaterThan(0);
-    expect(sizes.length).toBeGreaterThan(firstBrood);
+    expect(sizes[firstBrood]).toBeGreaterThan(frySize('guppy'));
   });
 
   it('only ever grows, and never past adult size', () => {

@@ -14,6 +14,7 @@ import {
   getPh,
   massAtSize,
   PLANT_SPECIES_DATA,
+  STOCKED_FISH_SIZE,
   totalFishMass,
   type FishSpeciesData,
   type FishSpecies,
@@ -31,7 +32,7 @@ import {
 
 export type PickerKind = 'fish' | 'plant';
 
-export interface PickerOrder {
+export interface FishOrder {
   count: number;
   size: number;
 }
@@ -104,7 +105,7 @@ function misses(state: SimulationState, data: FishSpeciesData, units: UnitSystem
 function fishOption(
   state: SimulationState,
   species: FishSpecies,
-  { count, size }: PickerOrder,
+  { count, size }: FishOrder,
   units: UnitSystem
 ): PickerOption {
   const data = FISH_SPECIES_DATA[species];
@@ -166,9 +167,9 @@ function plantOption(
 export function pickerOptions(
   kind: PickerKind,
   state: SimulationState,
-  order: PickerOrder,
   units: UnitSystem,
-  bed: BedReading
+  bed: BedReading,
+  order: FishOrder = { count: 1, size: STOCKED_FISH_SIZE }
 ): PickerOption[] {
   return kind === 'fish'
     ? FISH_SPECIES.map((species) => fishOption(state, species, order, units))

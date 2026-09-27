@@ -70,7 +70,7 @@ export function AddDrawer({
 
   if (kind === null) return null;
 
-  const options = pickerOptions(kind, state, { count, size }, unitSystem, bed);
+  const options = pickerOptions(kind, state, unitSystem, bed, { count, size });
   const option = options.find((o) => o.species === picked) ?? options[0];
   const refusal = count > option.headroom ? (option.refusal ?? `Only ${option.headroom} fit`) : null;
 

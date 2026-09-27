@@ -474,6 +474,7 @@ export {
   offspringFathered,
   brood,
   readyToBrood,
+  paysTowardBrood,
   type Brood,
 } from './systems/fish-growth.js';
 export {

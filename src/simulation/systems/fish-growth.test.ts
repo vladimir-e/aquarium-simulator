@@ -13,6 +13,7 @@ import {
   growFish,
   massAtSize,
   offspringFathered,
+  paysTowardBrood,
   readyToBrood,
 } from './fish-growth.js';
 
@@ -123,6 +124,10 @@ describe('brood', () => {
     expect(eggsLaid(female, config) * perEgg).toBeCloseTo(broodShare(100) * female.surplus, 10);
   });
 
+  it('has every species’ male pay a share of a brood', () => {
+    for (const species of SPECIES) expect(FISH_SPECIES_DATA[species].breeding.maleShare).toBeGreaterThan(0);
+  });
+
   it('costs the male his species’ share of what it costs her', () => {
     for (const species of SPECIES) {
       const female = fish({ species });
@@ -153,9 +158,9 @@ describe('brood', () => {
     expect(readyToBrood(small, config)).toBe(false);
   });
 
-  it('a male is ready to pay only with a brood bank to pay from', () => {
-    expect(readyToBrood(fish({ sex: 'male' }), config)).toBe(true);
-    expect(readyToBrood(fish({ sex: 'male', surplus: 0 }), config)).toBe(false);
+  it('a male pays toward a brood only with a brood bank to pay from', () => {
+    expect(paysTowardBrood(fish({ sex: 'male' }))).toBe(true);
+    expect(paysTowardBrood(fish({ sex: 'male', surplus: 0 }))).toBe(false);
   });
 
   it('each brood drains the male, so one male cannot father brood after brood', () => {
@@ -181,20 +186,45 @@ describe('brood', () => {
     expect(shares[0]).toBeLessThanOrEqual(1);
   });
 
-  it('shares scarce fathering among the females in proportion to their eggs, in any order', () => {
-    const big = fish({ id: 'big', size: 100 });
-    const small = fish({ id: 'small', size: 50 });
-    const male = fish({ sex: 'male', size: 50, surplus: 10 });
-    const eggs = [big, small].map((f) => Math.floor(eggsLaid(f, config)));
-    const fathering = offspringFathered(male, config);
-    expect(fathering).toBeLessThan(eggs[0] + eggs[1]);
+  describe('settles the ready females of a species together', () => {
+    const perPoint = (f: Fish): number => f.mass / (config.broodCost * massAtSize(f.species, frySize(f.species)));
+    const cases: [Fish[], Fish[]][] = [];
+    for (const species of SPECIES) {
+      for (const bank of [0, 3, 10, 25, config.surplusCap]) {
+        const females = [100, 73, 50, 41].map((size, i) => fish({ id: `f${i}`, species, size }));
+        const males = [fish({ species, sex: 'male', size: 60, surplus: bank }), fish({ species, sex: 'male', surplus: bank / 3 })];
+        cases.push([females, males]);
+      }
+    }
 
-    const forward = brood([big, small], [male], config).offspring;
-    const backward = brood([small, big], [male], config).offspring.reverse();
-    const share = fathering / (eggs[0] + eggs[1]);
+    it('gives no female more than her eggs, and every offspring the males pay for', () => {
+      for (const [females, males] of cases) {
+        const eggs = females.map((f) => Math.floor(eggsLaid(f, config)));
+        const fathering = males.reduce((total, m) => total + offspringFathered(m, config), 0);
+        const { offspring } = brood(females, males, config);
 
-    expect(forward).toEqual(backward);
-    expect(forward).toEqual(eggs.map((n) => Math.floor(n * share)));
+        offspring.forEach((n, i) => expect(n).toBeLessThanOrEqual(eggs[i]));
+        expect(offspring.reduce((a, b) => a + b, 0)).toBe(Math.floor(Math.min(eggs.reduce((a, b) => a + b, 0), fathering)));
+      }
+    });
+
+    it('charges the males exactly the offspring they father, at their share', () => {
+      for (const [females, males] of cases) {
+        const result = brood(females, males, config);
+        const { maleShare } = FISH_SPECIES_DATA[males[0].species].breeding;
+        const bought = males.reduce((total, m, i) => total + ((m.surplus - result.males[i].surplus) * perPoint(m)) / maleShare, 0);
+
+        expect(bought).toBeCloseTo(result.offspring.reduce((a, b) => a + b, 0), 8);
+      }
+    });
+
+    it('settles the same whichever female was stocked first', () => {
+      for (const [females, males] of cases) {
+        const forward = brood(females, males, config).offspring;
+        const backward = brood([...females].reverse(), males, config).offspring.reverse();
+        expect(backward).toEqual(forward);
+      }
+    });
   });
 
   it('keeps every bank finite and non-negative', () => {
