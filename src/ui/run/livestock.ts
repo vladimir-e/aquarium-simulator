@@ -176,12 +176,14 @@ export interface FryBatch extends RosterGroup {
 }
 
 function groupGut(members: FishRead[]): Gut {
-  const hungry = members.filter((member) => member.gut.word !== 'fed').length;
+  const count = (band: GutBand): number => members.filter((member) => member.gut.word === band).length;
+  const starving = count('starving');
+  const hungry = count('hungry');
   return {
     at: mean(members.map((member) => member.gut.at)),
     band: members[0].gut.band,
     status: members.map((member) => member.gut.status).reduce(worstStatus),
-    word: hungry > 0 ? `${hungry} hungry` : 'fed',
+    word: starving > 0 ? `${starving} starving` : hungry > 0 ? `${hungry} hungry` : 'fed',
   };
 }
 

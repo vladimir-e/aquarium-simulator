@@ -12,7 +12,8 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 ## Unreleased
 
 - **Feeding through a gut** - fish digest over hours, slower cold and short of O₂; what they digest earns every benefit; short food splits by appetite; breaking: `Fish.gut` replaces `satiation` (v34).
-- **Auto feeder** - drops a set ration once a day at its hour; breaking: `AutoDoser.startHour` replaces `schedule` (v34).
+- **Auto feeder** - drops a set ration once a day at its hour (v34).
+- **Auto doser keeps an hour** - breaking: `AutoDoser.startHour` replaces `schedule` (v34).
 - **Actions settle the passive readings** (#73) - a verb re-reads light, flow, surface and aeration off the tank it leaves, and hosts settle after writing equipment or optics; breaking: `settlePassiveResources` replaces `relight`.
 - **Nitrogen moves KH by its charge** (#73) - minted ammonia takes up a proton, so the cycle drains KH half as fast, and a cycled seed's KH pays for its nitrate while it lasts.
 - **Flora take ammonia before nitrate** (#73) - plants and the blooms take their nitrogen as ammonia before nitrate, moving KH as they do; breaking: pools and `halfSaturation` are per form, `formShares` replaces `nutrientShares` (v33).

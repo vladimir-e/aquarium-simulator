@@ -117,7 +117,7 @@ describe('groupBySpecies', () => {
     const [neon] = species(tank(fish));
 
     expect(neon.gut.at).toBeCloseTo(0.5, 12);
-    expect(neon.gut).toMatchObject({ word: '1 hungry', status: 'alert' });
+    expect(neon.gut).toMatchObject({ word: '1 starving', status: 'alert' });
   });
 
   it('sums the group’s mass but averages its age and condition', () => {
@@ -169,7 +169,7 @@ describe('groupFry', () => {
 
     expect(batch.gut.at).toBeCloseTo(0.5, 12);
     expect(batch.condition).toBe(70);
-    expect(batch.gut).toMatchObject({ word: '1 hungry', status: 'alert' });
+    expect(batch.gut).toMatchObject({ word: '1 starving', status: 'alert' });
   });
 
   it('has nothing to sell where nothing is growing out', () => {

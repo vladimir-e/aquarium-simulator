@@ -142,19 +142,22 @@ function alertNeed(spec: AlertSpec, book: ReadingBook): Need {
 function fishNeeds(book: ReadingBook): Need[] {
   const groups = [...book.roster.fish, ...(book.roster.fry ? [book.roster.fry] : [])];
   const fish = groups.flatMap((group) => group.members);
-  const base = (id: Need['id'], members: FishRead[], status: (member: FishRead) => Status) =>
-    ({
-      id,
-      section: 'life',
-      tone: needTone(members.map(status).reduce(worstStatus)),
-      figure: `${members.length} of ${fish.length}`,
-    }) as const;
+  const fishNeedFrame = (
+    id: Need['id'],
+    members: FishRead[],
+    status: (member: FishRead) => Status
+  ): Pick<Need, 'id' | 'section' | 'tone' | 'figure'> => ({
+    id,
+    section: 'life',
+    tone: needTone(members.map(status).reduce(worstStatus)),
+    figure: `${members.length} of ${fish.length}`,
+  });
   const needs: Need[] = [];
 
   const starving = fish.filter((member) => member.gut.word === 'starving');
   if (starving.length > 0) {
     needs.push({
-      ...base('fishStarving', starving, (member) => member.gut.status),
+      ...fishNeedFrame('fishStarving', starving, (member) => member.gut.status),
       text: 'Fish starving',
       sentence: 'Digesting short of their ration, hunger alone outruns everything they earn.',
       verb: verbName('feed'),
@@ -167,7 +170,7 @@ function fishNeeds(book: ReadingBook): Need[] {
   if (sick.length > 0) {
     const worstFish = sick.reduce((a, b) => (b.condition < a.condition ? b : a));
     needs.push({
-      ...base('fishSick', sick, (member) => member.reading.status),
+      ...fishNeedFrame('fishSick', sick, (member) => member.reading.status),
       text: 'Fish sick',
       sentence: 'Damage is outrunning what their banks heal; the ledger names what is charging it.',
       verb: 'Inspect',

@@ -593,11 +593,6 @@ function rungs(
   return all.map(rung);
 }
 
-/**
- * Everything the settings step shows for one verb, over what it reaches. Only
- * the selected verb is read this far: the preview applies the action to find
- * its rows.
- */
 export interface VerbInput {
   state: SimulationState;
   settings: VerbSettings;
@@ -606,6 +601,12 @@ export interface VerbInput {
   ahead: HourAhead;
   scope?: VerbScope | null;
 }
+
+/**
+ * Everything the settings step shows for one verb, over what it reaches. Only
+ * the selected verb is read this far: the preview applies the action to find
+ * its rows.
+ */
 
 export function verbDetail(
   id: VerbId,

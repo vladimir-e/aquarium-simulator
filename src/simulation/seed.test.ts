@@ -144,6 +144,14 @@ describe('createSimulation seeding', () => {
     expect(packed.aob).toBeGreaterThan(ceiling * 0.9);
   });
 
+  it("sizes a 'cycled' colony on the ration its fish burn in the water they are in", () => {
+    const tank = createSimulation(TANK, { fish: [{ species: 'angelfish', count: 6 }] });
+    const colony = (oxygen: number): number => cycledColony({ ...tank, resources: { ...tank.resources, oxygen } }).aob;
+
+    expect(colony(1)).toBeGreaterThan(cycledColony({ ...tank, fish: [] }).aob);
+    expect(colony(1)).toBeLessThan(colony(tank.resources.oxygen));
+  });
+
   describe('the bed', () => {
     it("ages a 'cycled' bed against the type and capacity the tank was built with", () => {
       for (const type of ['gravel', 'aqua_soil', 'sand'] as const) {

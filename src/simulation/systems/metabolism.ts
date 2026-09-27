@@ -75,17 +75,14 @@ export interface MetabolismResult {
 
 export type MetabolismWater = Pick<Resources, 'food' | 'oxygen' | 'temperature'>;
 
-function oxygenFactor(oxygen: number, config: LivestockConfig): number {
+/** Share of its full rate a fish breathes at in this much oxygen. */
+export function oxygenFactor(oxygen: number, config: LivestockConfig): number {
   return monodFactor(oxygen, config.respirationOxygenHalfSaturation);
 }
 
-/** The pace every fish digests and needs at in this water, against reference water. */
-export function metabolicFactor(
-  water: Pick<MetabolismWater, 'oxygen' | 'temperature'>,
-  config: LivestockConfig
-): number {
-  const q10 = q10Factor(water.temperature, config.metabolicQ10, config.metabolicReferenceTemp);
-  return q10 * oxygenFactor(water.oxygen, config);
+/** The pace every fish digests and needs at, against reference water, breathing at `oxygen` of its full rate. */
+export function metabolicFactor(temperature: number, oxygen: number, config: LivestockConfig): number {
+  return q10Factor(temperature, config.metabolicQ10, config.metabolicReferenceTemp) * oxygen;
 }
 
 /**
@@ -99,7 +96,8 @@ export function processMetabolism(
   config: LivestockConfig,
   foodMineralContent: MineralVector = nutrientsDefaults.foodMineralContent
 ): MetabolismResult {
-  const factor = metabolicFactor(water, config);
+  const oxygen = oxygenFactor(water.oxygen, config);
+  const factor = metabolicFactor(water.temperature, oxygen, config);
 
   const digested = fish.map((f) => digest(f.gut, factor, config));
   const digestedFish = fish.map((f, i) => ({ ...f, gut: Math.max(0, f.gut - digested[i]) }));
@@ -111,8 +109,7 @@ export function processMetabolism(
 
   const totalDigested = digested.reduce((sum, d) => sum + d, 0);
   const out = excretion(totalDigested, config, foodMineralContent);
-  const oxygenConsumedMg =
-    fish.reduce((sum, f) => sum + config.baseRespirationRate * f.mass, 0) * oxygenFactor(water.oxygen, config);
+  const oxygenConsumedMg = fish.reduce((sum, f) => sum + config.baseRespirationRate * f.mass, 0) * oxygen;
 
   return {
     updatedFish,
