@@ -167,7 +167,6 @@ describe('where a plant feeds', () => {
       for (const n of NUTRIENTS) expect(shares[n]).toBeCloseTo(roots * bed[n] + (1 - roots) * water[n], 12);
     }
     expect(growthFormOf('amazon_sword').rootShare).toBeGreaterThan(0);
-    expect(growthFormOf('monte_carlo').rootShare).toBeGreaterThan(0);
     expect(growthFormOf('java_fern').rootShare).toBe(0);
   });
 

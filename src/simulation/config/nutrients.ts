@@ -71,8 +71,8 @@ export const nutrientsDefaults: NutrientsConfig = {
   // slowly, and a keeper re-tabs every month or two.
   bedLeakRate: 0.0002,
 
-  // A tenth or so of the ppm hobbyists dose a high-tech tank to, so a carpet
-  // at 15 NO₃ / 1 PO₄ / 10 K / 0.2 Fe reads ~90 % on every one.
+  // A tenth or so of the ppm hobbyists dose a high-tech tank to, so a pool at
+  // 15 NO₃ / 1 PO₄ / 10 K / 0.2 Fe meets ~90 % of a carpet's need on every one.
   halfSaturation: {
     nitrate: 2.0,
     phosphate: 0.1,

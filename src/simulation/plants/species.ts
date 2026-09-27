@@ -40,8 +40,8 @@ export interface GrowthFormData {
  * a hand's width of rock. Leaf area index is leaf over footprint: herb mats run
  * 2–4, a sword is some 25 leaves of 55 cm² over its 700, a fern clump a dozen
  * fronds of 40 cm² over its 200. A sword draws most of its food through its
- * roots, a carpet's dense mat half of it — both are grown on rich soil — and
- * an epiphyte on wood has no roots in the bed at all.
+ * roots; a carpet roots a dense mat into the bed but lies spread under the
+ * water, so it takes half from each; an epiphyte on wood has no roots in the bed.
  */
 export const GROWTH_FORMS: Record<GrowthForm, GrowthFormData> = {
   carpet: { heightCm: 5, heightExponent: 0, footprintCm2: 100, leafAreaIndex: 2.5, rootShare: 0.5, offshootVerb: 'sent a runner' },

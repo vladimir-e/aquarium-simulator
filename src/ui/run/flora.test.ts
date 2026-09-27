@@ -379,15 +379,21 @@ describe('nutrientReadings', () => {
   });
 
   it('sets each need where the hungriest plant’s deficiency harm starts, wherever that edge is tuned', () => {
-    const state = planted(['java_fern', 'monte_carlo']);
-    for (const edge of [0.8, DEFAULT_CONFIG.plants.sufficiencyEdge, MAX_SUFFICIENCY_EDGE]) {
-      const config = { ...DEFAULT_CONFIG, plants: { ...DEFAULT_CONFIG.plants, sufficiencyEdge: edge } };
-      const { need } = nutrientProbe(state, config);
-      const atNeed = produce(state, (draft) => {
-        for (const reading of nutrientReadings(state, config)) draft.resources[reading.key] = reading.needed * state.resources.water;
-        draft.equipment.substrate.nutrients = mapNutrients((n) => getMassFromPpm(need.bed[n], state.tank.capacity));
-      });
-      expect(calculateNutrientSufficiency(tankPools(atNeed), 'monte_carlo', config.nutrients)).toBeCloseTo(edge, 6);
+    const plantings: [PlantSpecies[], PlantSpecies][] = [
+      [['java_fern', 'monte_carlo'], 'monte_carlo'],
+      [['java_fern'], 'java_fern'],
+    ];
+    for (const [species, hungriest] of plantings) {
+      const state = planted(species);
+      for (const edge of [0.8, DEFAULT_CONFIG.plants.sufficiencyEdge, MAX_SUFFICIENCY_EDGE]) {
+        const config = { ...DEFAULT_CONFIG, plants: { ...DEFAULT_CONFIG.plants, sufficiencyEdge: edge } };
+        const { need } = nutrientProbe(state, config);
+        const atNeed = produce(state, (draft) => {
+          for (const reading of nutrientReadings(state, config)) draft.resources[reading.key] = reading.needed * state.resources.water;
+          draft.equipment.substrate.nutrients = mapNutrients((n) => getMassFromPpm(need.bed[n], state.tank.capacity));
+        });
+        expect(calculateNutrientSufficiency(tankPools(atNeed), hungriest, config.nutrients)).toBeCloseTo(edge, 6);
+      }
     }
   });
 
