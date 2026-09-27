@@ -23,6 +23,29 @@ export function appetite(fish: Sized & Pick<Fish, 'gut'>, config: LivestockConfi
 }
 
 /**
+ * Prey shared among its eaters by weight, each gut taking its share up to the
+ * room left in it. Returns the grams no gut had room for.
+ */
+export function swallow(
+  eaters: readonly (Sized & Pick<Fish, 'gut'>)[],
+  weights: readonly number[],
+  grams: number,
+  config: LivestockConfig
+): number {
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  if (grams <= 0) return 0;
+  if (total <= 0) return grams;
+  let overflow = 0;
+  eaters.forEach((eater, i) => {
+    const share = (grams * weights[i]) / total;
+    const taken = Math.min(appetite(eater, config), share);
+    eater.gut += taken;
+    overflow += share - taken;
+  });
+  return overflow;
+}
+
+/**
  * Grams each eater takes: every appetite in full while the food lasts, and
  * the same share of every appetite once it does not.
  */

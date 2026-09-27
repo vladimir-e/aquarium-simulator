@@ -198,4 +198,18 @@ describe('readHourAhead', () => {
       expect(tick(empty, config).algae[kind].surplus).toBe(0);
     }
   });
+
+  it('reads a livebearer broods in the hour she gives birth', () => {
+    const cap = config.livestock.surplusCap;
+    const stocked = createSimulation({ tankCapacity: 100 }, { fish: [{ species: 'guppy', count: 2 }] });
+    const due = produce(stocked, (draft) => {
+      Object.assign(draft.fish[0], { sex: 'female', health: 100, surplus: cap });
+      Object.assign(draft.fish[1], { sex: 'male', health: 100, surplus: cap });
+      draft.clutches = [{ id: 'due', species: 'guppy', eggs: 10, development: 0.9999, motherId: draft.fish[0].id }];
+    });
+    const next = tick(due, config);
+
+    expect(next.clutches.some((c) => c.motherId === due.fish[0].id && c.id !== 'due')).toBe(true);
+    expect(readHourAhead(due, config).fish.map((fish) => fish.broods)).toEqual([true, true]);
+  });
 });

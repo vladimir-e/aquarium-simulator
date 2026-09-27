@@ -105,7 +105,9 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
   const bred = processBreeding(applyEffects(livestock.state, livestock.effects, config), config).state;
   const plantSpent = spentBy(planted.plants);
   const fishSpent = spentBy(bred.fish);
-  const layers = livestock.state.fish.filter((fish) => readyToBrood(fish, livestock.state.clutches, config.livestock));
+  const standingClutches = new Set(livestock.state.clutches.map((clutch) => clutch.id));
+  const tended = bred.clutches.filter((clutch) => standingClutches.has(clutch.id));
+  const layers = livestock.state.fish.filter((fish) => readyToBrood(fish, tended, config.livestock));
   const brooding = new Set(layers.map((fish) => fish.species));
   const fathers = livestock.state.fish.filter((fish) => brooding.has(fish.species) && paysTowardBrood(fish));
   const broods = new Set([...layers, ...fathers].map((fish) => fish.id));

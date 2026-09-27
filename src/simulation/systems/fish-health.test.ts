@@ -4,7 +4,8 @@ import {
   fishHealingRate,
   fryVulnerability,
   predationStress,
-  predatorMass,
+  predatorMasses,
+  predatorWeight,
   processHealth,
   speciesHardiness,
 } from './fish-health.js';
@@ -127,7 +128,7 @@ function vitality(
     config = livestockDefaults,
     digested = FED,
     metabolicFactor = 1,
-    predators = 0,
+    predatorMass = 0,
   } = {} as {
     plants?: Plant[];
     water?: number;
@@ -135,7 +136,7 @@ function vitality(
     config?: typeof livestockDefaults;
     digested?: number;
     metabolicFactor?: number;
-    predators?: number;
+    predatorMass?: number;
   }
 ): VitalityResult {
   return computeFishVitality(
@@ -147,16 +148,27 @@ function vitality(
     config,
     digested,
     metabolicFactor,
-    predators
+    predatorMass
   );
 }
 
 function health(
   fish: Fish[],
   resources: ResourceOverrides = {},
-  plants: Plant[] = []
+  plants: Plant[] = [],
+  carried: number[] = fish.map(() => 0)
 ): ReturnType<typeof processHealth> {
-  return processHealth(fish, makeResources(resources), plants, 100, 100, livestockDefaults, fish.map(() => FED), 1);
+  return processHealth(
+    fish,
+    makeResources(resources),
+    plants,
+    100,
+    100,
+    livestockDefaults,
+    fish.map(() => FED),
+    1,
+    carried
+  );
 }
 
 interface Circulating {
@@ -559,22 +571,32 @@ describe('predation', () => {
     for (let i = 1; i < exposure.length; i++) expect(exposure[i]).toBeLessThan(exposure[i - 1]);
   });
 
-  it('counts only the fish larger than the prey, never the prey itself', () => {
+  it('weighs each fish in by the grams it outweighs the prey, nothing between equals', () => {
     const big = makeFish({ id: 'big', mass: 3 });
     const twin = makeFish({ id: 'twin', mass: fry.mass });
     const small = makeFish({ id: 'small', mass: fry.mass / 2 });
-    expect(predatorMass(fry, [fry, big, twin, small])).toBe(3);
-    expect(predatorMass(big, [fry, big, twin, small])).toBe(0);
+    expect(predatorWeight(big, fry)).toBeCloseTo(3 - fry.mass, 12);
+    expect(predatorWeight(twin, fry)).toBe(0);
+    expect(predatorWeight(small, fry)).toBe(0);
+    const [onFry, onBig] = predatorMasses([fry, big, twin, small]);
+    expect(onFry).toBeCloseTo(3 - fry.mass, 12);
+    expect(onBig).toBe(0);
+  });
+
+  it('sums every predator weight on every fish, as a pairwise sum does', () => {
+    const roster = [0.3, 0.01, 2, 0.3, 0.05, 1.2, 0.01, 0.7].map((mass) => ({ mass }));
+    const pairwise = roster.map((prey) => roster.reduce((sum, f) => sum + predatorWeight(f, prey), 0));
+    predatorMasses(roster).forEach((mass, i) => expect(mass).toBeCloseTo(pairwise[i], 12));
   });
 
   it('is a hunted stressor, hardened as the body’s are', () => {
-    const hunted = stressorAmount(vitality(fry, {}, { predators: 1 }), 'hunted');
+    const hunted = stressorAmount(vitality(fry, {}, { predatorMass: 1 }), 'hunted');
     const expected = predationStress(fry, 1, 100, livestockDefaults) * (1 - speciesHardiness('neon_tetra'));
     expect(hunted).toBeCloseTo(expected, 12);
     expect(stressorAmount(vitality(fry), 'hunted')).toBe(0);
   });
 
-  it('feeds a fry it kills to the larger fish by mass, every gram of its body and gut', () => {
+  it('feeds what a fry it kills leaves to the larger fish by their weight on it, instead of the rot', () => {
     const prey = { ...fry, health: 0.001, gut: 0.0002 };
     const big = makeFish({ id: 'big', mass: 20, gut: 0 });
     const bigger = makeFish({ id: 'bigger', mass: 40, gut: 0 });
@@ -584,10 +606,38 @@ describe('predation', () => {
     const guts = new Map(result.survivingFish.map((f) => [f.id, f.gut]));
     expect(guts.has('fry')).toBe(false);
     expect(result.deathWaste).toBe(0);
-    expect(guts.get('big')! + guts.get('bigger')!).toBeCloseTo(prey.mass + prey.gut, 12);
-    expect(guts.get('bigger')! / guts.get('big')!).toBeCloseTo(2, 10);
+    expect(guts.get('big')! + guts.get('bigger')!).toBeCloseTo(
+      prey.mass * livestockDefaults.deathDecayFactor + prey.gut,
+      12
+    );
+    expect(guts.get('bigger')! / guts.get('big')!).toBeCloseTo((40 - prey.mass) / (20 - prey.mass), 10);
     expect(guts.get('tiny')).toBe(0);
     expect(result.deadFishNames[0]).toContain('eaten');
+  });
+
+  it('feeds a predator only as far as its gut has room, the rest to waste', () => {
+    const prey = { ...fry, health: 0.001, gut: 0 };
+    const predator = makeFish({ id: 'full', mass: 20 });
+    const room = 0.2 * (prey.mass * livestockDefaults.deathDecayFactor);
+    const full = { ...predator, gut: predator.mass * livestockDefaults.gutCapacity - room };
+    const result = health([prey, full]);
+
+    const after = result.survivingFish[0];
+    const remains = prey.mass * livestockDefaults.deathDecayFactor;
+    expect(after.gut - full.gut).toBeLessThan(remains);
+    expect(after.gut - full.gut + result.deathWaste).toBeCloseTo(remains, 12);
+  });
+
+  it('feeds the brood an eaten mother carried to her predators with her', () => {
+    const mother = { ...fry, health: 0.001, gut: 0 };
+    const predator = makeFish({ id: 'big', mass: 20, gut: 0 });
+    const brood = 0.001;
+    const bare = health([mother, predator]);
+    const carrying = health([mother, predator], {}, [], [brood, 0]);
+
+    const gained = carrying.survivingFish[0].gut - bare.survivingFish[0].gut;
+    expect(gained + carrying.deathWaste - bare.deathWaste).toBeCloseTo(brood, 12);
+    expect(gained).toBeGreaterThan(0.9 * brood);
   });
 
   it('leaves a fry to rot when nothing larger survives to eat it', () => {

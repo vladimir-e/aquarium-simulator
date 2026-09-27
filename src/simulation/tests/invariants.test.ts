@@ -10,7 +10,7 @@ import { CACO3_PER_EQUIVALENT, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chem
 import { tissueMass } from '../systems/plant-lifecycle.js';
 import { ALGAE, ALGAE_KINDS } from '../algae/index.js';
 import { purchase } from '../systems/plant-growth.js';
-import { fishSize, frySize } from '../systems/fish-growth.js';
+import { fishSize, frySize, massAtSize } from '../systems/fish-growth.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
 import { freshSubstrate } from '../equipment/substrate.js';
@@ -168,6 +168,23 @@ describe('nitrogen mass', () => {
     expect(end.fish).toHaveLength(3);
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 10);
     for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(end, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
+  });
+
+  it('is conserved through a clutch the fish eat in the hour it hatches, the hatchlings’ guts born with them', () => {
+    const start = produce(cycledBareTank(), (draft) => {
+      draft.fish = [tetra('a'), tetra('b'), tetra('c')];
+      draft.clutches = [{ id: 'c', species: 'corydoras', eggs: 30, development: 0.9999 }];
+    });
+    const end = run(start, 1);
+    const hatchlings = end.fish.filter((f) => !start.fish.some((s) => s.id === f.id));
+    const { maintenanceRation, foodNitrogenFraction } = DEFAULT_CONFIG.livestock;
+    const bornGut = massAtSize('corydoras', frySize('corydoras')) * maintenanceRation;
+    const born = hatchlings.length * (bornGut - FISH_SPECIES_DATA.corydoras.breeding.eggMass) * foodNitrogenFraction;
+
+    expect(end.clutches).toHaveLength(0);
+    expect(hatchlings.length).toBeGreaterThan(0);
+    expect(hatchlings.length).toBeLessThan(30);
+    expect((nitrogenInPools(end) - born) / nitrogenInPools(start)).toBeCloseTo(1, 10);
   });
 });
 

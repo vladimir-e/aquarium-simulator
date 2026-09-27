@@ -6,7 +6,7 @@ import { createSimulation, type SimulationState, type Fish, type Clutch } from '
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import type { LogEntry } from '../core/logging.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { eggsLaid, fishSize, frySize } from '../systems/fish-growth.js';
+import { eggsLaid, fishSize, frySize, massAtSize } from '../systems/fish-growth.js';
 
 const CAP = DEFAULT_CONFIG.livestock.surplusCap;
 
@@ -120,7 +120,7 @@ describe('processBreeding', () => {
     const brood: Clutch = { id: 'c', species: 'guppy', eggs: 8, development: 0.9999, motherId: 'mother' };
     const out = processBreeding(withTank([mother], [brood]), DEFAULT_CONFIG);
     expect(born([mother], out.state.fish)).toHaveLength(8);
-    expect(events(out.state, 'fish-spawned')[0].count).toBe(8);
+    expect(events(out.state, 'fry-born')[0].count).toBe(8);
   });
 
   it('a livebearer carries her brood, and an egg-layer leaves hers', () => {
@@ -132,13 +132,19 @@ describe('processBreeding', () => {
     }
   });
 
-  it('a carried brood dies with its mother, every egg to waste', () => {
-    const brood: Clutch = { id: 'c', species: 'guppy', eggs: 12, development: 0.9999, motherId: 'gone' };
-    const out = processBreeding(withTank([mkFish({ sex: 'male' })], [brood]), DEFAULT_CONFIG);
-    expect(out.state.clutches).toHaveLength(0);
-    expect(out.state.fish).toHaveLength(1);
-    const waste = out.effects.find((e) => e.resource === 'waste')!.delta;
-    expect(waste).toBeCloseTo(12 * FISH_SPECIES_DATA.guppy.breeding.eggMass, 12);
+  it('a carried brood dies with its mother, every egg to waste when nothing eats her', () => {
+    const dying = (clutches: Clutch[]): SimulationState =>
+      produce(withTank([mkFish({ id: 'mother', health: 0.01 })], clutches), (draft) => {
+        draft.resources.oxygen = 0;
+      });
+    const brood: Clutch = { id: 'c', species: 'guppy', eggs: 12, development: 0.5, motherId: 'mother' };
+    const deathWaste = (state: SimulationState): number => {
+      const out = processLivestock(state, DEFAULT_CONFIG);
+      expect(out.state.fish).toHaveLength(0);
+      expect(out.state.clutches).toHaveLength(0);
+      return out.effects.find((e) => e.source === 'fish-death')!.delta;
+    };
+    expect(deathWaste(dying([brood])) - deathWaste(dying([]))).toBeCloseTo(12 * FISH_SPECIES_DATA.guppy.breeding.eggMass, 12);
   });
 
   it('a gestating female broods again only once she has given birth', () => {
@@ -171,6 +177,33 @@ describe('processBreeding', () => {
     const males = hatched.filter((f) => f.sex === 'male').length / hatched.length;
     expect(males).toBeGreaterThan(0.45);
     expect(males).toBeLessThan(0.55);
+  });
+
+  it('feeds the eggs eaten in a clutch’s hatching hour to the fish that ate them, none to the hatchlings', () => {
+    const adults = [mkFish({ id: 'a', species: 'angelfish', sex: 'male' }), mkFish({ id: 'b', species: 'angelfish', sex: 'male' })];
+    const clutch: Clutch = { id: 'c', species: 'neon_tetra', eggs: 40, development: 0.9999 };
+    const out = processBreeding(withTank(adults, [clutch]), DEFAULT_CONFIG);
+
+    const hatched = born(adults, out.state.fish);
+    const eggMass = FISH_SPECIES_DATA.neon_tetra.breeding.eggMass;
+    const fed = out.state.fish.slice(0, adults.length).reduce((sum, f, i) => sum + f.gut - adults[i].gut, 0);
+    const waste = out.effects.reduce((sum, e) => sum + e.delta, 0);
+    expect(hatched.length).toBeLessThan(40);
+    expect(hatched.length).toBeGreaterThan(0);
+    expect(fed + waste).toBeCloseTo((clutch.eggs - hatched.length) * eggMass, 12);
+    for (const fry of hatched) expect(fry.gut).toBe(massAtSize('neon_tetra', frySize('neon_tetra')) * DEFAULT_CONFIG.livestock.maintenanceRation);
+  });
+
+  it('feeds eaten eggs to a gut only as far as it has room, the rest to waste', () => {
+    const full = mkFish({ id: 'full', species: 'angelfish', sex: 'male' });
+    const stuffed = { ...full, gut: full.mass * DEFAULT_CONFIG.livestock.gutCapacity };
+    const clutch: Clutch = { id: 'c', species: 'neon_tetra', eggs: 40, development: 0 };
+    const out = processBreeding(withTank([stuffed], [clutch]), DEFAULT_CONFIG);
+
+    const eaten = (clutch.eggs - out.state.clutches[0].eggs) * FISH_SPECIES_DATA.neon_tetra.breeding.eggMass;
+    expect(eaten).toBeGreaterThan(0);
+    expect(out.state.fish[0].gut).toBe(stuffed.gut);
+    expect(out.effects.reduce((sum, e) => sum + e.delta, 0)).toBeCloseTo(eaten, 12);
   });
 
   it('feeds the eggs the fish eat to their guts by mass, and nothing is lost on the way', () => {

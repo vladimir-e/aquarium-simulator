@@ -4,9 +4,8 @@
  * `state.clutches` directly because it *adds* organisms, which the effect
  * system can't express; the waste dead eggs leave goes out as an effect.
  *
- * The clutches standing live their hour first — a carried brood whose mother
- * died goes to waste with her — then a female on a full bank broods, then
- * every fish's bank draws toward growth. The brood runs before
+ * The clutches standing live their hour first, then a female on a full bank
+ * broods, then every fish's bank draws toward growth. The brood runs before
  * growth for the reason a plant's offshoot does: drawn first, a bank sits a
  * hair under full and a grown female never broods.
  */
@@ -23,6 +22,7 @@ import { createLog } from '../core/logging.js';
 import { drawId } from '../core/rng.js';
 import { brood, frySize, growFish, readyToBrood } from '../systems/fish-growth.js';
 import { metabolicFactor, oxygenFactor } from '../systems/metabolism.js';
+import { swallow } from '../systems/digestion.js';
 import { developmentRate, eggHarmRate, eggPredationRate, settleClutch } from '../systems/clutch.js';
 import { createFish } from './create-fish.js';
 
@@ -59,12 +59,7 @@ function addFry(draft: SimulationState, species: FishSpecies, count: number, con
   }
 }
 
-/**
- * One hour of every clutch: the water and the fish thin it, it develops, and a
- * developed clutch hatches its whole eggs. The eggs eaten land in the fish's
- * guts by their mass; the rest of the dead, a carried brood whose mother is
- * gone, and the part egg a hatch leaves, are returned as grams of waste.
- */
+/** One hour of every clutch, hatching those developed; returns the grams of egg left as waste. */
 function tendClutches(draft: SimulationState, config: LivestockConfig): number {
   if (draft.clutches.length === 0) return 0;
 
@@ -74,18 +69,14 @@ function tendClutches(draft: SimulationState, config: LivestockConfig): number {
   let eaten = 0;
   let waste = 0;
 
-  const living = new Set(draft.fish.map((fish) => fish.id));
   const developing: Clutch[] = [];
+  const developed: Clutch[] = [];
   for (const clutch of draft.clutches) {
     const { species } = clutch;
     const mass = FISH_SPECIES_DATA[species].breeding.eggMass;
-    if (clutch.motherId !== undefined && !living.has(clutch.motherId)) {
-      waste += clutch.eggs * mass;
-      continue;
-    }
     const hour = settleClutch(
       clutch,
-      eggHarmRate(species, resources, resources.water, config),
+      eggHarmRate(clutch, resources, resources.water, config),
       eggPredationRate(species, predatorMass, resources.water, config),
       developmentRate(species, factor)
     );
@@ -94,27 +85,27 @@ function tendClutches(draft: SimulationState, config: LivestockConfig): number {
 
     if (hour.clutch.development < 1) {
       developing.push(hour.clutch);
-      continue;
+    } else {
+      waste += (hour.clutch.eggs - Math.floor(hour.clutch.eggs)) * mass;
+      developed.push(hour.clutch);
     }
-    const fry = Math.floor(hour.clutch.eggs);
-    waste += (hour.clutch.eggs - fry) * mass;
-    if (fry > 0) hatch(draft, species, fry, config);
   }
 
-  if (eaten > 0 && predatorMass > 0) {
-    for (const fish of draft.fish) fish.gut += (eaten * fish.mass) / predatorMass;
-  }
+  waste += swallow(draft.fish, draft.fish.map((fish) => fish.mass), eaten, config);
   draft.clutches = developing;
+  for (const clutch of developed) hatch(draft, clutch, config);
   return waste;
 }
 
-function hatch(draft: SimulationState, species: FishSpecies, count: number, config: LivestockConfig): void {
-  const { name, breeding } = FISH_SPECIES_DATA[species];
-  addFry(draft, species, count, config);
+function hatch(draft: SimulationState, clutch: Clutch, config: LivestockConfig): void {
+  const count = Math.floor(clutch.eggs);
+  if (count === 0) return;
+  const { name } = FISH_SPECIES_DATA[clutch.species];
+  addFry(draft, clutch.species, count, config);
   draft.logs.push(
-    breeding.mode === 'livebearer'
-      ? createLog(draft.tick, 'simulation', 'info', `${name} gave birth to ${count} fry`, 'fish-spawned', count)
-      : createLog(draft.tick, 'simulation', 'info', `${count} ${name} eggs hatched`, 'eggs-hatched', count)
+    clutch.motherId === undefined
+      ? createLog(draft.tick, 'simulation', 'info', `${count} ${name} eggs hatched`, 'eggs-hatched', count)
+      : createLog(draft.tick, 'simulation', 'info', `${name} gave birth to ${count} fry`, 'fry-born', count)
   );
 }
 

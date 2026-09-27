@@ -478,16 +478,18 @@ export {
   type Brood,
 } from './systems/fish-growth.js';
 export {
+  clutchMass,
   eggHarmRate,
   eggPredationRate,
   developmentRate,
   settleClutch,
   type ClutchHour,
 } from './systems/clutch.js';
-export { predationStress, predatorMass, fryVulnerability } from './systems/fish-health.js';
+export { predationStress, predatorWeight, predatorMasses, fryVulnerability } from './systems/fish-health.js';
 export {
   gutCapacity,
   appetite,
+  swallow,
   serve,
   digest,
   dailyMaintenance,

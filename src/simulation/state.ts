@@ -325,7 +325,7 @@ export interface SimulationState {
   plants: Plant[];
   /** Fish in the tank */
   fish: Fish[];
-  /** Unhatched egg clutches from egg-laying species */
+  /** Clutches developing: eggs laid in the tank and broods their mothers carry */
   clutches: Clutch[];
   /** The tank's blooms, one of each kind */
   algae: Blooms;

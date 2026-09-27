@@ -477,7 +477,7 @@ function Line({
               layout === 'widget' ? 'col-span-2' : 'col-span-3 lg:col-span-4'
             }`}
           >
-            {row.age}
+            {row.progress}
           </span>
           {layout !== 'widget' && <span aria-hidden className={WIDE} />}
         </div>

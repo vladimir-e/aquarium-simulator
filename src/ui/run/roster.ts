@@ -154,9 +154,8 @@ export interface ClutchRosterRow {
   key: string;
   species: FishSpecies;
   name: string;
-  /** Eggs standing, and how far developed. */
   figure: string;
-  age: string;
+  progress: string;
 }
 
 export type RosterRow =
@@ -332,14 +331,14 @@ function fryRow(batch: FryBatch): FryRosterRow {
 
 function clutchRow(clutch: Clutch): ClutchRosterRow {
   const data = FISH_SPECIES_DATA[clutch.species];
-  const carried = data.breeding.mode === 'livebearer';
+  const carried = clutch.motherId !== undefined;
   return {
     kind: 'clutch',
     key: clutch.id,
     species: clutch.species,
     name: `${data.name} ${carried ? 'brood' : 'clutch'}`,
     figure: `${Math.floor(clutch.eggs)} ${carried ? 'fry' : 'eggs'}`,
-    age: `${Math.floor(clutch.development * 100)} % developed`,
+    progress: `${Math.floor(clutch.development * 100)} % developed`,
   };
 }
 

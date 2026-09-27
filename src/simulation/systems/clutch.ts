@@ -1,18 +1,6 @@
 /**
- * Clutches — eggs as a stock, not individuals. Each hour two rates thin the
- * count and one fills its development:
- *
- * - Harm: the water charges the eggs through the fish's own channel, at the
- *   species' hardiness, `eggSensitivity` times as hard; a %/h of condition is a
- *   share of the eggs lost, since an egg has no buffer to spend.
- * - Predation: every fish in the tank hunts eggs, `eggPredationRate` per gram
- *   of fish per litre, reaching only the clutch's exposure — nothing reaches
- *   a brood its mother carries.
- * - Development: the parents' metabolic factor over the species'
- *   `developmentTime`, so a warm clutch hatches sooner and a hypoxic one later.
- *
- * The two losses compete over the hour, so a bad hour thins a clutch and never
- * empties it.
+ * Harm and predation are competing first-order losses on one stock of eggs,
+ * so a bad hour thins a clutch and never empties it.
  */
 
 import type { Clutch, Resources } from '../state.js';
@@ -22,18 +10,29 @@ import type { LivestockConfig } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { speciesHardiness, waterStressors } from './fish-health.js';
 
-/** Share of a clutch the water kills an hour, as a first-order rate. */
+/** Grams a clutch's eggs weigh. */
+export function clutchMass(clutch: Pick<Clutch, 'species' | 'eggs'>): number {
+  return clutch.eggs * FISH_SPECIES_DATA[clutch.species].breeding.eggMass;
+}
+
+/**
+ * Share of a clutch the water kills an hour, as a first-order rate: the fish's
+ * own water harm, `eggSensitivity` times as hard on laid eggs, and as hard as
+ * on its mother on a brood she carries.
+ */
 export function eggHarmRate(
-  species: FishSpecies,
+  clutch: Pick<Clutch, 'species' | 'motherId'>,
   resources: Resources,
   waterVolume: number,
   config: LivestockConfig
 ): number {
+  const { species } = clutch;
   const damage = waterStressors(species, speciesHardiness(species), resources, waterVolume, config).reduce(
     (sum, factor) => sum + factor.amount,
     0
   );
-  return (config.eggSensitivity * damage) / 100;
+  const sensitivity = clutch.motherId === undefined ? config.eggSensitivity : 1;
+  return (sensitivity * damage) / 100;
 }
 
 /** Share of a clutch the tank's fish eat an hour, as a first-order rate. */

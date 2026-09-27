@@ -12,7 +12,7 @@ export type LogSeverity = 'info' | 'warning';
  * downstream system reacts to.
  */
 export type LogEvent =
-  | 'fish-spawned' // a livebearer's carried clutch was born — fry added
+  | 'fry-born' // a livebearer gave birth to the brood she carried — fry added
   | 'eggs-laid' // a brood — a clutch was laid or conceived
   | 'eggs-hatched' // a laid clutch finished developing — fry added
   | 'fish-died' // a fish died (any cause)

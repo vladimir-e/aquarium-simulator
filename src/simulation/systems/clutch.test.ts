@@ -12,10 +12,11 @@ const clean = createSimulation({ tankCapacity: 100 }).resources;
 const volume = clean.water;
 
 const withNitrite = (ppm: number): Resources => ({ ...clean, nitrite: getMassFromPpm(ppm, volume) });
+const laid = { species: 'neon_tetra' } as const;
 
 describe('eggHarmRate', () => {
   it('is nothing in clean water', () => {
-    expect(eggHarmRate('neon_tetra', clean, volume, config)).toBe(0);
+    expect(eggHarmRate(laid, clean, volume, config)).toBe(0);
   });
 
   it('is the fish water channel at the species hardiness, eggSensitivity times as hard, as a share an hour', () => {
@@ -25,18 +26,27 @@ describe('eggHarmRate', () => {
       0
     );
     expect(damage).toBeGreaterThan(0);
-    expect(eggHarmRate('neon_tetra', water, volume, config)).toBeCloseTo((config.eggSensitivity * damage) / 100, 12);
+    expect(eggHarmRate(laid, water, volume, config)).toBeCloseTo((config.eggSensitivity * damage) / 100, 12);
+  });
+
+  it('harms a brood its mother carries as hard as her', () => {
+    const water = withNitrite(8);
+    const damage = waterStressors('guppy', speciesHardiness('guppy'), water, volume, config).reduce(
+      (sum, f) => sum + f.amount,
+      0
+    );
+    expect(eggHarmRate({ species: 'guppy', motherId: 'mother' }, water, volume, config)).toBeCloseTo(damage / 100, 12);
   });
 
   it('costs the same for every doubling of a toxin past the edge', () => {
-    const [a, b, c] = [4, 8, 16].map((ppm) => eggHarmRate('neon_tetra', withNitrite(ppm), volume, config));
+    const [a, b, c] = [4, 8, 16].map((ppm) => eggHarmRate(laid, withNitrite(ppm), volume, config));
     expect(b - a).toBeGreaterThan(0);
     expect(c - b).toBeCloseTo(b - a, 10);
   });
 
   it('rises out of a species temperature band', () => {
     const cold = { ...clean, temperature: FISH_SPECIES_DATA.neon_tetra.temperatureRange[0] - 3 };
-    expect(eggHarmRate('neon_tetra', cold, volume, config)).toBeGreaterThan(0);
+    expect(eggHarmRate(laid, cold, volume, config)).toBeGreaterThan(0);
   });
 });
 

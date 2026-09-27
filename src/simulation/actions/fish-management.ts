@@ -142,7 +142,7 @@ export function addFish(
 }
 
 /**
- * Remove a fish from the tank.
+ * Remove a fish from the tank, and the brood she carries with her.
  */
 export function removeFish(
   state: SimulationState,
@@ -164,6 +164,7 @@ export function removeFish(
 
   const newState = produce(state, (draft) => {
     draft.fish.splice(fishIndex, 1);
+    draft.clutches = draft.clutches.filter((clutch) => clutch.motherId !== fishId);
 
     draft.logs.push(
       createLog(
@@ -200,6 +201,8 @@ export function sellFry(state: SimulationState): ActionResult {
 
   const newState = produce(state, (draft) => {
     draft.fish = draft.fish.filter((f) => fishLifeStage(f) !== 'fry');
+    const kept = new Set(draft.fish.map((f) => f.id));
+    draft.clutches = draft.clutches.filter((clutch) => clutch.motherId === undefined || kept.has(clutch.motherId));
 
     draft.logs.push(
       createLog(

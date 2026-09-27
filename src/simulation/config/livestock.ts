@@ -141,13 +141,13 @@ export interface LivestockConfig {
   broodCost: number;
 
   // Clutches
-  /** How many times harder the water harms an egg than a fish; an egg's harm is the share of the clutch lost an hour. */
+  /** How many times harder the water harms a laid egg than a fish; an egg's harm is the share of the clutch lost an hour. */
   eggSensitivity: number;
   /** Share of a clutch's eggs an hour one gram of fish per litre finds, before the clutch's exposure. */
   eggPredationRate: number;
 
   // Fry predation
-  /** Damage an hour, before hardiness, that one gram per litre of larger fish does a fish at no size at all. */
+  /** Damage an hour, before hardiness, that one gram per litre of predator mass does a fish at no size at all. */
   fryPredationRate: number;
   /** How steeply a fish outgrows its predators: vulnerability is `(1 − size / 100)` to this power. */
   fryVulnerabilityExponent: number;
@@ -264,10 +264,6 @@ export const livestockDefaults: LivestockConfig = {
   // fifth of it hatches; ten neons leave next to none.
   eggPredationRate: 2,
 
-  // A guppy fry among a grown pair in 110 L takes about 0.06 %/h and banks
-  // through it; among twenty grown guppies it takes about 0.6 %/h, most of
-  // what a fed fry earns. At a third of adult size a fish is a fifth as
-  // exposed as a newborn.
   fryPredationRate: 20,
   fryVulnerabilityExponent: 4,
 

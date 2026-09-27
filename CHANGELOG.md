@@ -11,8 +11,8 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Fry predation** - larger fish per litre harm a small fish at a rate falling with its size, eating the body they kill, so a guppy tank finds a level; a carried brood dies with its mother, one at a time; breaking: `computeFishVitality` takes predator mass, `readyToBrood` takes the clutches (v34).
-- **Eggs are a stock** - a clutch is a count the water and the tank's fish thin, developing on the metabolic factor until it hatches, so a crowded tank eats its own eggs; livebearers carry theirs; breaking: `Clutch` holds `eggs` and `development`, `processBreeding` returns effects (v34).
+- **Fry predation** - larger fish hunt small ones by mass per litre and eat what they kill; breaking: `computeFishVitality`, `readyToBrood` args (v34).
+- **Eggs are a stock** - water and the tank's fish thin a clutch as it develops; livebearers carry theirs; breaking: `Clutch` holds `eggs`, `development` (v34).
 - **Fish grow on their banks** - mass toward adult size, broods sized by the female, the male paying his share; stocking names a size; breaking: `Fish.stage` goes (v34).
 - **Feeding through a gut** - fish digest over hours, slower cold and short of O₂; what they digest earns every benefit; short food splits by appetite; breaking: `Fish.gut` replaces `satiation` (v34).
 - **Auto feeder** - drops a set ration once a day at its hour (v34).

@@ -160,11 +160,11 @@ describe('rosterTables', () => {
     expect(row.kind).toBe('clutch');
     expect(row.name).toBe('Angelfish clutch');
     expect(row.figure).toBe('24 eggs');
-    expect(row.age).toBe('33 % developed');
+    expect(row.progress).toBe('33 % developed');
   });
 
   it('reads a livebearer clutch as the brood its mother carries', () => {
-    const brood: Clutch = { id: 'clutch_x_8', species: 'guppy', eggs: 12, development: 0.5 };
+    const brood: Clutch = { id: 'clutch_x_8', species: 'guppy', eggs: 12, development: 0.5, motherId: 'fish_x_1' };
     const [row] = tables(tank([], [brood])).fish as ClutchRosterRow[];
 
     expect(row.name).toBe('Guppy brood');

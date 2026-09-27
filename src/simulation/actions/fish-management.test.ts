@@ -143,6 +143,17 @@ describe('removeFish', () => {
     expect(result.message).toContain('not found');
   });
 
+  it('takes the brood she carries with her, and leaves the rest', () => {
+    const state = produce(makeStateWithFish(), (draft) => {
+      draft.clutches = [
+        { id: 'hers', species: 'guppy', eggs: 10, development: 0.4, motherId: 'fish_existing' },
+        { id: 'laid', species: 'neon_tetra', eggs: 20, development: 0.4 },
+      ];
+    });
+    const result = removeFish(state, { type: 'removeFish', fishId: 'fish_existing' });
+    expect(result.state.clutches.map((c) => c.id)).toEqual(['laid']);
+  });
+
   it('logs the removal', () => {
     const state = makeStateWithFish();
     const result = removeFish(state, { type: 'removeFish', fishId: 'fish_existing' });

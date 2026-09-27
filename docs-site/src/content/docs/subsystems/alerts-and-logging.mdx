@@ -104,9 +104,9 @@ a run was created with, a heater's target — stays a quantity rather than text,
 each reader renders the line in its own units: `logText(entry, format)`, metric
 unless handed a format.
 
-Eight typed events exist: `fish-spawned`, `eggs-laid`, `eggs-hatched`,
+Eight typed events exist: `eggs-laid`, `eggs-hatched`, `fry-born`,
 `fish-died`, `plant-died`, `plant-propagated`, `algae-died` and `fry-sold`.
-Four of them carry a count — a laying, a live birth, a hatch and a fry sale —
+Four of them carry a count — a laying, a hatch, a live birth and a fry sale —
 because the number is the point. Deaths, offshoots and a bloom's die-back are one entry per
 organism, so they need none; a die-back states the coverage it took instead, so
 a reader can weigh a crash against spores dying back as dust.

@@ -16,6 +16,7 @@ import { mintAmmonia } from '../systems/nitrogen-cycle.js';
 import type { VitalityResult } from '../systems/vitality.js';
 import { processHealth } from '../systems/fish-health.js';
 import { createLog } from '../core/logging.js';
+import { clutchMass } from '../systems/clutch.js';
 import { getPpm } from '../resources/index.js';
 
 export interface LivestockProcessingResult {
@@ -112,6 +113,9 @@ export function processLivestock(
     });
   }
 
+  const carried = new Map(
+    state.clutches.flatMap((clutch) => (clutch.motherId === undefined ? [] : [[clutch.motherId, clutchMass(clutch)] as const]))
+  );
   const healthResult = processHealth(
     metabolismResult.updatedFish,
     state.resources,
@@ -120,7 +124,8 @@ export function processLivestock(
     state.tank.capacity,
     livestockConfig,
     metabolismResult.digested,
-    metabolismResult.metabolicFactor
+    metabolismResult.metabolicFactor,
+    metabolismResult.updatedFish.map((fish) => carried.get(fish.id) ?? 0)
   );
 
   // Add death waste effects
@@ -136,6 +141,8 @@ export function processLivestock(
   // Update fish in state and log deaths
   const newState = produce(state, (draft) => {
     draft.fish = healthResult.survivingFish;
+    const living = new Set(draft.fish.map((fish) => fish.id));
+    draft.clutches = draft.clutches.filter((clutch) => clutch.motherId === undefined || living.has(clutch.motherId));
 
     for (const fishName of healthResult.deadFishNames) {
       draft.logs.push(

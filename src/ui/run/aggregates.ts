@@ -38,7 +38,7 @@ export function accrueLogs(aggregates: RunAggregates, logs: LogEntry[]): RunAggr
     if (log.event === 'fish-died' || log.event === 'plant-died' || log.event === 'algae-died') {
       deaths += entryCount(log);
     } else if (
-      log.event === 'fish-spawned' ||
+      log.event === 'fry-born' ||
       log.event === 'eggs-hatched' ||
       log.event === 'plant-propagated'
     ) {
