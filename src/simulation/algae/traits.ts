@@ -35,22 +35,25 @@ export type AlgaeKind = 'greenWater' | 'film';
  * the flora law and differ by habitat and by traits, so the tank's conditions
  * pick the winner.
  *
- * Both saturate by 12 PAR and take the warm, alkaline water plants struggle
- * in. Free CO₂ half-saturation for microalgae with carbon-concentrating
- * mechanisms runs well under 1 mg/L, since they take bicarbonate too: 93 % on
- * the 4 mg/L an uninjected tank holds, 99 % at an injected 25. Nitrate costs
- * them energy to reduce, so both take it more poorly than a plant does.
+ * Both saturate by 12 PAR and live in any water a plant does: green microalgae
+ * grow from about pH 4 to past 9, so CO₂ over a stripped soil holds them as
+ * well as hard, alkaline tap does. Free CO₂ half-saturation for microalgae with
+ * carbon-concentrating mechanisms runs well under 1 mg/L, since they take
+ * bicarbonate too: 93 % on the 4 mg/L an uninjected tank holds, 99 % at an
+ * injected 25. Both take ammonia first and nitrate readily.
  *
  * Green water is the sprinter: a lit, rich day doubles it in about a day, but
  * it needs rich water. A cycled tank's trace of ammonia meets 6 % of its
- * nitrogen need and a 2 ppm spike 80 %; phosphate at 0.1 ppm meets a third of
- * its need, a fed tank's 2 ppm 91 %. Heavy green water carries some 10–50 mg/L
- * of dry cells.
+ * nitrogen need and a 2 ppm spike 80 %; a maintained tank's 25 ppm of nitrate
+ * meets half — far looser than the 0.05–2 ppm microalgae half-saturate on in
+ * culture, and what holds a maintained tank's column clear until ammonia or
+ * richer water tips it. Phosphate at 0.1 ppm meets a third of its need, a fed
+ * tank's 2 ppm 91 %. Heavy green water carries some 10–50 mg/L of dry cells.
  *
  * Film is the stayer: a third of green water's pace, so it takes a week or two
  * to show on the glass, but efficient on lean water — a cycled tank's trace of
- * ammonia meets 60 % of its nitrogen need, and 20 ppm of nitrate two thirds. A
- * green film on glass carries about 0.3 mg of organic matter a cm².
+ * ammonia meets 60 % of its nitrogen need, and 5 ppm of nitrate 83 %. A green
+ * film on glass carries about 0.3 mg of organic matter a cm².
  *
  * Spores land at 0.05 of the scale a day: nothing a reader sees, but an empty
  * tank is never closed to either.
@@ -64,10 +67,10 @@ export const ALGAE: Readonly<Record<AlgaeKind, AlgaeTraits>> = {
     lowLight: 6,
     nutrientDemand: 'low',
     tolerableTemp: [12, 34],
-    tolerablePH: [5.5, 9.5],
+    tolerablePH: [4.5, 9.5],
     co2HalfSaturation: 0.3,
     ammoniaHalfSaturation: 0.5,
-    nitrateHalfSaturation: 40,
+    nitrateHalfSaturation: 25,
     phosphateHalfSaturation: 0.2,
     tissueDensity: 0.03,
     sporeRate: 0.002,
@@ -80,10 +83,10 @@ export const ALGAE: Readonly<Record<AlgaeKind, AlgaeTraits>> = {
     lowLight: 6,
     nutrientDemand: 'low',
     tolerableTemp: [12, 34],
-    tolerablePH: [5.5, 9.5],
+    tolerablePH: [4.5, 9.5],
     co2HalfSaturation: 0.3,
     ammoniaHalfSaturation: 0.02,
-    nitrateHalfSaturation: 10,
+    nitrateHalfSaturation: 1,
     phosphateHalfSaturation: 0.02,
     tissueDensity: 0.0003,
     sporeRate: 0.002,

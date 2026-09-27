@@ -17,6 +17,7 @@ import { plantsConfigMeta, type PlantsConfig } from '../config/plants.js';
 import { dailyLightIntegral } from '../equipment/light.js';
 import { bankConversion, bankDraw, dailyLightEdge, shedShare, tissuePerRateUnit } from '../systems/flora.js';
 import { formHalfSaturations, poolDraws } from '../systems/nutrients.js';
+import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import type { AlgaeState } from '../state.js';
 
 const config = DEFAULT_CONFIG;
@@ -27,6 +28,15 @@ const paid = ({ before, after }: { before: AlgaeState; after: AlgaeState }): num
 describe.each(ALGAE_KINDS)('%s', (kind) => {
   const traits = ALGAE[kind];
   const conversion = bankConversion(traits, plants);
+
+  it('lives in any water a plant does: its temperature and pH bands hold every species’ own', () => {
+    for (const species of Object.values(PLANT_SPECIES_DATA)) {
+      for (const band of ['tolerableTemp', 'tolerablePH'] as const) {
+        expect(traits[band][0]).toBeLessThanOrEqual(species[band][0]);
+        expect(traits[band][1]).toBeGreaterThanOrEqual(species[band][1]);
+      }
+    }
+  });
 
   describe('bloomTissue', () => {
     it('scales with the mass and with the size of its habitat', () => {
@@ -199,5 +209,13 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
       expect(landSpores(null, 0)).toEqual(landSpores(bloom({ mass: 0, condition: 3, surplus: 0.4 }), 0));
       expect(landSpores(null, 0)).toEqual({ mass: 0, condition: 100, surplus: 0 });
     });
+  });
+});
+
+describe('the kinds', () => {
+  it('green water needs richer water than film: every nitrogen and phosphorus form half-saturates it higher', () => {
+    for (const key of ['ammoniaHalfSaturation', 'nitrateHalfSaturation', 'phosphateHalfSaturation'] as const) {
+      expect(ALGAE.greenWater[key]).toBeGreaterThan(ALGAE.film[key]);
+    }
   });
 });

@@ -36,17 +36,17 @@ counted over the fixed surfaces alone.
 | Income | <Badge text="settled" variant="success" /> | The plants' three channels on `tanh(PAR/Ik) × sufficiency`, read at the mean PAR over the habitat. |
 | Growth | <Badge text="settled" variant="success" /> | Logistic on the plants' draw, exact over the hour, day and night. |
 | Spores | <Badge text="settled" variant="success" /> | Its offshoots, at a constant rate per kind, so an empty tank is never closed to either. |
-| Two kinds | <Badge text="settled" variant="success" /> | Two trait records on one path. Green water is the sprinter: a lit, rich day doubles it in about a day, but its ammonia and phosphate half-saturations sit well above a cycled tank's trace, so it blooms on a spike and starves on lean water. Film is the stayer: a third of the pace, so it takes a week or two to show, but efficient on lean water. |
+| Two kinds | <Badge text="settled" variant="success" /> | Two trait records on one path. Green water is the sprinter: a lit, rich day doubles it in about a day, but its half-saturations sit well above a maintained tank's water — ammonia's above a cycled tank's trace, nitrate's at 25 ppm — so it blooms on a spike or rich water and starves on lean water. Film is the stayer: a third of the pace, so it takes a week or two to show, but efficient on lean water. |
 | Habitats | <Badge text="settled" variant="success" /> | Green water fills the column, film the fixed lit surfaces. A water change carries green water out with the water; a bare piece of hardscape thins film's coverage and keeps its tissue, a lifted piece takes its share of the film with it, and a swapped bed takes the floor's share out and arrives bare. |
 | Nutrients | <Badge text="settled" variant="success" /> | The plants' recipe, from the water alone, in one draw with every plant: no feeder is served before another. |
-| Nitrogen form | <Badge text="settled" variant="success" /> | Ammonia first and nitrate for the rest, on each kind's affinities; both take nitrate more poorly than a plant does. |
+| Nitrogen form | <Badge text="settled" variant="success" /> | Ammonia first and nitrate for the rest, on each kind's affinities: film takes nitrate as readily as a plant does, green water only from water richer than a maintained tank's. |
 | Carbon and oxygen | <Badge text="settled" variant="success" /> | The plants' photosynthesis and respiration on one CO₂ stock, its tissue rated at the plants' relation and run at its growth rate. |
 | Allelopathy | <Badge text="settled" variant="success" /> | One harm rate on thriving plant leaf per litre of standing water, with no threshold, on every kind — the minor term beside the ammonia plants take. It stands in for the small effects the model leaves out, and cannot hold a fed bloom on its own. |
 | Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape — the square of the deficit — and condition 0 kills what is left, bank and all. Both return it as waste, and a die-back is logged with the kind and the coverage it took. |
 | Scrubbing | <Badge text="scaffolding" variant="caution" /> | Coverage is one figure, so the scrubbed glass refills from the floor and the hardscape at once — see [Actions](/subsystems/actions/). |
 | Light taken | <Badge text="settled" variant="success" /> | Light, not damage — Beer–Lambert on the tissue the light crosses. |
 | Film on the leaves | <Badge text="scaffolding" variant="caution" /> | One coverage over the habitat, worn by every leaf alike: a leaf that lives for months carries no more than one that grew last week, so film costs a light-hungry plant more than a slow one. |
-| Calibration | <Badge text="scaffolding" variant="caution" /> | Traits and knobs are first-pass: believable, not fitted. |
+| Calibration | <Badge text="scaffolding" variant="caution" /> | Traits and knobs are first-pass: believable, not fitted. Green water's nitrate half-saturation is the exception — 25 ppm against the 0.05–2 ppm microalgae show in culture, set from whole-tank runs so a maintained tank's column stays clear and an overfed one tips. |
 
 ## How it works
 
@@ -120,7 +120,10 @@ tissue goes back as waste, so a crashing bloom spikes ammonia as it rots.
 Each kind takes its nitrogen as the plants do — ammonia first, nitrate for what
 ammonia leaves — on its own affinities. A cycled tank's trace of ammonia meets
 most of film's need and little of green water's; ammonia rising past that trace
-— a new tank, an overfed one, a melt — feeds green water fully.
+— a new tank, an overfed one, a melt — feeds green water fully. Film meets its
+need on a few ppm of nitrate, so a lean tank feeds it; green water meets half on
+25 ppm, so a maintained tank's column stays clear until ammonia or richer water
+tips it.
 
 ### Blackouts
 
@@ -140,10 +143,10 @@ their dust dies back over and over.
 | `hardiness` | Scales every harm by `1 − hardiness` | `0.4` | `0.4` |
 | `lowLight` | PAR at the bottom of its band: its daily light edge over a care-sheet day, and `Ik` at `saturationIrradianceFactor ×` it | `6` PAR | `6` PAR |
 | `nutrientDemand` | Its demand tier for potassium and iron, as a plant's | low | low |
-| Temperature · pH bands | Where comfort peaks and harm starts | `12–34` °C · `5.5–9.5` | `12–34` °C · `5.5–9.5` |
+| Temperature · pH bands | Where comfort peaks and harm starts, wider than any plant's | `12–34` °C · `4.5–9.5` | `12–34` °C · `4.5–9.5` |
 | `co2HalfSaturation` | CO₂ it fixes at half rate on | `0.3` mg/L | `0.3` mg/L |
 | `ammoniaHalfSaturation` | Total ammonia, as NH₃, it meets half its nitrogen need on | `0.5` ppm | `0.02` ppm |
-| `nitrateHalfSaturation` | Nitrate it meets half its nitrogen need on | `40` ppm | `10` ppm |
+| `nitrateHalfSaturation` | Nitrate it meets half its nitrogen need on | `25` ppm | `1` ppm |
 | `phosphateHalfSaturation` | Phosphate it meets half its phosphorus need on | `0.2` ppm | `0.02` ppm |
 | `tissueDensity` | Organic matter a full habitat holds | `0.03` g/L | `0.0003` g/cm² |
 | `sporeRate` | Mass that lands an hour, through the taper | `0.002` | `0.002` |
