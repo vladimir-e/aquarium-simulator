@@ -213,4 +213,4 @@ can move them at runtime.
 | Hardscape | Per type: colony surface, and the tannins a fresh piece carries |
 | Lids | Per type: the multiplier applied to evaporation |
 | Fixtures and pumps | The catalog of ratings a device can be built with — heater wattages, light PAR ratings, powerhead flow rates, CO₂ bubble rates, doser amounts |
-| Chemistry | Molecular weights and the mass ratios derived from them, and the degree-to-CaCO₃ conversion shared by dKH and dGH. Derived, never quoted twice |
+| Chemistry | Molecular weights and the mass ratios derived from them, the degree-to-CaCO₃ conversion shared by dKH and dGH, and the CaCO₃ in an equivalent with the protons each nitrogen process moves. Derived, never quoted twice |

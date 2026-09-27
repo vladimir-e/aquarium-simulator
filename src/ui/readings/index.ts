@@ -585,7 +585,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     kh: fromWater('kh', tape, {
       reading: read('kh'),
       sentence:
-        'The buffer that holds pH against CO₂. Tap water brings it; nitrification, driftwood and aqua soil spend it; calcite adds it.',
+        'The buffer that holds pH against CO₂. Tap water and calcite add it; driftwood and aqua soil spend it. Nitrogen moves it by its charge: ammonia arriving adds, nitrifying spends twice that, and plants and algae spend it taking ammonia and return it taking nitrate.',
     }),
     gh: fromWater('gh', tape, {
       reading: read('gh'),

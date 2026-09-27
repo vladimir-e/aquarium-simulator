@@ -19,7 +19,7 @@ import { ALGAE, bloomTissue } from '../algae/index.js';
 import { dailyLightIntegral } from '../equipment/light.js';
 import { produce } from 'immer';
 import { carbonateKh } from '../core/carbonate.js';
-import { CACO3_PER_NH3_ASSIMILATED, CACO3_PER_NO3_ASSIMILATED } from '../core/chemistry.js';
+import { CACO3_PER_EQUIVALENT, MW_NH3, MW_NO3 } from '../core/chemistry.js';
 import { getKhMass } from '../resources/helpers.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
@@ -369,7 +369,7 @@ describe('processFlora — plants', () => {
       expect(ammonia).toBeGreaterThan(0);
       expect(fromBed(state, result, 'nitrate')).toBeGreaterThan(0);
       expect(total(result.effects, 'kh', 'growth')).toBeCloseTo(
-        nitrate * CACO3_PER_NO3_ASSIMILATED - ammonia * CACO3_PER_NH3_ASSIMILATED,
+        (nitrate / MW_NO3 - ammonia / MW_NH3) * CACO3_PER_EQUIVALENT,
         10
       );
     });

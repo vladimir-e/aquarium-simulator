@@ -39,7 +39,7 @@ readings that fit it. Hardscape starts as bought.
 | AOB and NOB | The colony the seeded fish and the bed sustain at rest, never less than a month-old fishless colony's share of the surface ceiling — so a preset, which stocks nothing, opens on that share |
 | Substrate organic reserve | The share of a fresh bed still unleached on day 30 |
 | Substrate KH reserve | The share of a fresh soil bed's buffer left on day 30 |
-| KH | The tap's, or a fraction of it over aqua soil |
+| KH | The tap's, or a fraction of it over aqua soil, less an equivalent per mole of the nitrate the bed's leached organics left |
 | GH | The tap's, less whatever KH the soil took — the bed takes both alike, and no more than the tap's GH |
 | Nitrate, phosphate, potassium, iron | What a month of the bed's leaching and leak leaves behind, discounted for the water changes a keeper would have done |
 

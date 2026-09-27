@@ -23,7 +23,7 @@
  * short of oxygen stands nitrite while its ammonia still falls.
  */
 
-import type { Effect } from '../core/effects.js';
+import type { Effect, EffectTier } from '../core/effects.js';
 import type { Resources, SimulationState } from '../state.js';
 import type { System } from './types.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
@@ -35,12 +35,13 @@ import {
 } from '../config/nitrogen-cycle.js';
 import { monodFactor, monodUptake, q10Factor } from '../core/kinetics.js';
 import {
-  CACO3_PER_NH3_MINERALIZED,
-  CACO3_PER_NH3_NITRIFIED,
+  CACO3_PER_EQUIVALENT,
+  MW_NH3,
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
   O2_PER_NH3_OXIDIZED,
   O2_PER_NO2_OXIDIZED,
+  PROTONS_PER_N,
 } from '../core/chemistry.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { getPpm } from '../resources/index.js';
@@ -202,6 +203,17 @@ export function calculateColonyFlows(
 }
 
 /**
+ * mg of NH₃ minted from organic nitrogen — at the gills, out of decaying food
+ * or mineralising waste — as effects, with the KH its proton returns.
+ */
+export function mintAmmonia(ammonia: number, tier: EffectTier, source: string): Effect[] {
+  return [
+    { tier, resource: 'ammonia', delta: ammonia, source },
+    { tier, resource: 'kh', delta: (ammonia / MW_NH3) * PROTONS_PER_N.mint * CACO3_PER_EQUIVALENT, source },
+  ];
+}
+
+/**
  * Waste mineralized this tick (g) and the NH₃ it yields (mg), at the nitrogen
  * of the food the waste came from.
  */
@@ -307,7 +319,7 @@ export function calculateAmmoniaToNitrite(
     ammoniaConsumed,
     nitriteProduced: ammoniaConsumed * NH3_TO_NO2_MASS_RATIO,
     oxygenConsumedMg: ammoniaConsumed * O2_PER_NH3_OXIDIZED,
-    alkalinityConsumedMg: ammoniaConsumed * CACO3_PER_NH3_NITRIFIED,
+    alkalinityConsumedMg: (ammoniaConsumed / MW_NH3) * -PROTONS_PER_N.nitrify * CACO3_PER_EQUIVALENT,
     utilization: capacity > 0 ? ammoniaConsumed / capacity : 0,
   };
 }
@@ -481,18 +493,7 @@ export const nitrogenCycleSystem: System = {
         });
         currentWaste -= wasteConsumed;
 
-        effects.push({
-          tier: 'passive',
-          resource: 'ammonia',
-          delta: ammoniaProduced, // mg
-          source: 'nitrogen-cycle-mineralization',
-        });
-        effects.push({
-          tier: 'passive',
-          resource: 'kh',
-          delta: ammoniaProduced * CACO3_PER_NH3_MINERALIZED,
-          source: 'nitrogen-cycle-mineralization',
-        });
+        effects.push(...mintAmmonia(ammoniaProduced, 'passive', 'nitrogen-cycle-mineralization'));
         for (const nutrient of WASTE_NUTRIENTS) {
           effects.push({
             tier: 'passive',

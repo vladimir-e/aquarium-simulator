@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  alkalinitySpent,
   bedPool,
   calculateNutrientSufficiency,
   drawTissue,
@@ -19,6 +18,7 @@ import {
   speciesDemand,
   speciesHalfSaturation,
   tankPools,
+  uptakeAlkalinity,
   type TankPools,
   type TissueNeed,
 } from './nutrients.js';
@@ -36,15 +36,8 @@ import {
 } from '../config/nutrients.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { plantsDefaults } from '../config/plants.js';
-import {
-  CACO3_PER_NH3_NITRIFIED,
-  MW_CACO3,
-  MW_N,
-  MW_NH3,
-  MW_NO3,
-  NH3_TO_NO2_MASS_RATIO,
-  NO2_TO_NO3_MASS_RATIO,
-} from '../core/chemistry.js';
+import { CACO3_PER_EQUIVALENT, MW_N, MW_NH3, MW_NO3, NO2_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
+import { calculateAmmoniaToNitrite } from './nitrogen-cycle.js';
 import { monodUptake } from '../core/kinetics.js';
 import { createSimulation, type Resources } from '../state.js';
 import { growthFormOf, type PlantSpecies } from '../plants/species.js';
@@ -459,20 +452,20 @@ describe('ghDrawn', () => {
   });
 });
 
-describe('alkalinitySpent', () => {
-  const EQUIVALENT = MW_CACO3 / 2;
-
+describe('uptakeAlkalinity', () => {
   it('spends an equivalent per mole of nitrogen taken as ammonia and returns one per mole taken as nitrate', () => {
-    expect(alkalinitySpent({ ...ZERO_FORMS, ammonia: MW_NH3 })).toBeCloseTo(EQUIVALENT, 10);
-    expect(alkalinitySpent({ ...ZERO_FORMS, nitrate: MW_NO3 })).toBeCloseTo(-EQUIVALENT, 10);
-    expect(alkalinitySpent({ ...ZERO_FORMS, phosphate: 5, potassium: 5, iron: 5 })).toBe(0);
+    expect(uptakeAlkalinity({ ...ZERO_FORMS, ammonia: MW_NH3 })).toBeCloseTo(-CACO3_PER_EQUIVALENT, 10);
+    expect(uptakeAlkalinity({ ...ZERO_FORMS, nitrate: MW_NO3 })).toBeCloseTo(CACO3_PER_EQUIVALENT, 10);
+    expect(uptakeAlkalinity({ ...ZERO_FORMS, phosphate: 5, potassium: 5, iron: 5 })).toBe(0);
   });
 
-  it('spends as much on ammonia taken directly as on ammonia nitrified and taken as nitrate', () => {
-    const ammonia = 3;
-    const nitrate = ammonia * NH3_TO_NO2_MASS_RATIO * NO2_TO_NO3_MASS_RATIO;
-    expect(ammonia * CACO3_PER_NH3_NITRIFIED + alkalinitySpent({ ...ZERO_FORMS, nitrate })).toBeCloseTo(
-      alkalinitySpent({ ...ZERO_FORMS, ammonia }),
+  it('moves as much on ammonia taken directly as on ammonia nitrified and taken as nitrate', () => {
+    const nitrified = calculateAmmoniaToNitrite(3, 100, 1e6, 25, 8);
+    const nitrate = nitrified.nitriteProduced * NO2_TO_NO3_MASS_RATIO;
+
+    expect(nitrified.ammoniaConsumed).toBeGreaterThan(0);
+    expect(uptakeAlkalinity({ ...ZERO_FORMS, nitrate }) - nitrified.alkalinityConsumedMg).toBeCloseTo(
+      uptakeAlkalinity({ ...ZERO_FORMS, ammonia: nitrified.ammoniaConsumed }),
       10
     );
   });

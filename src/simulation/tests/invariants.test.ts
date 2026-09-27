@@ -5,7 +5,7 @@ import { tick } from '../tick.js';
 import { DEFAULT_CONFIG, configRange, withTunable, type TunableConfig } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { NUTRIENTS, WASTE_NUTRIENTS, type WasteNutrient } from '../config/nutrients.js';
-import { MW_CACO3, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
+import { CACO3_PER_EQUIVALENT, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
 import { tissueMass } from '../systems/plant-lifecycle.js';
 import { ALGAE, bloomTissue } from '../algae/index.js';
 import { purchase } from '../systems/plant-growth.js';
@@ -51,7 +51,7 @@ function mineralsInPools(state: SimulationState, n: WasteNutrient): number {
 function alkalinityNetOfNitrogen({ resources, equipment }: SimulationState): number {
   const { kh, ammonia, nitrite, nitrate } = resources;
   const charge = ammonia / MW_NH3 - nitrite / MW_NO2 - (nitrate + equipment.substrate.nutrients.nitrate) / MW_NO3;
-  return kh - (charge * MW_CACO3) / 2;
+  return kh - charge * CACO3_PER_EQUIVALENT;
 }
 
 function tetra(id: string): Fish {
@@ -310,6 +310,10 @@ describe('alkalinity around the nitrogen loop', () => {
   let dark: SimulationState;
   beforeAll(() => {
     start = produce(cycledBareTank(), (draft) => {
+      draft.equipment.substrate = {
+        ...freshSubstrate('gravel', draft.tank.capacity),
+        nutrients: { ...DEFAULT_CONFIG.nutrients.rootTab },
+      };
       draft.fish = [tetra('a'), tetra('b'), tetra('c')];
       draft.resources.food = 2;
       draft.plants = (['java_fern', 'amazon_sword', 'monte_carlo'] as const).map((species) =>
@@ -330,7 +334,11 @@ describe('alkalinity around the nitrogen loop', () => {
     );
   });
 
-  it('moves KH exactly as far as the charge on the inorganic nitrogen moves, through gills, decay, growth, shedding and rot', () => {
+  it('moves KH exactly as far as the charge on the inorganic nitrogen moves, through gills, decay, growth from the water and the bed, shedding and rot', () => {
+    const leakedOnly =
+      start.equipment.substrate.nutrients.nitrate * (1 - DEFAULT_CONFIG.nutrients.bedLeakRate) ** (LIT_DAYS * 24);
+    expect(lit.equipment.substrate.nutrients.nitrate).toBeLessThan(leakedOnly);
+
     for (const state of [lit, dark]) {
       expect(Math.abs(state.resources.kh - start.resources.kh)).toBeGreaterThan(1);
       expect(alkalinityNetOfNitrogen(state) / alkalinityNetOfNitrogen(start)).toBeCloseTo(1, 10);

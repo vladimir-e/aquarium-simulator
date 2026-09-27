@@ -27,9 +27,7 @@ CO₂ against KH wherever something needs it.
 | Aeration | <Badge text="scaffolding" variant="caution" /> | A boolean. Any aerating fitting multiplies exchange by exactly 3, off-gasses CO₂ 1.5× faster and injects the same `0.05` mg/L/hr, whatever the tank. |
 | pH from CO₂ and KH | <Badge text="settled" variant="success" /> | The hobby relation `CO₂ = 3 × KH × 10^(7 − pH)`, derived on read and never stored, so it cannot lag or drift. |
 | Soft-water floor | <Badge text="scaffolding" variant="caution" /> | A fixed `0.1` dKH of background buffer and `0.1` mg/L of residual CO₂ keep pH finite at KH 0 and CO₂ 0. Stand-ins for the phosphate and humic buffers a real tank carries. |
-| Nitrification spends KH | <Badge text="settled" variant="success" /> | Stoichiometric — see [Nitrogen cycle](/subsystems/nitrogen-cycle/). |
-| Flora's nitrogen moves KH | <Badge text="settled" variant="success" /> | Stoichiometric: a proton out per ammonia nitrogen taken, one in per nitrate nitrogen, so ammonia reaches tissue for the same KH whether the colony nitrifies it first or not. |
-| Ammonia arriving takes a proton | <Badge text="settled" variant="success" /> | Stoichiometric: NH₃ from gills, decaying food and mineralising waste becomes NH₄⁺ and returns an equivalent per nitrogen. KH moves only with the charge on the water's inorganic nitrogen, so organic nitrogen carried to nitrate nets an equivalent and nitrogen cycled through flora tissue nets none. |
+| Nitrogen moves KH by its charge | <Badge text="settled" variant="success" /> | Stoichiometric: minting ammonia, nitrifying it and the flora's uptake each move an equivalent per proton they take up or release — see [KH and pH](#kh-and-ph). |
 | Tap, top-off and evaporation | <Badge text="settled" variant="success" /> | KH and GH are masses, so evaporation concentrates them and every litre of tap water brings `tapKh` and `tapGh` with it. |
 | Hardscape and substrate | <Badge text="scaffolding" variant="caution" /> | Hand-set rates and reserves. Calcite dissolves in proportion to [H⁺] and never runs out; driftwood's tannins and aqua soil's buffer are finite and taper as they are spent. |
 | Calcite and soil move GH with KH | <Badge text="settled" variant="success" /> | Stoichiometric: CaCO₃ dissolves into equal CaCO₃-equivalents of Ca²⁺ and carbonate, and soil's cation exchange takes up Ca²⁺ and Mg²⁺ for the H⁺ that spends carbonate. |
@@ -178,12 +176,26 @@ What moves KH:
 |---|---|---|
 | Tap water | + | `tapKh` per litre added — a fill, a water change, a top-off or the ATO |
 | Evaporation | concentrates | the mass stays, the water goes |
-| Ammonia from organic nitrogen | + | an equivalent, `MW_CACO3 / 2`, per mole of NH₃ excreted at the gills, released by decaying food or mineralised from waste |
-| Nitrification | − | per mg of ammonia oxidised — see [Nitrogen cycle](/subsystems/nitrogen-cycle/) |
-| Plants and the bloom | − or + | an equivalent, `MW_CACO3 / 2`, spent per mole of ammonia their tissue takes and returned per mole of nitrate, from the water or the bed |
+| Nitrogen | − or + | an equivalent, `CACO3_PER_EQUIVALENT` = `MW_CaCO3 / 2`, per proton — below |
 | Calcite rock | + | `calciteDissolutionRate` per rock at pH 7, ×10 per pH unit lower |
 | Driftwood | − | `tanninLeachRate` of the piece's remaining tannins per hour |
 | Aqua soil | − | `aquaSoilKhUptake` of the tank's KH per hour, scaled by the share of the bed's buffer left |
+
+Nitrogen moves KH by its charge: KH gains an equivalent for each proton a
+process takes from the water and loses one for each it releases.
+
+| Process | Protons taken per nitrogen |
+|---|---|
+| Ammonia minted from organic nitrogen — at the gills, out of decaying food, mineralised from waste: NH₃ + H⁺ → NH₄⁺ | `+1` |
+| Nitrification, NH₄⁺ → NO₂⁻ ([Nitrogen cycle](/subsystems/nitrogen-cycle/)) | `−2` |
+| Plants and the bloom taking ammonia | `−1` |
+| Plants and the bloom taking nitrate, from the water or the bed | `+1` |
+
+Through these processes KH moves exactly with the charge on the inorganic
+nitrogen in the water and the bed, so organic nitrogen carried to nitrate nets
+one equivalent spent, and nitrogen that goes back into tissue, in either form,
+nets none. Every other flow here — and a fertiliser dose or a water change —
+moves KH and that charge independently.
 
 Four hobby behaviours fall out. A heavily stocked tank left without water
 changes drains its KH and its pH sags — old tank syndrome. A lightly stocked
@@ -191,10 +203,8 @@ one topped off with hard tap water creeps the other way. A calcite scape
 settles where dissolution, slowing as pH climbs, balances what the tank spends.
 And a fresh soil tank starts acidic and drifts toward tap chemistry over the
 months its buffer takes to run down — the reserves themselves are on
-[Equipment](/subsystems/equipment/). Plants slow the first: nitrogen that
-reaches tissue costs no KH in either form, so a tank spends an equivalent only
-for each mole of nitrate it keeps — a planting that keeps pace with its
-stocking holds its KH.
+[Equipment](/subsystems/equipment/). Plants slow the first: a planting that
+keeps pace with its stocking holds its KH.
 
 ### GH
 
@@ -211,8 +221,8 @@ plant uptake read it — and it moves with KH wherever the two share a cause:
 | Plants | − | a fixed share of the nutrients they draw, on [Plants](/subsystems/plants/) |
 
 Driftwood and nitrification spend carbonate, not calcium, so a tank that drains
-its KH keeps its GH. A cycled soil tank sits as far below the tap in GH as it
-does in KH, since the bed and the water changes treat both alike.
+its KH keeps its GH. A cycled soil tank sits as far below the tap in GH as the
+soil took KH, and its KH lower still by the nitrate its month made.
 
 ### Stocks and rates
 
@@ -220,7 +230,7 @@ does in KH, since the bed and the water changes treat both alike.
 |---|---|---|---|
 | `oxygen` | Gas exchange toward saturation; aeration bubbles; photosynthesis | Fish, plant respiration, decay, both nitrifier guilds | mg/L |
 | `co2` | Injection; fish, plant respiration, decay | Off-gassing toward atmospheric; photosynthesis | mg/L |
-| `kh` | Tap water; calcite; ammonia arriving from organic nitrogen; nitrate the flora take | Nitrification; ammonia the flora take; driftwood; aqua soil; the old water a change removes | mg CaCO₃ |
+| `kh` | Tap water; calcite; ammonia minted from organic nitrogen; nitrate the flora take | Nitrification; ammonia the flora take; driftwood; aqua soil; the old water a change removes | mg CaCO₃ |
 | `gh` | Tap water; calcite | Aqua soil; plants; the old water a change removes | mg CaCO₃ |
 
 ## Key tunables

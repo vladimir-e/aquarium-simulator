@@ -275,8 +275,17 @@ export interface CycleProjection {
   hours: number;
   /** Nitrite at the peak, ppm. */
   ppm: number;
-  /** Plants or a bloom can take ammonia the chain alone never sees, so the peak reaches `ppm` at most. */
-  upperBound: boolean;
+  /** Flora that can take ammonia the chain alone never sees; with any, the peak reaches `ppm` at most. */
+  feeders: ('plants' | 'algae')[];
+}
+
+/** Plants, and a bloom the lamp can light or its bank can grow in the dark. */
+function ammoniaFeeders(state: SimulationState, config: TunableConfig): CycleProjection['feeders'] {
+  const lit = dailyLightIntegral(scheduledLightHistory(state, config.optics)) > 0;
+  const feeders: CycleProjection['feeders'] = [];
+  if (state.plants.length > 0) feeders.push('plants');
+  if (lit || state.algae.surplus > 0) feeders.push('algae');
+  return feeders;
 }
 
 /**
@@ -392,8 +401,7 @@ export function projectNitritePeak(
   }
 
   if (peakAt === 0) return null;
-  const lit = dailyLightIntegral(scheduledLightHistory(state, config.optics)) > 0;
-  return { hours: peakAt, ppm: peakPpm, upperBound: lit || state.plants.length > 0 };
+  return { hours: peakAt, ppm: peakPpm, feeders: ammoniaFeeders(state, config) };
 }
 
 function inDays(hours: number): string {
@@ -404,8 +412,8 @@ function inDays(hours: number): string {
 function peakClause(projection: CycleProjection | null): string {
   if (!projection) return ` No nitrite peak within ${PROJECTION_HORIZON / 24} d at this production rate.`;
   const ppm = `${projection.ppm.toFixed(2)} ppm`;
-  return projection.upperBound
-    ? ` Nitrite peaks ${inDays(projection.hours)} at no more than ${ppm}, as plants and algae take ammonia too.`
+  return projection.feeders.length > 0
+    ? ` Nitrite peaks ${inDays(projection.hours)} at no more than ${ppm}, as ${projection.feeders.join(' and ')} take ammonia too.`
     : ` Nitrite peaks ${inDays(projection.hours)} at ${ppm}.`;
 }
 

@@ -11,8 +11,8 @@ import type { Effect } from '../core/effects.js';
 import type { TunableConfig } from '../config/index.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
-import { CACO3_PER_NH3_MINERALIZED } from '../core/chemistry.js';
 import { processMetabolism, type MetabolismResult } from '../systems/metabolism.js';
+import { mintAmmonia } from '../systems/nitrogen-cycle.js';
 import type { VitalityResult } from '../systems/vitality.js';
 import { processHealth } from '../systems/fish-health.js';
 import { createLog } from '../core/logging.js';
@@ -78,18 +78,7 @@ export function processLivestock(
   // Direct ammonia excretion via gills (ammoniotelic pathway).
   // Stored as NH3 compound mass (mg); MW scaling handled in metabolism.
   if (metabolismResult.ammoniaProduced > 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'ammonia',
-      delta: metabolismResult.ammoniaProduced,
-      source: 'fish-gill-excretion',
-    });
-    effects.push({
-      tier: 'active',
-      resource: 'kh',
-      delta: metabolismResult.ammoniaProduced * CACO3_PER_NH3_MINERALIZED,
-      source: 'fish-gill-excretion',
-    });
+    effects.push(...mintAmmonia(metabolismResult.ammoniaProduced, 'active', 'fish-gill-excretion'));
   }
 
   for (const nutrient of WASTE_NUTRIENTS) {

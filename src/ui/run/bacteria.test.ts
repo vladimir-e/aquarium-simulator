@@ -314,7 +314,7 @@ describe('projectNitritePeak', () => {
     const projection = projectPeak(state)!;
     const engine = enginePeak(state);
 
-    expect(projection.upperBound).toBe(false);
+    expect(projection.feeders).toEqual([]);
     expect(Math.abs(projection.hours - engine.hours)).toBeLessThanOrEqual(2);
     expect(Math.abs(projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.01);
     expect(bacteriaSummary(readBiofilter(state), projection)).toContain(
@@ -322,18 +322,36 @@ describe('projectNitritePeak', () => {
     );
   });
 
-  it('reads the peak as a ceiling wherever plants or a bloom can take the ammonia', () => {
+  it('reads the peak as a ceiling wherever plants or a bloom can take the ammonia, and names them', () => {
     const lit = soilTank();
     const projection = projectPeak(lit)!;
 
-    expect(projection.upperBound).toBe(true);
+    expect(projection.feeders).toEqual(['algae']);
     expect(enginePeak(lit).ppm).toBeLessThanOrEqual(projection.ppm);
     expect(bacteriaSummary(readBiofilter(lit), projection)).toContain(
-      `at no more than ${projection.ppm.toFixed(2)} ppm`
+      `at no more than ${projection.ppm.toFixed(2)} ppm, as algae take ammonia too.`
     );
 
     const plantedDark = applyAction(soilTank({ lit: false }), { type: 'addPlant', species: 'anubias' }).state;
-    expect(projectPeak(plantedDark)!.upperBound).toBe(true);
+    expect(projectPeak(plantedDark)!.feeders).toEqual(['plants']);
+    const plantedLit = applyAction(lit, { type: 'addPlant', species: 'anubias' }).state;
+    expect(bacteriaSummary(readBiofilter(plantedLit), projectPeak(plantedLit))).toContain(
+      'as plants and algae take ammonia too.'
+    );
+  });
+
+  it('counts a bloom in the dark as a feeder while its bank buys tissue', () => {
+    const banked = produce(soilTank({ lit: false }), (draft) => {
+      draft.algae = { mass: 40, condition: 100, surplus: 20 };
+      draft.resources.ammonia = getMassFromPpm(0.5, draft.resources.water);
+    });
+    const spent = produce(banked, (draft) => {
+      draft.algae.surplus = 0;
+    });
+
+    expect(readHourAhead(banked, config).algae.waterUptake.ammonia).toBeGreaterThan(0);
+    expect(projectPeak(banked)!.feeders).toEqual(['algae']);
+    expect(projectPeak(spent)!.feeders).toEqual([]);
   });
 
   it('finds a lower peak once an ATO is holding the volume up', () => {
@@ -380,7 +398,7 @@ describe('bacteriaSummary', () => {
 
   it('blames the lagging colony while nitrite is climbing', () => {
     const readout = readBiofilter(colonised(stocked(), { aob: 0.5, nob: 0.001, ammonia: 1 }));
-    const summary = bacteriaSummary(readout, { hours: 30, ppm: 2, upperBound: false });
+    const summary = bacteriaSummary(readout, { hours: 30, ppm: 2, feeders: [] });
 
     expect(summary).toContain('NOB trail AOB by');
     expect(summary).toContain('Nitrite peaks in');

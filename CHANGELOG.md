@@ -11,7 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Ammonia returns the KH it costs** (#NN) - ammonia from gills, decay and mineralisation takes up a proton, so the cycle drains KH half as fast and nitrogen cycled through flora costs none.
+- **Nitrogen moves KH by its charge** (#NN) - minted ammonia takes up a proton, so the cycle drains KH half as fast, and a cycled seed's KH pays for its nitrate.
 - **Flora take ammonia before nitrate** (#NN) - plants and the bloom take their nitrogen as ammonia before nitrate, moving KH as they do, and allelopathy is the minor term; breaking: `formShares` replaces `nutrientShares`, `NutrientPool.stock` and `PoolDraw.shares` are per form, `halfSaturation` gains `ammonia` (v33).
 - **A plant lives at the rate it grows** (#NN) - its leaf fixes, respires and starves at its growth rate, so a carpet melts in a blackout an anubias rides out.
 - **Algae is a plant without a position** (#NN) - the bloom runs the plants' law on its own traits in one flora pass beside them, grows logistically and dies back into waste; breaking: `processFlora` replaces `processPlants`/`processAlgae`, no `spendAlgaeSurplus`/`computeAlgaePopulation`/`AlgaePopulationResult`/`AlgaePopulationBreakdown`/`getTotalRateUnits`, `feederShares` replaces `plantShares`, `floraHealingRate` replaces `plantHealingRate`, `saturationIrradiance` replaces `getSaturationIrradiance`, `calculatePhotosynthesis` takes `CarbonFixer`s, `poolDraws(pools, feeder)`, `saturationIrradiance`/`dailyLightEdge` take `plantTraits(species)`, `AlgaeState` gains `condition`, `AlgaeConfig` is `allelopathySeverity` alone, `LogEvent` gains `algae-died`, `LogQuantity` gains `coverage`, growth effects sourced `'growth'` (v33).

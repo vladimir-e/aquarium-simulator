@@ -56,7 +56,6 @@ import {
 import { computeAlgaeVitality } from '../systems/algae-vitality.js';
 import { calculatePhotosynthesis, plantFixer } from '../systems/photosynthesis.js';
 import {
-  alkalinitySpent,
   drawTissue,
   feederShares,
   ghDrawn,
@@ -66,6 +65,7 @@ import {
   plantFeeder,
   poolDraws,
   tankPools,
+  uptakeAlkalinity,
 } from '../systems/nutrients.js';
 import { calculateRespiration } from '../systems/respiration.js';
 import { purchase, sizeBought, supply } from '../systems/plant-growth.js';
@@ -200,7 +200,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const uptake = sumForms([fromWater, fromBed]);
   for (const f of NUTRIENT_FORMS) pushDelta(f, -fromWater[f], 'growth');
   pushDelta('gh', -ghDrawn(nutrientsIn(uptake).nitrate, state.resources), 'growth');
-  pushDelta('kh', -alkalinitySpent(uptake), 'growth');
+  pushDelta('kh', uptakeAlkalinity(uptake), 'growth');
   const supplied = purchases.map((bought, i) => supply(bought, tissue.supplied[i]));
   const bloomSupplied = supplyBloom(bloomPurchase, tissue.supplied[state.plants.length], ALGAE, plantsConfig);
 

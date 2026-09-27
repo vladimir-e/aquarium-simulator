@@ -10,6 +10,7 @@ import {
   restingColony,
   calculateWasteToAmmonia,
   calculateAmmoniaToNitrite,
+  mintAmmonia,
   calculateNitriteToNitrate,
   aobCapacity,
   nobCapacity,
@@ -17,7 +18,7 @@ import {
   nobProcessingRateMultiplier,
 } from './nitrogen-cycle.js';
 import {
-  CACO3_PER_NH3_NITRIFIED,
+  CACO3_PER_EQUIVALENT,
   MW_N,
   MW_NH3,
   NH3_TO_NO2_MASS_RATIO,
@@ -224,6 +225,15 @@ describe('restingColony', () => {
     expect(restingColony('aob', 1, 18, maxPopulation)).toBeGreaterThan(
       restingColony('aob', 1, 28, maxPopulation)
     );
+  });
+});
+
+describe('mintAmmonia', () => {
+  it('pairs the ammonia with an equivalent of KH per mole, on the tier and source it was minted at', () => {
+    const [ammonia, kh] = mintAmmonia(2 * MW_NH3, 'active', 'fish-gill-excretion');
+
+    expect(ammonia).toEqual({ tier: 'active', resource: 'ammonia', delta: 2 * MW_NH3, source: 'fish-gill-excretion' });
+    expect(kh).toEqual({ tier: 'active', resource: 'kh', delta: 2 * CACO3_PER_EQUIVALENT, source: 'fish-gill-excretion' });
   });
 });
 
@@ -715,7 +725,7 @@ describe('nitrogenCycleSystem', () => {
       expect(nitriteEffect!.delta).toBeCloseTo(-ammoniaEffect!.delta * NH3_TO_NO2_MASS_RATIO, 10);
     });
 
-    it('spends KH for the ammonia it oxidises', () => {
+    it('spends two equivalents of KH per mole of ammonia it oxidises', () => {
       const state = createTestState({ ammonia: ppmToMass(1.0), aob: 100 });
       const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
@@ -723,7 +733,7 @@ describe('nitrogenCycleSystem', () => {
       const kh = effects.filter((e) => e.resource === 'kh');
 
       expect(kh).toHaveLength(1);
-      expect(kh[0]!.delta).toBeCloseTo(ammonia!.delta * CACO3_PER_NH3_NITRIFIED, 10);
+      expect(kh[0]!.delta).toBeCloseTo((2 * ammonia!.delta * CACO3_PER_EQUIVALENT) / MW_NH3, 10);
     });
 
     it('does not process ammonia when AOB is 0', () => {

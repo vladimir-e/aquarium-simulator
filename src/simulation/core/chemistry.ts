@@ -1,5 +1,6 @@
 /**
- * Molecular weights and the mass ratios derived from them.
+ * Molecular weights, the mass ratios derived from them, and the protons each
+ * nitrogen process moves.
  *
  * These are measurements of the physical world, not tunables: nothing in
  * `config/` may restate one, and a system that converts between two compounds
@@ -63,30 +64,21 @@ export const MW_CAO = 56.08;
 /** ≈ 17.848. mg/L of CaCO3 in one German degree of hardness, dKH or dGH alike: 10 mg/L of CaO. */
 export const CACO3_PER_DEGREE = (10 * MW_CACO3) / MW_CAO;
 
-/**
- * ≈ 5.877. The 2 H⁺ that ammonia oxidation releases each spend a bicarbonate —
- * one CaCO3 equivalent per mole of ammonia, the 7.14 per gram of nitrogen the
- * wastewater texts quote.
- */
-export const CACO3_PER_NH3_NITRIFIED = MW_CACO3 / MW_NH3;
+/** ≈ 50.05. mg of CaCO3 in a milliequivalent of alkalinity: the bicarbonate one proton spends. */
+export const CACO3_PER_EQUIVALENT = MW_CACO3 / 2;
 
 /**
- * ≈ 2.939. Ammonia minted from organic nitrogen — at a fish's gills, or out of
- * decaying food and mineralising waste — takes up an H⁺ as it becomes NH4⁺,
- * which returns half a CaCO3 equivalent per mole. Organic nitrogen nitrified
- * to nitrate nets half what nitrifying spends, and nitrogen that goes back
- * into tissue in either form nets nothing.
+ * Protons the water gives up per nitrogen each process carries, and so
+ * equivalents of KH it gains — negative where the process releases them:
+ * - mint: ammonia minted from organic nitrogen takes one up, NH3 + H⁺ → NH4⁺
+ * - nitrify: NH4⁺ + 1.5 O2 → NO2⁻ + 2H⁺ + H2O releases two, the 7.14 mg of
+ *   CaCO3 per mg of nitrogen the wastewater texts quote
+ * - ammoniumUptake: a cell pushes one out for each NH4⁺ it takes up
+ * - nitrateUptake: and takes one in with each NO3⁻
  */
-export const CACO3_PER_NH3_MINERALIZED = MW_CACO3 / 2 / MW_NH3;
-
-/**
- * ≈ 2.939. A cell taking up NH4⁺ pushes out an H⁺ to keep its charge, which
- * spends half a CaCO3 equivalent per mole of ammonia.
- */
-export const CACO3_PER_NH3_ASSIMILATED = MW_CACO3 / 2 / MW_NH3;
-/**
- * ≈ 0.807. A cell taking up NO3⁻ takes an H⁺ in with it, which returns half a
- * CaCO3 equivalent per mole of nitrate — so ammonia nitrified and then
- * assimilated as nitrate spends what ammonia assimilated directly does.
- */
-export const CACO3_PER_NO3_ASSIMILATED = MW_CACO3 / 2 / MW_NO3;
+export const PROTONS_PER_N = {
+  mint: 1,
+  nitrify: -2,
+  ammoniumUptake: -1,
+  nitrateUptake: 1,
+} as const;

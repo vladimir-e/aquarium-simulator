@@ -33,9 +33,11 @@ import {
   type NutrientVector,
 } from '../config/nutrients.js';
 import {
-  CACO3_PER_NH3_ASSIMILATED,
-  CACO3_PER_NO3_ASSIMILATED,
+  CACO3_PER_EQUIVALENT,
+  MW_NH3,
+  MW_NO3,
   NO3_TO_NH3_MASS_RATIO,
+  PROTONS_PER_N,
 } from '../core/chemistry.js';
 import { monodFactor, monodUptake } from '../core/kinetics.js';
 import { getMassFromPpm, getPpm } from '../resources/index.js';
@@ -251,12 +253,12 @@ export function ghDrawn(nitrate: number, water: Pick<Resources, 'gh' | 'water'>)
   );
 }
 
-/**
- * mg of KH, as CaCO3, taking up these forms spends: the proton each ammonia
- * pushes out spends it, the one each nitrate takes in returns it.
- */
-export function alkalinitySpent(uptake: FormVector): number {
-  return uptake.ammonia * CACO3_PER_NH3_ASSIMILATED - uptake.nitrate * CACO3_PER_NO3_ASSIMILATED;
+/** mg of KH, as CaCO3, taking up these forms moves. */
+export function uptakeAlkalinity(uptake: FormVector): number {
+  const protons =
+    (uptake.ammonia / MW_NH3) * PROTONS_PER_N.ammoniumUptake +
+    (uptake.nitrate / MW_NO3) * PROTONS_PER_N.nitrateUptake;
+  return protons * CACO3_PER_EQUIVALENT;
 }
 
 /**
