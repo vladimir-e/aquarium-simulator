@@ -11,6 +11,7 @@ import {
   MAX_SUFFICIENCY_EDGE,
   MAX_SURPLUS_CAP,
   MAX_WATER_ATTENUATION_PER_CM,
+  NUTRIENT_FORMS,
   NUTRIENTS,
   WASTE_NUTRIENTS,
 } from '../../simulation/config/index.js';
@@ -478,7 +479,7 @@ const NutrientsConfigSchema = z
     fertilizerFormula: NutrientVectorSchema,
     rootTab: NutrientVectorSchema,
     bedLeakRate: z.number(),
-    halfSaturation: NutrientVectorSchema,
+    halfSaturation: numbersFor(NUTRIENT_FORMS),
     demand: z
       .object({ low: DemandVectorSchema, medium: DemandVectorSchema, high: DemandVectorSchema })
       .strict(),

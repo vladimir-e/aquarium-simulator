@@ -10,17 +10,22 @@
  */
 
 import {
+  bedPool,
   calculateNutrientSufficiency,
   canRootTab,
   floorCover,
+  formShares,
   getDosePreview,
   getSubstrateNutrients,
   growthFormOf,
   isOvergrown,
   PLANT_SPECIES_DATA,
+  plantFeeder,
   plantNitrateEdge,
   speciesHalfSaturation,
+  tankPools,
   type LogEntry,
+  type NutrientPool,
   type Plant,
   type PlantSpecies,
   type Resources,
@@ -36,6 +41,7 @@ import {
   type ResourceDefinition,
 } from '../../simulation/resources/index.js';
 import {
+  FORMS_OF,
   mapNutrients,
   NUTRIENTS,
   type FertilizerFormula,
@@ -307,7 +313,9 @@ export interface NutrientReading {
   label: string;
   ppm: number;
   text: string;
-  /** ppm the hungriest plant in the tank needs; 0 when nothing is planted. */
+  /** Some plant feeds on it from the water. */
+  asked: boolean;
+  /** ppm the hungriest plant in the tank needs beside what the forms it takes first meet; 0 when nothing is planted, or those forms meet it all. */
   needed: number;
   neededText: string;
   /** Position against that need, 0–1. */
@@ -348,16 +356,21 @@ const FEEDS_FROM = {
 
 /**
  * ppm, in one pool, at which the hungriest of these plants has its need there
- * met up to the edge where deficiency harm starts. A plant feeding from both
- * pools reaches that edge with each at its own.
+ * met up to the edge where deficiency harm starts, counting what the forms it
+ * takes first already meet — nitrate is asked only for what the ammonia leaves.
+ * A plant feeding from both pools reaches that edge with each at its own.
  */
-function neededPpm(plants: readonly Plant[], key: Nutrient, config: TunableConfig): number {
+function neededPpm(plants: readonly Plant[], key: Nutrient, pool: NutrientPool, config: TunableConfig): number {
   const edge = config.plants.sufficiencyEdge;
-  const halfSaturation = Math.max(
+  return Math.max(
     0,
-    ...plants.map((plant) => speciesHalfSaturation(plant.species, key, config.nutrients))
+    ...plants.map((plant) => {
+      const shares = formShares(pool, plantFeeder(plant.species, config.nutrients));
+      const left = FORMS_OF[key].filter((f) => f !== key).reduce((unmet, f) => unmet * (1 - shares[f]), 1);
+      const share = 1 - (1 - edge) / left;
+      return share > 0 ? (speciesHalfSaturation(plant.species, key, config.nutrients) * share) / (1 - share) : 0;
+    })
   );
-  return (halfSaturation * edge) / (1 - edge);
 }
 
 /**
@@ -376,9 +389,10 @@ export function nutrientProbe(state: SimulationState, config: TunableConfig): Nu
   const water = state.resources.water;
   const capacity = state.tank.capacity;
   const standing = state.equipment.substrate.nutrients;
+  const [inWater, inBed] = tankPools(state);
   const need = {
-    water: mapNutrients((n) => neededPpm(state.plants.filter(FEEDS_FROM.water), n, config)),
-    bed: mapNutrients((n) => neededPpm(state.plants.filter(FEEDS_FROM.bed), n, config)),
+    water: mapNutrients((n) => neededPpm(state.plants.filter(FEEDS_FROM.water), n, inWater, config)),
+    bed: mapNutrients((n) => neededPpm(state.plants.filter(FEEDS_FROM.bed), n, inBed, config)),
   };
   const met: Resources = { ...state.resources };
   if (water > 0) {
@@ -390,10 +404,7 @@ export function nutrientProbe(state: SimulationState, config: TunableConfig): Nu
     bed: mapNutrients((n) => Math.max(standing[n], getMassFromPpm(need.bed[n], capacity))),
     sufficiency: (w, b, species) =>
       calculateNutrientSufficiency(
-        [
-          { stock: w, volume: water },
-          { stock: b, volume: capacity },
-        ],
+        [{ stock: w, volume: water }, bedPool(b, capacity)],
         species,
         config.nutrients
       ),
@@ -438,6 +449,7 @@ export function nutrientReadings(
       label: NUTRIENT_LABEL[key],
       ppm,
       text: ppm.toFixed(resource.precision),
+      asked: plants.length > 0,
       needed,
       neededText: needed > 0 ? needed.toFixed(resource.precision) : '—',
       fill: needed > 0 ? Math.min(1, ppm / needed) : 0,

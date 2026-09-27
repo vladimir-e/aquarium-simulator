@@ -35,6 +35,7 @@ family. Low condition sheds tissue.
 | Epiphyte footprint | <Badge text="scaffolding" variant="caution" /> | A java fern or anubias on the rock claims floor like a rooted plant; there is no hardscape budget. |
 | Nitrate | <Badge text="settled" variant="success" /> | Log dose past the plant's own edge, the fish shape at an edge only a runaway doser reaches. |
 | Nutrition | <Badge text="settled" variant="success" /> | Every nutrient saturates on its own Monod curve against a per-species demand, in the water and in the bed. Tissue is drawn at one recipe where growth buys it, never at the fertilizer's ratio. |
+| Nitrogen form | <Badge text="settled" variant="success" /> | Ammonia first, at a fraction of nitrate's half-saturation, and nitrate for what ammonia leaves. Sufficiency counts both; each form is drawn on its own pooled Monod, so neither is overdrawn. |
 | Root feeding | <Badge text="settled" variant="success" /> | A fixed root share by growth form: a sword draws most of its need from the bed, a carpet half, an epiphyte none. No species is refused a bed — a rooted plant in untabbed gravel declines until it is tabbed. |
 | Carbon limitation | <Badge text="settled" variant="success" /> | Monod on dissolved CO₂, half rate at the species' carbon-need half-saturation. It scales photosynthesis and the CO₂ income channel, and never damages: a carbon-short plant earns and grows less. |
 | Tolerance bands | <Badge text="settled" variant="success" /> | Temperature and pH earn most at the band's centre and nothing at its edge, where damage starts from zero: net is continuous across every edge. |
@@ -173,7 +174,8 @@ draws oxygen with the lamps on.
 | `surplus` | Income at full condition | Healing; an offshoot; growth | condition points, capped at `surplusCap` |
 | `oxygen` | Photosynthesis | Respiration | mg/L |
 | `co2` | Respiration | Photosynthesis, on its own Monod curve | mg/L |
-| `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; the bed's leak; nitrification for NO₃, and mineralized waste and fish excretion for the rest, elsewhere | New tissue — growth and offshoots — at the tissue recipe | mg |
+| `ammonia` | Fish and mineralized waste, elsewhere | New tissue's nitrogen, first — ahead of the colony's oxidation, elsewhere | mg, as NH₃ |
+| `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; the bed's leak; nitrification for NO₃, and mineralized waste and fish excretion for the rest, elsewhere | New tissue — growth and offshoots — at the tissue recipe; nitrate only for the nitrogen ammonia leaves | mg |
 | The bed's `nutrients` | Aqua soil and root tabs ([Equipment](/subsystems/equipment/#the-bed)) | Root feeders' new tissue, at the same recipe; the leak | mg |
 | `waste` | Shed tissue and plant death, at the same grams growth drew for | Mineralization, elsewhere | g |
 
@@ -184,13 +186,20 @@ is measured in, which is what lets one number pay for both.
 
 A plant feeds on two pools: the water column and the bed's store. Its growth
 form's root share `r` fixes how much of its need it draws through its roots.
-Every nutrient saturates on its own Monod curve in each pool, the two shares
-weigh in by where the plant feeds, and sufficiency is the scarcest of them —
+Every form a pool holds saturates on its own Monod curve, the two pools weigh
+in by where the plant feeds, and sufficiency is the scarcest nutrient —
 Liebig's law over saturating shares. Sufficiency sets what a plant earns
 ([Income and harm](#income-and-harm)).
 
+Nitrogen comes in two forms. Ammonia goes straight into protein where nitrate
+has to be reduced first, so a plant takes ammonia first, half-saturating at a
+twentieth of nitrate's ppm, and asks nitrate only for what ammonia leaves: its nitrogen share
+in a pool is what the two meet between them. Water with ammonia and no nitrate
+still feeds a plant. The bed holds its nitrogen as nitrate.
+
 ```
-share_p,n   = ppm_p,n / (demand_n × K_n + ppm_p,n)      p: the water, the bed
+share_p,f   = ppm_p,f / (demand_n × K_f + ppm_p,f)      p: the water, the bed; f: a form of n
+share_p,n   = 1 − Π over n's forms of (1 − share_p,f)   nitrogen: ammonia, then nitrate
 share_n     = r × share_bed,n + (1 − r) × share_water,n
 sufficiency = min over n of share_n
 ```
@@ -199,7 +208,7 @@ The bed's ppm reads its store against the tank's capacity. A rooted plant over a
 bare bed tops out at `1 − r` however rich the water, under the
 [deficiency edge](#income-and-harm). A dry tank feeds nothing from either pool.
 
-| Demand tier | NO₃ · PO₄ | K · Fe |
+| Demand tier | NH₃ and NO₃ · PO₄ | K · Fe |
 |---|---|---|
 | Low | 0.3 | 0.05 |
 | Medium | 0.6 | 0.15 |
@@ -221,35 +230,44 @@ tissue.
 ```
 grams_i       = rateUnits({species_i, size bought_i + offshoot_i}) × tissuePerRateUnit
 w_i,p         = 1 − r_i from the water, r_i from the bed
-grams_p       = Σ w_i,p × grams_i
-requested_p,n = Σ w_i,p × grams_i × share_i,p,n
-K_eq,p,n      = pool_p,n × (grams_p / requested_p,n − 1)
-delivered_p,n = monodUptake(pool_p,n, grams_p × recipe_n, K_eq,p,n)
-met_p,n       = delivered_p,n / (requested_p,n × recipe_n)
-supply_i,n    = Σ over p of w_i,p × share_i,p,n × met_p,n
+left_i,p,f    = 1 for a nutrient's first form; for nitrate, 1 − reach_i,p,ammonia / w_i,p
+asked_p,f     = Σ w_i,p × grams_i × left_i,p,f
+requested_p,f = Σ w_i,p × grams_i × left_i,p,f × share_i,p,f
+K_eq,p,f      = pool_p,f × (asked_p,f / requested_p,f − 1)
+delivered_p,f = monodUptake(pool_p,f, asked_p,f × recipe_f, K_eq,p,f)
+met_p,f       = delivered_p,f / (requested_p,f × recipe_f)
+reach_i,p,f   = w_i,p × left_i,p,f × share_i,p,f × met_p,f
+supply_i,n    = Σ over p and n's forms of reach_i,p,f
 supply_i      = min over n of supply_i,n
-drawn_p,n     = Σ grams_i × supply_i × recipe_n × w_i,p × share_i,p,n × met_p,n / supply_i,n
+taken_i,p,f   = grams_i × supply_i × recipe_f × reach_i,p,f / supply_i,n
 ```
 
 The bank asks; the pools decide how much arrives. Each plant requests its
-tissue from each pool at the weight it feeds there and its share of each
-nutrient in it — the readings its sufficiency is made of. Each pool delivers
+tissue from each pool at the weight it feeds there and its share of each form
+in it — the readings its sufficiency is made of. Each pool delivers each form
 through `monodUptake` against the half-saturation `K_eq` at which one consumer
-would request, at the tick's start, what the planting requests. In an ordinary
-hour a pool meets every request and a plant grows at its sufficiency; an
-offshoot's lump on thin water is met in part, and no pool goes below zero. A
-lean species holds on where a hungry one starves, and two plants short of the
-same nutrient are met at the same fraction of their shares. The bloom requests
-beside the plants in the same call ([Algae](/subsystems/algae/)), so nothing is
-served before anything else. What a plant takes splits between the pools as
-they met it. The bank pays only for what arrived.
+would request, at the tick's start, what the planting requests. Nitrogen is
+asked of ammonia first and of nitrate only for what ammonia could not deliver,
+so a lump the ammonia can't cover is made up from nitrate in the same hour. In
+an ordinary hour a pool meets every request and a plant grows at its
+sufficiency; an offshoot's lump on thin water is met in part, and no pool goes
+below zero. A lean species holds on where a hungry one starves, and two plants
+short of the same nutrient are met at the same fraction of their shares. The
+bloom requests beside the plants in the same call
+([Algae](/subsystems/algae/)), so nothing is served before anything else. What
+a plant takes splits between the pools and forms as they met it. The bank pays
+only for what arrived.
+
+`recipe_f` is the recipe in the form's own mass: ammonia carries the recipe's
+nitrogen at `MW_NH3 / MW_NO3`, so whichever form it arrives in, a gram of
+tissue holds the same nitrogen.
 
 Shedding and death hand the same grams back as waste, which mineralizes beside
 its ammonia ([Nitrogen cycle](/subsystems/nitrogen-cycle/)) — into the water,
 whichever pool the tissue came from. A tank that dies back releases exactly
 what its plants took. Calcium and magnesium are drawn from the water on their
-own Monod curve, off the nitrate actually drawn from either pool (under Key
-tunables), and are not returned.
+own Monod curve, off the nitrogen actually taken from either pool, counted as
+nitrate (under Key tunables), and are not returned.
 
 ### Income and harm
 
@@ -444,7 +462,7 @@ sword fouls the water more than a carpet patch of the same size.
 | `saturationIrradianceFactor` | Multiple of a species' band low at which it saturates — the `Ik` of the light curve | `2.0` × band low |
 | `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which each carbon-need tier photosynthesises at half rate | `1.5` · `3` · `8` mg/L |
 | `co2PerRateUnit` | Carbon one rate unit moves, in either direction | `30` mg |
-| `halfSaturation` | Where a full-demand plant runs at half on each, NO₃ · PO₄ · K · Fe | `2` · `0.1` · `1` · `0.02` ppm |
+| `halfSaturation` | Where a full-demand plant takes each form at half its need, NH₃ · NO₃ · PO₄ · K · Fe | `0.1` · `2` · `0.1` · `1` · `0.02` ppm |
 | `demand` | Each tier's share of the full need, per nutrient — the table under Nutrition | — |
 | `baseRespirationRate` | Dark respiration as a share of the light-saturated rate | `0.03` /hr |
 | `respirationQ10` | Factor respiration and light starvation multiply by per 10 °C | `2.0` |
@@ -460,7 +478,7 @@ sword fouls the water more than a carpet patch of the same size.
 | `maxSheddingRate` | Share of itself a plant drops per hour at condition 0 | `0.02` /hr |
 | `nutrientDeficiencySeverity` · `sufficiencyEdge` | Damage at a sufficiency of 0 under saturating light, falling to nothing at the edge; and the sufficiency a plant counts as fed | `0.3` %/hr · `0.9` |
 | `ghStressSeverity` | Damage per dGH outside the species' band | `0.1` %/dGH/hr |
-| GH per nitrate drawn | Calcium and magnesium taken up per mg of nitrate actually drawn, off leaf-tissue ratios; a constant | `0.28` mg CaCO₃/mg |
+| GH per nitrate drawn | Calcium and magnesium taken up per mg of nitrogen actually taken, counted as nitrate, off leaf-tissue ratios; a constant | `0.28` mg CaCO₃/mg |
 | GH half-saturation | GH, as CaCO₃, at which that uptake runs at half; a constant | `1` mg/L |
 | Benefit peaks (×3) | Recovery per channel at its best, before the drive — the three make the budget in [Income and harm](#income-and-harm) | `0.125` %/hr |
 
@@ -472,7 +490,7 @@ The canopy's own constant, `leafAttenuationPerLai`, is under [Light](/subsystems
 |---|---|---|
 | [Light](/subsystems/light/) | `light` and `lightByHour`, read at each plant's own height through the canopy: PAR at the mean leaf multiplies the photosynthetic rate, every benefit channel and the deficiency stressor; the day's light there is what starvation reads; PAR at the crown top charges the light-high stressor | Every unit's crown, which shades the plants below it |
 | [Water & gases](/subsystems/water-and-gases/) | `co2` for the carbon Monod, `oxygen` for the respiration Monod, pH and `gh` for the tolerance bands | `oxygen` and `co2`, both directions, on one carbon yield; `gh` drawn with the nutrients |
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `nitrate`, and the `phosphate`, `potassium` and `iron` mineralized beside the ammonia | All four drawn as tissue grows; `waste` from shedding and death |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia` and `nitrate`, and the `phosphate`, `potassium` and `iron` mineralized beside the ammonia | `ammonia` first and `nitrate` for the rest, with the other three, drawn as tissue grows — ahead of the colony; `waste` from shedding and death |
 | [Environment](/subsystems/environment/) | `temperature` for the Q10 on respiration and starvation, `water` for every ppm, the box's depth and floor | — |
 | [Equipment](/subsystems/equipment/) | `substrate.nutrients` — the bed's store, for root feeders | The same store, drawn down as root feeders grow |
 | [Algae](/subsystems/algae/) | `algae.mass` — the shading stressor, as the hour starts; the bloom's share of the pooled tissue draw and of the CO₂ | Plant power per litre, the bloom's allelopathy |

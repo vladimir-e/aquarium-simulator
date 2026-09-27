@@ -36,6 +36,7 @@ import {
   plantLabels,
   plantRows,
   TRIM_TARGETS,
+  type NutrientReading,
   type PlantRow,
   type PlantSpeciesGroup,
 } from './flora';
@@ -354,6 +355,23 @@ describe('nutrientReadings', () => {
       expect(r.needed / need('monte_carlo', n)).toBeCloseTo(readings[0]!.needed / need('monte_carlo', 'nitrate'), 10);
     });
     expect(readings.every((r) => r.ppm === 0 && r.fill === 0)).toBe(true);
+  });
+
+  it('asks nitrate only for the nitrogen the ammonia in the water leaves, and none once ammonia meets it', () => {
+    const state = planted(['java_fern']);
+    const withAmmonia = (ppm: number): NutrientReading => {
+      const dosed = { ...state, resources: { ...state.resources, ammonia: ppm * state.resources.water } };
+      return nutrientReadings(dosed, DEFAULT_CONFIG).find((r) => r.key === 'nitrate')!;
+    };
+    const none = withAmmonia(0);
+    const some = withAmmonia(0.5 * speciesHalfSaturation('java_fern', 'ammonia', DEFAULT_CONFIG.nutrients));
+    const plenty = withAmmonia(100 * speciesHalfSaturation('java_fern', 'ammonia', DEFAULT_CONFIG.nutrients));
+
+    expect(some.needed).toBeGreaterThan(0);
+    expect(some.needed).toBeLessThan(none.needed);
+    expect(plenty.needed).toBe(0);
+    expect(plenty.asked).toBe(true);
+    expect(plenty.limiting).toBe(false);
   });
 
   it('asks less of every nutrient for a low-demand planting than a high-demand one', () => {

@@ -420,7 +420,9 @@ function nutrientView(
     sentence:
       reading.needed > 0
         ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops${harm && `; ${harm}`}.`
-        : `Nothing planted, so nothing is asking for it${harm && `; ${harm}`}.`,
+        : reading.asked
+          ? `Ammonia, which plants take first, meets all the nitrogen they ask for${harm && `; ${harm}`}.`
+          : `Nothing planted, so nothing is asking for it${harm && `; ${harm}`}.`,
     net: null,
     fills,
     drains: [],
@@ -530,7 +532,11 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
         { label: 'Fish gills', rate: ratePerHour(rates.gillsToAmmonia, 'ppm') },
         { label: 'Food decaying', rate: ratePerHour(rates.foodToAmmonia, 'ppm') },
       ],
-      drains: [{ label: 'AOB oxidising', rate: ratePerHour(-rates.ammoniaOxidised, 'ppm') }],
+      drains: [
+        { label: 'AOB oxidising', rate: ratePerHour(-rates.ammoniaOxidised, 'ppm') },
+        { label: 'Plants feeding', rate: ratePerHour(-rates.plantUptake, 'ppm') },
+        { label: 'Algae feeding', rate: ratePerHour(-rates.algaeUptake, 'ppm') },
+      ],
     }),
     nitrite: fromWater('nitrite', tape, {
       reading: read('nitrite'),
@@ -544,7 +550,9 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       sentence:
         nitrate.needed > 0
           ? `Plants go short under ${nitrate.neededText} ppm; ${harmClause('nitrate', nitrate.ceiling)}.`
-          : `Nothing planted to feed on it; ${harmClause('nitrate', nitrate.ceiling)}.`,
+          : nitrate.asked
+            ? `The plants take their nitrogen as ammonia for now; ${harmClause('nitrate', nitrate.ceiling)}.`
+            : `Nothing planted to feed on it; ${harmClause('nitrate', nitrate.ceiling)}.`,
       fills: nitrateFills,
       drains: [],
     }),

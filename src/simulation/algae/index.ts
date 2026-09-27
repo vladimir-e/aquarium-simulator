@@ -7,7 +7,7 @@
 import type { AlgaeState } from '../state.js';
 import type { NutrientsConfig, PlantsConfig } from '../config/index.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
-import type { Feeder } from '../systems/nutrients.js';
+import { formHalfSaturations, type Feeder } from '../systems/nutrients.js';
 import type { CarbonFixer } from '../systems/photosynthesis.js';
 import {
   bankConversion,
@@ -32,9 +32,16 @@ export function bloomRateUnits(mass: number, litres: number, traits: AlgaeTraits
   return metabolicRateUnits(bloomTissue(mass, litres, traits) / tissuePerRateUnit(config), traits);
 }
 
-/** A bloom feeds from the water alone. */
+/** A bloom feeds from the water alone, on its own nitrogen affinities and its demand tier for the rest. */
 export function bloomFeeder(traits: AlgaeTraits, config: NutrientsConfig): Feeder {
-  return { demand: config.demand[traits.nutrientDemand], rootShare: 0 };
+  return {
+    halfSaturation: {
+      ...formHalfSaturations(config.demand[traits.nutrientDemand], config),
+      ammonia: traits.ammoniaHalfSaturation,
+      nitrate: traits.nitrateHalfSaturation,
+    },
+    rootShare: 0,
+  };
 }
 
 export function bloomFixer(

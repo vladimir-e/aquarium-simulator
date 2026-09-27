@@ -6,7 +6,7 @@ import { readTank } from '../readings';
 import { bare, stocked, type Run } from '../test/run';
 import { query, renderStage } from '../test/stage';
 import { stubSim } from '../test/stubSim';
-import { DEFAULT_CONFIG, NUTRIENTS } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
   createSimulation,
@@ -239,10 +239,13 @@ describe('OverviewSection', () => {
   });
 
   it('reads the plant foods against what the plants ask for', () => {
-    renderOverview(stocked());
+    const run = stocked();
+    const asked = nutrientReadings(run.state, DEFAULT_CONFIG).filter((reading) => reading.needed > 0);
+    renderOverview(run);
     const nutrients = within(widget('Nutrients'));
 
-    expect(nutrients.getAllByText(/^need /)).toHaveLength(NUTRIENTS.length);
+    expect(asked.length).toBeGreaterThan(0);
+    expect(nutrients.getAllByText(/^need /)).toHaveLength(asked.length);
     expect(nutrients.getByText(/1 ml moves/)).toBeTruthy();
   });
 

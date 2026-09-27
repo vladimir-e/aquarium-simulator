@@ -265,6 +265,30 @@ describe('a bloom and its crash', () => {
   });
 });
 
+describe('a bloom fed on ammonia', () => {
+  let start: SimulationState;
+  let fed: SimulationState;
+  beforeAll(() => {
+    start = produce(createSimulation({ tankCapacity: 150 }), (draft) => {
+      draft.algae = { mass: 5, condition: 100, surplus: 20 };
+      draft.resources.ammonia = 2 * draft.resources.water;
+      draft.resources.phosphate = 1 * draft.resources.water;
+      draft.resources.potassium = 10 * draft.resources.water;
+      draft.resources.iron = 0.2 * draft.resources.water;
+    });
+    fed = run(start, 3 * 24);
+  });
+
+  it('grows on ammonia with no nitrate to take', () => {
+    expect(start.resources.nitrate).toBe(0);
+    expect(fed.algae.mass).toBeGreaterThan(start.algae.mass);
+  });
+
+  it('conserves nitrogen through the ammonia it builds into tissue', () => {
+    expect(nitrogenInPools(fed) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+  });
+});
+
 describe('a bloom at every tunable’s maximum', () => {
   const maxed = leaves(DEFAULT_CONFIG).flatMap(([path]): [string, TunableConfig][] => {
     const range = configRange(path);

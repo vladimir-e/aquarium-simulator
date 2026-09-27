@@ -28,6 +28,12 @@ export const N_TO_NH3_MASS_RATIO = MW_NH3 / MW_N;
 export const NH3_TO_NO2_MASS_RATIO = MW_NO2 / MW_NH3;
 /** ≈ 1.348. */
 export const NO2_TO_NO3_MASS_RATIO = MW_NO3 / MW_NO2;
+/**
+ * ≈ 0.275. The reduction a plant runs on the nitrate it takes before building
+ * it into protein, NO3⁻ → NH4⁺: the ammonia that carries a gram of nitrate's
+ * nitrogen.
+ */
+export const NO3_TO_NH3_MASS_RATIO = MW_NH3 / MW_NO3;
 
 /**
  * ≈ 0.727. 6CO2 + 6H2O → C6H12O6 + 6O2 is 1:1 in moles, so a gram of CO2 fixed

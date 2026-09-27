@@ -94,7 +94,7 @@ describe('WaterSection', () => {
     fireEvent.click(within(toxin).getByRole('button', { name: 'Close NO₃' }));
 
     fireEvent.click(row('Nutrients', 'NO₃'));
-    expect(within(screen.getByRole('dialog', { name: 'NO₃' })).getByText(/Plants ask for/)).toBeTruthy();
+    expect(within(screen.getByRole('dialog', { name: 'NO₃' })).getByText(/ask for/)).toBeTruthy();
   });
 
   it('carries the biofilter, its guilds and where the nitrite peak falls', () => {

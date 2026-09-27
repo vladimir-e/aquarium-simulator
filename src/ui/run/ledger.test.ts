@@ -268,6 +268,7 @@ describe('readLedger', () => {
     const preset = getPresetById('planted')!;
     let state = produce(createSimulation(preset.config, preset.seed), (draft) => {
       draft.plants = [];
+      draft.resources.nitrate = 100 * draft.resources.water;
       Object.assign(draft.algae, { mass: 20, condition: 100, surplus: 10 });
     });
     const notes = new Map<boolean, Set<string>>([

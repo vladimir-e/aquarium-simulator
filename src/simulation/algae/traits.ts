@@ -12,6 +12,10 @@ export interface AlgaeTraits extends FloraTraits {
   nutrientDemand: NutrientDemand;
   /** Dissolved CO₂ (mg/L) it photosynthesises at half rate on. */
   co2HalfSaturation: number;
+  /** Total ammonia (ppm, as NH₃) it meets half its nitrogen need on. */
+  ammoniaHalfSaturation: number;
+  /** Nitrate (ppm) it meets half its nitrogen need on. */
+  nitrateHalfSaturation: number;
   /** Organic matter in a litre of habitat at a full bloom, g. */
   tissuePerLitre: number;
   /** Mass that lands every hour through the taper, whatever the bloom is doing, 0–100 scale. */
@@ -24,7 +28,10 @@ export interface AlgaeTraits extends FloraTraits {
  *
  * Free CO₂ half-saturation for microalgae with carbon-concentrating mechanisms
  * runs well under 1 mg/L, since they take bicarbonate too: 93 % on the 4 mg/L
- * an uninjected tank holds, 99 % at an injected 25. Heavy green water carries
+ * an uninjected tank holds, 99 % at an injected 25. It takes ammonia as keenly
+ * as a plant — 0.05 ppm is 0.04 mg/L of nitrogen — but nitrate poorly, since
+ * reducing it costs energy a plant's leaf can spare: 15–20 ppm meets a
+ * quarter to a third of its need. Heavy green water carries
  * some 10–50 mg/L of dry cells; 30 mg/L of organic matter ties up about 7 ppm of
  * nitrate-equivalent nitrogen. Spores land at 0.05 of the scale a day: nothing
  * a reader sees, but an empty tank is never closed to a bloom.
@@ -38,6 +45,8 @@ export const ALGAE: AlgaeTraits = {
   tolerableTemp: [12, 34],
   tolerablePH: [5.5, 9.5],
   co2HalfSaturation: 0.3,
+  ammoniaHalfSaturation: 0.05,
+  nitrateHalfSaturation: 40,
   tissuePerLitre: 0.03,
   sporeRate: 0.002,
 };

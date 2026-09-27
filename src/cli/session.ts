@@ -18,10 +18,12 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
- * v17 put algae on the plants' vitality model. `AlgaeState` gains
- *    `condition`, and the `algae` config section is rebuilt as
- *    `AlgaeConfig`. A v16 session parses, and the first tick reads a bloom's
- *    condition and its allelopathy severity off keys it does not carry.
+ * v17 put algae on the plants' vitality model and fed every flora ammonia
+ *    before nitrate. `AlgaeState` gains `condition`, the `algae` config
+ *    section is rebuilt as `AlgaeConfig`, and `NutrientsConfig.halfSaturation`
+ *    gains `ammonia`. A v16 session parses, and the first tick reads a bloom's
+ *    condition, its allelopathy severity and every ammonia half-saturation off
+ *    keys it does not carry.
  * v16 made the bed a nutrient store and plants of their nutrients, and let a
  *    plant die only at condition 0. `Substrate` gains `nutrients`;
  *    `NutrientsConfig` drops `uptakePerRateUnit` and gains `rootTab` and

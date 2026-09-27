@@ -110,7 +110,7 @@ density you can look up rather than a score.
 ## Algae
 
 The bloom runs on the plants' constants, and what a kind of bloom is — its
-carbon, its tissue, its spores — sits in its traits, beside the plant species
+carbon, its nitrogen, its tissue, its spores — sits in its traits, beside the plant species
 ([Algae](/subsystems/algae/#key-tunables-and-traits)). What is left here holds
 for any bloom.
 
@@ -169,8 +169,8 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `fertilizerFormula.nitrate` · `.phosphate` · `.potassium` · `.iron` | The all-in-one fertilizer's composition per ml | mg/ml |
 | `rootTab.nitrate` · `.phosphate` · `.potassium` · `.iron` | What one root tab pushes into the bed | mg |
 | `bedLeakRate` | Share of each nutrient the bed holds that leaks into the water per hour | /hr |
-| `halfSaturation.*` | The ppm at which a full-demand plant's draw and sufficiency run at half | ppm |
-| `demand.low.*` · `demand.medium.*` · `demand.high.*` | Each tier's share of the full need, per nutrient; scales the half-saturation | — |
+| `halfSaturation.ammonia` · `.nitrate` · `.phosphate` · `.potassium` · `.iron` | The ppm of each form — total ammonia as NH₃ — at which a full-demand plant takes it at half its need for the nutrient it carries | ppm |
+| `demand.low.*` · `demand.medium.*` · `demand.high.*` | Each tier's share of the full need, per nutrient; scales the half-saturation of every form the nutrient comes in, ammonia's by nitrate's | — |
 | `foodMineralContent.phosphate` · `.potassium` · `.iron` | Minerals in a gram of food, in the waste it becomes, and in plant tissue | mg/g |
 
 ## Livestock

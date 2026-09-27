@@ -103,7 +103,7 @@ export {
 } from './presets.js';
 
 // Configuration
-export type { TunableConfig, FertilizerFormula, NutrientVector } from './config/index.js';
+export type { TunableConfig, FertilizerFormula, NutrientVector, NutrientForm, FormVector } from './config/index.js';
 export { DEFAULT_CONFIG } from './config/index.js';
 
 // Resources
@@ -375,12 +375,16 @@ export {
   speciesDemand,
   speciesHalfSaturation,
   nutrientShare,
-  nutrientShares,
+  formHalfSaturations,
+  formShares,
+  formsMeet,
+  bedPool,
   tankPools,
   plantFeeder,
   poolDraws,
   feederShares,
   organicNutrients,
+  nutrientsIn,
   tissueMass,
   losePlant,
   calculateCo2Factor,

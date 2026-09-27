@@ -17,7 +17,7 @@ import { plantsConfigMeta, type PlantsConfig } from '../config/plants.js';
 import { opticsDefaults } from '../config/optics.js';
 import { dailyLightIntegral } from '../equipment/light.js';
 import { bankConversion, bankDraw, dailyLightEdge, shedShare, tissuePerRateUnit } from '../systems/flora.js';
-import { poolDraws } from '../systems/nutrients.js';
+import { formHalfSaturations, poolDraws } from '../systems/nutrients.js';
 import type { AlgaeState } from '../state.js';
 
 const config = DEFAULT_CONFIG;
@@ -68,11 +68,18 @@ describe('the bloom’s light', () => {
 describe('bloomFeeder', () => {
   it('feeds from the water alone', () => {
     expect(bloomFeeder(ALGAE, config.nutrients).rootShare).toBe(0);
-    expect(bloomFeeder(ALGAE, config.nutrients).demand).toEqual(config.nutrients.demand[ALGAE.nutrientDemand]);
-    const water = { stock: { nitrate: 100, phosphate: 10, potassium: 100, iron: 1 }, volume: 10 };
-    const [fromWater, fromBed] = poolDraws([water, water], bloomFeeder(ALGAE, config.nutrients), config.nutrients);
+    const water = { stock: { ammonia: 1, nitrate: 100, phosphate: 10, potassium: 100, iron: 1 }, volume: 10 };
+    const [fromWater, fromBed] = poolDraws([water, water], bloomFeeder(ALGAE, config.nutrients));
     expect(fromWater.weight).toBe(1);
     expect(fromBed.weight).toBe(0);
+  });
+
+  it('takes nitrogen on its own affinities, and every other nutrient as a plant of its demand tier does', () => {
+    expect(bloomFeeder(ALGAE, config.nutrients).halfSaturation).toEqual({
+      ...formHalfSaturations(config.nutrients.demand[ALGAE.nutrientDemand], config.nutrients),
+      ammonia: ALGAE.ammoniaHalfSaturation,
+      nitrate: ALGAE.nitrateHalfSaturation,
+    });
   });
 });
 

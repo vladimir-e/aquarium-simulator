@@ -16,9 +16,9 @@ export interface AlgaeConfig {
 
 export const algaeDefaults: AlgaeConfig = {
   // A healthy planting of 0.1 rate units per litre — a well-planted tank —
-  // charges 0.3 %/h before hardiness, above the bloom's income averaged over
-  // a lit day.
-  allelopathySeverity: 3,
+  // charges 0.05 %/h before hardiness, half what a fed bloom earns averaged
+  // over a lit day: it tips a bloom short of nitrogen, and cannot hold a fed one.
+  allelopathySeverity: 0.5,
 };
 
 export interface AlgaeConfigMeta {

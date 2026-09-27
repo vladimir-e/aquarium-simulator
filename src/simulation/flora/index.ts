@@ -15,8 +15,10 @@
  *    at full condition banks, the bank heals condition below it.
  * 6. What each bank buys at full supply: a plant's offshoot, then its growth;
  *    the bloom's mass and the spores that land. Day and night.
- * 7. The pools supply that tissue: each delivers on every request at one
- *    fraction, and each feeder gets the share of its purchase they allow.
+ * 7. The pools supply that tissue: each form in each delivers on every
+ *    request at one fraction — nitrogen from ammonia first, then nitrate for
+ *    what ammonia left — and each feeder gets the share of its purchase they
+ *    allow.
  * 8. Shedding and death — low condition sheds tissue, and condition 0 kills.
  *    Both return it as waste.
  * 9. Offshoots and spores join at condition 100 — offshoots at the end of the
@@ -32,7 +34,7 @@ import type { SimulationState, Plant } from '../state.js';
 import { calculateTankHeight } from '../state.js';
 import type { Effect } from '../core/effects.js';
 import { coverage, createLog, measured, type LogEvent, type LogSeverity, type LogText } from '../core/logging.js';
-import { NUTRIENTS, type Nutrient, type TunableConfig } from '../config/index.js';
+import { NUTRIENT_FORMS, NUTRIENTS, mapForms, type FormVector, type NutrientForm, type TunableConfig } from '../config/index.js';
 import { getPpm } from '../resources/index.js';
 import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
 import type { PlantLight } from '../plants/canopy.js';
@@ -58,6 +60,7 @@ import {
   feederShares,
   ghDrawn,
   liebig,
+  nutrientsIn,
   organicNutrients,
   plantFeeder,
   poolDraws,
@@ -77,6 +80,8 @@ export interface BloomHour {
   shedding: number;
   /** Bank points its growth cost — nothing the hour it dies back. */
   spent: number;
+  /** mg of each form its new tissue took from the water. */
+  drawn: FormVector;
 }
 
 export interface FloraProcessingResult {
@@ -89,10 +94,15 @@ export interface FloraProcessingResult {
   light: PlantLight[];
   /** Grams of waste the plants shed this tick, apart from a death's one-off lump. */
   shedding: number;
+  /** mg of each form the plants' new tissue took from the water. */
+  drawn: FormVector;
   algae: BloomHour;
 }
 
 const sum = (values: readonly number[]): number => values.reduce((total, value) => total + value, 0);
+
+const sumForms = (vectors: readonly FormVector[]): FormVector =>
+  mapForms((f) => sum(vectors.map((vector) => vector[f])));
 
 export function processFlora(state: SimulationState, config: TunableConfig): FloraProcessingResult {
   const effects: Effect[] = [];
@@ -101,7 +111,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const waterVolume = state.resources.water;
   const bloom = state.algae;
 
-  const pushDelta = (resource: Nutrient | 'oxygen' | 'co2' | 'gh' | 'waste', delta: number, source: string): void => {
+  const pushDelta = (resource: NutrientForm | 'oxygen' | 'co2' | 'gh' | 'waste', delta: number, source: string): void => {
     if (delta !== 0) effects.push({ tier: 'active', resource, delta, source });
   };
 
@@ -111,9 +121,9 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
 
   // 2. Where each feeder feeds, once.
   const pools = tankPools(state);
-  const draws = state.plants.map((plant) => poolDraws(pools, plantFeeder(plant.species, nutrientsConfig), nutrientsConfig));
+  const draws = state.plants.map((plant) => poolDraws(pools, plantFeeder(plant.species, nutrientsConfig)));
   const sufficiency = draws.map((draw) => liebig(feederShares(draw)));
-  const bloomDraws = poolDraws(pools, bloomFeeder(ALGAE, nutrientsConfig), nutrientsConfig);
+  const bloomDraws = poolDraws(pools, bloomFeeder(ALGAE, nutrientsConfig));
   const bloomSufficiency = liebig(feederShares(bloomDraws));
 
   // 3. Photosynthesis: the gases only. Only the gases are stored as a
@@ -182,9 +192,12 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     pools,
     organicNutrients(config.livestock, nutrientsConfig)
   );
-  const [fromWater, fromBed] = tissue.drawn;
-  for (const n of NUTRIENTS) pushDelta(n, -fromWater[n], 'growth');
-  pushDelta('gh', -ghDrawn(fromWater.nitrate + fromBed.nitrate, state.resources), 'growth');
+  const plantsDrew = sumForms(tissue.taken.slice(0, state.plants.length).map(([water]) => water));
+  const [bloomDrew] = tissue.taken[state.plants.length];
+  const fromWater = sumForms(tissue.taken.map(([water]) => water));
+  const fromBed = sumForms(tissue.taken.map(([, bed]) => bed));
+  for (const f of NUTRIENT_FORMS) pushDelta(f, -fromWater[f], 'growth');
+  pushDelta('gh', -ghDrawn(nutrientsIn(fromWater).nitrate + nutrientsIn(fromBed).nitrate, state.resources), 'growth');
   const supplied = purchases.map((bought, i) => supply(bought, tissue.supplied[i]));
   const bloomSupplied = supplyBloom(bloomPurchase, tissue.supplied[state.plants.length], ALGAE, plantsConfig);
 
@@ -230,11 +243,13 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     vitalities,
     light,
     shedding: plantShedding,
+    drawn: plantsDrew,
     algae: {
       vitality: bloomVitality,
       light: bloomLit,
       shedding: bloomLoss.shed,
       spent: bloomLoss.survivor === null ? 0 : bloomVitality.surplus - bloomSupplied.after.surplus,
+      drawn: bloomDrew,
     },
   };
 }

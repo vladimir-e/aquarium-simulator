@@ -116,9 +116,13 @@ export interface ConversionRates {
   gillsToAmmonia: number;
   /** NH₃ ppm the oxidised share of decaying food releases this hour. */
   foodToAmmonia: number;
+  /** NH₃ ppm the plants' new tissue takes out of the water this hour. */
+  plantUptake: number;
+  /** NH₃ ppm the bloom's new tissue takes out of the water this hour. */
+  algaeUptake: number;
   /** NH₃ ppm the AOB colony takes out of the water this hour. */
   ammoniaOxidised: number;
-  /** Arriving minus oxidised — positive means ammonia is climbing. */
+  /** Arriving minus what the flora take and the AOB oxidise — positive means ammonia is climbing. */
   netAmmonia: number;
   /** NO₂ ppm the AOB colony produces this hour. */
   ammoniaToNitrite: number;
@@ -201,17 +205,20 @@ export function bacteriaReadout(
   const ceiling = calculateMaxBacteria(r.surface, nc);
   const water = r.water;
 
-  // The AOB stage sees both of these: gill excretion lands in the active tier,
-  // ahead of the passive nitrogen cycle, and mineralisation runs first inside it.
-  // Decaying food lands in the same passive pass, so the colony meets it next hour.
+  // The AOB stage sees what the flora left and both of these: the flora take
+  // their ammonia first in the active tier, gill excretion lands after them,
+  // ahead of the passive nitrogen cycle, and mineralisation runs first inside
+  // it. Decaying food lands in the same passive pass, so the colony meets it
+  // next hour.
   const gills = ahead.gillAmmonia;
   const food = ahead.foodAmmonia;
+  const flora = ahead.plantAmmonia + ahead.algaeAmmonia;
   const { ammoniaProduced } = calculateWasteToAmmonia(
     mineralisationBase(state, config, wasteInflow(state, config, ahead)),
     config
   );
   const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
-    r.ammonia + gills + ammoniaProduced,
+    r.ammonia - flora + gills + ammoniaProduced,
     water,
     r.aob,
     r.temperature,
@@ -233,14 +240,19 @@ export function bacteriaReadout(
     wasteToAmmonia: getPpm(ammoniaProduced, water),
     gillsToAmmonia: getPpm(gills, water),
     foodToAmmonia: getPpm(food, water),
+    plantUptake: getPpm(ahead.plantAmmonia, water),
+    algaeUptake: getPpm(ahead.algaeAmmonia, water),
     ammoniaOxidised: getPpm(ammoniaConsumed, water),
-    netAmmonia: getPpm(gills + ammoniaProduced + food - ammoniaConsumed, water),
+    netAmmonia: getPpm(gills + ammoniaProduced + food - flora - ammoniaConsumed, water),
     ammoniaToNitrite: getPpm(nitriteProduced, water),
     nitriteToNitrate: getPpm(nitriteConsumed, water),
     netNitrite: getPpm(nitriteProduced - nitriteConsumed, water),
   };
   const atTrace = getPpm(r.ammonia, water) < TRACE_PPM && getPpm(r.nitrite, water) < TRACE_PPM;
-  const ammoniaArriving = rates.wasteToAmmonia + rates.gillsToAmmonia + rates.foodToAmmonia;
+  const ammoniaArriving = Math.max(
+    0,
+    rates.wasteToAmmonia + rates.gillsToAmmonia + rates.foodToAmmonia - rates.plantUptake - rates.algaeUptake
+  );
   return {
     aob: colony(r.aob, ceiling),
     nob: colony(r.nob, ceiling),
@@ -287,8 +299,9 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
 /**
  * Run the engine's own nitrogen model forward to find the nitrite peak.
  *
- * Waste inflow, decaying food, biofilm surface, temperature and dissolved
- * oxygen are held at today's values, so this answers "if nothing else changes" — feeding more,
+ * Waste inflow, decaying food, the ammonia the flora take, biofilm surface,
+ * temperature and dissolved oxygen are held at today's values, so this answers
+ * "if nothing else changes" — a bloom taking off, feeding more,
  * adding fish or a water change all move it. Evaporation and the bed's leaching
  * and settling are not choices: they run every tick whatever the keeper does,
  * so the projection carries them.
@@ -312,6 +325,7 @@ export function projectNitritePeak(
     .reduce((total, source) => total + source.gramsPerHour, 0);
   const gills = ahead.gillAmmonia;
   const food = ahead.foodAmmonia;
+  const flora = ahead.plantAmmonia + ahead.algaeAmmonia;
 
   let reserve = state.equipment.substrate.organicReserve;
   let water = r.water;
@@ -336,7 +350,7 @@ export function projectNitritePeak(
 
     const mineralised = calculateWasteToAmmonia(waste, config);
     waste -= mineralised.wasteConsumed;
-    ammonia += mineralised.ammoniaProduced + gills;
+    ammonia += mineralised.ammoniaProduced + gills - Math.min(ammonia, flora);
 
     const oxidised = calculateAmmoniaToNitrite(ammonia, water, aob, r.temperature, r.oxygen, nc);
     ammonia += food - oxidised.ammoniaConsumed;

@@ -44,9 +44,9 @@ function tank(): SimulationState {
   return createSimulation({ tankCapacity: 200 }, undefined, RNG_SEED);
 }
 
-function soilTank({ ato = false } = {}): SimulationState {
+function soilTank({ ato = false, lit = true } = {}): SimulationState {
   return createSimulation(
-    { tankCapacity: 200, substrate: { type: 'aqua_soil' }, ato: { enabled: ato } },
+    { tankCapacity: 200, substrate: { type: 'aqua_soil' }, ato: { enabled: ato }, light: { enabled: lit } },
     undefined,
     RNG_SEED
   );
@@ -254,13 +254,28 @@ describe('bacteriaReadout', () => {
 });
 
 describe('projectNitritePeak', () => {
-  it('finds the peak the engine reaches on a fishless soil tank, to within a percent', () => {
-    const state = soilTank();
+  it('finds the peak the engine reaches on a fishless, unlit soil tank, where the chain runs alone, to within a percent', () => {
+    const state = soilTank({ lit: false });
     const projection = projectPeak(state)!;
     const engine = enginePeak(state);
 
     expect(Math.abs(projection.hours - engine.hours)).toBeLessThanOrEqual(2);
     expect(Math.abs(projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.01);
+  });
+
+  it('holds what the flora take out of the ammonia as a drain beside the colony', () => {
+    const start = soilTank({ lit: false });
+    let state = start;
+    for (let hour = 0; hour < 24 * 5; hour++) state = tick(state, config);
+    const bloomed = produce(state, (draft) => {
+      draft.equipment.light.enabled = true;
+      draft.algae = { mass: 40, condition: 100, surplus: 20 };
+    });
+    const ahead = readHourAhead(bloomed, config);
+    expect(ahead.algaeAmmonia).toBeGreaterThan(0);
+    expect(projectNitritePeak(bloomed, config, ahead)!.ppm).toBeLessThan(
+      projectNitritePeak(bloomed, config, { ...ahead, algaeAmmonia: 0 })!.ppm
+    );
   });
 
   it('finds a lower peak once an ATO is holding the volume up', () => {

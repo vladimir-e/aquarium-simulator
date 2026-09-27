@@ -27,12 +27,12 @@ coded: plants beat a bloom or lose to it on the rates.
 | Growth | <Badge text="settled" variant="success" /> | Logistic, exact over the hour: the plants' draw sets its rate, every bank point buys the same e-fold, and no bank or tunable takes mass past a full habitat. Day and night. |
 | Spores | <Badge text="settled" variant="success" /> | Its offshoots: a constant rate through the taper, landing at condition 100 on an empty bank and joining the bloom by mass, so an empty tank is never closed to a bloom and an empty bloom is the same whatever came before. Whether they take is the condition's business. |
 | Nutrients | <Badge text="settled" variant="success" /> | The plants' recipe, from the water alone, in one draw with every plant: no feeder is served before another. |
+| Nitrogen form | <Badge text="settled" variant="success" /> | Ammonia first, as keenly as a plant, and nitrate for the rest, which it takes poorly: 15–20 ppm of nitrate alone meets a quarter to a third of its need, and ammonia past a cycled tank's trace most of it. |
 | Carbon and oxygen | <Badge text="settled" variant="success" /> | The plants' photosynthesis and respiration on one CO₂ stock, its tissue rated at the plants' relation and run at its growth rate. |
-| Allelopathy | <Badge text="settled" variant="success" /> | One harm rate on thriving plant leaf per litre, with no threshold. It stands in for the small competition the model leaves out as well. |
+| Allelopathy | <Badge text="settled" variant="success" /> | One harm rate on thriving plant leaf per litre, with no threshold — the minor term beside the ammonia plants take. It stands in for the small effects the model leaves out, and cannot hold a fed bloom on its own. |
 | Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape — the square of the deficit — and condition 0 kills what is left, bank and all. Both return it as waste, and a die-back is logged with the coverage it took. |
 | Scrubbing | <Badge text="scaffolding" variant="caution" /> | A random 10–30 % bite off the standing mass, refused below mass `5`. The bite is waste in the water. |
 | Habitats | <Badge text="missing" variant="danger" /> | One bloom in the water column. Film on glass, hardscape and leaves is not a separate kind, and a water change does not dilute it. |
-| Nitrogen form | <Badge text="scaffolding" variant="caution" /> | It draws its nitrogen as nitrate, as every plant does; ammonia feeds no one directly. |
 | Shading plants | <Badge text="scaffolding" variant="caution" /> | A damage rate on plants from its mass past `algaeShadingThreshold`, standing in for the light it would take from their leaves ([Plants](/subsystems/plants/#status)). |
 | Calibration | <Badge text="scaffolding" variant="caution" /> | Traits and knobs are first-pass: believable, not fitted. |
 
@@ -45,7 +45,7 @@ coded: plants beat a bloom or lose to it on the rates.
 | CO₂ | income | Monod on dissolved CO₂ at its `co2HalfSaturation` — far under any plant's, since algae take bicarbonate too |
 | Temperature · pH | income, then harm | The plants' band helpers on its own bands: comfort peaks mid-band, damage starts at the edge |
 | Light starvation | harm | The day's light over the column against its daily light edge, at respiration's Q10 and its growth rate: a bloom respires fast, so it starves fast |
-| Nutrient deficiency | harm | Liebig sufficiency under `sufficiencyEdge`, on the light curve |
+| Nutrient deficiency | harm | Liebig sufficiency under `sufficiencyEdge`, on the light curve; its nitrogen from ammonia first, then nitrate |
 | Allelopathy | harm | `allelopathySeverity × Σ(plant rate units × condition/100) / litres` |
 
 Every harm is hardened by the bloom's hardiness. Income runs only while the lamp
@@ -90,6 +90,12 @@ strips CO₂ by day and draws oxygen down by night. Growth draws its N, P, K and
 Fe from the water in the same pooled call as the plants; shed, dead and scrubbed
 tissue goes back as waste, so a crashing bloom spikes ammonia as it rots.
 
+It takes its nitrogen as the plants do — ammonia first, nitrate for what
+ammonia leaves — on its own affinities. Ammonia it takes as keenly as a plant;
+nitrate poorly, since reducing it costs energy. A cycled tank's trace of
+ammonia meets part of its need and the nitrate some of the rest; ammonia rising
+past that trace — a new tank, an overfed one, a melt — feeds it fully.
+
 ### Blackouts
 
 Starvation reads the day's light, so a scheduled night costs nothing. A dead
@@ -106,12 +112,14 @@ their dust dies back about every day and a half.
 | `growthRate` | Bank-to-mass conversion, healing rate, and the pace its tissue fixes, respires and starves at, on the plants' scale | `30` |
 | `hardiness` | Scales every harm by `1 − hardiness` | `0.4` |
 | `lowLight` | PAR at the bottom of its band: its daily light edge over a care-sheet day, and `Ik` at `saturationIrradianceFactor ×` it | `6` PAR |
-| `nutrientDemand` | Its demand tier, as a plant's | low |
+| `nutrientDemand` | Its demand tier for phosphate, potassium and iron, as a plant's | low |
 | Temperature · pH bands | Where comfort peaks and harm starts | `12–34` °C · `5.5–9.5` |
 | `co2HalfSaturation` | CO₂ it fixes at half rate on | `0.3` mg/L |
+| `ammoniaHalfSaturation` | Total ammonia, as NH₃, it meets half its nitrogen need on | `0.05` ppm |
+| `nitrateHalfSaturation` | Nitrate it meets half its nitrogen need on | `40` ppm |
 | `tissuePerLitre` | Organic matter in a litre of full bloom | `0.03` g |
 | `sporeRate` | Mass that lands an hour, through the taper | `0.002` |
-| `allelopathySeverity` | Harm per rate unit of thriving plant per litre | `3` %/h |
+| `allelopathySeverity` | Harm per rate unit of thriving plant per litre | `0.5` %/h |
 
 All but the last are traits, beside the plant species; `allelopathySeverity` is a tunable.
 
@@ -121,7 +129,7 @@ All but the last are traits, beside the plant species; `allelopathySeverity` is 
 |---|---|---|
 | [Plants](/subsystems/plants/) | Thriving leaf per litre, as the hour starts | Its mass, read by the plants' shading stressor; a share of every pooled draw and of the CO₂ |
 | [Light](/subsystems/light/) | The column's mean PAR and the day of it | — |
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | NO₃ and PO₄, K and Fe, as the water holds them | Tissue drawn out; shed, dead and scrubbed tissue in as waste |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | NH₃ and NO₃, PO₄, K and Fe, as the water holds them | Tissue drawn out, its ammonia ahead of the colony; shed, dead and scrubbed tissue in as waste |
 | [Water & gases](/subsystems/water-and-gases/) | CO₂, O₂, temperature, pH | CO₂ fixed and O₂ released by day, respired day and night |
 | [Actions](/subsystems/actions/) | — | A scrub takes 10–30 % of mass into the waste |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Mass above `algaeShadingThreshold` raises the bloom alert once per crossing; an `algae-died` entry per die-back, stating the coverage it took |

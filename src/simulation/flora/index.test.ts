@@ -4,7 +4,7 @@ import { readPlantLight } from '../plants/index.js';
 import { canopyLight, floorCover, plantHeight } from '../plants/canopy.js';
 import { calculatePhotosynthesis, plantFixer } from '../systems/photosynthesis.js';
 import { calculateRespiration } from '../systems/respiration.js';
-import { calculateNutrientSufficiency, organicNutrients, tankPools } from '../systems/nutrients.js';
+import { calculateNutrientSufficiency, nutrientsIn, organicNutrients, tankPools } from '../systems/nutrients.js';
 import { tissueMass } from '../systems/plant-lifecycle.js';
 import { getPpm } from '../resources/index.js';
 import {
@@ -22,7 +22,7 @@ import { carbonateKh } from '../core/carbonate.js';
 import { getKhMass } from '../resources/helpers.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
-import { NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
+import { NUTRIENTS, nutrientsDefaults, ZERO_FORMS } from '../config/nutrients.js';
 import { PLANT_SPECIES_DATA, growthFormOf, plantTraits, type PlantSpecies } from '../plants/species.js';
 import { CARE_SHEET_PHOTOPERIOD, dailyLightEdge, floraHealingRate } from '../systems/flora.js';
 import { getSubstrateNutrients } from '../equipment/substrate.js';
@@ -346,6 +346,17 @@ describe('processFlora — plants', () => {
           expect(fromWater(result, n) + fromBed(state, result, n)).toBeCloseTo(tissue * recipe[n], 10);
         }
       }
+    });
+
+    it('takes ammonia from the water beside nitrate for the same nitrogen, and says who took it', () => {
+      const state = night(growers(), { ammonia: 0.5 * 100 });
+      const result = processFlora(state, DEFAULT_CONFIG);
+      const ammonia = -total(result.effects, 'ammonia', 'growth');
+      const nitrogen = nutrientsIn({ ...ZERO_FORMS, ammonia, nitrate: fromWater(result, 'nitrate') }).nitrate;
+
+      expect(ammonia).toBeGreaterThan(0);
+      expect(ammonia).toBeCloseTo(result.drawn.ammonia + result.algae.drawn.ammonia, 12);
+      expect(nitrogen + fromBed(state, result, 'nitrate')).toBeCloseTo(tissueAdded(state, result.state) * recipe.nitrate, 10);
     });
 
     it('draws a fern from the water alone, and a sword and a carpet from the bed at their root shares', () => {

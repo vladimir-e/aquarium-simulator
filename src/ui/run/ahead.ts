@@ -65,6 +65,10 @@ export interface HourAhead {
   foodWaste: number;
   /** mg of NH₃ the oxidised share of that food releases straight into the water. */
   foodAmmonia: number;
+  /** mg of NH₃ the plants' new tissue takes from the water. */
+  plantAmmonia: number;
+  /** mg of NH₃ the bloom's new tissue takes from the water. */
+  algaeAmmonia: number;
 }
 
 /**
@@ -125,5 +129,7 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     gillAmmonia: livestock.metabolism.ammoniaProduced,
     foodWaste: decayed * wasteShare,
     foodAmmonia: decayed * (1 - wasteShare) * ammoniaPerGramOfFood(config.livestock),
+    plantAmmonia: flora.drawn.ammonia,
+    algaeAmmonia: flora.algae.drawn.ammonia,
   };
 }

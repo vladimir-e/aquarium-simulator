@@ -27,8 +27,10 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *
  * v33: Algae runs on the plants' vitality model. `AlgaeState` gains
  *      `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`, keeping only
- *      `allelopathySeverity` — what a bloom is lives in its traits. A v32 save
- *      carries a bloom with no condition and an algae section the strict
+ *      `allelopathySeverity` — what a bloom is lives in its traits. Plants and
+ *      the bloom take nitrogen as ammonia before nitrate, so
+ *      `NutrientsConfig.halfSaturation` gains `ammonia`. A v32 save carries a
+ *      bloom with no condition and algae and nutrients sections the strict
  *      schema refuses.
  * v32: One plant death, at condition 0. `PlantsConfig` drops
  *      `deathSizeThreshold` and renames `wastePerSize` to `tissuePerSize`;
