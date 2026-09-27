@@ -5,7 +5,7 @@
  * Each tick benefit rates raise it and damage rates lower it, so nothing dies
  * or heals instantly. Income past 100 banks as `surplus`, capped at
  * `surplusCap`; below 100 the bank heals condition at the organism's healing
- * share, the same first-order law growth draws on. Damage never reaches the
+ * rate, a first-order drain integrated over the hour. Damage never reaches the
  * bank: the only way out of it is the heal, and whatever the caller spends on
  * growth or offspring.
  *
@@ -43,7 +43,7 @@ export interface VitalityInput {
   surplus: number;
   /** Ceiling on the bank; a negative cap reads as 0. */
   surplusCap: number;
-  /** Share of the bank per hour that heals condition below 100, within [0, 1]. */
+  /** First-order rate, per hour, the bank heals condition below 100 at. */
   healingRate: number;
 }
 
@@ -88,7 +88,7 @@ export function hardened(factors: VitalityFactor[], hardiness: number): Vitality
  * 2. `condition += Σ benefits − Σ stressors`;
  * 3. above 100 the excess banks (overflow past the cap is discarded) and
  *    condition sits at 100;
- * 4. below 100 the bank heals `min(100 − condition, healingRate × bank)`;
+ * 4. below 100 the bank heals `min(100 − condition, (1 − e^−healingRate) × bank)`;
  * 5. condition is floored at 0.
  */
 export function computeVitality(input: VitalityInput): VitalityResult {
@@ -110,8 +110,7 @@ export function computeVitality(input: VitalityInput): VitalityResult {
     surplus += banked;
     condition = 100;
   } else if (condition < 100) {
-    const share = Math.max(0, Math.min(1, input.healingRate));
-    healed = Math.min(100 - condition, share * surplus);
+    healed = Math.min(100 - condition, -Math.expm1(-input.healingRate) * surplus);
     surplus -= healed;
     condition += healed;
   }

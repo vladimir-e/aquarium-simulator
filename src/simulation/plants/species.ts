@@ -1,5 +1,5 @@
 import type { PlantsConfig } from '../config/plants.js';
-import { parHoursToDli } from '../equipment/light.js';
+import type { FloraTraits } from '../systems/flora.js';
 
 /**
  * Plant species types.
@@ -82,7 +82,7 @@ export interface PlantSpeciesData {
    * Tolerable PAR range (µmol/m²/s) on the plant's own leaves, as care sheets
    * quote it for a {@link CARE_SHEET_PHOTOPERIOD}-hour day. The low end held
    * that long is the daily light the species starves under (see
-   * {@link dailyLightEdge}); past the high end the light-excessive stressor
+   * {@link plantTraits}); past the high end the light-excessive stressor
    * burns the top of its crown while the lamps are on. The hobby's published
    * tiers are low 15-30, medium 30-50, high 50-80+.
    */
@@ -180,27 +180,16 @@ export function growthFormOf(species: PlantSpecies): GrowthFormData {
 export const CARE_SHEET_PHOTOPERIOD = 8;
 
 /**
- * Daily light integral (mol/m²/d) under which a species starves: the low end
- * of its PAR band held for a care-sheet photoperiod.
- */
-export function dailyLightEdge(species: PlantSpecies): number {
-  return parHoursToDli(PLANT_SPECIES_DATA[species].tolerableLight[0], CARE_SHEET_PHOTOPERIOD);
-}
-
-/**
- * The PAR a species stops answering more of — `Ik` of the Jassby–Platt curve
- * its photosynthesis and benefits run on.
- *
- * Derived from the band rather than declared, at `saturationIrradianceFactor ×
- * tolerableLight[0]`: anubias 16, java fern 20, amazon sword 40, dwarf
+ * A species in the terms the flora law reads. The low end of its PAR band is
+ * where it starves over a care-sheet day and, at `saturationIrradianceFactor ×`
+ * it, the `Ik` it saturates at: anubias 16, java fern 20, amazon sword 40, dwarf
  * hairgrass 50, monte carlo 60. That is inside the published macrophyte range —
- * shade species saturate at 10–30 µmol/m²/s, sun species at 50–150 — and it
- * makes a species' saturating irradiance a fixed multiple of where its daily
- * light edge sits. At the shipped factor a plant at its lower bound runs at
- * 46 % of its rate.
+ * shade species saturate at 10–30 µmol/m²/s, sun species at 50–150 — and at the
+ * shipped factor a plant at its lower bound runs at 46 % of its rate.
  */
-export function getSaturationIrradiance(species: PlantSpecies, config: PlantsConfig): number {
-  return config.saturationIrradianceFactor * PLANT_SPECIES_DATA[species].tolerableLight[0];
+export function plantTraits(species: PlantSpecies): FloraTraits {
+  const { growthRate, tolerableLight, tolerableTemp, tolerablePH } = PLANT_SPECIES_DATA[species];
+  return { growthRate, lowLight: tolerableLight[0], tolerableTemp, tolerablePH };
 }
 
 export function getCo2HalfSaturation(species: PlantSpecies, config: PlantsConfig): number {

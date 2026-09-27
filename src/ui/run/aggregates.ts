@@ -34,7 +34,7 @@ function entryCount(log: LogEntry): number {
 export function accrueLogs(aggregates: RunAggregates, logs: LogEntry[]): RunAggregates {
   let { deaths, births, alerts } = aggregates;
   for (const log of logs) {
-    if (log.event === 'fish-died' || log.event === 'plant-died') {
+    if (log.event === 'fish-died' || log.event === 'plant-died' || log.event === 'algae-died') {
       deaths += entryCount(log);
     } else if (
       log.event === 'fish-spawned' ||

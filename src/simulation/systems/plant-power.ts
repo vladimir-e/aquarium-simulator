@@ -11,7 +11,6 @@
  * one half that, and a dying plant (condition 0) nothing. It stays linear
  * in leaf area: what caps the leaf a tank carries is the light its own
  * canopy leaves it, on the plant side.
-
  */
 
 import type { Plant } from '../state.js';

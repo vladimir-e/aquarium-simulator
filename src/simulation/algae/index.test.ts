@@ -3,43 +3,46 @@ import {
   ALGAE,
   bloomFeeder,
   bloomLight,
+  bloomPace,
   bloomRateUnits,
   bloomTissue,
   columnGain,
+  landSpores,
   loseBloom,
   massBought,
   purchaseBloom,
   supplyBloom,
 } from './index.js';
-import { algaeDailyLightEdge } from './traits.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
+import { plantsConfigMeta, type PlantsConfig } from '../config/plants.js';
 import { opticsDefaults } from '../config/optics.js';
 import { dailyLightIntegral } from '../equipment/light.js';
+import { bankConversion, bankDraw, dailyLightEdge } from '../systems/flora.js';
 import { shedShare, tissuePerRateUnit } from '../systems/plant-lifecycle.js';
 import { poolDraws } from '../systems/nutrients.js';
 import type { AlgaeState } from '../state.js';
 
 const config = DEFAULT_CONFIG;
+const plants = config.plants;
 const bloom = (fields: Partial<AlgaeState>): AlgaeState => ({ mass: 10, condition: 100, surplus: 0, ...fields });
-const noSpores = { ...config, algae: { ...config.algae, sporeRate: 0 } };
+const conversion = bankConversion(ALGAE, plants);
+const paid = ({ before, after }: { before: AlgaeState; after: AlgaeState }): number => before.surplus - after.surplus;
 
 describe('bloomTissue', () => {
   it('scales with the mass and with the litres of its habitat', () => {
-    expect(bloomTissue(100, 100, config.algae)).toBeCloseTo(2 * bloomTissue(50, 100, config.algae), 12);
-    expect(bloomTissue(100, 284, config.algae)).toBeGreaterThan(bloomTissue(100, 38, config.algae));
-    expect(bloomTissue(100, 1, config.algae)).toBe(config.algae.tissuePerLitre);
-    expect(bloomTissue(0, 284, config.algae)).toBe(0);
+    expect(bloomTissue(100, 100, ALGAE)).toBeCloseTo(2 * bloomTissue(50, 100, ALGAE), 12);
+    expect(bloomTissue(100, 284, ALGAE)).toBeGreaterThan(bloomTissue(100, 38, ALGAE));
+    expect(bloomTissue(100, 1, ALGAE)).toBe(ALGAE.tissuePerLitre);
+    expect(bloomTissue(0, 284, ALGAE)).toBe(0);
   });
 });
 
 describe('bloomRateUnits', () => {
-  it('rates its tissue on the plants’ relation, at its growth rate', () => {
-    const units = bloomRateUnits(40, 100, ALGAE, config);
-    expect(units).toBeCloseTo(
-      (bloomTissue(40, 100, config.algae) / tissuePerRateUnit(config.plants)) * ALGAE.growthRate,
-      12
-    );
-    expect(bloomRateUnits(40, 100, { ...ALGAE, growthRate: 2 * ALGAE.growthRate }, config)).toBeCloseTo(2 * units, 12);
+  it('rates its tissue on the plants’ relation, at its pace', () => {
+    const units = bloomRateUnits(40, 100, ALGAE, plants);
+    expect(units).toBeCloseTo((bloomTissue(40, 100, ALGAE) / tissuePerRateUnit(plants)) * bloomPace(ALGAE), 12);
+    const quick = { ...ALGAE, growthRate: 2 * ALGAE.growthRate };
+    expect(bloomRateUnits(40, 100, quick, plants) / units).toBeCloseTo(bloomPace(quick) / bloomPace(ALGAE), 12);
   });
 });
 
@@ -61,7 +64,7 @@ describe('the bloom’s light', () => {
     const gain = columnGain(30, opticsDefaults);
     expect(light.par).toBeCloseTo(40 * gain, 12);
     expect(light.dailyLight).toBeCloseTo(dailyLightIntegral(lightByHour) * gain, 12);
-    expect(light.needShare).toBeCloseTo(light.dailyLight / algaeDailyLightEdge(ALGAE), 12);
+    expect(light.needShare).toBeCloseTo(light.dailyLight / dailyLightEdge(ALGAE), 12);
   });
 });
 
@@ -77,69 +80,115 @@ describe('bloomFeeder', () => {
 });
 
 describe('purchaseBloom', () => {
+  it('grows the mass on the exact logistic, at the rate the plants’ draw buys on an empty habitat', () => {
+    for (const mass of [0.01, 20, 80, 99.9]) {
+      const { after } = purchaseBloom(bloom({ mass, surplus: 30 }), ALGAE, plants);
+      const r = (bankDraw(30, 0, plants) * conversion) / 100;
+      expect(after.mass).toBeCloseTo((mass * Math.exp(r)) / (1 + (mass * Math.expm1(r)) / 100), 10);
+    }
+  });
+
   it('buys mass in proportion to the mass standing, while the habitat is empty', () => {
-    const small = massBought(purchaseBloom(bloom({ mass: 0.01, surplus: 10 }), ALGAE, noSpores));
-    const double = massBought(purchaseBloom(bloom({ mass: 0.02, surplus: 10 }), ALGAE, noSpores));
-    expect(double / small).toBeCloseTo(2, 3);
-  });
-
-  it('tapers the draw as its habitat fills, and buys nothing at a full one', () => {
-    const share = (mass: number): number => {
-      const bought = purchaseBloom(bloom({ mass, surplus: 10 }), ALGAE, noSpores);
-      return massBought(bought) / mass;
+    const grown = (mass: number): number => {
+      const { before, after } = purchaseBloom(bloom({ mass, surplus: 10 }), ALGAE, plants);
+      return after.mass - before.mass;
     };
-    expect(share(75) / share(25)).toBeCloseTo(0.25 / 0.75, 10);
-    const full = purchaseBloom(bloom({ mass: 100, surplus: 10 }), ALGAE, config);
+    expect(grown(0.02) / grown(0.01)).toBeCloseTo(2, 3);
+  });
+
+  it('buys the same e-fold with every bank point, and never pays more than the plants’ draw would', () => {
+    for (const mass of [0.01, 20, 80]) {
+      const bought = purchaseBloom(bloom({ mass, surplus: 10 }), ALGAE, plants);
+      expect(Math.log(bought.after.mass / mass) / paid(bought)).toBeCloseTo(conversion / 100, 10);
+      expect(paid(bought)).toBeLessThanOrEqual(bankDraw(10, mass, plants));
+    }
+  });
+
+  it('never fills its habitat, on the fullest bank at the fastest draw and conversion the tunables allow', () => {
+    const max = (key: keyof PlantsConfig): number => plantsConfigMeta.find((knob) => knob.key === key)!.max;
+    const fastest = { ...plants, growthDrawRate: max('growthDrawRate'), sizePerSurplus: max('sizePerSurplus') };
+    for (const mass of [0.001, 10, 50, 90, 99.99, 100]) {
+      const bought = purchaseBloom(bloom({ mass, surplus: max('surplusCap') }), ALGAE, fastest);
+      expect(bought.after.mass).toBeLessThanOrEqual(100);
+      expect(bought.after.mass + bought.spores).toBeLessThanOrEqual(100);
+      expect(bought.after.surplus).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('buys and pays nothing on an empty bloom, and lands its spores through the taper after', () => {
+    const empty = purchaseBloom(bloom({ mass: 0, surplus: 20 }), ALGAE, plants);
+    expect(empty.after).toEqual(empty.before);
+    expect(empty.spores).toBe(ALGAE.sporeRate);
+
+    const standing = purchaseBloom(bloom({ mass: 40, surplus: 20 }), ALGAE, plants);
+    expect(standing.spores).toBeCloseTo(ALGAE.sporeRate * (1 - standing.after.mass / 100), 15);
+    expect(massBought(standing)).toBeCloseTo(standing.after.mass - 40 + standing.spores, 12);
+  });
+
+  it('buys nothing on a full habitat', () => {
+    const full = purchaseBloom(bloom({ mass: 100, surplus: 10 }), ALGAE, plants);
     expect(full.after).toEqual(full.before);
-  });
-
-  it('draws the bank at the plants’ rate, day and night, and pays only what it drew', () => {
-    const { before, after } = purchaseBloom(bloom({ mass: 20, surplus: 10 }), ALGAE, noSpores);
-    expect(before.surplus - after.surplus).toBeCloseTo(10 * config.plants.growthDrawRate * 0.8, 12);
-    expect(massBought({ before, after })).toBeCloseTo(
-      (20 * (before.surplus - after.surplus) * ALGAE.growthRate * config.plants.sizePerSurplus) / 100,
-      12
-    );
-  });
-
-  it('lands spores on an empty tank with an empty bank', () => {
-    const { after } = purchaseBloom(bloom({ mass: 0, surplus: 0 }), ALGAE, config);
-    expect(after.mass).toBe(config.algae.sporeRate);
-    expect(after.surplus).toBe(0);
+    expect(full.spores).toBe(0);
   });
 });
 
 describe('supplyBloom', () => {
-  it('delivers the share of the purchase the water supplied', () => {
-    const bought = purchaseBloom(bloom({ mass: 20, surplus: 10 }), ALGAE, config);
-    expect(supplyBloom(bought, 1)).toEqual(bought.after);
-    expect(supplyBloom(bought, 0)).toEqual(bought.before);
-    const half = supplyBloom(bought, 0.5);
-    expect(half.mass - bought.before.mass).toBeCloseTo(massBought(bought) / 2, 12);
-    expect(bought.before.surplus - half.surplus).toBeCloseTo((bought.before.surplus - bought.after.surplus) / 2, 12);
+  const bought = purchaseBloom(bloom({ mass: 20, surplus: 30 }), ALGAE, plants);
+
+  it('is the purchase at a full supply, and nothing at none', () => {
+    const whole = supplyBloom(bought, 1, ALGAE, plants);
+    expect(whole.after.mass).toBeCloseTo(bought.after.mass, 12);
+    expect(whole.after.surplus).toBeCloseTo(bought.after.surplus, 12);
+    expect(whole.spores).toBe(bought.spores);
+    expect(supplyBloom(bought, 0, ALGAE, plants)).toEqual({ ...bought, after: bought.before, spores: 0 });
+  });
+
+  it('delivers that share of the tissue, and the bank pays for the e-folds that arrived', () => {
+    const half = supplyBloom(bought, 0.5, ALGAE, plants);
+    expect(massBought(half)).toBeCloseTo(massBought(bought) / 2, 12);
+    expect(Math.log(half.after.mass / bought.before.mass) / paid(half)).toBeCloseTo(conversion / 100, 10);
   });
 });
 
 describe('loseBloom', () => {
   it('sheds nothing at full condition, and more with the square of its deficit', () => {
-    expect(loseBloom(bloom({ mass: 50 }), 100, config).shed).toBe(0);
-    const at = (condition: number): number => loseBloom(bloom({ mass: 50, condition }), 100, config).shed;
+    expect(loseBloom(bloom({ mass: 50 }), 100, ALGAE, plants).shed).toBe(0);
+    const at = (condition: number): number => loseBloom(bloom({ mass: 50, condition }), 100, ALGAE, plants).shed;
     expect(at(50)).toBeCloseTo(4 * at(75), 12);
-    expect(at(50)).toBeCloseTo(bloomTissue(50 * shedShare(50, config.plants), 100, config.algae), 12);
+    expect(at(50)).toBeCloseTo(bloomTissue(50 * shedShare(50, plants), 100, ALGAE), 12);
   });
 
   it('dies back at condition 0, bank and all, every gram of it to waste', () => {
-    const { bloom: after, shed, died } = loseBloom(bloom({ mass: 50, condition: 0, surplus: 5 }), 100, config);
-    expect(after).toEqual({ mass: 0, condition: 0, surplus: 0 });
-    expect(shed + died).toBeCloseTo(bloomTissue(50, 100, config.algae), 12);
+    const { bloom: after, shed, died } = loseBloom(bloom({ mass: 50, condition: 0, surplus: 5 }), 100, ALGAE, plants);
+    expect(after).toBeNull();
+    expect(shed + died).toBeCloseTo(bloomTissue(50, 100, ALGAE), 12);
   });
 
   it('keeps every gram it holds: what is left and what is lost add up to what it was', () => {
     const before = bloom({ mass: 50, condition: 30 });
-    const { bloom: after, shed, died } = loseBloom(before, 100, config);
-    expect(bloomTissue(after.mass, 100, config.algae) + shed + died).toBeCloseTo(
-      bloomTissue(before.mass, 100, config.algae),
-      12
-    );
+    const { bloom: after, shed, died } = loseBloom(before, 100, ALGAE, plants);
+    expect(bloomTissue(after!.mass, 100, ALGAE) + shed + died).toBeCloseTo(bloomTissue(before.mass, 100, ALGAE), 12);
+  });
+});
+
+describe('landSpores', () => {
+  it('lands them at condition 100, blending into the bloom by mass, and brings no bank', () => {
+    const landed = landSpores(bloom({ mass: 3, condition: 40, surplus: 7 }), 1);
+    expect(landed.mass).toBe(4);
+    expect(landed.condition).toBeCloseTo((40 * 3 + 100 * 1) / 4, 12);
+    expect(landed.surplus).toBe(7);
+  });
+
+  it('leaves a healthy bloom whole and a bloom with nothing landing as it was', () => {
+    expect(landSpores(bloom({ mass: 0.3, condition: 100 }), 0.1).condition).toBe(100);
+    expect(landSpores(bloom({ mass: 5, condition: 30 }), 0)).toEqual(bloom({ mass: 5, condition: 30 }));
+  });
+
+  it('makes an empty bloom what its spores are, whatever came before it', () => {
+    const fresh = landSpores(bloom({ mass: 0, condition: 100 }), 0.002);
+    expect(landSpores(null, 0.002)).toEqual(fresh);
+    expect(landSpores(bloom({ mass: 0, condition: 3 }), 0.002)).toEqual(fresh);
+    expect(landSpores(null, 0)).toEqual(landSpores(bloom({ mass: 0, condition: 3 }), 0));
+    expect(landSpores(null, 0).condition).toBe(100);
   });
 });

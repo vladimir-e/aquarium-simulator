@@ -19,7 +19,9 @@
  *    fraction, and each feeder gets the share of its purchase they allow.
  * 8. Shedding and death — low condition sheds tissue, and condition 0 kills.
  *    Both return it as waste.
- * 9. Surviving plants age a tick; offshoots join the end of the list at age 0.
+ * 9. Offshoots and spores join at condition 100 — offshoots at the end of the
+ *    list at age 0, spores into the bloom by mass — and surviving plants age a
+ *    tick.
  *
  * Plants read the bloom's mass and the bloom reads the planting as the hour
  * starts, so neither sees the other's hour until the next.
@@ -29,7 +31,7 @@ import { produce } from 'immer';
 import type { SimulationState, Plant } from '../state.js';
 import { calculateTankHeight } from '../state.js';
 import type { Effect } from '../core/effects.js';
-import { createLog } from '../core/logging.js';
+import { createLog, type LogEvent, type LogSeverity } from '../core/logging.js';
 import { NUTRIENTS, type Nutrient, type TunableConfig } from '../config/index.js';
 import { getPpm } from '../resources/index.js';
 import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
@@ -43,6 +45,7 @@ import {
   bloomLight,
   bloomRateUnits,
   bloomTissue,
+  landSpores,
   loseBloom,
   massBought,
   purchaseBloom,
@@ -64,14 +67,14 @@ import {
 import { calculateRespiration } from '../systems/respiration.js';
 import { purchase, sizeBought, supply } from '../systems/plant-growth.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
-import { calculateShedding, calculateDeathWaste, tissueMass } from '../systems/plant-lifecycle.js';
+import { losePlant, tissueMass } from '../systems/plant-lifecycle.js';
 import type { VitalityResult } from '../systems/vitality.js';
 
 /** The bloom's hour in the pass. */
 export interface BloomHour {
   vitality: VitalityResult;
   light: BloomLight;
-  /** Grams of waste shed, apart from a death's one-off lump. */
+  /** Grams of waste shed, apart from a die-back's one-off lump. */
   shedding: number;
 }
 
@@ -87,6 +90,8 @@ export interface FloraProcessingResult {
   shedding: number;
   algae: BloomHour;
 }
+
+const sum = (values: readonly number[]): number => values.reduce((total, value) => total + value, 0);
 
 export function processFlora(state: SimulationState, config: TunableConfig): FloraProcessingResult {
   const effects: Effect[] = [];
@@ -115,7 +120,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const photosynthesis = calculatePhotosynthesis(
     [
       ...state.plants.map((plant, i) => plantFixer(plant, light[i].par, sufficiency[i], plantsConfig)),
-      bloomFixer(bloom, litres, bloomLit, bloomSufficiency, ALGAE, config),
+      bloomFixer(bloom, litres, bloomLit, bloomSufficiency, ALGAE, plantsConfig),
     ],
     state.resources.co2,
     waterVolume,
@@ -126,7 +131,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
 
   // 4. Respiration.
   const respiration = calculateRespiration(
-    getTotalRateUnits(state.plants) + bloomRateUnits(bloom.mass, litres, ALGAE, config),
+    getTotalRateUnits(state.plants) + bloomRateUnits(bloom.mass, litres, ALGAE, plantsConfig),
     state.resources.temperature,
     state.resources.oxygen,
     plantsConfig
@@ -165,7 +170,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const bloomPurchase = purchaseBloom(
     { ...bloom, condition: bloomVitality.newCondition, surplus: bloomVitality.surplus },
     ALGAE,
-    config
+    plantsConfig
   );
 
   // 7. The water and the bed supply the tissue, to everyone at once.
@@ -175,7 +180,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
         grams: tissueMass(bought.before.species, sizeBought(bought), plantsConfig),
         draws: draws[i],
       })),
-      { grams: bloomTissue(massBought(bloomPurchase), litres, config.algae), draws: bloomDraws },
+      { grams: bloomTissue(massBought(bloomPurchase), litres, ALGAE), draws: bloomDraws },
     ],
     pools,
     organicNutrients(config.livestock, nutrientsConfig)
@@ -183,62 +188,49 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const [fromWater, fromBed] = tissue.drawn;
   for (const n of NUTRIENTS) pushDelta(n, -fromWater[n], 'growth');
   pushDelta('gh', -ghDrawn(fromWater.nitrate + fromBed.nitrate, state.resources), 'growth');
+  const supplied = purchases.map((bought, i) => supply(bought, tissue.supplied[i]));
+  const bloomSupplied = supplyBloom(bloomPurchase, tissue.supplied[state.plants.length], ALGAE, plantsConfig);
 
-  // 8. The bloom sheds, or dies back.
-  const bloomLoss = loseBloom(supplyBloom(bloomPurchase, tissue.supplied[state.plants.length]), litres, config);
+  // 8. Losses: low condition sheds, condition 0 kills, and both return the tissue as waste.
+  const plantLosses = supplied.map(({ after }) => losePlant(after, plantsConfig));
+  const bloomLoss = loseBloom(bloomSupplied.after, litres, ALGAE, plantsConfig);
+  const plantShedding = sum(plantLosses.map((loss) => loss.shed));
+  pushDelta('waste', plantShedding, 'plant-shedding');
+  pushDelta('waste', sum(plantLosses.map((loss) => loss.died)), 'plant-death');
   pushDelta('waste', bloomLoss.shed, 'algae-shedding');
   pushDelta('waste', bloomLoss.died, 'algae-death');
 
-  // 8–9 for plants run on the draft: an offshoot's id and vigour come off the tank's stream.
-  let shedWaste = 0;
-  let deathWaste = 0;
+  // 9. Offshoots and spores join, the survivors age a tick. An offshoot's id and vigour come off the tank's stream.
   const newState = produce(state, (draft) => {
     for (const n of NUTRIENTS) draft.equipment.substrate.nutrients[n] -= fromBed[n];
-    draft.algae = bloomLoss.bloom;
+    const log = (severity: LogSeverity, message: string, event: LogEvent): void => {
+      draft.logs.push(createLog(draft.tick, 'simulation', severity, message, event));
+    };
 
     const survivors: Plant[] = [];
     const offshoots: Plant[] = [];
-
-    purchases.forEach((bought, i) => {
-      const species = PLANT_SPECIES_DATA[bought.before.species];
-      const { after, offshootSize } = supply(bought, tissue.supplied[i]);
-      let plant = after;
-
+    supplied.forEach(({ after, offshootSize }, i) => {
+      const species = PLANT_SPECIES_DATA[after.species];
       if (offshootSize > 0) {
-        offshoots.push(createOffshoot(plant, offshootSize, draft.rng));
-        draft.logs.push(
-          createLog(draft.tick, 'simulation', 'info', `${species.name} ${growthFormOf(plant.species).offshootVerb}`, 'plant-propagated')
-        );
+        offshoots.push(createOffshoot(after, offshootSize, draft.rng));
+        log('info', `${species.name} ${growthFormOf(after.species).offshootVerb}`, 'plant-propagated');
       }
-
-      const { sizeReduction, wasteProduced } = calculateShedding(plant, plantsConfig);
-      if (sizeReduction > 0) {
-        plant = { ...plant, size: plant.size - sizeReduction };
-        shedWaste += wasteProduced;
-      }
-      if (plant.condition <= 0) {
-        deathWaste += calculateDeathWaste(plant, plantsConfig);
-        draft.logs.push(
-          createLog(draft.tick, 'simulation', 'warning', `${species.name} died from poor conditions`, 'plant-died')
-        );
-        return;
-      }
-
-      survivors.push({ ...plant, age: plant.age + 1 });
+      const { plant } = plantLosses[i];
+      if (plant === null) log('warning', `${species.name} died from poor conditions`, 'plant-died');
+      else survivors.push({ ...plant, age: plant.age + 1 });
     });
-
     draft.plants = [...survivors, ...offshoots];
-  });
 
-  pushDelta('waste', shedWaste, 'plant-shedding');
-  pushDelta('waste', deathWaste, 'plant-death');
+    if (bloomLoss.bloom === null) log('warning', `${ALGAE.name} died back`, 'algae-died');
+    draft.algae = landSpores(bloomLoss.bloom, bloomSupplied.spores);
+  });
 
   return {
     state: newState,
     effects,
     vitalities,
     light,
-    shedding: shedWaste,
+    shedding: plantShedding,
     algae: { vitality: bloomVitality, light: bloomLit, shedding: bloomLoss.shed },
   };
 }

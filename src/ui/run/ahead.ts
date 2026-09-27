@@ -37,6 +37,8 @@ export interface PlantAhead extends OrganismAhead {
 
 export interface BloomAhead extends OrganismAhead {
   light: BloomLight;
+  /** Condition as the tick leaves the bloom, its spores landed. */
+  condition: number;
   /** Coverage as the tick leaves the bloom. */
   mass: number;
   /** Grams of waste it sheds — its steady rate, apart from a die-back's lump. */
@@ -108,8 +110,9 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     })),
     algae: {
       vitality: flora.algae.vitality,
-      spent: bloom.condition > 0 ? flora.algae.vitality.surplus - bloom.surplus : 0,
+      spent: flora.algae.vitality.newCondition > 0 ? flora.algae.vitality.surplus - bloom.surplus : 0,
       light: flora.algae.light,
+      condition: bloom.condition,
       mass: bloom.mass,
       shedding: flora.algae.shedding,
     },

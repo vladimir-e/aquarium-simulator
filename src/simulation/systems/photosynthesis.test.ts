@@ -14,7 +14,8 @@ import type { Plant, Resources } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { CO2_TO_O2_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
 import { lightSaturationFactor, monodFactor, monodUptake } from '../core/kinetics.js';
-import { getSaturationIrradiance } from '../plants/species.js';
+import { plantTraits } from '../plants/species.js';
+import { saturationIrradiance } from './flora.js';
 import { rateUnits } from '../plants/canopy.js';
 import { plantRecord } from '../tests/plant.js';
 import { mirroredPools } from '../tests/pools.js';
@@ -118,7 +119,7 @@ describe('calculatePhotosynthesis', () => {
   function carbonCapacity(p: Plant, config = plantsDefaults): number {
     return (
       rateUnits(p) *
-      lightSaturationFactor(light, getSaturationIrradiance(p.species, config)) *
+      lightSaturationFactor(light, saturationIrradiance(plantTraits(p.species), config)) *
       calculateNutrientSufficiency(mirroredPools(buildResources(waterVolume)), p.species) *
       config.basePhotosynthesisRate *
       config.co2PerRateUnit
@@ -193,7 +194,7 @@ describe('calculatePhotosynthesis', () => {
         const capacity =
           ((respired / config.baseRespirationRate) * config.basePhotosynthesisRate) /
           monodFactor(AIR_SATURATED_O2, config.respirationOxygenHalfSaturation) *
-          lightSaturationFactor(light, getSaturationIrradiance('java_fern', config)) *
+          lightSaturationFactor(light, saturationIrradiance(plantTraits('java_fern'), config)) *
           calculateNutrientSufficiency(mirroredPools(buildResources(waterVolume)), 'java_fern');
 
         expect(photosynthesis([fern], { config }).co2ConsumedMg).toBeCloseTo(

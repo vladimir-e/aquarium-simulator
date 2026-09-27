@@ -26,11 +26,10 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * On version mismatch, stored data is discarded.
  *
  * v33: Algae runs on the plants' vitality model. `AlgaeState` gains
- *      `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`, trading the
- *      threshold channels, reference ppm, bank cap and mass knobs for
- *      `co2HalfSaturation`, `tissuePerLitre`, `sporeRate` and
- *      `allelopathySeverity`. A v32 save carries a bloom with no condition
- *      and an algae section the strict schema refuses.
+ *      `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`, keeping only
+ *      `allelopathySeverity` — what a bloom is lives in its traits. A v32 save
+ *      carries a bloom with no condition and an algae section the strict
+ *      schema refuses.
  * v32: One plant death, at condition 0. `PlantsConfig` drops
  *      `deathSizeThreshold` and renames `wastePerSize` to `tissuePerSize`;
  *      the least a plant is planted or trimmed to is the engine's

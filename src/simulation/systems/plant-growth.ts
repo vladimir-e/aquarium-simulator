@@ -16,9 +16,10 @@
 
 import type { Plant } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
-import { PLANT_SPECIES_DATA } from '../plants/species.js';
+import { PLANT_SPECIES_DATA, plantTraits } from '../plants/species.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
+import { bankConversion, bankDraw } from './flora.js';
 
 /**
  * Get the growth rate for a plant species. Per-species multiplier on
@@ -28,21 +29,13 @@ export function getSpeciesGrowthRate(species: PlantSpecies): number {
   return PLANT_SPECIES_DATA[species].growthRate;
 }
 
-/** Share of the draw a plant can still turn into size: 1 at size 0, none at 100. */
-export function growthTaper(size: number): number {
-  return 1 - size / 100;
-}
-
 /** Size one condition point of bank buys: the conversion growth and offshoots both run at. */
 function sizePerBank(plant: Plant, config: PlantsConfig): number {
-  return getSpeciesGrowthRate(plant.species) * config.sizePerSurplus;
+  return bankConversion(plantTraits(plant.species), config);
 }
 
 export function spendSurplus(plant: Plant, config: PlantsConfig = plantsDefaults): Plant {
-  // A restored save carries any finite `growthDrawRate`; one above 1 would
-  // otherwise drive the bank negative.
-  const converted =
-    Math.max(0, plant.surplus) * Math.min(1, config.growthDrawRate) * growthTaper(plant.size);
+  const converted = bankDraw(plant.surplus, plant.size, config);
   if (converted <= 0) return plant;
 
   return {

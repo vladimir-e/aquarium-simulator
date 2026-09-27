@@ -6,7 +6,6 @@ import {
   sizeBought,
   supply,
   getSpeciesGrowthRate,
-  growthTaper,
 } from './plant-growth.js';
 import type { Plant } from '../state.js';
 import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
@@ -26,18 +25,6 @@ function makePlant(
     ...overrides,
   });
 }
-
-describe('growthTaper', () => {
-  it('is whole at size 0 and closed at a full unit', () => {
-    expect(growthTaper(0)).toBe(1);
-    expect(growthTaper(100)).toBe(0);
-  });
-
-  it('closes linearly in between', () => {
-    expect(growthTaper(25)).toBe(0.75);
-    expect(growthTaper(75)).toBe(0.25);
-  });
-});
 
 function withdrawal(plant: Plant): number {
   return plant.surplus - spendSurplus(plant).surplus;

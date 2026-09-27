@@ -314,7 +314,7 @@ java fern, hardier and needing less light, lasts about five.
 | Flow | Per hour | When |
 |---|---|---|
 | Banking | income past full condition, up to `surplusCap` | condition at 100 |
-| Healing | `healingDrawRate × growthRate` of the bank, up to the deficit | condition under 100 |
+| Healing | `1 − e^−(healingDrawRate × growthRate)` of the bank, up to the deficit | condition under 100 |
 | Offshoot | what the new unit's size costs at the growth conversion | the bank full |
 | Growth | `growthDrawRate × (1 − size / 100)` of the bank, at the share the water and the bed supply | every hour, day and night |
 
@@ -445,7 +445,7 @@ sword fouls the water more than a carpet patch of the same size.
 | `respirationQ10` | Factor respiration and light starvation multiply by per 10 °C | `2.0` |
 | `respirationOxygenHalfSaturation` | O₂ at which respiration runs at half rate | `0.5` mg/L |
 | `surplusCap` | Ceiling on the bank; a full one buys an offshoot | `50` condition points |
-| `healingDrawRate` | Share of the bank that heals condition each hour, per unit of species growth rate | `0.05` /hr |
+| `healingDrawRate` | First-order rate the bank heals condition at, per unit of species growth rate | `0.05` /hr |
 | `growthDrawRate` | Share of the bank drawn toward new tissue each hour, before the taper | `0.02` /hr |
 | `sizePerSurplus` | Size gained per bank point converted, before the species growth rate — the conversion growth and offshoots share | `0.4` %/pt |
 | `tissuePerSize` | Organic matter in a % of a rate unit of tissue — what growth draws the recipe for, and shedding and death return as waste | `0.01` g |
@@ -478,8 +478,9 @@ The canopy's own constant, `leafAttenuationPerLai`, is under [Light](/subsystems
 
 ## Source
 
-`src/simulation/plants/` — the roster, the growth forms, the canopy,
-construction and the per-tick pipeline; `src/simulation/systems/` —
-photosynthesis, respiration, nutrition and the tissue draw, vitality, growth,
-offshoots and lifecycle; `src/simulation/config/` — the tunables above and their declared
+`src/simulation/plants/` — the roster, the growth forms, the canopy and
+construction; `src/simulation/flora/` — the hour's pass, beside the bloom;
+`src/simulation/systems/` — the flora law the bloom shares, photosynthesis,
+respiration, nutrition and the tissue draw, vitality, growth, offshoots and
+lifecycle; `src/simulation/config/` — the tunables above and their declared
 ranges.

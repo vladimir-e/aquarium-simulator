@@ -18,6 +18,7 @@ export type LogEvent =
   | 'fish-died' // a fish died (any cause)
   | 'plant-died' // a plant died from poor conditions
   | 'plant-propagated' // a full bank bought an offshoot — a runner, plantlet or rhizome branch
+  | 'algae-died' // the bloom died back at condition 0
   | 'fry-sold'; // the sell-fry action removed every fry at once
 
 /** A figure a log line states, kept in engine units so each reader renders it in its own. */

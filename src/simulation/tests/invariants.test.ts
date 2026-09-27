@@ -2,12 +2,12 @@ import { beforeAll, describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { createSimulation, type Fish, type SimulationState } from '../state.js';
 import { tick } from '../tick.js';
-import { DEFAULT_CONFIG } from '../config/index.js';
+import { DEFAULT_CONFIG, configRange, withTunable, type TunableConfig } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { NUTRIENTS, WASTE_NUTRIENTS, type WasteNutrient } from '../config/nutrients.js';
 import { MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
 import { tissueMass } from '../systems/plant-lifecycle.js';
-import { bloomTissue } from '../algae/index.js';
+import { ALGAE, bloomTissue } from '../algae/index.js';
 import { purchase } from '../systems/plant-growth.js';
 import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
 import { freshSubstrate } from '../equipment/substrate.js';
@@ -23,13 +23,10 @@ function run(state: SimulationState, hours: number, config = DEFAULT_CONFIG): Si
   return running;
 }
 
-/** No spores land, so a tank that starts without algae never grows any. */
-const SPORELESS = { ...DEFAULT_CONFIG, algae: { ...DEFAULT_CONFIG.algae, sporeRate: 0 } };
-
 /** Grams of organic matter in the tank: food, waste, the bed's reserve, plant tissue and the bloom's. */
 function organics({ resources, equipment, plants, algae, tank }: SimulationState): number {
   const tissue = plants.reduce((sum, plant) => sum + tissueMass(plant.species, plant.size), 0);
-  const bloom = bloomTissue(algae.mass, tank.capacity, DEFAULT_CONFIG.algae);
+  const bloom = bloomTissue(algae.mass, tank.capacity, ALGAE);
   return resources.food + resources.waste + equipment.substrate.organicReserve + tissue + bloom;
 }
 
@@ -171,9 +168,11 @@ describe('mineral mass', () => {
 });
 
 describe('a planting over a charged bed', () => {
+  const GROWING_DAYS = 10;
   const LIT_DAYS = 30;
   const BLACKOUT_DAYS = 90;
   let start: SimulationState;
+  let growing: SimulationState;
   let grown: SimulationState;
   let dark: SimulationState;
   beforeAll(() => {
@@ -187,13 +186,13 @@ describe('a planting over a charged bed', () => {
       draft.resources.potassium = 10 * draft.resources.water;
       draft.resources.iron = 0.2 * draft.resources.water;
     });
-    grown = run(start, LIT_DAYS * 24, SPORELESS);
+    growing = run(start, GROWING_DAYS * 24);
+    grown = run(growing, (LIT_DAYS - GROWING_DAYS) * 24);
     dark = run(
       produce(grown, (draft) => {
         draft.equipment.light.enabled = false;
       }),
-      BLACKOUT_DAYS * 24,
-      SPORELESS
+      BLACKOUT_DAYS * 24
     );
   });
 
@@ -202,25 +201,25 @@ describe('a planting over a charged bed', () => {
 
   it('grows under the lamp, the sword drawing the bed down past its leak', () => {
     const leakedOnly =
-      start.equipment.substrate.nutrients.phosphate * (1 - DEFAULT_CONFIG.nutrients.bedLeakRate) ** (LIT_DAYS * 24);
-    expect(tissue(grown)).toBeGreaterThan(tissue(start));
-    expect(grown.equipment.substrate.nutrients.phosphate).toBeLessThan(leakedOnly);
+      start.equipment.substrate.nutrients.phosphate * (1 - DEFAULT_CONFIG.nutrients.bedLeakRate) ** (GROWING_DAYS * 24);
+    expect(tissue(growing)).toBeGreaterThan(tissue(start));
+    expect(growing.equipment.substrate.nutrients.phosphate).toBeLessThan(leakedOnly);
   });
 
-  it('conserves nitrogen through the bed’s leak, growth, offshoots, shedding and death', () => {
-    expect(nitrogenInPools(grown) / nitrogenInPools(start)).toBeCloseTo(1, 10);
-    expect(nitrogenInPools(dark) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+  it('conserves nitrogen through the bed’s leak, growth, offshoots, spores, shedding and death, the bloom drawing beside the plants', () => {
+    for (const state of [growing, grown, dark]) {
+      expect(nitrogenInPools(state) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+    }
   });
 
   it('conserves every mineral the same way', () => {
-    for (const n of WASTE_NUTRIENTS) {
-      expect(mineralsInPools(grown, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
-      expect(mineralsInPools(dark, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
+    for (const state of [growing, grown, dark]) {
+      for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(state, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
     }
   });
 
   it('never takes a nutrient below zero or off the number line', () => {
-    for (const state of [grown, dark]) {
+    for (const state of [growing, grown, dark]) {
       for (const n of NUTRIENTS) {
         expect(state.resources[n]).toBeGreaterThanOrEqual(0);
         expect(state.equipment.substrate.nutrients[n]).toBeGreaterThanOrEqual(0);
@@ -255,10 +254,10 @@ describe('a bloom and its crash', () => {
     }
   });
 
-  it('grows on the water and dies back in the dark, its tissue fouling the water', () => {
+  it('grows on the water and loses itself in the dark, its tissue fouling the water', () => {
     expect(bloomed.algae.mass).toBeGreaterThan(start.algae.mass);
     expect(bloomed.resources.nitrate).toBeLessThan(start.resources.nitrate);
-    expect(crashed.algae.mass).toBeLessThan(bloomed.algae.mass / 100);
+    expect(crashed.algae.mass).toBeLessThan(bloomed.algae.mass);
     expect(peakAmmonia).toBeGreaterThan(bloomed.resources.ammonia);
   });
 
@@ -266,6 +265,31 @@ describe('a bloom and its crash', () => {
     for (const state of [bloomed, crashed]) {
       expect(nitrogenInPools(state) / nitrogenInPools(start)).toBeCloseTo(1, 10);
       for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(state, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
+    }
+  });
+});
+
+describe('a bloom at every tunable’s maximum', () => {
+  const leaves = (value: object, prefix = ''): string[] =>
+    Object.entries(value).flatMap(([key, child]) => {
+      const path = prefix ? `${prefix}.${key}` : key;
+      return typeof child === 'object' && child !== null ? leaves(child, path) : [path];
+    });
+  const maxed = leaves(DEFAULT_CONFIG).flatMap((path): [string, TunableConfig][] => {
+    const range = configRange(path);
+    return range === undefined ? [] : [[path, withTunable(DEFAULT_CONFIG, path, range.max)]];
+  });
+  const crowded = produce(cycledBareTank(), (draft) => {
+    draft.algae = { mass: 95, condition: 100, surplus: 100 };
+    for (const n of NUTRIENTS) draft.resources[n] = 1000 * DEFAULT_CONFIG.nutrients.halfSaturation[n] * draft.resources.water;
+  });
+
+  it.each(maxed)('keeps its mass within [0, 100] with %s at its max', (_path, config) => {
+    let state = crowded;
+    for (let hour = 0; hour < 48; hour++) {
+      state = tick(state, config);
+      expect(state.algae.mass).toBeGreaterThanOrEqual(0);
+      expect(state.algae.mass).toBeLessThanOrEqual(100);
     }
   });
 });

@@ -3,9 +3,9 @@ import {
   buildPlantStressors,
   buildPlantBenefits,
   computePlantVitality,
-  plantHealingRate,
   type PlantVitalityContext,
 } from './plant-vitality.js';
+import { dailyLightEdge, floraHealingRate, saturationIrradiance } from './flora.js';
 import { calculateNutrientSufficiency } from './nutrients.js';
 import { getRespirationTemperatureFactor } from './respiration.js';
 import { toleranceFactor } from '../livestock/tolerance.js';
@@ -18,13 +18,7 @@ import { lightAtHeight, type CanopyLight } from '../plants/canopy.js';
 import type { VitalityFactor } from './vitality.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
 import { getGhMass } from '../resources/helpers.js';
-import {
-  CARE_SHEET_PHOTOPERIOD,
-  dailyLightEdge,
-  getSaturationIrradiance,
-  PLANT_SPECIES_DATA,
-  type PlantSpecies,
-} from '../plants/species.js';
+import { CARE_SHEET_PHOTOPERIOD, PLANT_SPECIES_DATA, plantTraits, type PlantSpecies } from '../plants/species.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
 import { plantRecord } from '../tests/plant.js';
 import { VIGOUR_SPAN } from '../plants/create-plant.js';
@@ -144,7 +138,7 @@ describe('buildPlantStressors', () => {
   it('charges a gone nutrient at full severity on the light curve, and nothing in the dark', () => {
     for (const light of [0, 20, 60, 400]) {
       expect(amount('monte_carlo', 'nutrients', { potassium: 0, light })).toBeCloseTo(
-        lightSaturationFactor(light, getSaturationIrradiance('monte_carlo', plantsDefaults)) *
+        lightSaturationFactor(light, saturationIrradiance(plantTraits('monte_carlo'), plantsDefaults)) *
           plantsDefaults.nutrientDeficiencySeverity *
           (1 - PLANT_SPECIES_DATA.monte_carlo.hardiness),
         10
@@ -217,7 +211,7 @@ describe('buildPlantStressors', () => {
     });
 
     it('asks a sun species for more light than a shade species', () => {
-      expect(dailyLightEdge('monte_carlo')).toBeGreaterThan(dailyLightEdge('anubias'));
+      expect(dailyLightEdge(plantTraits('monte_carlo'))).toBeGreaterThan(dailyLightEdge(plantTraits('anubias')));
       const dim = litDay(20, CARE_SHEET_PHOTOPERIOD);
       expect(starved('anubias', { lightByHour: dim })).toBe(0);
       expect(starved('monte_carlo', { lightByHour: dim })).toBeGreaterThan(0);
@@ -263,7 +257,7 @@ describe('buildPlantBenefits', () => {
     expect(benefits.map((b) => b.key).sort()).toEqual(['co2', 'ph', 'temperature']);
 
     const drive =
-      lightSaturationFactor(30, getSaturationIrradiance('anubias', plantsDefaults)) * context.nutrientSufficiency;
+      lightSaturationFactor(30, saturationIrradiance(plantTraits('anubias'), plantsDefaults)) * context.nutrientSufficiency;
     const carbon = calculateCo2Factor(5, 'anubias');
     for (const benefit of benefits) {
       const share = benefit.key === 'co2' ? carbon : 1;
@@ -375,8 +369,8 @@ describe('buildPlantBenefits', () => {
       for (const one of species) {
         for (const other of species) {
           if (
-            getSaturationIrradiance(one, plantsDefaults) <
-            getSaturationIrradiance(other, plantsDefaults)
+            saturationIrradiance(plantTraits(one), plantsDefaults) <
+            saturationIrradiance(plantTraits(other), plantsDefaults)
           ) {
             expect(earned(one, 50)).toBeGreaterThan(earned(other, 50));
           }
@@ -461,11 +455,8 @@ describe('computePlantVitality', () => {
     const healed = (species: PlantSpecies): number =>
       computePlantVitality(ctx(makePlant(species, { condition: 50, surplus: 10 }), dark)).breakdown.healed;
 
-    expect(plantHealingRate(makePlant('amazon_sword'), plantsDefaults)).toBeCloseTo(
-      PLANT_SPECIES_DATA.amazon_sword.growthRate * plantsDefaults.healingDrawRate,
-      12
-    );
-    expect(healed('amazon_sword')).toBeCloseTo(10 * plantHealingRate(makePlant('amazon_sword'), plantsDefaults), 12);
+    const rate = floraHealingRate(plantTraits('amazon_sword'), plantsDefaults);
+    expect(healed('amazon_sword')).toBeCloseTo(10 * -Math.expm1(-rate), 12);
     expect(healed('monte_carlo')).toBeGreaterThan(healed('anubias'));
   });
 

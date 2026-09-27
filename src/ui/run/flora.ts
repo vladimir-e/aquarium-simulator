@@ -156,7 +156,7 @@ export function plantRows(state: SimulationState, config: TunableConfig, ahead: 
   const labels = plantLabels(state.plants);
   return state.plants.map((plant, i) => {
     const { vitality, light } = ahead.plants[i];
-    const { sick, reading } = vitalReading(plant.condition, vitality);
+    const { sick, reading } = vitalReading(plant.condition, vitality.newCondition);
     return {
       id: plant.id,
       species: plant.species,

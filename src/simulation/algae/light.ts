@@ -1,7 +1,8 @@
 import type { Resources } from '../state.js';
 import type { OpticsConfig } from '../config/optics.js';
 import { dailyLightIntegral } from '../equipment/light.js';
-import { algaeDailyLightEdge, type AlgaeTraits } from './traits.js';
+import { dailyLightEdge } from '../systems/flora.js';
+import type { AlgaeTraits } from './traits.js';
 
 /** The light a bloom lives in: the mean over the water column. */
 export interface BloomLight {
@@ -33,6 +34,6 @@ export function bloomLight(
   return {
     par: resources.light * gain,
     dailyLight,
-    needShare: dailyLight / algaeDailyLightEdge(traits),
+    needShare: dailyLight / dailyLightEdge(traits),
   };
 }

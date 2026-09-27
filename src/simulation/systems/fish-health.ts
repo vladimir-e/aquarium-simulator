@@ -242,8 +242,8 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
 }
 
 /**
- * Share of its bank a fish heals from per hour: `healingDrawRate` for a 1 g
- * fish, scaled by adult mass to the −¼ power, as mass-specific metabolism is.
+ * Rate a fish's bank heals it at, per hour: `healingDrawRate` for a 1 g fish,
+ * scaled by adult mass to the −¼ power, as mass-specific metabolism is.
  */
 export function fishHealingRate(fish: Fish, config: LivestockConfig): number {
   return config.healingDrawRate * FISH_SPECIES_DATA[fish.species].adultMass ** -0.25;

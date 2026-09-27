@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import {
-  algaeHealingRate,
   buildAlgaeBenefits,
   buildAlgaeStressors,
   computeAlgaeVitality,
   thrivingPlantDensity,
   type AlgaeVitalityContext,
 } from './algae-vitality.js';
-import { calculateCo2Factor } from './photosynthesis.js';
+import { dailyLightEdge, floraHealingRate, saturationIrradiance } from './flora.js';
 import { getPlantPower } from './plant-power.js';
 import { getRespirationTemperatureFactor } from './respiration.js';
-import { ALGAE, algaeDailyLightEdge, algaeSaturationIrradiance } from '../algae/traits.js';
+import { monodFactor } from '../core/kinetics.js';
+import { ALGAE, bloomPace } from '../algae/traits.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { createSimulation, type Plant } from '../state.js';
 import { plantRecord } from '../tests/plant.js';
@@ -20,7 +20,7 @@ const LITRES = 100;
 
 function context(overrides: Partial<AlgaeVitalityContext> = {}): AlgaeVitalityContext {
   const resources = { ...createSimulation({ tankCapacity: LITRES }).resources, temperature: 25, co2: 4 };
-  const edge = algaeDailyLightEdge(ALGAE);
+  const edge = dailyLightEdge(ALGAE);
   return {
     bloom: { mass: 20, condition: 100, surplus: 0 },
     traits: ALGAE,
@@ -66,7 +66,7 @@ describe('income', () => {
   it('runs on the plants’ light curve and the Liebig sufficiency, and is nothing in the dark', () => {
     const earned = (par: number, nutrientSufficiency = 1): number =>
       sum(buildAlgaeBenefits(context({ light: { par, dailyLight: 1, needShare: 1 }, nutrientSufficiency })));
-    const ik = algaeSaturationIrradiance(ALGAE, plantsConfig);
+    const ik = saturationIrradiance(ALGAE, plantsConfig);
 
     expect(earned(0)).toBe(0);
     expect(earned(ik) / earned(1e6)).toBeCloseTo(Math.tanh(1), 6);
@@ -74,14 +74,14 @@ describe('income', () => {
     expect(earned(200, 0)).toBe(0);
   });
 
-  it('gains less from injected CO₂ than a plant does', () => {
+  it('earns CO₂ on its own half-saturation', () => {
     const co2Income = (co2: number): number =>
       amount(buildAlgaeBenefits(context({ resources: { ...context().resources, co2 } })), 'co2');
-    const algaeGain = co2Income(25) / co2Income(4);
-    const plantGain = calculateCo2Factor(25, 'amazon_sword') / calculateCo2Factor(4, 'amazon_sword');
 
-    expect(algaeGain).toBeGreaterThan(1);
-    expect(algaeGain).toBeLessThan(plantGain);
+    expect(co2Income(25) / co2Income(4)).toBeCloseTo(
+      monodFactor(25, ALGAE.co2HalfSaturation) / monodFactor(4, ALGAE.co2HalfSaturation),
+      12
+    );
   });
 });
 
@@ -89,7 +89,7 @@ describe('light starvation', () => {
   const starvation = (needShare: number): number =>
     amount(
       buildAlgaeStressors(
-        context({ light: { par: 0, dailyLight: needShare * algaeDailyLightEdge(ALGAE), needShare } })
+        context({ light: { par: 0, dailyLight: needShare * dailyLightEdge(ALGAE), needShare } })
       ),
       'lightStarvation'
     );
@@ -100,10 +100,10 @@ describe('light starvation', () => {
     expect(starvation(0.25)).toBeCloseTo(0.75 * starvation(0), 12);
   });
 
-  it('costs what respiration does, at the bloom’s growth rate', () => {
+  it('costs what respiration does, at the bloom’s pace', () => {
     expect(starvation(0)).toBeCloseTo(
       plantsConfig.lightStarvationSeverity *
-        ALGAE.growthRate *
+        bloomPace(ALGAE) *
         getRespirationTemperatureFactor(25, plantsConfig) *
         (1 - ALGAE.hardiness),
       12
@@ -112,8 +112,11 @@ describe('light starvation', () => {
 });
 
 describe('computeAlgaeVitality', () => {
-  it('heals at the plants’ law: its growth rate × the healing draw rate', () => {
-    expect(algaeHealingRate(ALGAE, plantsConfig)).toBe(ALGAE.growthRate * plantsConfig.healingDrawRate);
+  it('heals on the plants’ law, integrated over the hour', () => {
+    const hurt = computeAlgaeVitality(
+      context({ bloom: { mass: 20, condition: 10, surplus: 10 }, light: { par: 0, dailyLight: 4 * dailyLightEdge(ALGAE), needShare: 4 } })
+    );
+    expect(hurt.breakdown.healed).toBeCloseTo(10 * -Math.expm1(-floraHealingRate(ALGAE, plantsConfig)), 12);
   });
 
   it('banks income only at full condition, and heals a bloom below it from the bank', () => {

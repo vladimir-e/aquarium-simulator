@@ -51,8 +51,7 @@ export {
   PLANT_SPECIES_DATA,
   GROWTH_FORMS,
   growthFormOf,
-  getSaturationIrradiance,
-  dailyLightEdge,
+  plantTraits,
 } from './plants/species.js';
 export type {
   FishSpecies,
@@ -330,15 +329,16 @@ export {
 } from './actions/index.js';
 export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 
-// Flora — plants and the bloom in one pass
+// Flora — plants and the bloom in one pass, on one law
 export { processFlora } from './flora/index.js';
 export type { FloraProcessingResult, BloomHour } from './flora/index.js';
+export { saturationIrradiance, dailyLightEdge, floraHealingRate } from './systems/flora.js';
+export type { FloraTraits } from './systems/flora.js';
 
 // Algae
 export {
   ALGAE,
-  algaeDailyLightEdge,
-  algaeSaturationIrradiance,
+  bloomPace,
   bloomLight,
   columnGain,
   bloomTissue,
@@ -349,10 +349,10 @@ export {
   massBought,
   supplyBloom,
   loseBloom,
+  landSpores,
   computeAlgaeVitality,
   buildAlgaeStressors,
   buildAlgaeBenefits,
-  algaeHealingRate,
   thrivingPlantDensity,
 } from './algae/index.js';
 export type {
@@ -380,6 +380,7 @@ export {
   tissueMass,
   tissuePerRateUnit,
   shedShare,
+  losePlant,
   calculateCo2Factor,
   calculateRespiration,
   getRespirationTemperatureFactor,
@@ -390,7 +391,6 @@ export {
   isPlantableSize,
   getSpeciesGrowthRate,
   computePlantVitality,
-  plantHealingRate,
   plantNitrateEdge,
   buildPlantStressors,
   buildPlantBenefits,
@@ -414,6 +414,7 @@ export type {
   NutrientPool,
   TankPools,
   PoolDraw,
+  PlantLoss,
 } from './plants/index.js';
 
 // Livestock

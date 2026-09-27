@@ -1,30 +1,33 @@
-import type { PlantsConfig } from '../config/plants.js';
-import { parHoursToDli } from '../equipment/light.js';
-import { CARE_SHEET_PHOTOPERIOD, type NutrientDemand } from '../plants/species.js';
+import type { NutrientDemand } from '../plants/species.js';
+import type { FloraTraits } from '../systems/flora.js';
 
 /**
  * What a bloom is, in the terms a plant species is written in — without the
- * growth form, since a bloom has no height, footprint or offshoots.
+ * growth form, since a bloom has no height or footprint — and what a kind of
+ * bloom has in their place.
  */
-export interface AlgaeTraits {
+export interface AlgaeTraits extends FloraTraits {
   name: string;
-  /**
-   * Relative growth rate on the plants' scale: the bank's conversion into mass,
-   * the healing share, and the pace its tissue photosynthesises and respires at.
-   */
-  growthRate: number;
   hardiness: number;
-  /** PAR at the low end of its band — its daily light edge and its `Ik`, as a plant's. */
-  lowLight: number;
   nutrientDemand: NutrientDemand;
-  tolerableTemp: [number, number];
-  tolerablePH: [number, number];
+  /** Dissolved CO₂ (mg/L) it photosynthesises at half rate on. */
+  co2HalfSaturation: number;
+  /** Organic matter in a litre of habitat at a full bloom, g. */
+  tissuePerLitre: number;
+  /** Mass that lands every hour through the taper, whatever the bloom is doing, 0–100 scale. */
+  sporeRate: number;
 }
 
 /**
- * Green algae. A bloom doubles in about two days: at the income a lit day
- * averages, a growth rate of 30 buys that. It saturates by 12 PAR, lives on a
- * lean water column, and takes the warm, alkaline water plants struggle in.
+ * Green algae, suspended in the water column. It saturates by 12 PAR, lives on
+ * a lean column, and takes the warm, alkaline water plants struggle in.
+ *
+ * Free CO₂ half-saturation for microalgae with carbon-concentrating mechanisms
+ * runs well under 1 mg/L, since they take bicarbonate too: 93 % on the 4 mg/L
+ * an uninjected tank holds, 99 % at an injected 25. Heavy green water carries
+ * some 10–50 mg/L of dry cells; 30 mg/L of organic matter ties up about 7 ppm of
+ * nitrate-equivalent nitrogen. Spores land at 0.05 of the scale a day: nothing
+ * a reader sees, but an empty tank is never closed to a bloom.
  */
 export const ALGAE: AlgaeTraits = {
   name: 'Algae',
@@ -34,12 +37,12 @@ export const ALGAE: AlgaeTraits = {
   nutrientDemand: 'low',
   tolerableTemp: [12, 34],
   tolerablePH: [5.5, 9.5],
+  co2HalfSaturation: 0.3,
+  tissuePerLitre: 0.03,
+  sporeRate: 0.002,
 };
 
-export function algaeSaturationIrradiance(traits: AlgaeTraits, config: PlantsConfig): number {
-  return config.saturationIrradianceFactor * traits.lowLight;
-}
-
-export function algaeDailyLightEdge(traits: AlgaeTraits): number {
-  return parHoursToDli(traits.lowLight, CARE_SHEET_PHOTOPERIOD);
+/** How many times faster than a leaf a gram of bloom fixes, respires and starves. */
+export function bloomPace(traits: AlgaeTraits): number {
+  return traits.growthRate;
 }

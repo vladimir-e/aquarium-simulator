@@ -38,8 +38,20 @@ export {
 export {
   spendSurplus,
   getSpeciesGrowthRate,
-  growthTaper,
 } from './plant-growth.js';
+
+export {
+  saturationIrradiance,
+  dailyLightEdge,
+  floraHealingRate,
+  growthTaper,
+  bankDraw,
+  bankConversion,
+  floraStressors,
+  floraBenefits,
+  type FloraTraits,
+  type FloraHour,
+} from './flora.js';
 
 export {
   nitrogenCycleSystem,

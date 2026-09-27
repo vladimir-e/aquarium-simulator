@@ -56,8 +56,8 @@ export interface PlantsConfig {
    */
   growthDrawRate: number;
   /**
-   * Share of the bank a plant draws each hour to heal condition below 100, per
-   * unit of species `growthRate`: a plant repairs at the pace it grows.
+   * Rate, per hour and per unit of species `growthRate`, a plant's bank heals
+   * condition below 100 at: a plant repairs at the pace it grows.
    */
   healingDrawRate: number;
   /**
@@ -183,7 +183,7 @@ export const plantsDefaults: PlantsConfig = {
   // `surplusCap` until the taper closes the draw down and it fills to buy an
   // offshoot.
   growthDrawRate: 0.02,
-  // 5 %/h at growth rate 1: a sword spends a bank on repair with a ~20 h time
+  // 0.05 /h at growth rate 1: a sword spends a bank on repair with a 20 h time
   // constant, a monte carlo in half that, an anubias over three days.
   healingDrawRate: 0.05,
   sizePerSurplus: 0.4, // size % per (surplus × growthRate) unit converted

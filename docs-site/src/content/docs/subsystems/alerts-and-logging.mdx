@@ -99,10 +99,11 @@ a run was created with, a heater's target — stays a quantity rather than text,
 each reader renders the line in its own units: `logText(entry, format)`, metric
 unless handed a format.
 
-Seven typed events exist: `fish-spawned`, `eggs-laid`, `eggs-hatched`,
-`fish-died`, `plant-died`, `plant-propagated` and `fry-sold`. Three of them
-carry a count — a live birth, a hatch and a fry sale — because the number is the
-point. Deaths and offshoots are one entry per organism, so they need none.
+Eight typed events exist: `fish-spawned`, `eggs-laid`, `eggs-hatched`,
+`fish-died`, `plant-died`, `plant-propagated`, `algae-died` and `fry-sold`.
+Three of them carry a count — a live birth, a hatch and a fry sale — because the
+number is the point. Deaths, offshoots and a bloom's die-back are one entry per
+organism, so they need none.
 
 The discriminator is the contract. A caller that parses the free text is
 reading a field that exists to be rewritten.
@@ -148,6 +149,7 @@ rate can. The four water-quality lines are the fish tolerance edges, defined wit
 | [Algae](/subsystems/algae/) | `algae.mass` directly — algae is an organism, not a resource | — |
 | [Plants](/subsystems/plants/) | `algaeShadingThreshold`, the bloom's line | — |
 | [Plants](/subsystems/plants/) | — | Receives a `plant-died` entry per plant lost and a `plant-propagated` entry per offshoot |
+| [Algae](/subsystems/algae/) | — | Receives an `algae-died` entry per die-back |
 | [Livestock](/subsystems/livestock/) | — | Receives death, spawn, laying and hatch entries |
 | [Actions](/subsystems/actions/) | — | Receives one entry per applied action |
 | [State & persistence](/subsystems/state-and-persistence/) | — | `alertState` is persisted; `logs` are not |

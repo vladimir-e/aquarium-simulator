@@ -142,8 +142,8 @@ export interface LivestockConfig {
    */
   surplusCap: number;
   /**
-   * Share of the bank a 1 g fish draws each hour to heal health below 100;
-   * scaled by adult mass to the −¼ power (see `fishHealingRate`).
+   * Rate, per hour, a 1 g fish's bank heals health below 100 at; scaled by
+   * adult mass to the −¼ power (see `fishHealingRate`).
    */
   healingDrawRate: number;
 
@@ -271,9 +271,9 @@ export const livestockDefaults: LivestockConfig = {
 
   // Bank ceiling — half the condition scale by default.
   surplusCap: SURPLUS_CAP_DEFAULT,
-  // 5 %/h at 1 g: a full bank heals a 1 g fish 2.5 %/h at first, more than its
-  // whole benefit budget, and runs out with a ~20 h time constant under a
-  // steady insult. A neon draws 6 %/h of its bank, an angelfish 2.5.
+  // 0.05 /h at 1 g: a full bank heals a 1 g fish 2.4 %/h at first, more than
+  // its whole benefit budget, and runs out with a 20 h time constant under a
+  // steady insult. A neon heals at 0.06 /h, an angelfish at 0.025.
   healingDrawRate: 0.05,
 
   // Death

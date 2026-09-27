@@ -1,6 +1,6 @@
 ---
 title: Vitality
-description: One model for every organism with a condition — rates of benefit and harm move condition, only a full organism banks, and the bank heals at a species share and buys what the organism makes.
+description: One model for every organism with a condition — rates of benefit and harm move condition, only a full organism banks, and the bank heals at a species rate and buys what the organism makes.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -23,7 +23,7 @@ in condition points per hour, and one shared step settles them.
 ```
 condition += Σbenefits − Σstressors
 above 100:  the excess banks, up to surplusCap, and condition sits at 100
-below 100:  the bank heals min(100 − condition, healingRate × bank)
+below 100:  the bank heals min(100 − condition, (1 − e^−healingRate) × bank)
 ```
 
 | Term | Is |
@@ -31,21 +31,22 @@ below 100:  the bank heals min(100 − condition, healingRate × bank)
 | Benefits | Income from favourable conditions. Hardiness never scales them |
 | Stressors | Damage, hardened by each organism: `× (1 − hardiness)`, or by moving where harm starts |
 | Bank | Condition points banked at full condition, capped at `surplusCap` |
-| Healing rate | The most of its bank an organism heals from in an hour, as a share |
+| Healing rate | The first-order rate its bank drains at while it heals, per hour |
 
 Income heals first, and only what a full condition leaves over banks. Damage
 never touches the bank; it lowers condition, and the bank heals it back. Healing
-is first order: a bank pays out at most a share of itself each hour. Under
-damage heavier than that share it drains on an exponential with a time constant
-of `1 / healingRate` hours; under lighter damage it pays out only what the
-damage took, and drains in a straight line.
+is first order, integrated over the hour: a bank pays out at most
+`1 − e^−healingRate` of itself, so under damage heavier than that it drains on an
+exponential with a time constant of `1 / healingRate` hours, however fast the
+rate. Under lighter damage it pays out only what the damage took, and drains in
+a straight line.
 
 ## Sickness and immunity
 
 The bank feeding condition is the organism's immunity. A full bank heals up to
-`healingRate × surplusCap` an hour, which is what lets a banked organism ride
-out a bad spell at full condition while an unbanked one loses condition from
-the first hour.
+`(1 − e^−healingRate) × surplusCap` in an hour, which is what lets a banked
+organism ride out a bad spell at full condition while an unbanked one loses
+condition from the first hour.
 
 An organism is sick while its damage outruns its healing, so its condition
 falls. Sickness is not a separate mechanic: the damage rate *is* the sickness,
@@ -53,9 +54,9 @@ and it ends when the rates turn round.
 
 | Organism | Healing rate | Shipped |
 |---|---|---|
-| Fish | `healingDrawRate × adultMass^−¼`, the way mass-specific metabolism scales | 6 %/h for a neon, 2.5 %/h for an angelfish |
-| Plant | `healingDrawRate × growthRate` — a plant repairs at the pace it grows | 9 %/h for monte carlo, 1.5 %/h for anubias |
-| Algae | The plants' law, at the bloom's growth rate | its whole bank in an hour |
+| Fish | `healingDrawRate × adultMass^−¼`, the way mass-specific metabolism scales | 0.06 /h for a neon, 0.025 /h for an angelfish |
+| Plant | `healingDrawRate × growthRate` — a plant repairs at the pace it grows | 0.09 /h for monte carlo, 0.015 /h for anubias |
+| Algae | The plants' law, at the bloom's growth rate | 1.5 /h — 78 % of its bank in an hour |
 
 ## What the bank buys
 
@@ -63,7 +64,7 @@ and it ends when the rates turn round.
 |---|---|---|
 | Fish | Dies at 0 | A brood: a full bank buys a spawn, and the spawn empties it — see [Breeding](/subsystems/livestock/#breeding) |
 | Plant | Sheds tissue, with the square of the deficit; dies at 0 | Its growth and its offshoots: growth draws on the bank through a taper that closes as the unit fills, and a full bank buys a new unit of the family — see [Offshoots](/subsystems/plants/#offshoots) |
-| Algae | Sheds mass as a plant sheds tissue; dies back at 0 | Mass, in proportion to the mass standing, through the plants' taper as its habitat fills — see [Algae](/subsystems/algae/#the-bank-buys-mass) |
+| Algae | Sheds mass as a plant sheds tissue; dies back at 0 | Mass, in proportion to the mass standing, on the logistic its habitat sets — see [Algae](/subsystems/algae/#the-bank-buys-mass). Its spores are its offshoots: they land at condition 100 whatever the bloom is doing |
 
 ## Status
 
@@ -71,14 +72,14 @@ and it ends when the rates turn round.
 |---|---|---|
 | The balance | <Badge text="settled" variant="success" /> | One step for fish, plants and the bloom. Each organism hardens its own charges, so a channel can move its edge instead of scaling its charge |
 | Banking at full condition | <Badge text="settled" variant="success" /> | Income heals first and banks only at 100; damage never reaches the bank |
-| First-order healing | <Badge text="settled" variant="success" /> | The bank heals at a species share, with no floor and no switch — the same law growth draws on |
+| First-order healing | <Badge text="settled" variant="success" /> | The bank heals at a species rate, integrated over the hour, with no floor, switch or clamp |
 | Sickness | <Badge text="settled" variant="success" /> | A reading of the rates, not a state: condition falling is the whole of it |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at each edge, and the matching damage starts from zero at or past it, so net never jumps as a reading leaves its band |
 | Brood and offshoot | <Badge text="settled" variant="success" /> | Each is an event a full bank buys: the bank is its price and refilling it is the cooldown, with no timers |
 
 ## Source
 
-`src/simulation/systems/` holds the shared step and each organism's factor
-builders; `src/simulation/plants/`, `src/simulation/algae/` and
+`src/simulation/systems/` holds the shared step, the flora law plants and the
+bloom both run on, and each organism's factor builders; `src/simulation/plants/`, `src/simulation/algae/` and
 `src/simulation/livestock/` decide what their bank buys, and
 `src/simulation/flora/` runs plants and the bloom through one pass.

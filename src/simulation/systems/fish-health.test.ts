@@ -529,17 +529,17 @@ describe('surplus', () => {
     );
   });
 
-  it('heals from the bank at its share, holding health a bare fish loses', () => {
+  it('heals from the bank at its rate over the hour, holding health a bare fish loses', () => {
     const buffered = vitality({ surplus: 10 }, cold);
     expect(buffered.breakdown.healed).toBeCloseTo(
-      Math.min(-buffered.breakdown.net, 10 * fishHealingRate(makeFish(), livestockDefaults)),
+      Math.min(-buffered.breakdown.net, 10 * -Math.expm1(-fishHealingRate(makeFish(), livestockDefaults))),
       12
     );
     expect(buffered.surplus).toBeCloseTo(10 - buffered.breakdown.healed, 12);
     expect(buffered.newCondition).toBeGreaterThan(vitality({ surplus: 0 }, cold).newCondition);
   });
 
-  it('scales the healing share by adult mass to the −¼ power', () => {
+  it('scales the healing rate by adult mass to the −¼ power', () => {
     const share = (species: FishSpecies): number => fishHealingRate(makeFish({ species }), livestockDefaults);
     const ratio = FISH_SPECIES_DATA.angelfish.adultMass / FISH_SPECIES_DATA.neon_tetra.adultMass;
     expect(share('neon_tetra') / share('angelfish')).toBeCloseTo(ratio ** 0.25, 12);

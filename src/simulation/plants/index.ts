@@ -60,11 +60,11 @@ export {
   organicNutrients,
 } from '../systems/nutrients.js';
 export type { Feeder, NutrientPool, TankPools, PoolDraw } from '../systems/nutrients.js';
-export { tissueMass, tissuePerRateUnit, shedShare } from '../systems/plant-lifecycle.js';
+export { tissueMass, tissuePerRateUnit, shedShare, losePlant } from '../systems/plant-lifecycle.js';
+export type { PlantLoss } from '../systems/plant-lifecycle.js';
 export {
   computePlantVitality,
   buildPlantStressors,
   buildPlantBenefits,
-  plantHealingRate,
   plantNitrateEdge,
 } from '../systems/plant-vitality.js';

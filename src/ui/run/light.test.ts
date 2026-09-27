@@ -5,6 +5,7 @@ import {
   createSimulation,
   dailyLightEdge,
   dailyLightIntegral,
+  plantTraits,
   readPlantLight,
   type PlantSpecies,
   type SimulationState,
@@ -61,7 +62,7 @@ describe('dailyLightReading', () => {
 
   it('reads a carpet short in the shade of a taller plant, on light its species alone would thrive on', () => {
     const shaded = planted(['amazon_sword', 'monte_carlo'], 100);
-    const edge = dailyLightEdge('monte_carlo');
+    const edge = dailyLightEdge(plantTraits('monte_carlo'));
     const { needed } = read(shaded);
     expect(needed).toBeGreaterThan(edge * 1.02);
 

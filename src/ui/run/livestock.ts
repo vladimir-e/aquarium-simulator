@@ -135,7 +135,7 @@ export interface FishRead {
 export function readFish(state: SimulationState, config: TunableConfig, ahead: HourAhead): FishRead[] {
   const numbers = fishNumbers(state.fish);
   return state.fish.map((fish, i) => {
-    const { sick, reading } = vitalReading(fish.health, ahead.fish[i].vitality);
+    const { sick, reading } = vitalReading(fish.health, ahead.fish[i].vitality.newCondition);
     return {
       id: fish.id,
       number: numbers.get(fish.id)!,

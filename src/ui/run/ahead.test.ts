@@ -144,7 +144,7 @@ describe('readHourAhead', () => {
     expect(gone(dying.plants, next.plants)).toContain(true);
     gone(dying.fish, next.fish).forEach((died, i) => died && expect(ahead.fish[i].spent).toBe(0));
     gone(dying.plants, next.plants).forEach((died, i) => died && expect(ahead.plants[i].spent).toBe(0));
-    expect(next.algae.mass).toBe(0);
+    expect(next.logs.some((log) => log.event === 'algae-died')).toBe(true);
     expect(ahead.algae.spent).toBe(0);
   });
 
@@ -177,7 +177,7 @@ describe('readHourAhead', () => {
     for (const { state, next } of hours) {
       const ahead = readHourAhead(state, config);
 
-      expect(ahead.algae.vitality.newCondition).toBe(next.algae.condition);
+      expect(ahead.algae.condition).toBe(next.algae.condition);
       expect(ahead.algae.vitality.surplus - ahead.algae.spent).toBeCloseTo(next.algae.surplus, 12);
       expect(ahead.algae.mass).toBe(next.algae.mass);
     }

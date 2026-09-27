@@ -6,7 +6,7 @@
  * on the Overview and another in its own inspector.
  */
 
-import type { SimulationState } from '../../simulation/index.js';
+import { ALGAE, type SimulationState } from '../../simulation/index.js';
 import {
   algaeAlertLine,
   ammoniaAlertLine,
@@ -687,7 +687,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       algae: {
         kind: 'population',
         key: 'algae',
-        name: 'Algae',
+        name: ALGAE.name,
         figure: `${byId.algae.value} %`,
         caption: 'coverage',
         trend: algaeDrift,

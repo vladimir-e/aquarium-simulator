@@ -24,7 +24,7 @@ declared minimum of `0.1`.
 | Gas exchange | `gasExchange.` | O₂ and CO₂ across the surface, and what aeration does to both |
 | Temperature | `temperature.` | Drift toward the room, scaled by tank size |
 | Evaporation | `evaporation.` | Water lost per day, and how warmth accelerates it |
-| Algae | `algae.` | What only the bloom has — its carbon, its tissue, its spores and what plants do to it; the rest of it runs on `plants.` |
+| Algae | `algae.` | What thriving plants do to any bloom; a bloom's own kind is its traits, and the rest of it runs on `plants.` |
 | Optics | `optics.` | What the water column and the leaves above take out of the light on the way down |
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, respiration, vitality, growth and offshoots, lifecycle |
@@ -109,15 +109,13 @@ density you can look up rather than a score.
 
 ## Algae
 
-The bloom runs on the plants' constants; its traits sit beside the plant
-species ([Algae](/subsystems/algae/#key-tunables-and-traits)). These are what
-only it has.
+The bloom runs on the plants' constants, and what a kind of bloom is — its
+carbon, its tissue, its spores — sits in its traits, beside the plant species
+([Algae](/subsystems/algae/#key-tunables-and-traits)). What is left here holds
+for any bloom.
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `co2HalfSaturation` | Dissolved CO₂ the bloom photosynthesises at half rate on | mg/L |
-| `tissuePerLitre` | Organic matter in a litre of habitat at a full bloom | g/L |
-| `sporeRate` | Mass that lands every hour, through the taper | /hr |
 | `allelopathySeverity` | Damage per rate unit of thriving plant per litre | %/(unit/L)/hr |
 
 ## Optics
@@ -148,7 +146,7 @@ only it has.
 | `respirationReferenceTemp` | Temperature respiration and light starvation are quoted at | °C |
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which respiration runs at half rate | mg/L |
 | `growthDrawRate` | Share of the bank drawn toward new tissue each hour, before the taper `1 − size/100` | /hr |
-| `healingDrawRate` | Share of the bank that heals condition each hour, per unit of species growth rate | /hr per growth rate |
+| `healingDrawRate` | First-order rate the bank heals condition at, per unit of species growth rate | /hr per growth rate |
 | `sizePerSurplus` | Size gained per bank point converted, before the species growth multiplier — the conversion growth and offshoots share | %/pt |
 | `surplusCap` | Ceiling on the bank; a full one buys an offshoot | pts |
 | `tissuePerSize` | Organic matter in a % of a rate unit of tissue, so a unit weighs by its leaf, not its size — what growth draws the recipe for, and shedding and death return as waste | g/% |
@@ -196,7 +194,7 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `satiationWellFedPeak` · `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor at its best | %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which the planted-tank benefit stops growing | power |
 | `surplusCap` | Ceiling on the fish's bank; a female spawns on a full one | pts |
-| `healingDrawRate` | Share of its bank a 1 g fish heals from each hour, scaled by adult mass to the −¼ | /hr at 1 g |
+| `healingDrawRate` | First-order rate a 1 g fish's bank heals it at, scaled by adult mass to the −¼ | /hr at 1 g |
 | `deathDecayFactor` | Share of a dead fish's mass that becomes waste | — |
 
 ## Fixed tables

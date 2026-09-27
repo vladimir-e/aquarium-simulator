@@ -413,9 +413,6 @@ const EvaporationConfigSchema = z
 
 const AlgaeConfigSchema = z
   .object({
-    co2HalfSaturation: z.number(),
-    tissuePerLitre: z.number(),
-    sporeRate: z.number(),
     allelopathySeverity: z.number(),
   })
   .strict();

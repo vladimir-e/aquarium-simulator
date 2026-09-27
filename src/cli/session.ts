@@ -21,7 +21,7 @@ import type { HistorySnapshot } from './history.js';
  * v17 put algae on the plants' vitality model. `AlgaeState` gains
  *    `condition`, and the `algae` config section is rebuilt as
  *    `AlgaeConfig`. A v16 session parses, and the first tick reads a bloom's
- *    condition and its CO₂ half-saturation off keys it does not carry.
+ *    condition and its allelopathy severity off keys it does not carry.
  * v16 made the bed a nutrient store and plants of their nutrients, and let a
  *    plant die only at condition 0. `Substrate` gains `nutrients`;
  *    `NutrientsConfig` drops `uptakePerRateUnit` and gains `rootTab` and

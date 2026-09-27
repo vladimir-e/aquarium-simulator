@@ -187,7 +187,7 @@ function fishLedger(
 
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
-  const vital = vitalReading(fish.health, vitality);
+  const vital = vitalReading(fish.health, vitality.newCondition);
   const reading = fishReading(fish, vital.reading, livestock);
 
   return {
@@ -249,7 +249,7 @@ function plantLedger(
   const data = PLANT_SPECIES_DATA[plant.species];
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
-  const { reading, value, trend } = vitalReading(plant.condition, vitality);
+  const { reading, value, trend } = vitalReading(plant.condition, vitality.newCondition);
   const [lightLow, lightHigh] = data.tolerableLight;
 
   return {
@@ -306,7 +306,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
   const cap = config.plants.surplusCap;
   const line = algaeAlertLine(config);
   const coverage = algaeReading(mass, line);
-  const { value, trend } = vitalReading(condition, vitality);
+  const { value, trend } = vitalReading(condition, ahead.algae.condition);
 
   return {
     target: { kind: 'algae' },
@@ -342,7 +342,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
         'buying growth'
       ),
     },
-    demand: `${ALGAE.nutrientDemand} demand · light from ${ALGAE.lowLight} PAR · little CO₂`,
+    demand: `${ALGAE.nutrientDemand} demand · light from ${ALGAE.lowLight} PAR · CO₂ at half rate on ${ALGAE.co2HalfSaturation} mg/L`,
     verb: 'scrubAlgae',
     scope: null,
   };

@@ -25,7 +25,8 @@ import type { Plant, Resources, SimulationState } from '../state.js';
 import { calculateFloorArea, calculateTankHeight } from '../state.js';
 import type { OpticsConfig } from '../config/optics.js';
 import { dailyLightIntegral } from '../equipment/light.js';
-import { dailyLightEdge, growthFormOf, type PlantSpecies } from './species.js';
+import { growthFormOf, plantTraits, type PlantSpecies } from './species.js';
+import { dailyLightEdge } from '../systems/flora.js';
 
 type Unit = Pick<Plant, 'species' | 'size'>;
 
@@ -149,7 +150,7 @@ export function lightAtHeight(
   waterDepth: number
 ): PlantLight {
   const dailyLight = dailyLightIntegral(resources.lightByHour) * canopy.leaf;
-  const edge = dailyLightEdge(plant.species);
+  const edge = dailyLightEdge(plantTraits(plant.species));
   return {
     par: resources.light * canopy.leaf,
     crownPar: resources.light * canopy.top,

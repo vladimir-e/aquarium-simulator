@@ -3,14 +3,13 @@
  *
  * Each scrub removes a random 10–30 % of the current algae mass.
  * Disabled when mass < 5 (too little to mechanically remove). What comes off
- * is loose in the water as waste, so the bloom's tissue is kept: siphoned out
- * or left to rot.
+ * is loose in the water as waste: it rots there, and a gravel vac takes what
+ * has settled into the bed.
  */
 
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
-import type { AlgaeConfig } from '../config/algae.js';
-import { bloomTissue } from '../algae/index.js';
+import { ALGAE, bloomTissue } from '../algae/index.js';
 import { createLog } from '../core/logging.js';
 import { draw, type RngState } from '../core/rng.js';
 import type { ActionResult, ScrubAlgaeAction } from './types.js';
@@ -43,14 +42,9 @@ function scrubBite(rng: RngState): number {
  *
  * @param state - Current simulation state
  * @param action - Scrub action (optionally naming the percent outright)
- * @param config - What a litre of full bloom weighs, for the waste it leaves
  * @returns Updated state and message
  */
-export function scrubAlgae(
-  state: SimulationState,
-  action: ScrubAlgaeAction,
-  config: AlgaeConfig
-): ActionResult {
+export function scrubAlgae(state: SimulationState, action: ScrubAlgaeAction): ActionResult {
   const named = action.randomPercent;
   if (
     named !== undefined &&
@@ -81,7 +75,7 @@ export function scrubAlgae(
   const newState = produce(state, (draft) => {
     draft.rng = rng;
     draft.algae.mass = currentMass - removed;
-    draft.resources.waste += bloomTissue(removed, draft.tank.capacity, config);
+    draft.resources.waste += bloomTissue(removed, draft.tank.capacity, ALGAE);
     draft.logs.push(
       createLog(
         draft.tick,
