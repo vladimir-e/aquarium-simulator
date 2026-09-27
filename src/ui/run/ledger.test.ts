@@ -25,7 +25,6 @@ function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
     age: 24 * 120,
     gut: FED,
     sex: 'male',
-    stage: 'adult',
     hardinessOffset: 0,
     surplus: 0,
     ...overrides,
@@ -145,13 +144,18 @@ describe('readLedger', () => {
     const cap = DEFAULT_CONFIG.livestock.surplusCap;
     const pair = tank([
       makeFish({ id: 'fish_a_1', sex: 'female', surplus: cap }),
-      makeFish({ id: 'fish_a_2', sex: 'male' }),
+      makeFish({ id: 'fish_a_2', sex: 'male', surplus: cap }),
     ]);
     const next = tick(pair, DEFAULT_CONFIG);
 
     expect(next.clutches.length).toBeGreaterThan(pair.clutches.length);
     expect(next.fish.find((fish) => fish.id === 'fish_a_1')!.surplus).toBe(0);
     expect(fishLedger(pair).bank!.note).toBe('buying a brood');
+  });
+
+  it('reads a growing fry’s bank as buying growth', () => {
+    const fry = tank([makeFish({ id: 'fish_a_1', mass: 0.05, surplus: DEFAULT_CONFIG.livestock.surplusCap })]);
+    expect(ledgerOf(fry, { kind: 'fish', id: 'fish_a_1' })!.bank!.note).toBe('buying growth');
   });
 
   describe('for a plant', () => {

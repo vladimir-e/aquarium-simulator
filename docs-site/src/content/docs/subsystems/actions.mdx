@@ -61,9 +61,9 @@ diverge the moment their keepers act differently.
 | Trim plants | a target size, optionally one plant id or one family id | every plant above the target down to it — of that family, or just the named plant | target outside `[MIN_PLANTABLE_SIZE, 100]`, nothing above the target, plant not found |
 | Add plant | species, optional size | a unit founding its own family, at condition 100 with an empty bank | unknown species, size outside `[MIN_PLANTABLE_SIZE, 100]`, not enough floor for its footprint |
 | Remove plant | plant id | the plant leaves the array; a rooted one disturbs its footprint's share of the bed | not found |
-| Add fish | species | an adult at `maturityAge`, with sampled sex, hardiness offset and health jitter | unknown species, or the physical mass ceiling reached |
+| Add fish | species, optional size | a fish at that share of adult mass — grown by default — at age 0, with sampled sex, hardiness offset and health jitter | unknown species, size outside a fry's to 100, or the physical mass ceiling reached |
 | Remove fish | fish id | the fish leaves the array | not found |
-| Sell fry | — | every fish carrying `stage: 'fry'` | no fry in the tank |
+| Sell fry | — | every fish under half its adult size | no fry in the tank |
 
 Trimmed tissue leaves the system outright — the convention is that the keeper
 carried it out of the room. Scrubbed film does not: it comes off the glass

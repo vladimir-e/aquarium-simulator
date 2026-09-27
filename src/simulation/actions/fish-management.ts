@@ -7,7 +7,8 @@ import type { SimulationState, Fish } from '../state.js';
 import type { FishSpecies } from '../livestock/species.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { createLog } from '../core/logging.js';
-import { createFish } from '../livestock/create-fish.js';
+import { createFish, isStockableSize, STOCKED_FISH_SIZE } from '../livestock/create-fish.js';
+import { fishLifeStage, frySize, massAtSize } from '../systems/fish-growth.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import type { ActionResult, AddFishAction, RemoveFishAction } from './types.js';
 
@@ -52,7 +53,7 @@ export function totalFishMass(fish: Fish[]): number {
 }
 
 export interface FishCapacityResult {
-  /** True if one more adult of the species fits under the physical ceiling. */
+  /** True if one more fish of the species fits under the physical ceiling. */
   ok: boolean;
   /** Rejection message when `!ok`; empty string when it fits. */
   message: string;
@@ -67,11 +68,11 @@ export interface FishCapacityResult {
 export function checkFishCapacity(
   fish: Fish[],
   tankCapacity: number,
-  species: FishSpecies
+  species: FishSpecies,
+  size: number = STOCKED_FISH_SIZE
 ): FishCapacityResult {
-  const speciesData = FISH_SPECIES_DATA[species];
   const maxMass = getMaxFishMass(tankCapacity);
-  const ok = Boolean(speciesData) && totalFishMass(fish) + speciesData.adultMass <= maxMass;
+  const ok = Boolean(FISH_SPECIES_DATA[species]) && totalFishMass(fish) + massAtSize(species, size) <= maxMass;
   return {
     ok,
     message: ok ? '' : `Tank at fish capacity (~${Math.floor(maxMass)}g of fish max)`,
@@ -79,28 +80,25 @@ export function checkFishCapacity(
 }
 
 /**
- * Whether one more adult of `species` fits under the physical stocking
+ * Whether one more fish of `species` fits under the physical stocking
  * ceiling. Thin state-based wrapper over {@link checkFishCapacity}.
  */
-export function canAddFish(state: SimulationState, species: FishSpecies): boolean {
-  return checkFishCapacity(state.fish, state.tank.capacity, species).ok;
+export function canAddFish(state: SimulationState, species: FishSpecies, size?: number): boolean {
+  return checkFishCapacity(state.fish, state.tank.capacity, species, size).ok;
 }
 
 /**
- * Add a fish to the tank. Stocked fish arrive as full-grown adults — adult
- * mass at `maturityAge`, the youngest age that can honestly be called
- * grown, so a bought pair can breed from its first tick. The individual
- * variation — sex, hardiness offset, health jitter — is sampled by the
- * shared {@link createFish} factory, the same one breeding uses for fry.
+ * Add a fish to the tank at a size — grown when none is named. The
+ * individual variation — sex, hardiness offset, health jitter — is sampled by
+ * the shared {@link createFish} factory, the same one breeding uses for fry.
  */
 export function addFish(
   state: SimulationState,
   action: AddFishAction,
   config: LivestockConfig
 ): ActionResult {
-  const { species } = action;
+  const { species, size = STOCKED_FISH_SIZE } = action;
 
-  // Validate species
   if (!FISH_SPECIES_DATA[species]) {
     return {
       state,
@@ -110,14 +108,21 @@ export function addFish(
 
   const speciesData = FISH_SPECIES_DATA[species];
 
+  if (!isStockableSize(species, size)) {
+    return {
+      state,
+      message: `A ${speciesData.name} is stocked from ${frySize(species)}% to 100% of adult size`,
+    };
+  }
+
   // Physical stocking ceiling — see MAX_FISH_VOLUME_FRACTION.
-  const capacity = checkFishCapacity(state.fish, state.tank.capacity, species);
+  const capacity = checkFishCapacity(state.fish, state.tank.capacity, species, size);
   if (!capacity.ok) {
     return { state, message: capacity.message };
   }
 
   const newState = produce(state, (draft) => {
-    const fish = createFish({ species, stage: 'adult', rng: draft.rng, config });
+    const fish = createFish({ species, size, rng: draft.rng, config });
     draft.fish.push(fish);
 
     draft.logs.push(
@@ -125,7 +130,7 @@ export function addFish(
         draft.tick,
         'user',
         'info',
-        `Added ${speciesData.name} (${speciesData.adultMass}g, ${fish.sex})`
+        `Added ${speciesData.name} (${Number(fish.mass.toFixed(2))}g, ${fish.sex})`
       )
     );
   });
@@ -177,14 +182,14 @@ export function removeFish(
 }
 
 /**
- * Sell (remove) every fry in the tank at once — the population-management
+ * Sell (remove) every fish that reads as fry at once — the population-management
  * pressure valve for a tank that has bred past what the player wants to
  * keep. The engine is money-free, so "sell" carries no economic effect
  * here; it removes the fry and logs a `fry-sold` event for game-side
  * consumers to price. Adults are untouched.
  */
 export function sellFry(state: SimulationState): ActionResult {
-  const fryCount = state.fish.reduce((n, f) => n + (f.stage === 'fry' ? 1 : 0), 0);
+  const fryCount = state.fish.reduce((n, f) => n + (fishLifeStage(f) === 'fry' ? 1 : 0), 0);
 
   if (fryCount === 0) {
     return {
@@ -194,7 +199,7 @@ export function sellFry(state: SimulationState): ActionResult {
   }
 
   const newState = produce(state, (draft) => {
-    draft.fish = draft.fish.filter((f) => f.stage !== 'fry');
+    draft.fish = draft.fish.filter((f) => fishLifeStage(f) !== 'fry');
 
     draft.logs.push(
       createLog(

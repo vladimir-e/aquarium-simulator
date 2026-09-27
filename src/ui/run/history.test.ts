@@ -20,16 +20,15 @@ function makePlant(size: number): Plant {
   return plantRecord({ id: `p-${size}`, species: 'java_fern', size, condition: 80, surplus: 0 });
 }
 
-function makeFish(id: string, stage: Fish['stage']): Fish {
+function makeFish(id: string, mass: number): Fish {
   return {
     id,
     species: 'neon_tetra',
-    mass: 0.5,
+    mass,
     health: 100,
     age: 0,
     gut: 0,
     sex: 'male',
-    stage,
     hardinessOffset: 0,
     surplus: 0,
   };
@@ -127,7 +126,7 @@ describe('snapshotFromState', () => {
   it('counts adults apart from fry, and the plants standing', () => {
     const state = makeState((d) => {
       d.plants = [makePlant(40), makePlant(60), makePlant(80)];
-      d.fish = [makeFish('a', 'adult'), makeFish('b', 'adult'), makeFish('c', 'fry')];
+      d.fish = [makeFish('a', 0.5), makeFish('b', 0.5), makeFish('c', 0.05)];
     });
     const snap = snapshotFromState(state);
     expect(snap.fishCount).toBe(2);

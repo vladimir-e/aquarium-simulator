@@ -1,6 +1,6 @@
 ---
 title: Livestock
-description: Fish as individuals — a gut whose digestion is the fish's income, one oxygen factor over the whole metabolism, and a bank that heals a fish and buys the next generation.
+description: Fish as individuals — a gut whose digestion is the fish's income, one oxygen factor over the whole metabolism, and a bank that heals a fish and buys its growth and the next generation.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -13,8 +13,9 @@ nutrient sufficiency is a plant's: every benefit is earned on it, and hunger
 harms a fish digesting less than it needs. Its whole metabolism — digestion, the
 oxygen it draws, the carbon it exhales — rides on one oxygen factor, so a
 suffocating fish loads the water less and suffers more. Health is the vitality
-model: income at full health banks, the bank heals the fish, and a full one pays
-for the next spawn, so a bigger ration buys more broods.
+model: income at full health banks, the bank heals the fish, and the bank buys
+its growth and its broods, so a bigger ration grows a fish sooner and buys more
+broods.
 
 ## Status
 
@@ -28,9 +29,9 @@ for the next spawn, so a bigger ration buys more broods.
 | Water quality | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen harm on log dose from each fish's own edge, which hardiness moves out from the alert's. Chloride, which blunts nitrite, is not modelled. |
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits — as `1 − hardiness` for most, and on the concentration axis for water quality. A hardy fish tolerates bad water but isn't more energised by good. |
 | Age | <Badge text="settled" variant="success" /> | A linear stressor ramp past the species lifespan, through the same channel as every other stressor. No probabilistic cliff. |
-| Staging and fry growth | <Badge text="settled" variant="success" /> | Mass is re-derived from age each tick and the fry flips to adult at `maturityAge`. Stage and age are stored independently, so the spawn gate asks both. |
+| Growth | <Badge text="settled" variant="success" /> | Mass is a stock the bank buys, slowing as the fish nears adult size. Fry and adult are words for its size, not states. |
 | Healing | <Badge text="settled" variant="success" /> | The bank heals health at a rate that falls with adult mass to the −¼, as mass-specific metabolism does, integrated over the hour. A fish is sick while its damage outruns its healing. |
-| Breeding | <Badge text="settled" variant="success" /> | A mature female spawns on a full bank, with no husbandry re-tests — the husbandry is already priced into how the bank filled. |
+| Broods | <Badge text="settled" variant="success" /> | A female broods on a full bank, the brood the size her brood share buys, and the males pay their share from theirs. No husbandry re-tests — the husbandry is already priced into how the banks filled. |
 | Death | <Badge text="settled" variant="success" /> | Condition reaching zero, from any stressor. Age-driven deaths are labelled in the log so the keeper can tell "got old" from "water went bad". |
 | Low health | <Badge text="settled" variant="success" /> | Only death reads it: health is the buffer between harm and death, so a fish at 5 % eats, breathes and excretes as one at 100 does ([Vitality](/concepts/vitality/)). |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge, and damage starts from zero at or past it. pH earns most at the band's centre; oxygen rises from the alert edge to comfort. |
@@ -43,13 +44,13 @@ for the next spawn, so a bigger ration buys more broods.
 
 ### The roster
 
-| Species | Adult mass | Maturity | Lifespan | Hardiness |
+| Species | Adult mass | Growth rate | Lifespan | Hardiness |
 |---|---|---|---|---|
-| Neon Tetra | 0.5 g | 120 d | 5 y | 0.5 |
-| Guppy | 1.0 g | 60 d | 3 y | 0.8 |
-| Betta | 3.0 g | 90 d | 3 y | 0.6 |
-| Corydoras | 4.0 g | 150 d | 5 y | 0.7 |
-| Angelfish | 15.0 g | 180 d | 10 y | 0.4 |
+| Neon Tetra | 0.5 g | 0.5 | 5 y | 0.5 |
+| Guppy | 1.0 g | 1 | 3 y | 0.8 |
+| Betta | 3.0 g | 0.7 | 3 y | 0.6 |
+| Corydoras | 4.0 g | 0.45 | 5 y | 0.7 |
+| Angelfish | 15.0 g | 0.35 | 10 y | 0.4 |
 
 | Species | Temperature | pH | GH | Max turnover |
 |---|---|---|---|---|
@@ -107,9 +108,9 @@ water it is in, so a suffocating fish draws less *and* suffers more.
 |---|---|---|---|
 | `health` | Benefits; healing from the bank | Stressors | %, normal at 100 |
 | `gut` | Eating, up to `gutCapacity × mass` | Digestion, first order | g |
-| `surplus` | Income at full health | Healing; a female's spawn empties it | condition points, capped at `surplusCap` |
+| `surplus` | Income at full health | Healing; growth; a brood | condition points, capped at `surplusCap` |
 | `age` | One tick per hour, always | — | ticks |
-| `mass` | Re-derived from age while the fish is a fry; fixed at `adultMass` after | — | g |
+| `mass` | Growth, out of the bank | — | g |
 | `food` | Feeding and the feeder, elsewhere | Fish eating, a share of their appetite each | g |
 | `waste` | Feces; half the body mass of a fish that dies, and its gut | Mineralization, elsewhere | g |
 | `ammonia` | Gill excretion | Nitrification, elsewhere | mg |
@@ -140,9 +141,9 @@ the same metabolic factor, what holds its condition — it sets two rates:
 | Nourishment | `digested / (digested + maintenance)`, scaling every benefit | half |
 | Hunger | `hungerSeverity × (1 − digested / maintenance)` below it, hardened | nothing |
 
-A ration past maintenance earns more of every benefit, so it banks faster and
-buys more broods; one under it earns less and harms. Fed once a day, a fish
-digests most of its meal in the first half of the day and runs a little hungry
+A ration past maintenance earns more of every benefit, so it banks faster,
+grows sooner and buys more broods; one under it earns less and harms. Fed once
+a day, a fish digests most of its meal in the first half of the day and runs a little hungry
 before the next. Unfed, it stops banking at once and dies in about two weeks,
 three with a full bank.
 
@@ -178,7 +179,7 @@ Every benefit is its peak times the fish's nourishment.
 At full nourishment pH and oxygen sum to 0.7 %/h in a clean tank with pH at the
 band's centre, and a saturated planting lifts the budget to 0.9. That headroom
 over zero is the whole point — a fed fish in a healthy tank sits at full health
-with a positive net rate, banking what breeding spends.
+with a positive net rate, banking what growth and broods spend.
 
 #### Water quality
 
@@ -217,44 +218,56 @@ degrade, instead of a synchronised die-off. Stocked adults and bred fry come out
 of the same factory, so a purchased fish and a tank-born one are
 indistinguishable in shape.
 
-### Life stages
+### Growth and broods
 
-A fry starts at `fryMassFraction × adultMass` and age 0, and its mass is
-re-derived from its age every tick — growth is purely age-driven and spends no
-surplus. At `maturityAge` it flips to adult and snaps to full mass.
+A fish's size is its mass in % of its species' adult mass, and it splits the
+bank: `size / 100` is its brood share, the rest its growth share. After
+vitality settles, a female on a full bank broods, then every fish's bank draws
+toward growth.
 
-Stage and age are stored independently, because a seed may name an adult younger
-than its species matures. A fish bought through the stocking action arrives at
-`maturityAge` — the youngest age that can honestly be called grown — so a
-purchased pair can breed from its first tick and every hour after is an hour
-nearer the end.
+```
+drawn  = bank × (1 − e^−growthDrawRate) × (1 − size / 100)
+size  += drawn × growthRate × sizePerSurplus
+bank  −= drawn
+```
 
-### Breeding
+A fry spends nearly all of its draw on mass and a fish near adult size almost
+none, so size approaches 100 and never reaches it, and nothing clamps it. What
+growth leaves banks, so a grown fish banks to the cap and a starved fry grows
+slowly and breeds late. Fry and adult are readouts of size, split at 50 %,
+where the brood share passes the growth share.
 
-A mature female spawns once her bank is full and a mature male of her species
-is in the tank. The spawn empties her bank and costs him nothing. There are no
-condition, temperature or pH tests: the bank only fills at full health, and any
-damage it heals draws it down, so a full bank has already proven the water.
-Refilling it is the cooldown — there are no timers.
+A full bank buys a female a brood with her brood share. A brood costs a parent
+`broodCost` bank points per its own body mass of offspring, so her eggs are
 
-| Gate | Condition |
-|---|---|
-| Pair | at least one adult male and one adult female of the species |
-| Grown | both `stage === 'adult'` **and** `age ≥ maturityAge` |
-| Funded | the female's bank is full, `surplus ≥ surplusCap` |
+```
+eggs = brood share × bank × mass / (broodCost × fry mass)
+```
 
-| Species | Mode | Clutch | Hatch | Fry mass |
-|---|---|---|---|---|
-| Guppy | livebearer | 20 fry | direct | 5 % |
-| Neon Tetra | egg-scatterer | 25 eggs | 24 h | 5 % |
-| Betta | bubble-nester | 30 eggs | 36 h | 3 % |
-| Corydoras | egg-depositor | 15 eggs | 96 h | 4 % |
-| Angelfish | substrate-spawner | 40 eggs | 60 h | 2 % |
+— twenty guppy fry for a grown female on a full bank, seven for one at 60 %.
+Each male of her species can father what his own brood share pays for at his
+species' `maleShare` of that price. The brood is as many as the males father
+between them, up to her eggs, and each male pays the same share of what his
+could; eggs nobody fathers are lost with her bank. A male with an empty bank
+fathers nothing, and each brood drains him, so one male cannot father brood
+after brood. Refilling the banks is the cooldown — there are no timers.
 
-Livebearers drop free-swimming fry directly — the gestation is what the bank
-paid for. Every other mode deposits an inert clutch that sits in the state until
-its hatch time and then becomes fry. The clutch is guarded by nobody and eaten
-by nothing.
+| Species | Mode | Hatch | Fry mass | Male share | Grown brood |
+|---|---|---|---|---|---|
+| Guppy | livebearer | direct | 5 % | 0.2 | 20 fry |
+| Neon Tetra | egg-scatterer | 24 h | 5 % | 0.2 | 20 eggs |
+| Betta | bubble-nester | 36 h | 3 % | 0.6 | 33 eggs |
+| Corydoras | egg-depositor | 96 h | 4 % | 0.2 | 25 eggs |
+| Angelfish | substrate-spawner | 60 h | 2 % | 0.5 | 50 eggs |
+
+The male share is the father's investment: a bubble-nesting betta builds and
+guards the nest, an angelfish pair fans its eggs together, a guppy or a neon
+only mates. Livebearers drop free-swimming fry directly; every other mode lays
+an inert clutch that hatches into fry at its hatch time, guarded by nobody and
+eaten by nothing.
+
+Stocking names a size, grown when none is named, from a fry's up to 100. Age
+starts at 0 and is read only by old age.
 
 Breeding is uncapped. The physical stocking ceiling gates the keeper's hand
 only, so a bred cohort can push total mass past it, at which point further
@@ -287,8 +300,11 @@ visible decline rather than a coin flip.
 | `ageStressSeverity` | Damage per hour past the species lifespan | `0.05` %/hr/hr |
 | `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | The three benefit channels, at full nourishment | `0.4` · `0.3` · `0.2` %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which shelter tops out — three full healthy java fern clumps, or a little over one sword | `3.0` |
-| `surplusCap` | Ceiling on the bank; a female spawns on a full one | `50` condition points |
+| `surplusCap` | Ceiling on the bank; a female broods on a full one | `50` condition points |
 | `healingDrawRate` | First-order rate a 1 g fish's bank heals it at, scaled by adult mass to the −¼ | `0.05` /hr |
+| `growthDrawRate` | First-order rate the bank draws toward growth at, before the growth share | `0.02` /hr |
+| `sizePerSurplus` | Size, in % of adult mass, a bank point buys at growth rate 1 — a fed guppy grows out in about two and a half months, a neon in about five | `0.15` %/pt |
+| `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his share | `50` pts |
 | `deathDecayFactor` | Share of body mass that becomes waste on death | `0.5` |
 
 ## Seams

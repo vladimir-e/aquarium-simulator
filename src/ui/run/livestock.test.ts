@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Clutch, Fish, SimulationState } from '../../simulation/index.js';
 import {
-  applyAction,
   createSimulation,
   FISH_SPECIES_DATA,
   tick,
@@ -31,7 +30,6 @@ function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
     age: 0,
     gut: FED,
     sex: 'male',
-    stage: 'adult',
     hardinessOffset: 0,
     surplus: 0,
     ...overrides,
@@ -98,7 +96,7 @@ describe('groupBySpecies', () => {
       makeFish({ id: 'n1', species: 'neon_tetra', gut: gutAt(0.8) }),
       makeFish({ id: 'n2', species: 'neon_tetra', gut: HUNGRY }),
       makeFish({ id: 'g1', species: 'guppy', gut: FED }),
-      makeFish({ id: 'f1', species: 'neon_tetra', stage: 'fry', age: 24 }),
+      makeFish({ id: 'f1', species: 'neon_tetra', mass: 0.01, age: 24 }),
     ];
     const groups = species(tank(fish));
     expect(groups.map((g) => g.species)).toEqual(['neon_tetra', 'guppy']);
@@ -132,25 +130,14 @@ describe('groupBySpecies', () => {
     expect(neon.ageDays).toBe(21);
     expect(neon.condition).toBeCloseTo(60, 10);
   });
-
-  it('reads a bought fish at the age it arrives, which is not day zero', () => {
-    const bought = applyAction(createSimulation({ tankCapacity: 200 }), {
-      type: 'addFish',
-      species: 'neon_tetra',
-    }).state;
-    const [neon] = species(bought);
-
-    expect(neon.ageDays).toBeGreaterThan(0);
-    expect(neon.ageDays).toBe(FISH_SPECIES_DATA.neon_tetra.breeding.maturityAge / 24);
-  });
 });
 
 describe('groupFry', () => {
   it('folds every fry in the tank into one batch, whatever they are', () => {
     const fish = [
-      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', age: 24, mass: 0.03 }),
-      makeFish({ id: 'f2', species: 'betta', stage: 'fry', age: 72, mass: 0.09 }),
-      makeFish({ id: 'a1', species: 'guppy', stage: 'adult', mass: 1 }),
+      makeFish({ id: 'f1', species: 'guppy', age: 24, mass: 0.03 }),
+      makeFish({ id: 'f2', species: 'betta', age: 72, mass: 0.09 }),
+      makeFish({ id: 'a1', species: 'guppy', mass: 1 }),
     ];
     const batch = fry(tank(fish))!;
 
@@ -162,8 +149,8 @@ describe('groupFry', () => {
 
   it('gives the batch the same gut and condition figures a species row gets', () => {
     const fish = [
-      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', gut: FED, health: 90 }),
-      makeFish({ id: 'f2', species: 'guppy', stage: 'fry', gut: STARVING, health: 50 }),
+      makeFish({ id: 'f1', species: 'guppy', mass: 0.1, gut: gutAt(1, 0.1), health: 90 }),
+      makeFish({ id: 'f2', species: 'guppy', mass: 0.1, gut: STARVING, health: 50 }),
     ];
     const batch = fry(tank(fish))!;
 
@@ -254,7 +241,7 @@ describe('rosterSummary', () => {
   });
 
   it('holds the adult count at zero for a tank that is all fry', () => {
-    const fish = [makeFish({ id: 'a', species: 'guppy', stage: 'fry', age: 24 })];
+    const fish = [makeFish({ id: 'a', species: 'guppy', mass: 0.01, age: 24 })];
     expect(rosterSummary(tank(fish))).toBe('0 fish · 1 species · 1 fry');
   });
 
@@ -262,9 +249,9 @@ describe('rosterSummary', () => {
     const fish = [
       makeFish({ id: 'a', species: 'neon_tetra' }),
       makeFish({ id: 'b', species: 'neon_tetra' }),
-      makeFish({ id: 'c', species: 'guppy', stage: 'fry', age: 24 }),
-      makeFish({ id: 'd', species: 'guppy', stage: 'fry', age: 24 }),
-      makeFish({ id: 'e', species: 'guppy', stage: 'fry', age: 24 }),
+      makeFish({ id: 'c', species: 'guppy', mass: 0.01, age: 24 }),
+      makeFish({ id: 'd', species: 'guppy', mass: 0.01, age: 24 }),
+      makeFish({ id: 'e', species: 'guppy', mass: 0.01, age: 24 }),
     ];
     expect(rosterSummary(tank(fish))).toBe('2 fish · 2 species · 3 fry');
   });

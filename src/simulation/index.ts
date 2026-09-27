@@ -459,8 +459,23 @@ export {
   fishHealingRate,
   processBreeding,
   createFish,
-  fishMassForAge,
+  isStockableSize,
+  STOCKED_FISH_SIZE,
 } from './livestock/index.js';
+export {
+  ADULT_SIZE,
+  fishSize,
+  massAtSize,
+  frySize,
+  fishLifeStage,
+  broodShare,
+  growFish,
+  eggsLaid,
+  offspringFathered,
+  brood,
+  bankFull,
+  type Brood,
+} from './systems/fish-growth.js';
 export {
   gutCapacity,
   appetite,

@@ -87,6 +87,8 @@ export interface AddFishAction extends BaseAction {
   type: 'addFish';
   /** Species of fish to add */
   species: FishSpecies;
+  /** Size, % of adult mass, from a fry's up to 100 (default 100) */
+  size?: number;
 }
 
 export interface RemoveFishAction extends BaseAction {

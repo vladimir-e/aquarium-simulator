@@ -8,6 +8,7 @@
 
 import {
   applyEffects,
+  bankFull,
   calculateDecay,
   dailyLightIntegral,
   mapKinds,
@@ -27,7 +28,7 @@ import { ammoniaPerGramOfFood } from '../../simulation/config/livestock.js';
 /** One organism on the hour ahead. */
 export interface OrganismAhead {
   vitality: VitalityResult;
-  /** What its bank buys over the hour — a plant's growth and offshoot, a bloom's mass, a fish's brood; nothing where it dies. */
+  /** What its bank buys over the hour — a plant's growth and offshoot, a bloom's mass, a fish's growth and brood; nothing where it dies. */
   spent: number;
 }
 
@@ -35,6 +36,11 @@ export interface PlantAhead extends OrganismAhead {
   light: PlantLight;
   /** Whether what it buys includes an offshoot. */
   buds: boolean;
+}
+
+export interface FishAhead extends OrganismAhead {
+  /** Whether what it buys includes a brood — its own, or one it fathers. */
+  broods: boolean;
 }
 
 export interface BloomAhead extends OrganismAhead {
@@ -55,7 +61,7 @@ export interface HourAhead {
   /** In `state.plants` order. */
   plants: PlantAhead[];
   /** In `state.fish` order. */
-  fish: OrganismAhead[];
+  fish: FishAhead[];
   algae: Record<AlgaeKind, BloomAhead>;
   /** The substrate's day of light the tick reads, mol/m²/d. */
   dailyLight: number;
@@ -98,6 +104,9 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
   const bred = processBreeding(applyEffects(livestock.state, livestock.effects, config), config).state;
   const plantSpent = spentBy(planted.plants);
   const fishSpent = spentBy(bred.fish);
+  const layers = livestock.state.fish.filter((fish) => fish.sex === 'female' && bankFull(fish, config.livestock));
+  const laying = new Set(layers.map((fish) => fish.id));
+  const brooding = new Set(layers.map((fish) => fish.species));
   const standing = new Set(state.plants.map((plant) => plant.id));
   const budded = new Set(
     planted.plants.filter((plant) => !standing.has(plant.id)).map((plant) => plant.parentId)
@@ -116,6 +125,7 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     fish: state.fish.map((fish, i) => ({
       vitality: livestock.vitalities[i],
       spent: fishSpent(fish.id, livestock.vitalities[i]),
+      broods: fish.sex === 'male' ? brooding.has(fish.species) : laying.has(fish.id),
     })),
     algae: mapKinds((kind) => ({ ...flora.algae[kind], ...planted.algae[kind] })),
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),

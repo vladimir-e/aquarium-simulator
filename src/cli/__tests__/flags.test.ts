@@ -38,8 +38,8 @@ describe('unknown flags', () => {
   });
 
   it('holds each add target to its own flags', () => {
-    expect(() => assertKnownFlags('add fish', { species: 'guppy', size: '80' })).toThrow(
-      /Unknown flag --size for "add fish"/
+    expect(() => assertKnownFlags('add fish', { species: 'guppy', age: '80' })).toThrow(
+      /Unknown flag --age for "add fish"/
     );
     expect(() => assertKnownFlags('add plant', { species: 'anubias', count: '3' })).toThrow(
       /Unknown flag --count for "add plant"/

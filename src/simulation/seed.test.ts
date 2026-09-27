@@ -393,42 +393,22 @@ describe('createSimulation seeding', () => {
       }
     });
 
-    it('stocks grown adults by default, one per group', () => {
+    it('stocks grown fish by default, one per group', () => {
       const state = createSimulation(TANK, { fish: [{ species: 'neon_tetra' }] });
 
       expect(state.fish).toHaveLength(1);
-      expect(state.fish[0].age).toBe(FISH_SPECIES_DATA.neon_tetra.breeding.maturityAge);
-      expect(state.fish[0].stage).toBe('adult');
       expect(state.fish[0].mass).toBe(FISH_SPECIES_DATA.neon_tetra.adultMass);
     });
 
-    it('starts a fry it names no age for at 0', () => {
-      const state = createSimulation(TANK, { fish: [{ species: 'neon_tetra', stage: 'fry' }] });
-
-      expect(state.fish[0].age).toBe(0);
-    });
-
-    it('keeps an age the roster names, adult mass or not', () => {
+    it('builds fish at the size and age the roster names', () => {
       const state = createSimulation(TANK, {
-        fish: [{ species: 'guppy', age: 0, stage: 'adult' }],
-      });
-
-      expect(state.fish[0].age).toBe(0);
-      expect(state.fish[0].stage).toBe('adult');
-      expect(state.fish[0].mass).toBe(FISH_SPECIES_DATA.guppy.adultMass);
-    });
-
-    it('builds juveniles at an age, under adult mass', () => {
-      const { breeding, adultMass } = FISH_SPECIES_DATA.guppy;
-      const state = createSimulation(TANK, {
-        fish: [{ species: 'guppy', count: 2, stage: 'fry', age: breeding.maturityAge / 2 }],
+        fish: [{ species: 'guppy', count: 2, size: 30, age: 24 * 20 }],
       });
 
       expect(state.fish).toHaveLength(2);
       for (const fish of state.fish) {
-        expect(fish.stage).toBe('fry');
-        expect(fish.age).toBe(breeding.maturityAge / 2);
-        expect(fish.mass).toBeLessThan(adultMass);
+        expect(fish.mass).toBeCloseTo(0.3 * FISH_SPECIES_DATA.guppy.adultMass, 12);
+        expect(fish.age).toBe(24 * 20);
       }
     });
 

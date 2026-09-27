@@ -18,6 +18,12 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v18 fed fish through a gut and let their banks buy their growth and broods.
+ *    `Fish.satiation` becomes `Fish.gut` and `Fish.stage` goes — mass is a
+ *    stock the bank grows; `LivestockConfig` trades its satiation knobs for
+ *    the gut's and gains `growthDrawRate`, `sizePerSurplus` and `broodCost`,
+ *    and `Equipment` gains `autoFeeder`. A v17 session parses, and the first
+ *    tick digests a gut and grows a fish off keys it does not carry.
  * v17 put algae on the plants' vitality model as two kinds and fed every
  *    flora ammonia before nitrate. `state.algae` holds a bloom per kind,
  *    `AlgaeState` gains `condition`, the `algae` config section is rebuilt as
@@ -142,7 +148,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 17;
+export const SESSION_VERSION = 18;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

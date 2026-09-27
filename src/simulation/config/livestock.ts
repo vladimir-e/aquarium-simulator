@@ -118,7 +118,7 @@ export interface LivestockConfig {
   // Surplus
   /**
    * Ceiling on the bank. Income past full health banks up to it, and a
-   * female spawns once hers is full.
+   * female broods once hers is full.
    * Shared default across organism types — see `SURPLUS_CAP_DEFAULT`.
    */
   surplusCap: number;
@@ -127,6 +127,18 @@ export interface LivestockConfig {
    * adult mass to the −¼ power (see `fishHealingRate`).
    */
   healingDrawRate: number;
+  /**
+   * First-order rate, per hour, the bank draws toward growth at, before the
+   * brood share `size / 100` holds part of it back.
+   */
+  growthDrawRate: number;
+  /** Size, in % of adult mass, a bank point buys at species growth rate 1. */
+  sizePerSurplus: number;
+  /**
+   * Bank points a brood weighing as much as its parent costs that parent —
+   * the female in full, the male at his species' share.
+   */
+  broodCost: number;
 
   // Death
   /** Fraction of fish mass added as waste on death */
@@ -225,6 +237,13 @@ export const livestockDefaults: LivestockConfig = {
   // its whole benefit budget, and runs out with a 20 h time constant under a
   // steady insult. A neon heals at 0.06 /h, an angelfish at 0.025.
   healingDrawRate: 0.05,
+  // A well-fed guppy grows from fry to adult size in about two and a half
+  // months, a neon in about five.
+  growthDrawRate: 0.02,
+  sizePerSurplus: 0.15,
+  // A full bank buys a grown female a brood about her own weight: twenty
+  // guppy fry, fifty angelfish eggs.
+  broodCost: 50,
 
   // Death
   deathDecayFactor: 0.5, // Half fish mass becomes waste
@@ -239,6 +258,9 @@ export function ammoniaPerGramOfFood(config: LivestockConfig): number {
 export function nitratePerGramOfFood(config: LivestockConfig): number {
   return (config.foodNitrogenFraction * MW_NO3 * 1000) / MW_N;
 }
+
+/** The most a bank point buys at growth rate 1, held alike by the tunables drawer and the save boundary. */
+export const MAX_FISH_SIZE_PER_SURPLUS = 1;
 
 export interface LivestockConfigMeta {
   key: keyof LivestockConfig;
@@ -332,6 +354,9 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   // Surplus
   { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: MAX_SURPLUS_CAP, step: 5 },
   { key: 'healingDrawRate', label: 'Healing Draw Rate', unit: '/hr at 1 g', min: 0.005, max: 0.5, step: 0.005 },
+  { key: 'growthDrawRate', label: 'Growth Draw Rate', unit: '/hr', min: 0.005, max: 0.2, step: 0.005 },
+  { key: 'sizePerSurplus', label: 'Size per Bank Point', unit: '%/pt', min: 0.01, max: MAX_FISH_SIZE_PER_SURPLUS, step: 0.01 },
+  { key: 'broodCost', label: 'Brood Cost', unit: 'pts/body mass', min: 5, max: 500, step: 5 },
   // Death
   { key: 'deathDecayFactor', label: 'Death Decay Factor', unit: '', min: 0.1, max: 1.0, step: 0.1 },
 ];

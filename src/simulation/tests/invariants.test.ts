@@ -74,7 +74,6 @@ function tetra(id: string): Fish {
     age: 0,
     gut: 0,
     sex: 'male',
-    stage: 'adult',
     hardinessOffset: 0,
     surplus: 0,
   };

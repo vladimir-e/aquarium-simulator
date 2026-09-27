@@ -162,4 +162,4 @@ export function processLivestock(
 export { processMetabolism } from '../systems/metabolism.js';
 export { processHealth, computeFishVitality, fishHealingRate } from '../systems/fish-health.js';
 export { processBreeding } from './breeding.js';
-export { createFish, fishMassForAge } from './create-fish.js';
+export { createFish, isStockableSize, STOCKED_FISH_SIZE } from './create-fish.js';

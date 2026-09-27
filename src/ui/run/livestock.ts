@@ -7,6 +7,7 @@
 
 import {
   FISH_SPECIES_DATA,
+  fishLifeStage,
   gutCapacity,
   hungerLine,
   type Fish,
@@ -46,7 +47,7 @@ export function gutStatus(band: GutBand, sick: boolean): Status {
 }
 
 export function countFry(fish: Fish[]): number {
-  return fish.reduce((n, f) => n + (f.stage === 'fry' ? 1 : 0), 0);
+  return fish.reduce((n, f) => n + (fishLifeStage(f) === 'fry' ? 1 : 0), 0);
 }
 
 /** How full a gut is, where the row belongs to something that eats. */
@@ -89,16 +90,16 @@ export function fishReading(vital: Reading, gut: Gut): Reading {
   return worstReading(vital, { status: gut.status, word: gut.word });
 }
 
-type Kin = Pick<Fish, 'id' | 'species' | 'stage'>;
+type Kin = Pick<Fish, 'id' | 'species' | 'mass'>;
 
 /**
- * Every fish's number among its species at its stage, in the order it was
+ * Every fish's number among its species at the stage its size reads as, in the order it was
  * stocked or born — the way plants count. The ids stay the engine's; these are
  * the reader's.
  */
 export function fishNumbers(fish: readonly Kin[]): Map<string, number> {
   return new Map(
-    groupBy(fish, (f) => `${f.species}:${f.stage}`).flatMap((kind) => [
+    groupBy(fish, (f) => `${f.species}:${fishLifeStage(f)}`).flatMap((kind) => [
       ...numbered(kind.map((f) => f.id)),
     ])
   );
@@ -107,7 +108,7 @@ export function fishNumbers(fish: readonly Kin[]): Map<string, number> {
 /** A fish as the console names it. */
 export function fishTitle(fish: Kin, number: number): string {
   const name = FISH_SPECIES_DATA[fish.species].name;
-  return `${name}${fish.stage === 'fry' ? ' fry' : ''} #${number}`;
+  return `${name}${fishLifeStage(fish) === 'fry' ? ' fry' : ''} #${number}`;
 }
 
 /** One fish, with the vitality pass behind its row already spent. */
@@ -202,7 +203,7 @@ function groupFigures(members: FishRead[]): RosterGroup {
 
 /** Adult fish folded into per-species rows, in first-seen order. */
 export function groupBySpecies(fish: FishRead[]): SpeciesGroup[] {
-  const adults = fish.filter((read) => read.fish.stage === 'adult');
+  const adults = fish.filter((read) => fishLifeStage(read.fish) === 'adult');
   return groupBy(adults, (read) => read.fish.species).map((members) => ({
     species: members[0].fish.species,
     name: FISH_SPECIES_DATA[members[0].fish.species].name,
@@ -212,7 +213,7 @@ export function groupBySpecies(fish: FishRead[]): SpeciesGroup[] {
 
 /** The tank's fry as one batch, or nothing if none are growing out. */
 export function groupFry(fish: FishRead[]): FryBatch | null {
-  const fry = fish.filter((read) => read.fish.stage === 'fry');
+  const fry = fish.filter((read) => fishLifeStage(read.fish) === 'fry');
   if (fry.length === 0) return null;
 
   return {

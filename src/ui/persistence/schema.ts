@@ -15,6 +15,7 @@ import {
 } from '../../simulation/index.js';
 import {
   MAX_ALGAE_ATTENUATION_PER_GRAM,
+  MAX_FISH_SIZE_PER_SURPLUS,
   MAX_LEAF_ATTENUATION_PER_LAI,
   MAX_SIZE_PER_SURPLUS,
   MAX_SUFFICIENCY_EDGE,
@@ -268,7 +269,6 @@ const FishSchema = z
     age: z.number().int().min(0),
     gut: z.number().min(0),
     sex: z.enum(['male', 'female']),
-    stage: z.enum(['fry', 'adult']),
     hardinessOffset: z.number(),
     surplus: z.number().min(0),
   })
@@ -536,6 +536,9 @@ const LivestockConfigSchema = z
     plantBenefitSaturationPoint: z.number(),
     surplusCap: z.number().min(0).max(MAX_SURPLUS_CAP),
     healingDrawRate: z.number().min(0),
+    growthDrawRate: z.number().min(0),
+    sizePerSurplus: z.number().positive().max(MAX_FISH_SIZE_PER_SURPLUS),
+    broodCost: z.number().positive(),
     deathDecayFactor: z.number(),
   })
   .strict();

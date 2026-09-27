@@ -29,7 +29,6 @@ function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
     age: 24 * 120,
     gut: FED,
     sex: 'male',
-    stage: 'adult',
     hardinessOffset: 0,
     surplus: 0,
     ...overrides,
@@ -102,9 +101,9 @@ describe('rosterTables', () => {
   it('numbers fish within their species in the order they were stocked, never by id', () => {
     const stocked = [
       makeFish({ id: 'fish_1', species: 'neon_tetra' }),
-      makeFish({ id: 'fish_2', species: 'corydoras' }),
+      makeFish({ id: 'fish_2', species: 'corydoras', mass: 4 }),
       makeFish({ id: 'fish_a', species: 'neon_tetra' }),
-      makeFish({ id: 'fish_b', species: 'neon_tetra', stage: 'fry' }),
+      makeFish({ id: 'fish_b', species: 'neon_tetra', mass: 0.01 }),
     ];
     const { fish } = tables(tank(stocked), ['species-neon_tetra', 'species-corydoras']);
     const titles = fish
@@ -173,9 +172,9 @@ describe('rosterTables', () => {
   it('puts every fry in one row after the adults and the clutches', () => {
     const fish = [
       ...roster,
-      makeFish({ id: 'fry1', species: 'guppy', stage: 'fry', age: 24 * 6, mass: 0.4 }),
-      makeFish({ id: 'fry2', species: 'guppy', stage: 'fry', age: 24 * 12, mass: 0.6 }),
-      makeFish({ id: 'fry3', species: 'betta', stage: 'fry', age: 24 * 9, mass: 0.5 }),
+      makeFish({ id: 'fry1', species: 'guppy', age: 24 * 6, mass: 0.4 }),
+      makeFish({ id: 'fry2', species: 'guppy', age: 24 * 12, mass: 0.3 }),
+      makeFish({ id: 'fry3', species: 'betta', age: 24 * 9, mass: 0.5 }),
     ];
     const clutch: Clutch = { id: 'c_1', species: 'neon_tetra', eggCount: 25, laidTick: 0 };
     const { fish: rows } = tables(tank(fish, [clutch], 12));
@@ -189,7 +188,7 @@ describe('rosterTables', () => {
   });
 
   it('names the one species where that is all there is', () => {
-    const fish = [makeFish({ id: 'fry1', species: 'guppy', stage: 'fry', mass: 0.4 })];
+    const fish = [makeFish({ id: 'fry1', species: 'guppy', mass: 0.4 })];
     const [fry] = tables(tank(fish)).fish as FryRosterRow[];
 
     expect(fry.caption).toBe('Guppy');

@@ -451,7 +451,6 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           gut: 0,
           sex: 'male',
-          stage: 'adult',
           hardinessOffset: 0.05,
           surplus: 0,
         },
@@ -472,7 +471,6 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           gut: 0,
           sex: 'male',
-          stage: 'adult',
           hardinessOffset: -0.07,
           surplus: 1.5,
         },
@@ -493,7 +491,6 @@ describe('PersistedSimulationSchema', () => {
           age: 12,
           gut: 0,
           sex: 'female',
-          stage: 'fry',
           hardinessOffset: 0.01,
           surplus: 0,
         },
@@ -511,7 +508,7 @@ describe('PersistedSimulationSchema', () => {
     expect(PersistedSimulationSchema.safeParse(badClutch).success).toBe(false);
   });
 
-  it('rejects fish missing stage (strict mode)', () => {
+  it('rejects a fish carrying a key it does not have (strict mode)', () => {
     const withFish = {
       ...validSimulation,
       fish: [
@@ -523,6 +520,7 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           gut: 0,
           sex: 'male',
+          stage: 'adult',
           hardinessOffset: 0,
           surplus: 0,
         },
@@ -543,7 +541,6 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           gut: 0,
           sex: 'male',
-          stage: 'adult',
           surplus: 0,
         },
       ],
@@ -563,7 +560,6 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           gut: 0,
           sex: 'male',
-          stage: 'adult',
           hardinessOffset: 0,
         },
       ],
@@ -801,7 +797,6 @@ describe('every fixture the UI offers survives a save', () => {
             age: 0,
             gut: 0,
             sex: 'male',
-            stage: 'adult',
             hardinessOffset: 0,
             surplus: 0,
           },

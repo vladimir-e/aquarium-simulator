@@ -87,11 +87,12 @@ function tweakApply(flag: string, value: string | undefined): Tweak['apply'] {
       return onSetup((setup) => ({ ...setup, plants: [...setup.plants, group] }));
     }
     case 'fish': {
-      const [name = '', n] = (value ?? '').split(':');
+      const [name = '', n, size] = (value ?? '').split(':');
       const group = {
         species: oneOf(name, FISH_SPECIES_DATA, 'fish species'),
         count: count(n, 'fish count'),
         sex: 'female' as const,
+        ...(size === undefined ? {} : { size: positive(size, 'fish size') }),
       };
       return onSetup((setup) => ({ ...setup, fish: [...setup.fish, group] }));
     }

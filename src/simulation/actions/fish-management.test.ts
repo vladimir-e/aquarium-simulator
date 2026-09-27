@@ -8,7 +8,6 @@ import {
   totalFishMass,
 } from './fish-management.js';
 import { createSimulation, type SimulationState, type Fish } from '../state.js';
-import { computeFishVitality } from '../systems/fish-health.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { produce } from 'immer';
@@ -33,7 +32,6 @@ function fish(overrides: Partial<Fish> & { id: string }): Fish {
     age: 0,
     gut: 0,
     sex: 'male',
-    stage: 'adult',
     hardinessOffset: 0,
     surplus: 0,
     ...overrides,
@@ -58,33 +56,17 @@ describe('addFish', () => {
     expect(result.message).toContain('Neon Tetra');
   });
 
-  it('stocks a fish already grown, at the age its species matures', () => {
-    const state = makeState();
-    const result = addFish(state, { type: 'addFish', species: 'guppy' }, livestockDefaults);
+  it('stocks a fish at the size it names, as that share of adult mass', () => {
+    const result = addFish(makeState(), { type: 'addFish', species: 'guppy', size: 40 }, livestockDefaults);
 
-    expect(result.state.fish[0].stage).toBe('adult');
-    expect(result.state.fish[0].age).toBe(FISH_SPECIES_DATA.guppy.breeding.maturityAge);
+    expect(result.state.fish[0].mass).toBeCloseTo(0.4 * FISH_SPECIES_DATA.guppy.adultMass, 12);
   });
 
-  it('stocks it part-lived: old age is maxAge − maturityAge away, not maxAge', () => {
-    const { maxAge, breeding } = FISH_SPECIES_DATA.neon_tetra;
-    const state = addFish(makeState(), { type: 'addFish', species: 'neon_tetra' }, livestockDefaults).state;
-    const [bought] = state.fish;
-    const ageStressIn = (hours: number): number =>
-      computeFishVitality(
-        { ...bought, age: bought.age + hours },
-        state.resources,
-        state.plants,
-        state.resources.water,
-        state.tank.capacity,
-        livestockDefaults,
-        0,
-        1
-      ).breakdown.stressors.find((s) => s.key === 'age')?.amount ?? 0;
-
-    const left = maxAge - breeding.maturityAge;
-    expect(ageStressIn(left)).toBe(0);
-    expect(ageStressIn(left + 1)).toBeGreaterThan(0);
+  it('refuses a size smaller than a fry or bigger than grown', () => {
+    for (const size of [1, 101, Number.NaN]) {
+      const result = addFish(makeState(), { type: 'addFish', species: 'guppy', size }, livestockDefaults);
+      expect(result.state.fish).toHaveLength(0);
+    }
   });
 
   it('stocks the same fish from one rng seed, and a different one from another', () => {
@@ -183,7 +165,7 @@ describe('addFish stocking cap', () => {
     const { adultMass } = FISH_SPECIES_DATA.guppy;
     const filled = (mass: number): SimulationState =>
       produce(createSimulation({ tankCapacity: capacity }), (draft) => {
-        draft.fish.push(fish({ id: 'fry_1', species: 'angelfish', mass, stage: 'fry' }));
+        draft.fish.push(fish({ id: 'fry_1', species: 'angelfish', mass }));
       });
 
     expect(totalFishMass(filled(3).fish)).toBe(3);
@@ -210,9 +192,9 @@ describe('sellFry', () => {
   function makeStateWithMixedStages(): SimulationState {
     return produce(makeState(), (draft) => {
       draft.fish.push(
-        fish({ id: 'adult_1', species: 'guppy', mass: 1.0, stage: 'adult' }),
-        fish({ id: 'fry_1', species: 'guppy', mass: 0.1, stage: 'fry' }),
-        fish({ id: 'fry_2', species: 'neon_tetra', mass: 0.05, stage: 'fry' })
+        fish({ id: 'adult_1', species: 'guppy', mass: 1.0 }),
+        fish({ id: 'fry_1', species: 'guppy', mass: 0.1 }),
+        fish({ id: 'fry_2', species: 'neon_tetra', mass: 0.05 })
       );
     });
   }

@@ -231,7 +231,7 @@ function fishLedger(
 
   const fish = state.fish[index];
   const livestock = config.livestock;
-  const { vitality, spent } = ahead.fish[index];
+  const { vitality, spent, broods } = ahead.fish[index];
   const { breakdown } = vitality;
 
   const helping = factors(breakdown.benefits);
@@ -274,7 +274,7 @@ function fishLedger(
           covered: breakdown.healed,
           spent,
         },
-        'buying a brood'
+        broods ? 'buying a brood' : 'buying growth'
       ),
     },
     demand: null,

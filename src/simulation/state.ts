@@ -29,7 +29,7 @@ import { emptyBlooms, mapKinds } from './algae/blooms.js';
 import { isPlantableSize, MIN_PLANTABLE_SIZE } from './plants/create-plant.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
-import type { FishSpecies, FishSex, FishLifeStage } from './livestock/species.js';
+import type { FishSpecies, FishSex } from './livestock/species.js';
 
 /**
  * Individual fish in the tank.
@@ -39,7 +39,7 @@ export interface Fish {
   id: string;
   /** Fish species type */
   species: FishSpecies;
-  /** Body mass in grams — `adultMass` for adults, age-interpolated for fry. */
+  /** Body mass in grams, grown by the bank toward `adultMass`. */
   mass: number;
   /** Health percentage (0-100, fish dies at 0) */
   health: number;
@@ -49,15 +49,6 @@ export interface Fish {
   gut: number;
   /** Sex, used for reproduction */
   sex: FishSex;
-  /**
-   * Life stage. Fry grow from `fryMassFraction × adultMass` toward
-   * `adultMass`, interpolated by age, and flip to `adult` at the species
-   * `maturityAge`. A seed may name a stage the age wouldn't imply — an
-   * adult still short of `maturityAge`, say — so the stage can't be
-   * derived from age alone; it is stored, and breeding asks for both
-   * (see `livestock/breeding.ts`).
-   */
-  stage: FishLifeStage;
   /**
    * Per-individual hardiness offset applied on top of species hardiness.
    * Sampled once at `addFish` time (never re-rolled) so weaker fish fail

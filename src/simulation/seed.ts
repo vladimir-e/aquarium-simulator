@@ -4,7 +4,7 @@
  */
 
 import type { Resources, SimulationState } from './state.js';
-import type { FishLifeStage, FishSex, FishSpecies } from './livestock/species.js';
+import type { FishSex, FishSpecies } from './livestock/species.js';
 import type { PlantSpecies } from './plants/species.js';
 import {
   calculateSubstrateLeach,
@@ -25,7 +25,7 @@ import { organicNutrients } from './systems/nutrients.js';
 import { alkalinityMoved, MW_NO3, NH3_TO_NO2_MASS_RATIO, PROTONS_PER_N } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import { KhResource } from './resources/kh.js';
-import { createFish } from './livestock/create-fish.js';
+import { createFish, STOCKED_FISH_SIZE } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
 
 const SEEDABLE_BACTERIA = ['aob', 'nob'] as const;
@@ -73,18 +73,11 @@ export interface SeedFishGroup {
   species: FishSpecies;
   /** Defaults to 1. */
   count?: number;
-  /**
-   * Age in ticks. Defaults to the age its stage starts at — `maturityAge`
-   * for an adult, 0 for a fry — so a roster that names no age means grown
-   * fish. Only an age the author wrote stands as written.
-   */
+  /** % of adult mass, as stocking takes it. Defaults to grown. */
+  size?: number;
+  /** Ticks already lived, as `Fish.age`. Defaults to 0. */
   age?: number;
   sex?: FishSex;
-  /**
-   * Defaults to `adult`. Independent of `age`, so both a months-old
-   * juvenile and an adult too young to breed are expressible.
-   */
-  stage?: FishLifeStage;
 }
 
 export interface SeedPlantGroup {
@@ -320,8 +313,8 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
       state.fish.push(
         createFish({
           species: group.species,
+          size: group.size ?? STOCKED_FISH_SIZE,
           age: group.age,
-          stage: group.stage ?? 'adult',
           sex: group.sex,
           rng: state.rng,
           config: livestockDefaults,
