@@ -37,14 +37,14 @@ export function digest(gut: number, factor: number, config: LivestockConfig): nu
   return Math.max(0, gut) * hourlyDraw(config.digestionRate * factor);
 }
 
-/** Grams a day a roster must digest to hold its condition in reference water. */
-export function dailyMaintenance(fish: readonly Sized[], config: LivestockConfig): number {
-  return fish.reduce((sum, f) => sum + f.mass, 0) * config.maintenanceRation;
+/** Grams a day a roster must digest to hold its condition, its metabolism running at `factor`. */
+export function dailyMaintenance(fish: readonly Sized[], factor: number, config: LivestockConfig): number {
+  return fish.reduce((sum, f) => sum + f.mass, 0) * config.maintenanceRation * factor;
 }
 
 /** Grams an hour a fish must digest to hold its condition, its metabolism running at `factor`. */
 export function maintenance(fish: Sized, factor: number, config: LivestockConfig): number {
-  return (dailyMaintenance([fish], config) * factor) / 24;
+  return dailyMaintenance([fish], factor, config) / 24;
 }
 
 /** Share of its benefits a fish earns on what it digested: half at its maintenance ration. */
@@ -57,6 +57,6 @@ export function nourishment(digested: number, need: number): number {
  * its metabolism running at `factor`, and hunger starts to harm it.
  */
 export function hungerLine(factor: number, config: LivestockConfig): number {
-  const unit = { mass: 1 };
-  return factor > 0 ? maintenance(unit, factor, config) / digest(gutCapacity(unit, config), factor, config) : 0;
+  if (factor <= 0) return 0;
+  return (config.maintenanceRation * factor) / 24 / (config.gutCapacity * hourlyDraw(config.digestionRate * factor));
 }

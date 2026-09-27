@@ -26,23 +26,23 @@ import {
   turnoverShort,
   type DeviceHint,
   type DeviceReading,
+  type DeviceReadingInput,
 } from './readings';
 
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
 
 const UNITS = ['metric', 'imperial'] as const;
 
+function input(state: SimulationState, units: UnitSystem): DeviceReadingInput {
+  return { state, config: DEFAULT_CONFIG, ahead: readHourAhead(state, DEFAULT_CONFIG), units };
+}
+
 function read(
   id: EquipmentId,
   state: SimulationState = base,
   units: UnitSystem = 'metric'
 ): DeviceReading[] {
-  return deviceReadings(id, {
-    state,
-    config: DEFAULT_CONFIG,
-    ahead: readHourAhead(state, DEFAULT_CONFIG),
-    units,
-  });
+  return deviceReadings(id, input(state, units));
 }
 
 function hint(
@@ -50,7 +50,7 @@ function hint(
   state: SimulationState = base,
   units: UnitSystem = 'metric'
 ): DeviceHint | null {
-  return deviceHint(id, state, DEFAULT_CONFIG, units);
+  return deviceHint(id, input(state, units));
 }
 
 function value(readings: DeviceReading[], label: string): DeviceReading {
@@ -800,6 +800,14 @@ describe('deviceHint', () => {
     expect(hint('autoDoser', base)?.text).toMatch(
       /^Each dose adds \+[\d.]+ NO₃ · \+[\d.]+ PO₄ · \+[\d.]+ K · \+[\d.]+ Fe ppm\.$/
     );
+  });
+
+  it('weighs the feeder’s ration against what the fish burn in the water they are in', () => {
+    const warm = applyAction(base, { type: 'addFish', species: 'neon_tetra' }).state;
+    const cold = { ...warm, resources: { ...warm.resources, temperature: warm.resources.temperature - 10 } };
+    const multiple = (state: SimulationState): number => parseFloat(hint('autoFeeder', state)!.text.split(' is ')[1]);
+
+    expect(multiple(cold)).toBeGreaterThan(multiple(warm));
   });
 });
 

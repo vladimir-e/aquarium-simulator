@@ -568,14 +568,7 @@ export function createSimulation(
     ...airPump,
   };
 
-  const autoDoserConfig: AutoDoser = {
-    ...DEFAULT_AUTO_DOSER,
-    ...autoDoser,
-    schedule: {
-      ...DEFAULT_AUTO_DOSER.schedule,
-      ...autoDoser?.schedule,
-    },
-  };
+  const autoDoserConfig: AutoDoser = { ...DEFAULT_AUTO_DOSER, ...autoDoser };
 
   const autoFeederConfig: AutoFeeder = { ...DEFAULT_AUTO_FEEDER, ...autoFeeder };
 

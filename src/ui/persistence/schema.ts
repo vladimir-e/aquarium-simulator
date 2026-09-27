@@ -205,7 +205,7 @@ const AutoDoserSchema = z
   .object({
     enabled: z.boolean(),
     doseAmountMl: z.number().min(0.5).max(10),
-    schedule: DailyScheduleSchema,
+    startHour: z.number().int().min(0).max(23),
     dosedToday: z.boolean(),
   })
   .strict();
@@ -510,8 +510,8 @@ const LivestockConfigSchema = z
   .object({
     gutCapacity: z.number(),
     digestionRate: z.number(),
-    digestionQ10: z.number(),
-    digestionReferenceTemp: z.number(),
+    metabolicQ10: z.number(),
+    metabolicReferenceTemp: z.number(),
     maintenanceRation: z.number(),
     hungerSeverity: z.number(),
     baseRespirationRate: z.number(),

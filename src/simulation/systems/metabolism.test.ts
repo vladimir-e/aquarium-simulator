@@ -149,11 +149,11 @@ describe('processMetabolism', () => {
   });
 
   it('runs on one metabolic factor: the digestion Q10 per ten degrees, times the oxygen factor', () => {
-    const { digestionReferenceTemp: ref, digestionQ10, respirationOxygenHalfSaturation: k } = livestockDefaults;
+    const { metabolicReferenceTemp: ref, metabolicQ10, respirationOxygenHalfSaturation: k } = livestockDefaults;
     const factor = (temperature: number, oxygen: number): number =>
       processMetabolism([], water({ temperature, oxygen }), livestockDefaults).metabolicFactor;
 
-    expect(factor(ref, AMPLE_O2) / factor(ref - 10, AMPLE_O2)).toBeCloseTo(digestionQ10, 12);
+    expect(factor(ref, AMPLE_O2) / factor(ref - 10, AMPLE_O2)).toBeCloseTo(metabolicQ10, 12);
     expect(factor(ref, k)).toBeCloseTo(0.5, 12);
     expect(factor(ref, 0)).toBe(0);
   });

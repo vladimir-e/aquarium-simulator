@@ -77,7 +77,7 @@ export function toConfig(setup: Setup): SimulationConfig {
     autoDoser:
       setup.doser === null
         ? { enabled: false }
-        : { enabled: true, doseAmountMl: setup.doser, schedule: { startHour: LIGHTS_ON, duration: 1 } },
+        : { enabled: true, doseAmountMl: setup.doser, startHour: LIGHTS_ON },
     powerhead: { enabled: false },
     airPump: { enabled: false },
   };

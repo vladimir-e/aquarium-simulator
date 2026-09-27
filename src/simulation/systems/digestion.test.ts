@@ -30,8 +30,8 @@ describe('digestion', () => {
 
 describe('maintenance', () => {
   it('needs a day\'s ration by mass in reference water', () => {
-    expect(dailyMaintenance([{ mass: 1 }, { mass: 3 }], config)).toBeCloseTo(4 * config.maintenanceRation, 12);
-    expect(24 * maintenance({ mass: 2 }, 1, config)).toBeCloseTo(dailyMaintenance([{ mass: 2 }], config), 12);
+    expect(dailyMaintenance([{ mass: 1 }, { mass: 3 }], 1, config)).toBeCloseTo(4 * config.maintenanceRation, 12);
+    expect(24 * maintenance({ mass: 2 }, 0.7, config)).toBeCloseTo(dailyMaintenance([{ mass: 2 }], 0.7, config), 12);
   });
 
   it('needs less as its metabolism slows, in step with the factor', () => {
@@ -73,7 +73,7 @@ describe('nourishment', () => {
   });
 
   it('draws the hunger line where a gut that full digests its maintenance, at any metabolic factor', () => {
-    const fish = { mass: 1 };
+    const fish = { mass: 2 };
     for (const factor of [1, 0.4]) {
       const gut = hungerLine(factor, config) * gutCapacity(fish, config);
       expect(digest(gut, factor, config)).toBeCloseTo(maintenance(fish, factor, config), 12);

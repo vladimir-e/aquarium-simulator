@@ -288,14 +288,14 @@ function powerheadReadings({ state, units }: DeviceReadingInput): DeviceReading[
 function autoDoserReadings({ state }: DeviceReadingInput): DeviceReading[] {
   const { autoDoser } = state.equipment;
   const hour = state.tick % 24;
-  const until = (autoDoser.schedule.startHour - hour + 24) % 24;
+  const until = (autoDoser.startHour - hour + 24) % 24;
 
   return [
     {
       label: 'Next dose',
-      value: autoDoser.enabled ? hourLabel(autoDoser.schedule.startHour) : 'off',
+      value: autoDoser.enabled ? hourLabel(autoDoser.startHour) : 'off',
       note: !autoDoser.enabled
-        ? `would dose at ${hourLabel(autoDoser.schedule.startHour)}`
+        ? `would dose at ${hourLabel(autoDoser.startHour)}`
         : autoDoser.dosedToday
           ? 'dosed today'
           : until === 0
@@ -416,9 +416,7 @@ function tooMuchCurrent(id: EquipmentId, state: SimulationState): DeviceHint | n
 /** The one sentence worth saying about a device beyond its own figures. */
 export function deviceHint(
   id: EquipmentId,
-  state: SimulationState,
-  config: TunableConfig,
-  units: UnitSystem
+  { state, config, ahead, units }: DeviceReadingInput
 ): DeviceHint | null {
   const { equipment, tank, resources } = state;
   const muted = (text: string): DeviceHint => ({ text, tone: 'muted' });
@@ -477,7 +475,7 @@ export function deviceHint(
         )} ppm.`
       );
     case 'autoFeeder': {
-      const need = dailyMaintenance(state.fish, config.livestock);
+      const need = dailyMaintenance(state.fish, ahead.metabolicFactor, config.livestock);
       const ration = equipment.autoFeeder.amount;
       return muted(
         need > 0

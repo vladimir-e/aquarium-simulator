@@ -28,9 +28,10 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * v34: Feeding runs through a gut. `Fish.satiation` becomes `Fish.gut`,
  *      grams of food in it; `LivestockConfig` drops `baseFoodRate`,
  *      `satiationDecayRate` and the eight satiation band knobs, and gains
- *      `gutCapacity`, `digestionRate`, `digestionQ10`,
- *      `digestionReferenceTemp`, `maintenanceRation` and `hungerSeverity`.
- *      `Equipment` gains `autoFeeder`.
+ *      `gutCapacity`, `digestionRate`, `metabolicQ10`,
+ *      `metabolicReferenceTemp`, `maintenanceRation` and `hungerSeverity`.
+ *      `Equipment` gains `autoFeeder`, and `AutoDoser.schedule` becomes
+ *      `startHour`.
  * v33: Algae runs on the plants' vitality model, as two kinds. `state.algae`
  *      holds a bloom per kind — `greenWater` and `film` — and `AlgaeState`
  *      gains `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`,

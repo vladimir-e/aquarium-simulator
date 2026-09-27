@@ -113,7 +113,7 @@ interface UseSimulationReturn {
   updateCo2GeneratorSchedule: (schedule: DailySchedule) => void;
   updateAutoDoserEnabled: (enabled: boolean) => void;
   updateAutoDoserAmount: (amountMl: number) => void;
-  updateAutoDoserSchedule: (schedule: DailySchedule) => void;
+  updateAutoDoserHour: (startHour: number) => void;
   updateAutoFeederEnabled: (enabled: boolean) => void;
   updateAutoFeederAmount: (grams: number) => void;
   updateAutoFeederHour: (startHour: number) => void;
@@ -221,7 +221,7 @@ function rebuildConfig(state: SimulationState, capacity: number): SimulationConf
     autoDoser: {
       enabled: equipment.autoDoser.enabled,
       doseAmountMl: equipment.autoDoser.doseAmountMl,
-      schedule: equipment.autoDoser.schedule,
+      startHour: equipment.autoDoser.startHour,
     },
     autoFeeder: {
       enabled: equipment.autoFeeder.enabled,
@@ -792,7 +792,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
-          ? `Auto doser enabled (${draft.equipment.autoDoser.doseAmountMl}ml at ${draft.equipment.autoDoser.schedule.startHour}:00)`
+          ? `Auto doser enabled (${draft.equipment.autoDoser.doseAmountMl}ml at ${draft.equipment.autoDoser.startHour}:00)`
           : 'Auto doser disabled';
         const log = createLog(draft.tick, 'user', 'info', message);
         draft.equipment.autoDoser.enabled = enabled;
@@ -819,20 +819,15 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     );
   }, []);
 
-  const updateAutoDoserSchedule = useCallback((schedule: DailySchedule) => {
+  const updateAutoDoserHour = useCallback((startHour: number) => {
     setState((current) =>
       produce(current, (draft) => {
-        const oldSchedule = draft.equipment.autoDoser.schedule;
-        if (oldSchedule.startHour !== schedule.startHour) {
-          const log = createLog(
-            draft.tick,
-            'user',
-            'info',
-            `Auto doser time: ${oldSchedule.startHour}:00 → ${schedule.startHour}:00`
-          );
-          draft.equipment.autoDoser.schedule = schedule;
-          draft.logs.push(log);
-        }
+        const doser = draft.equipment.autoDoser;
+        if (doser.startHour === startHour) return;
+        draft.logs.push(
+          createLog(draft.tick, 'user', 'info', `Auto doser time: ${doser.startHour}:00 → ${startHour}:00`)
+        );
+        doser.startHour = startHour;
       })
     );
   }, []);
@@ -949,7 +944,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     updateCo2GeneratorSchedule,
     updateAutoDoserEnabled,
     updateAutoDoserAmount,
-    updateAutoDoserSchedule,
+    updateAutoDoserHour,
     updateAutoFeederEnabled,
     updateAutoFeederAmount,
     updateAutoFeederHour,

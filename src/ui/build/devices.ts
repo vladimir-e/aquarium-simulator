@@ -128,7 +128,7 @@ function deviceSummary(id: DeviceId, state: SimulationState, units: UnitSystem):
     case 'autoDoser': {
       const d = equipment.autoDoser;
       return d.enabled
-        ? `${d.doseAmountMl.toFixed(1)} ml · ${hourLabel(d.schedule.startHour)}`
+        ? `${d.doseAmountMl.toFixed(1)} ml · ${hourLabel(d.startHour)}`
         : 'off';
     }
     case 'autoFeeder': {

@@ -180,7 +180,7 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 |---|---|---|
 | `gutCapacity` | Food a full gut holds, per gram of fish | g/g |
 | `digestionRate` | First-order rate a gut digests at, at the reference temperature in unlimited oxygen | /hr |
-| `digestionQ10` · `digestionReferenceTemp` | How digestion and the maintenance ration scale with temperature, and where they read their base values | — · °C |
+| `metabolicQ10` · `metabolicReferenceTemp` | How the metabolism — digestion and the maintenance ration — scales with temperature, and where it reads their base values | — · °C |
 | `maintenanceRation` | Food a day, per gram of fish, digested to hold condition at the reference temperature in unlimited oxygen — income at half rate, and where hunger starts | g/g/day |
 | `hungerSeverity` | Damage at an empty gut, before hardiness | %/hr |
 | `baseRespirationRate` | Oxygen a fish draws per gram per hour — a Monod maximum | mg O₂/g/hr |

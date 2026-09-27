@@ -268,10 +268,10 @@ function DeviceFields({
           <HourField
             label="Dose hour"
             ariaLabel="Auto doser hour"
-            startHour={doser.schedule.startHour}
+            startHour={doser.startHour}
             hour={hour}
             active={active}
-            onChange={(startHour) => sim.updateAutoDoserSchedule({ ...doser.schedule, startHour })}
+            onChange={sim.updateAutoDoserHour}
           />
         </>
       );
@@ -329,15 +329,12 @@ export function DeviceDrawer({
 }): React.JSX.Element | null {
   const { unitSystem } = useUnits();
   const id = entry?.row.id;
-  const readings = useMemo(
-    () => (id ? deviceReadings(id, { state: sim.state, config, ahead, units: unitSystem }) : []),
-    [id, sim.state, config, ahead, unitSystem]
+  const input = useMemo(
+    () => ({ state: sim.state, config, ahead, units: unitSystem }),
+    [sim.state, config, ahead, unitSystem]
   );
-
-  const hint = useMemo(
-    () => (id ? deviceHint(id, sim.state, config, unitSystem) : null),
-    [id, sim.state, config, unitSystem]
-  );
+  const readings = useMemo(() => (id ? deviceReadings(id, input) : []), [id, input]);
+  const hint = useMemo(() => (id ? deviceHint(id, input) : null), [id, input]);
 
   if (!entry) return null;
 

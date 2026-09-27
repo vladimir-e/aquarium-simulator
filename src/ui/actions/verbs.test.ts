@@ -14,7 +14,7 @@ import {
 import { DEFAULT_CONFIG, mapNutrients, type Nutrient, type TunableConfig } from '../../simulation/config/index.js';
 import { getMassFromPpm } from '../../simulation/resources/index.js';
 import { produce } from 'immer';
-import { bedReading, doseToCover, nutrientProbe, nutrientReadings, TRIM_TARGETS } from '../run';
+import { bedReading, doseToCover, nutrientProbe, nutrientReadings, readHourAhead, TRIM_TARGETS } from '../run';
 import {
   DEFAULT_SETTINGS,
   DOSE_PRESETS,
@@ -53,7 +53,7 @@ function planted(sizes: number[]): SimulationState {
 }
 
 function detail(state: SimulationState, id: VerbId, settings: VerbSettings = DEFAULT_SETTINGS): VerbDetail {
-  return verbDetail(state, id, settings, 'metric', DEFAULT_CONFIG);
+  return verbDetail(state, id, settings, 'metric', DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG));
 }
 
 function row(state: SimulationState, id: VerbId, settings: VerbSettings = DEFAULT_SETTINGS): VerbRow {
@@ -86,7 +86,7 @@ describe('the seven verbs', () => {
       draft.nutrients.fertilizerFormula.nitrate /= 5;
     });
     const rise = (config: TunableConfig): number => {
-      const hint = verbDetail(state, 'dose', DEFAULT_SETTINGS, 'metric', config).options.find(
+      const hint = verbDetail(state, 'dose', DEFAULT_SETTINGS, 'metric', config, readHourAhead(state, config)).options.find(
         (option) => option.value === DEFAULT_SETTINGS.dose
       )?.hint;
       return Number(hint?.match(/[\d.]+/)?.[0]);
@@ -164,7 +164,7 @@ describe('the seven verbs', () => {
     it('counts, refuses and names its commit by what the family holds', () => {
       const { state, first, second } = families();
       const scoped = (familyId: string, trimPlants: number): VerbDetail =>
-        verbDetail(state, 'trimPlants', { ...DEFAULT_SETTINGS, trimPlants }, 'metric', DEFAULT_CONFIG, {
+        verbDetail(state, 'trimPlants', { ...DEFAULT_SETTINGS, trimPlants }, 'metric', DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG), {
           familyId,
         });
 
@@ -180,7 +180,7 @@ describe('the seven verbs', () => {
 
     it('previews the shade the cut takes off the floor, though the largest plant stands elsewhere', () => {
       const { state, first } = families();
-      const preview = verbDetail(state, 'trimPlants', DEFAULT_SETTINGS, 'metric', DEFAULT_CONFIG, {
+      const preview = verbDetail(state, 'trimPlants', DEFAULT_SETTINGS, 'metric', DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG), {
         familyId: first,
       }).preview;
 
@@ -395,6 +395,17 @@ describe('the seven verbs', () => {
       parseFloat(detail(state, 'feed').options[1].hint);
     expect(days(stocked)).toBeLessThan(days(lean));
     expect(detail(stocked, 'feed').meta).toMatch(/^8 fish need \d+\.\d\d g a day$/);
+  });
+
+  it('prices a feed against the ration the fish burn in the water they are in', () => {
+    let warm = tank();
+    for (let i = 0; i < 8; i++) warm = applyAction(warm, { type: 'addFish', species: 'corydoras' }).state;
+    const cold = produce(warm, (draft) => {
+      draft.resources.temperature -= 10;
+    });
+    const need = (state: SimulationState): number => parseFloat(detail(state, 'feed').meta.split(' need ')[1]);
+
+    expect(need(cold)).toBeLessThan(need(warm));
   });
 
   it('stops counting days once a ration would outlast the month', () => {

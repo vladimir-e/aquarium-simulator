@@ -237,7 +237,7 @@ function fishLedger(
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
   const vital = vitalReading(fish.health, vitality.newCondition);
-  const gut = fishGut(fish, breakdown, ahead.metabolicFactor, livestock);
+  const gut = fishGut(fish, breakdown, vital.sick, ahead.metabolicFactor, livestock);
   const reading = fishReading(vital.reading, gut);
 
   return {

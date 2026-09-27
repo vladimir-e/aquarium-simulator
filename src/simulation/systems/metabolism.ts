@@ -13,10 +13,9 @@
  *     wasteMass = digested × (1 − gillNFraction)
  *
  * Deamination rides digestion, and digestion rides the metabolic factor —
- * the digestion Q10 times the oxygen factor respiration runs on — so a
+ * the metabolic Q10 times the oxygen factor respiration runs on — so a
  * hypoxic fish digests, deaminates and breathes less together, and a cold one
- * digests slower. What a fish must digest to hold condition runs on the same
- * factor: cold and hypoxia slow what it needs as they slow what it digests.
+ * digests slower.
  */
 
 import type { Fish, Resources } from '../state.js';
@@ -89,7 +88,7 @@ export function processMetabolism(
 ): MetabolismResult {
   const oxygenFactor = monodFactor(water.oxygen, config.respirationOxygenHalfSaturation);
   const metabolicFactor =
-    q10Factor(water.temperature, config.digestionQ10, config.digestionReferenceTemp) * oxygenFactor;
+    q10Factor(water.temperature, config.metabolicQ10, config.metabolicReferenceTemp) * oxygenFactor;
 
   const digested = fish.map((f) => digest(f.gut, metabolicFactor, config));
   const digestedFish = fish.map((f, i) => ({ ...f, gut: Math.max(0, f.gut - digested[i]) }));

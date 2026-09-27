@@ -19,8 +19,8 @@ export interface LivestockConfig {
   gutCapacity: number;
   /** First-order rate, per hour, a gut digests at the reference temperature in unlimited oxygen. */
   digestionRate: number;
-  digestionQ10: number;
-  digestionReferenceTemp: number;
+  metabolicQ10: number;
+  metabolicReferenceTemp: number;
   /**
    * Grams of food a day, per gram of fish, a fish must digest to hold its
    * condition: its income runs at half rate there, and hunger harms it below.
@@ -139,8 +139,8 @@ export const livestockDefaults: LivestockConfig = {
   // Half a gut digests in about 7 h at 25 °C and 95 % in 30 h; ten degrees
   // colder doubles both.
   digestionRate: 0.1,
-  digestionQ10: 2.0,
-  digestionReferenceTemp: 25,
+  metabolicQ10: 2.0,
+  metabolicReferenceTemp: 25,
   // Half a percent of body mass a day holds a fish; the hobby's 1–3 % a day
   // feeds it past that, and the excess is what banks.
   maintenanceRation: 0.005,
@@ -253,8 +253,8 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   // Feeding
   { key: 'gutCapacity', label: 'Gut Capacity', unit: 'g/g', min: 0.005, max: 0.1, step: 0.005 },
   { key: 'digestionRate', label: 'Digestion Rate', unit: '/hr', min: 0.01, max: 1, step: 0.01 },
-  { key: 'digestionQ10', label: 'Digestion Q10', unit: '', min: 1, max: 4, step: 0.1 },
-  { key: 'digestionReferenceTemp', label: 'Digestion Reference Temp', unit: '°C', min: 15, max: 30, step: 1 },
+  { key: 'metabolicQ10', label: 'Metabolic Q10', unit: '', min: 1, max: 4, step: 0.1 },
+  { key: 'metabolicReferenceTemp', label: 'Metabolic Reference Temp', unit: '°C', min: 15, max: 30, step: 1 },
   { key: 'maintenanceRation', label: 'Maintenance Ration', unit: 'g/g/day', min: 0.001, max: 0.03, step: 0.001 },
   { key: 'hungerSeverity', label: 'Hunger Severity', unit: '%/hr', min: 0, max: 5, step: 0.1 },
   // Metabolism

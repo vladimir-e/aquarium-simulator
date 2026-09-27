@@ -20,7 +20,7 @@ function tankAt(tick: number, doser: Partial<AutoDoser> = {}): SimulationState {
       autoDoser: {
         enabled: true,
         doseAmountMl: 2,
-        schedule: { startHour: 8, duration: 1 },
+        startHour: 8,
         dosedToday: false,
         ...doser,
       },
@@ -29,12 +29,10 @@ function tankAt(tick: number, doser: Partial<AutoDoser> = {}): SimulationState {
 }
 
 describe('shouldDose', () => {
-  it('fires only at the scheduled hour, once a day', () => {
-    const schedule = { startHour: 8, duration: 1 };
-
-    expect(shouldDose(8, schedule, false)).toBe(true);
-    expect(shouldDose(8, schedule, true)).toBe(false);
-    for (const hour of [0, 7, 9, 23]) expect(shouldDose(hour, schedule, false)).toBe(false);
+  it('fires only at its hour, once a day', () => {
+    expect(shouldDose(8, 8, false)).toBe(true);
+    expect(shouldDose(8, 8, true)).toBe(false);
+    for (const hour of [0, 7, 9, 23]) expect(shouldDose(hour, 8, false)).toBe(false);
   });
 });
 

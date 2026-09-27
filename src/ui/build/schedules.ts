@@ -114,9 +114,9 @@ export function rackSchedules(state: SimulationState): RackSchedules {
       {
         id: 'autoDoser',
         enabled: autoDoser.enabled,
-        active: autoDoser.enabled && hour === autoDoser.schedule.startHour,
-        spans: autoDoser.enabled ? scheduleSpans(onceAt(autoDoser.schedule.startHour)) : [],
-        hours: autoDoser.enabled ? hourLabel(autoDoser.schedule.startHour) : '',
+        active: autoDoser.enabled && hour === autoDoser.startHour,
+        spans: autoDoser.enabled ? scheduleSpans(onceAt(autoDoser.startHour)) : [],
+        hours: autoDoser.enabled ? hourLabel(autoDoser.startHour) : '',
       },
       {
         id: 'autoFeeder',

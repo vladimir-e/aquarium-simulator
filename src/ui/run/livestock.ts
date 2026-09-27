@@ -17,7 +17,7 @@ import {
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
 import type { HourAhead } from './ahead.js';
-import { groupReading, vitalReading, worstReading, type Reading, type Status } from './status.js';
+import { groupReading, vitalReading, worstReading, worstStatus, type Reading, type Status } from './status.js';
 import { groupBy, mean, numbered } from './fold.js';
 import type { ReadingBand } from './water.js';
 
@@ -27,26 +27,21 @@ import type { ReadingBand } from './water.js';
  */
 export type GutBand = 'fed' | 'hungry' | 'starving';
 
-/** Share of a full gut a fish holds. */
-export function gutFullness(fish: Fish, config: LivestockConfig): number {
-  const capacity = gutCapacity(fish, config);
-  return capacity > 0 ? fish.gut / capacity : 0;
-}
-
 export function gutBand({ stressors, benefitRate }: VitalityBreakdown): GutBand {
   const hunger = stressors.find((stressor) => stressor.key === 'hunger')?.amount ?? 0;
   if (hunger <= 0) return 'fed';
   return hunger < benefitRate ? 'hungry' : 'starving';
 }
 
-export function bandStatus(band: GutBand): Status {
+/** A starving fish its bank still heals whole reads no worse than a hungry one. */
+export function gutStatus(band: GutBand, sick: boolean): Status {
   switch (band) {
     case 'fed':
       return 'ok';
     case 'hungry':
       return 'warn';
     case 'starving':
-      return 'alert';
+      return sick ? 'alert' : 'warn';
   }
 }
 
@@ -73,6 +68,10 @@ export interface Gut extends Reading {
   band: ReadingBand;
 }
 
+export interface FishGut extends Gut {
+  word: GutBand;
+}
+
 /**
  * A fish's gut on its track, fed from the hunger line up — where it digests
  * its maintenance at the pace the water sets — in the band its vitality puts it.
@@ -80,15 +79,17 @@ export interface Gut extends Reading {
 export function fishGut(
   fish: Fish,
   breakdown: VitalityBreakdown,
+  sick: boolean,
   metabolicFactor: number,
   config: LivestockConfig
-): Gut {
-  const band = gutBand(breakdown);
+): FishGut {
+  const word = gutBand(breakdown);
+  const capacity = gutCapacity(fish, config);
   return {
-    at: gutFullness(fish, config),
+    at: capacity > 0 ? fish.gut / capacity : 0,
     band: { from: hungerLine(metabolicFactor, config), to: 1 },
-    status: bandStatus(band),
-    word: band,
+    status: gutStatus(word, sick),
+    word,
   };
 }
 
@@ -129,8 +130,7 @@ export interface FishRead {
   number: number;
   condition: number;
   sick: boolean;
-  hunger: GutBand;
-  gut: Gut;
+  gut: FishGut;
   reading: Reading;
   fish: Fish;
 }
@@ -141,13 +141,12 @@ export function readFish(state: SimulationState, config: TunableConfig, ahead: H
   return state.fish.map((fish, i) => {
     const { vitality } = ahead.fish[i];
     const { sick, reading } = vitalReading(fish.health, vitality.newCondition);
-    const gut = fishGut(fish, vitality.breakdown, ahead.metabolicFactor, config.livestock);
+    const gut = fishGut(fish, vitality.breakdown, sick, ahead.metabolicFactor, config.livestock);
     return {
       id: fish.id,
       number: numbers.get(fish.id)!,
       condition: fish.health,
       sick,
-      hunger: gutBand(vitality.breakdown),
       gut,
       reading: fishReading(reading, gut),
       fish,
@@ -191,16 +190,17 @@ export interface FryBatch extends RosterGroup {
 }
 
 function groupGut(members: FishRead[], hunger: Hunger | null): Gut {
-  const at = mean(members.map((member) => member.gut.at));
-  const { band } = members[0].gut;
-  return hunger
-    ? { at, band, status: bandStatus(hunger.band), word: `${hunger.count} hungry` }
-    : { at, band, status: bandStatus('fed'), word: 'fed' };
+  return {
+    at: mean(members.map((member) => member.gut.at)),
+    band: members[0].gut.band,
+    status: members.map((member) => member.gut.status).reduce(worstStatus),
+    word: hunger ? `${hunger.count} hungry` : 'fed',
+  };
 }
 
 function groupFigures(members: FishRead[]): RosterGroup {
   const group = members.map((member) => member.fish);
-  const hunger = hungerOf(members.map((member) => member.hunger));
+  const hunger = hungerOf(members.map((member) => member.gut.word));
   return {
     count: group.length,
     massG: group.reduce((sum, f) => sum + f.mass, 0),

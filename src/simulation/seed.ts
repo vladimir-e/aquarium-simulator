@@ -144,7 +144,7 @@ type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
  * colony errs small and grows on from the seed.
  */
 function restingAmmoniaSupply(state: StockedTank): number {
-  const digested = dailyMaintenance(state.fish, livestockDefaults) / 24;
+  const digested = dailyMaintenance(state.fish, 1, livestockDefaults) / 24;
   const { ammonia, waste } = excretion(digested, livestockDefaults);
   const leached = calculateSubstrateLeach(state.equipment.substrate.organicReserve, decayDefaults);
   return ammonia + (waste + leached) * ammoniaPerGramOfFood(livestockDefaults);

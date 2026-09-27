@@ -17,7 +17,7 @@ import { calculateO2Saturation } from '../../simulation/systems/gas-exchange.js'
 import { gasExchangeDefaults } from '../../simulation/config/gas-exchange.js';
 import { ammoniaAlertLine } from '../../simulation/alerts/index.js';
 import { NITRATE_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
-import { ammoniaScale, trackAt } from '../run/index.js';
+import { ammoniaScale, readHourAhead, trackAt } from '../run/index.js';
 import {
   DEFAULT_SETTINGS,
   VERB_IDS,
@@ -65,7 +65,7 @@ function gassed(): SimulationState {
 }
 
 function detail(state: SimulationState, id: VerbId, settings = DEFAULT_SETTINGS): VerbDetail {
-  return verbDetail(state, id, settings, 'metric', DEFAULT_CONFIG);
+  return verbDetail(state, id, settings, 'metric', DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG));
 }
 
 function row(rows: PreviewRow[], key: string): PreviewRow {
@@ -292,8 +292,9 @@ describe('preview readings', () => {
 
   it('reads temperature in the reader’s own units', () => {
     const state = fixture();
-    const metric = row(verbDetail(state, 'waterChange', DEFAULT_SETTINGS, 'metric', DEFAULT_CONFIG).preview, 'temperature');
-    const imperial = row(verbDetail(state, 'waterChange', DEFAULT_SETTINGS, 'imperial', DEFAULT_CONFIG).preview, 'temperature');
+    const ahead = readHourAhead(state, DEFAULT_CONFIG);
+    const metric = row(verbDetail(state, 'waterChange', DEFAULT_SETTINGS, 'metric', DEFAULT_CONFIG, ahead).preview, 'temperature');
+    const imperial = row(verbDetail(state, 'waterChange', DEFAULT_SETTINGS, 'imperial', DEFAULT_CONFIG, ahead).preview, 'temperature');
 
     expect(metric.unit).toBe('°C');
     expect(metric.before).toBe('25.4');

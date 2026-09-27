@@ -37,6 +37,7 @@ import {
   plantLabels,
   printsAsZero,
   TRIM_TARGETS,
+  type HourAhead,
 } from '../run';
 import { COVERAGE_DECIMALS, formatVolume, logQuantityIn, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
@@ -335,13 +336,14 @@ function rungsFor(
   id: SettableVerb,
   units: UnitSystem,
   config: TunableConfig,
+  ahead: HourAhead,
   scope: VerbScope | null
 ): Rungs {
   const water = state.resources.water;
 
   switch (id) {
     case 'feed': {
-      const ration = dailyMaintenance(state.fish, config.livestock);
+      const ration = dailyMaintenance(state.fish, ahead.metabolicFactor, config.livestock);
       return {
         values: FEED_PRESETS,
         rung: (amount) => ({
@@ -454,6 +456,7 @@ function meta(
   settings: VerbSettings,
   units: UnitSystem,
   config: TunableConfig,
+  ahead: HourAhead,
   scope: VerbScope | null
 ): string {
   const water = state.resources.water;
@@ -463,7 +466,7 @@ function meta(
       const mouths =
         state.fish.length === 0
           ? 'no fish to feed'
-          : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'needs' : 'need'} ${grams(dailyMaintenance(state.fish, config.livestock))} a day`;
+          : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'needs' : 'need'} ${grams(dailyMaintenance(state.fish, ahead.metabolicFactor, config.livestock))} a day`;
       return state.resources.food > 0
         ? `${mouths} · ${grams(state.resources.food)} still in the water`
         : mouths;
@@ -580,9 +583,10 @@ function rungs(
   setting: NonNullable<VerbDetail['setting']>,
   units: UnitSystem,
   config: TunableConfig,
+  ahead: HourAhead,
   scope: VerbScope | null
 ): VerbOption[] {
-  const { values, rung } = rungsFor(state, setting.verb, units, config, scope);
+  const { values, rung } = rungsFor(state, setting.verb, units, config, ahead, scope);
   const all = values.includes(setting.value)
     ? values
     : [...values, setting.value].sort((a, b) => a - b);
@@ -600,15 +604,16 @@ export function verbDetail(
   settings: VerbSettings,
   units: UnitSystem,
   config: TunableConfig,
+  ahead: HourAhead,
   scope: VerbScope | null = null
 ): VerbDetail {
   const setting = settingOf(id, settings);
   return {
     id,
     title: (id === 'trimPlants' && scope && scopeTitle(state, scope)) || VERB[id].title,
-    meta: meta(state, id, settings, units, config, scope),
+    meta: meta(state, id, settings, units, config, ahead, scope),
     setting,
-    options: setting === null ? [] : rungs(state, setting, units, config, scope),
+    options: setting === null ? [] : rungs(state, setting, units, config, ahead, scope),
     note: BARE_NOTE[id]?.(state) ?? null,
     preview: previewRows({
       before: state,

@@ -10,9 +10,9 @@ import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/inde
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import type { VitalityBreakdown } from '../../simulation/index.js';
 import {
-  bandStatus,
   groupBySpecies,
   gutBand,
+  gutStatus,
   groupFry,
   hungerOf,
   readFish,
@@ -51,11 +51,12 @@ function fry(state: SimulationState): FryBatch | null {
   return groupFry(readFish(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG)));
 }
 
-describe('bandStatus', () => {
-  it('maps bands onto the status vocabulary', () => {
-    expect(bandStatus('fed')).toBe('ok');
-    expect(bandStatus('hungry')).toBe('warn');
-    expect(bandStatus('starving')).toBe('alert');
+describe('gutStatus', () => {
+  it('maps bands onto the status vocabulary, starving at alert only once it makes the fish sick', () => {
+    expect(gutStatus('fed', false)).toBe('ok');
+    expect(gutStatus('hungry', true)).toBe('warn');
+    expect(gutStatus('starving', false)).toBe('warn');
+    expect(gutStatus('starving', true)).toBe('alert');
   });
 });
 
@@ -87,7 +88,7 @@ describe('gutBand', () => {
       makeFish({ id: 'b', gut: STARVING }),
       makeFish({ id: 'c', gut: 0, mass: 0 }),
     ]);
-    const bands = readFish(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG)).map((read) => read.hunger);
+    const bands = readFish(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG)).map((read) => read.gut.word);
     expect(bands).toEqual(['fed', 'starving', 'fed']);
   });
 });
@@ -203,6 +204,14 @@ describe('the reading behind a fish', () => {
     const [group] = species(state);
 
     expect(group.members[0].reading).toEqual({ status: 'alert', word: 'starving' });
+  });
+
+  it('reads a starving fish its bank still holds up at the tone the need asks in', () => {
+    const state = tank([makeFish({ id: 'a', health: 100, gut: STARVING, surplus: livestockDefaults.surplusCap })]);
+    const [member] = species(state)[0].members;
+
+    expect(member.sick).toBe(false);
+    expect(member.reading).toEqual({ status: 'warn', word: 'starving' });
   });
 
   it('leaves a thriving fish alone, bank or no bank', () => {
