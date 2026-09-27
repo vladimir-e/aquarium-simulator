@@ -21,8 +21,9 @@ import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
 import { mapNutrients, nutrientsDefaults, type NutrientVector } from './config/nutrients.js';
 import { organicNutrients } from './systems/nutrients.js';
-import { CACO3_PER_EQUIVALENT, MW_NO3, NH3_TO_NO2_MASS_RATIO, PROTONS_PER_N } from './core/chemistry.js';
+import { alkalinityMoved, MW_NO3, NH3_TO_NO2_MASS_RATIO, PROTONS_PER_N } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
+import { KhResource } from './resources/kh.js';
 import { createFish } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
 
@@ -256,9 +257,9 @@ export function cycledHardness(
   const taken =
     type === 'aqua_soil' ? Math.min(tapKh * (1 - CYCLED_SOIL_KH_RETAINED), tapGh) : 0;
   const rotNitrogen = cycledRot(type, capacity).nitrate / MW_NO3;
-  const nitrified = rotNitrogen * (PROTONS_PER_N.mint + PROTONS_PER_N.nitrify) * CACO3_PER_EQUIVALENT;
+  const nitrified = alkalinityMoved(rotNitrogen, PROTONS_PER_N.mint + PROTONS_PER_N.nitrify);
   return {
-    kh: Math.max(0, getKhMass(tapKh - taken, capacity) + nitrified),
+    kh: Math.max(KhResource.bounds.min, getKhMass(tapKh - taken, capacity) + nitrified),
     gh: getGhMass(tapGh - taken, capacity),
   };
 }

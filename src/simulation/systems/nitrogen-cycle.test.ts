@@ -292,8 +292,8 @@ describe('calculateAmmoniaToNitrite', () => {
     const two = calculateAmmoniaToNitrite(glut, W, 200, REF, AMPLE_O2, SAT);
     const nitrogen = one.ammoniaConsumed * (MW_N / MW_NH3);
 
-    expect(one.alkalinityConsumedMg / nitrogen).toBeCloseTo(7.14, 2);
-    expect(two.alkalinityConsumedMg).toBeCloseTo(2 * one.alkalinityConsumedMg, 10);
+    expect(one.alkalinityMoved / nitrogen).toBeCloseTo(-7.14, 2);
+    expect(two.alkalinityMoved).toBeCloseTo(2 * one.alkalinityMoved, 10);
   });
 
   it('doubles the mass it clears when the colony doubles', () => {

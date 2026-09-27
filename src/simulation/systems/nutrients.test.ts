@@ -464,7 +464,7 @@ describe('uptakeAlkalinity', () => {
     const nitrate = nitrified.nitriteProduced * NO2_TO_NO3_MASS_RATIO;
 
     expect(nitrified.ammoniaConsumed).toBeGreaterThan(0);
-    expect(uptakeAlkalinity({ ...ZERO_FORMS, nitrate }) - nitrified.alkalinityConsumedMg).toBeCloseTo(
+    expect(uptakeAlkalinity({ ...ZERO_FORMS, nitrate }) + nitrified.alkalinityMoved).toBeCloseTo(
       uptakeAlkalinity({ ...ZERO_FORMS, ammonia: nitrified.ammoniaConsumed }),
       10
     );

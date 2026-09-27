@@ -35,7 +35,7 @@ import {
 } from '../config/nitrogen-cycle.js';
 import { monodFactor, monodUptake, q10Factor } from '../core/kinetics.js';
 import {
-  CACO3_PER_EQUIVALENT,
+  alkalinityMoved,
   MW_NH3,
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
@@ -209,7 +209,7 @@ export function calculateColonyFlows(
 export function mintAmmonia(ammonia: number, tier: EffectTier, source: string): Effect[] {
   return [
     { tier, resource: 'ammonia', delta: ammonia, source },
-    { tier, resource: 'kh', delta: (ammonia / MW_NH3) * PROTONS_PER_N.mint * CACO3_PER_EQUIVALENT, source },
+    { tier, resource: 'kh', delta: alkalinityMoved(ammonia / MW_NH3, PROTONS_PER_N.mint), source },
   ];
 }
 
@@ -295,8 +295,8 @@ export function nobCapacity(
  * N-mass is conserved; compound mass scales with MW. NO2⁻ produced =
  * NH3 consumed × MW_NO2 / MW_NH3 ≈ 2.702.
  *
- * @returns mg consumed, mg of nitrite produced, mg of O2 and of alkalinity
- *          (as CaCO3) spent, and the fraction of capacity used
+ * @returns mg consumed, mg of nitrite produced, mg of O2 spent, mg of KH (as
+ *          CaCO3) moved, and the fraction of capacity used
  */
 export function calculateAmmoniaToNitrite(
   ammoniaMass: number,
@@ -309,7 +309,7 @@ export function calculateAmmoniaToNitrite(
   ammoniaConsumed: number;
   nitriteProduced: number;
   oxygenConsumedMg: number;
-  alkalinityConsumedMg: number;
+  alkalinityMoved: number;
   utilization: number;
 } {
   const capacity = aobCapacity(aobPopulation, temperature, oxygen, config);
@@ -319,7 +319,7 @@ export function calculateAmmoniaToNitrite(
     ammoniaConsumed,
     nitriteProduced: ammoniaConsumed * NH3_TO_NO2_MASS_RATIO,
     oxygenConsumedMg: ammoniaConsumed * O2_PER_NH3_OXIDIZED,
-    alkalinityConsumedMg: (ammoniaConsumed / MW_NH3) * -PROTONS_PER_N.nitrify * CACO3_PER_EQUIVALENT,
+    alkalinityMoved: alkalinityMoved(ammoniaConsumed / MW_NH3, PROTONS_PER_N.nitrify),
     utilization: capacity > 0 ? ammoniaConsumed / capacity : 0,
   };
 }
@@ -547,7 +547,7 @@ export const nitrogenCycleSystem: System = {
       effects.push({
         tier: 'passive',
         resource: 'kh',
-        delta: -aobStage.alkalinityConsumedMg,
+        delta: aobStage.alkalinityMoved,
         source: 'nitrogen-cycle-aob',
       });
     }

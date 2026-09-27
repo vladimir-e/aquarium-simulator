@@ -82,3 +82,8 @@ export const PROTONS_PER_N = {
   ammoniumUptake: -1,
   nitrateUptake: 1,
 } as const;
+
+/** mg of KH, as CaCO3, a process carrying this much nitrogen moves: signed, the KH gained. */
+export function alkalinityMoved(mmolN: number, protons: number): number {
+  return mmolN * protons * CACO3_PER_EQUIVALENT;
+}
