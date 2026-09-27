@@ -18,20 +18,18 @@ export type {
   Fish,
   Clutch,
   AlgaeState,
+  Blooms,
 } from './state.js';
 export {
   createSimulation,
-  relight,
-  scheduledLightHistory,
-  calculateTankHeight,
-  calculateFloorArea,
-  calculateTankGlassSurface,
+  quietAlerts,
   calculateHardscapeSlots,
   DEFAULT_HEATER,
   DEFAULT_LID,
   DEFAULT_ATO,
   DEFAULT_LIGHT,
 } from './state.js';
+export { calculateTankHeight, calculateFloorArea, calculateTankGlassSurface } from './core/geometry.js';
 
 // Logging
 export type { LogEntry, LogSeverity, LogEvent, LogQuantity, LogText, QuantityFormat } from './core/logging.js';
@@ -51,8 +49,7 @@ export {
   PLANT_SPECIES_DATA,
   GROWTH_FORMS,
   growthFormOf,
-  getSaturationIrradiance,
-  dailyLightEdge,
+  plantTraits,
 } from './plants/species.js';
 export type {
   FishSpecies,
@@ -104,7 +101,7 @@ export {
 } from './presets.js';
 
 // Configuration
-export type { TunableConfig, FertilizerFormula, NutrientVector } from './config/index.js';
+export type { TunableConfig, FertilizerFormula, NutrientVector, NutrientForm, FormVector } from './config/index.js';
 export { DEFAULT_CONFIG } from './config/index.js';
 
 // Resources
@@ -136,7 +133,7 @@ export type { DailySchedule } from './core/schedule.js';
 export { isScheduleActive, isValidSchedule, formatSchedule } from './core/schedule.js';
 
 // Logging
-export { celsius, createLog, liters, logText, measured, metricQuantity } from './core/logging.js';
+export { celsius, coverage, createLog, liters, logText, measured, metricQuantity } from './core/logging.js';
 
 // Blending
 export { blendTemperature, blendConcentration } from './core/blending.js';
@@ -172,6 +169,7 @@ export {
 export {
   processEquipment,
   calculatePassiveResources,
+  settlePassiveResources,
   calculateSurface,
   biofilmKept,
   rescape,
@@ -237,6 +235,7 @@ export {
   getLightOutput,
   calculateParAtDepth,
   scheduledLightByHour,
+  scheduledLightHistory,
   dailyLightIntegral,
   LIGHT_PAR_OPTIONS,
   MAX_LIGHT_PAR,
@@ -265,14 +264,17 @@ export {
 } from './equipment/hardscape.js';
 
 // Alerts
-export type { Alert, AlertResult, CheckAlertsResult } from './alerts/index.js';
+export type { Alert, AlertResult, BloomLevel, CheckAlertsResult } from './alerts/index.js';
 export {
   alerts,
   checkAlerts,
   waterLevelAlert,
-  highAlgaeAlert,
+  bloomAlert,
+  bloomAlerts,
+  bloomLevel,
   waterLevelAlertLine,
-  algaeAlertLine,
+  BLOOM_COVERAGE_LINE,
+  PLANT_LIGHT_LINE,
 } from './alerts/index.js';
 
 // Actions
@@ -299,10 +301,7 @@ export {
   topOff,
   feed,
   scrubAlgae,
-  canScrubAlgae,
-  MIN_SCRUB_PERCENT,
-  MAX_SCRUB_PERCENT,
-  MIN_ALGAE_TO_SCRUB,
+  onTheGlass,
   waterChange,
   WATER_CHANGE_AMOUNTS,
   trimPlants,
@@ -330,34 +329,85 @@ export {
 } from './actions/index.js';
 export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 
+// Flora — plants and the blooms in one pass, on one law
+export { processFlora } from './flora/index.js';
+export type { FloraProcessingResult, BloomHour } from './flora/index.js';
+export {
+  saturationIrradiance,
+  dailyLightEdge,
+  floraHealingRate,
+  tissuePerRateUnit,
+  shedShare,
+} from './systems/flora.js';
+export type { FloraTraits, FloraLoss } from './systems/flora.js';
+
 // Algae
 export {
-  processAlgae,
-  spendAlgaeSurplus,
-  computeAlgaePopulation,
+  ALGAE,
+  ALGAE_KINDS,
+  EMPTY_BLOOM,
+  emptyBlooms,
+  isAlgaeKind,
+  mapKinds,
+  resettle,
+  bloomLight,
+  columnGain,
+  lightLoss,
+  waterExtinction,
+  columnPass,
+  bloomPass,
+  habitatSize,
+  habitatGain,
+  placeShare,
+  REMOVED_BY,
+  bloomTissue,
+  bloomRateUnits,
+  bloomFeeder,
+  bloomFixer,
+  purchaseBloom,
+  massBought,
+  supplyBloom,
+  loseBloom,
+  landSpores,
+  computeAlgaeVitality,
   buildAlgaeStressors,
   buildAlgaeBenefits,
+  thrivingPlantDensity,
 } from './algae/index.js';
 export type {
+  AlgaeKind,
+  AlgaeHabitat,
+  AlgaeTraits,
+  BloomLight,
+  HabitatPlace,
+  HabitatTank,
+  BloomLightLoss,
+  LightLoss,
+  BloomRemoval,
+  BloomPurchase,
   AlgaeVitalityContext,
-  AlgaePopulationResult,
-  AlgaePopulationBreakdown,
 } from './algae/index.js';
 
 // Plants
 export {
-  processPlants,
   calculatePhotosynthesis,
+  plantFixer,
   calculateNutrientSufficiency,
   speciesDemand,
   speciesHalfSaturation,
   nutrientShare,
-  nutrientShares,
+  formHalfSaturations,
+  formShares,
+  formsMeet,
+  bedPool,
   tankPools,
+  plantFeeder,
   poolDraws,
-  plantShares,
+  feederShares,
   organicNutrients,
+  nutrientsIn,
   tissueMass,
+  losePlant,
   calculateCo2Factor,
   calculateRespiration,
   getRespirationTemperatureFactor,
@@ -368,7 +418,6 @@ export {
   isPlantableSize,
   getSpeciesGrowthRate,
   computePlantVitality,
-  plantHealingRate,
   plantNitrateEdge,
   buildPlantStressors,
   buildPlantBenefits,
@@ -377,16 +426,20 @@ export {
   plantHeight,
   leafArea,
   rateUnits,
-  getTotalRateUnits,
   canopyLight,
   floorCover,
   floorShade,
+  floorLight,
+  plantLightTaken,
   isOvergrown,
 } from './plants/index.js';
 export type {
   PlantLight,
   CanopyLight,
+  LightPath,
   Propagation,
+  CarbonFixer,
+  Feeder,
   NutrientPool,
   TankPools,
   PoolDraw,

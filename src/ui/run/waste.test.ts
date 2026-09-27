@@ -11,6 +11,7 @@ import {
 import { readHourAhead } from './ahead.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
+  ALGAE_KINDS,
   applyAction,
   calculateDecay,
   calculateSubstrateLeach,
@@ -52,11 +53,12 @@ function stocked(): SimulationState {
 }
 
 describe('wasteInflow', () => {
-  it('always names all four sources, in a fixed order', () => {
+  it('always names all five sources, in a fixed order', () => {
     expect(inflowOf(tank()).sources.map((s) => s.key)).toEqual([
       'food',
       'fish',
       'plants',
+      'algae',
       'substrate',
     ]);
   });
@@ -101,6 +103,17 @@ describe('wasteInflow', () => {
     expect(dark.plants[0].condition).toBe(100);
     expect(shed(planted)).toBe(0);
     expect(shed(dark)).toBeGreaterThan(0);
+  });
+
+  it('counts what every bloom sheds on the hour ahead', () => {
+    const fading = produce(soilTank(), (draft) => {
+      for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 40, condition: 50, surplus: 0 };
+    });
+    const shed = inflowOf(fading).sources.find((s) => s.key === 'algae')!.gramsPerHour;
+    const { algae } = readHourAhead(fading, config);
+
+    for (const kind of ALGAE_KINDS) expect(algae[kind].shedding).toBeGreaterThan(0);
+    expect(shed).toBe(ALGAE_KINDS.reduce((sum, kind) => sum + algae[kind].shedding, 0));
   });
 
   it('counts a plant dying on the next tick at the rate it sheds, not the lump it leaves', () => {

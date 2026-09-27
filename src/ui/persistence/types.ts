@@ -11,7 +11,7 @@ import type {
   Plant,
   Fish,
   Clutch,
-  AlgaeState,
+  Blooms,
   AlertState,
 } from '../../simulation/state.js';
 import type { TankSeed } from '../../simulation/seed.js';
@@ -25,6 +25,18 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v33: Algae runs on the plants' vitality model, as two kinds. `state.algae`
+ *      holds a bloom per kind — `greenWater` and `film` — and `AlgaeState`
+ *      gains `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`,
+ *      keeping only `allelopathySeverity` — what a bloom is lives in its
+ *      kind's traits. Plants and blooms take nitrogen as ammonia before
+ *      nitrate, so `NutrientsConfig.halfSaturation` gains `ammonia`. The
+ *      blooms shade through light: `OpticsConfig` gains
+ *      `algaeAttenuationPerGram`, `PlantsConfig` drops `algaeShadingSeverity`
+ *      and `algaeShadingThreshold`, and `AlertState` trades `highAlgae` for a
+ *      flag per kind. A v32 save carries one bloom with no condition and
+ *      algae, nutrients, optics and plants sections the strict schema
+ *      refuses.
  * v32: One plant death, at condition 0. `PlantsConfig` drops
  *      `deathSizeThreshold` and renames `wastePerSize` to `tissuePerSize`;
  *      the least a plant is planted or trimmed to is the engine's
@@ -238,7 +250,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 32;
+export const PERSISTENCE_VERSION = 33;
 
 /**
  * Storage key for the unified persisted state.
@@ -258,7 +270,7 @@ export interface PersistedSimulation {
   plants: Plant[];
   fish: Fish[];
   clutches: Clutch[];
-  algae: AlgaeState;
+  algae: Blooms;
   rng: RngState;
   alertState: AlertState;
   seed?: TankSeed;

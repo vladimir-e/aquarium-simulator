@@ -8,11 +8,11 @@
  * - Nitrate consumption: ~5-10 mg/day
  */
 
-import { SURPLUS_CAP_DEFAULT } from './vitality.js';
+import { MAX_SURPLUS_CAP, SURPLUS_CAP_DEFAULT } from './vitality.js';
 
 export interface PlantsConfig {
   // Photosynthesis constants
-  /** Base photosynthesis rate per rate unit per hour */
+  /** Photosynthesis rate per rate unit of leaf at growth rate 1, per hour. */
   basePhotosynthesisRate: number;
   /** Dissolved CO2 (mg/L) at which a low-need species photosynthesises at half rate. */
   lowCo2HalfSaturation: number;
@@ -30,7 +30,7 @@ export interface PlantsConfig {
   saturationIrradianceFactor: number;
 
   // Respiration constants
-  /** Base respiration rate per rate unit per hour */
+  /** Respiration rate per rate unit of leaf at growth rate 1, per hour. */
   baseRespirationRate: number;
   /** Q10 temperature coefficient (rate multiplier per 10°C) */
   respirationQ10: number;
@@ -41,8 +41,8 @@ export interface PlantsConfig {
 
   // Gas exchange
   /**
-   * mg of CO2 carried by one rate unit — an hour of 500 cm² of leaf at base
-   * rate under saturating light and carbon. Photosynthesis fixes it and respiration
+   * mg of CO2 carried by one rate unit — an hour of 500 cm² of leaf at growth
+   * rate 1 under saturating light and carbon. Photosynthesis fixes it and respiration
    * releases it: one reaction run both ways, so one yield, and the day/night
    * asymmetry belongs to `baseRespirationRate`. The oxygen partner is not a
    * second knob — it derives at `CO2_TO_O2_MASS_RATIO`.
@@ -51,13 +51,13 @@ export interface PlantsConfig {
 
   // Surplus-driven growth knobs.
   /**
-   * Share of the bank a plant draws toward new tissue each hour, before the
-   * taper `1 − size/100` closes it down as the unit fills.
+   * First-order rate, per hour, a plant draws its bank toward new tissue at,
+   * before the taper `1 − size/100` closes it down as the unit fills.
    */
   growthDrawRate: number;
   /**
-   * Share of the bank a plant draws each hour to heal condition below 100, per
-   * unit of species `growthRate`: a plant repairs at the pace it grows.
+   * Rate, per hour and per unit of species `growthRate`, a plant's bank heals
+   * condition below 100 at: a plant repairs at the rate it grows.
    */
   healingDrawRate: number;
   /**
@@ -82,9 +82,9 @@ export interface PlantsConfig {
   // a pre-hardiness damage rate (%/h per unit deviation), scaled by
   // `1 − hardiness` for the species, except nitrate, whose edge hardiness moves.
   /**
-   * Damage at a daily light integral of zero, falling linearly to nothing at
-   * the species' daily light edge and moved off `respirationReferenceTemp` by
-   * the respiration Q10.
+   * Damage at a daily light integral of zero and growth rate 1, falling
+   * linearly to nothing at the species' daily light edge and moved off
+   * `respirationReferenceTemp` by the respiration Q10.
    */
   lightStarvationSeverity: number;
   /** Damage per PAR unit above the species' tolerable upper bound. */
@@ -109,10 +109,6 @@ export interface PlantsConfig {
    * carries it out by `toleranceFactor`, as it does a fish's.
    */
   nitrateEdge: number;
-  /** Damage per algae unit above the shading threshold. */
-  algaeShadingSeverity: number;
-  /** Algae level (0–100) above which shading stress kicks in. */
-  algaeShadingThreshold: number;
 
   // Vitality benefit peaks (%/h), each at the best its factor gets. Every one
   // of them is realised through photosynthesis, so all three run on its drive:
@@ -166,11 +162,12 @@ export const plantsDefaults: PlantsConfig = {
   // already in trouble.
   respirationOxygenHalfSaturation: 0.5,
 
-  // mg CO2 per rate unit. Pinned against a grown-in planted 150 L (≈10 rate
-  // units, some 5,000 cm² of leaf): it produces 0.5–1 mg/L/h of gross oxygen
-  // through the photoperiod. A rate unit is an hour of 500 cm² of leaf at full
-  // carbon *and* saturating light. That tank admits 22.3–44.6, and the same
-  // claim read on a planting grown in from 3.5 rate units admits 21.6–43.4.
+  // mg CO2 per rate unit. Pinned against a grown-in planted 150 L — three
+  // swords, four monte carlo patches, two java ferns and an anubias, all full:
+  // 13.4 rate units of leaf, 13.3 at their growth rates — which makes 0.5–1
+  // mg/L/h of gross oxygen through the photoperiod. A rate unit is an hour of
+  // 500 cm² of leaf at growth rate 1, at full carbon *and* saturating light.
+  // Under the planted preset's 90 PAR and 0.5 bps that tank admits 14–32.
   co2PerRateUnit: 30.0,
 
   // Surplus-driven growth — vitality banks the income a full-condition plant
@@ -183,7 +180,7 @@ export const plantsDefaults: PlantsConfig = {
   // `surplusCap` until the taper closes the draw down and it fills to buy an
   // offshoot.
   growthDrawRate: 0.02,
-  // 5 %/h at growth rate 1: a sword spends a bank on repair with a ~20 h time
+  // 0.05 /h at growth rate 1: a sword spends a bank on repair with a 20 h time
   // constant, a monte carlo in half that, an anubias over three days.
   healingDrawRate: 0.05,
   sizePerSurplus: 0.4, // size % per (surplus × growthRate) unit converted
@@ -194,9 +191,10 @@ export const plantsDefaults: PlantsConfig = {
   // scales them by `1 − hardiness` for the species, except nitrate, whose edge
   // hardiness moves).
   //
-  // Full darkness costs 0.3 %/h pre-hardiness at 25 °C — 0.21 %/h for a monte
-  // carlo, so a carpet lasts two to three weeks unlit and the hobby's
-  // three-day algae blackout costs a plant its bank and little else.
+  // Full darkness costs 0.3 %/h pre-hardiness at 25 °C and growth rate 1 —
+  // 0.38 %/h for a monte carlo, 0.02 %/h for an anubias — so a carpet lasts two
+  // weeks unlit and an anubias months, and the hobby's three-day algae
+  // blackout costs a carpet its bank and a few points of condition.
   lightStarvationSeverity: 0.3,
   // %/h per PAR unit over the species band: 10 PAR over costs 0.15 %/h
   // pre-hardiness.
@@ -213,12 +211,6 @@ export const plantsDefaults: PlantsConfig = {
   // costs a fish.
   nitrateStressSeverity: 1.0,
   nitrateEdge: 100,
-  // Algae shading kicks in past 30 % bloom mass — that threshold makes
-  // the player feel the bloom on their plants. Severity 0.05 % / h per
-  // mass-point means a 60 % bloom delivers ~1.5 %/h pre-hardiness damage
-  // (calibration-grade — task 42 first-pass; recalibration follows).
-  algaeShadingSeverity: 0.05,
-  algaeShadingThreshold: 30,
 
   // Vitality benefit peaks. The light term and sufficiency take the whole
   // budget down together: a monte carlo at 30 PAR earns 0.46 of it, and every
@@ -239,6 +231,12 @@ export const plantsDefaults: PlantsConfig = {
  * sets, `K × edge / (1 − edge)`, runs away as the edge nears it.
  */
 export const MAX_SUFFICIENCY_EDGE = 0.95;
+
+/**
+ * The most a bank point buys at growth rate 1: `sizePerSurplus`'s ceiling,
+ * held alike by the tunables drawer and the save boundary.
+ */
+export const MAX_SIZE_PER_SURPLUS = 2;
 
 export interface PlantsConfigMeta {
   key: keyof PlantsConfig;
@@ -302,8 +300,8 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   // Surplus-driven growth
   { key: 'growthDrawRate', label: 'Growth Draw Rate', unit: '/hr', min: 0.005, max: 0.2, step: 0.005 },
   { key: 'healingDrawRate', label: 'Healing Draw Rate', unit: '/hr per growth rate', min: 0.005, max: 0.5, step: 0.005 },
-  { key: 'sizePerSurplus', label: 'Size per Bank Point', unit: '%/pt', min: 0.01, max: 2.0, step: 0.01 },
-  { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: 100, step: 5 },
+  { key: 'sizePerSurplus', label: 'Size per Bank Point', unit: '%/pt', min: 0.01, max: MAX_SIZE_PER_SURPLUS, step: 0.01 },
+  { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: MAX_SURPLUS_CAP, step: 5 },
   { key: 'tissuePerSize', label: 'Tissue per Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
 
   // Vitality stressor severities
@@ -316,8 +314,6 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'sufficiencyEdge', label: 'Sufficiency Edge', unit: '', min: 0.1, max: MAX_SUFFICIENCY_EDGE, step: 0.05 },
   { key: 'nitrateStressSeverity', label: 'Plant Nitrate Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
   { key: 'nitrateEdge', label: 'Plant Nitrate Edge', unit: 'ppm', min: 50, max: 300, step: 10 },
-  { key: 'algaeShadingSeverity', label: 'Algae Shading Severity', unit: '%/algae/hr', min: 0.001, max: 0.1, step: 0.005 },
-  { key: 'algaeShadingThreshold', label: 'Algae Shading Threshold', unit: '', min: 20, max: 80, step: 5 },
 
   // Vitality benefit peaks
   { key: 'co2BenefitPeak', label: 'CO2 Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },

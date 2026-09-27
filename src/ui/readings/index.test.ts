@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { netPerHour, ratePerHour, readTank, type ReadingBook } from './index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
+  ALGAE_KINDS,
   applyAction,
+  coverage,
   createSimulation,
   tick,
   type SimulationState,
@@ -10,6 +12,7 @@ import {
 import { ammoniaAlertLine } from '../../simulation/alerts/index.js';
 import { FREE_AMMONIA_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
 import { snapshotFromState, type RunSnapshot } from '../run/index.js';
+import { logQuantityIn } from '../utils/units.js';
 
 interface Run {
   state: SimulationState;
@@ -132,7 +135,7 @@ describe('readTank', () => {
       'Fish gills',
       'Food decaying',
     ]);
-    expect(byId.ammonia.drains[0].label).toBe('AOB oxidising');
+    expect(byId.ammonia.drains.map((flow) => flow.label)).toEqual(['AOB oxidising', 'Plants feeding', 'Algae feeding']);
     expect(byId.ammonia.net).toMatch(/^[+−]\d+\.\d{4} ppm\/h$/);
   });
 
@@ -199,6 +202,19 @@ describe('readTank', () => {
     const after = [...history.slice(0, -1), snapshotFromState(changed)];
 
     expect(read({ state: changed, history: after }).byId.nitrate.trend).toBeNull();
+  });
+
+  it('prints coverage as the log states it, in either system', () => {
+    const { state, history } = stocked(1);
+    for (const mass of [0.4, 4.7, 12.5, 63.49]) {
+      for (const units of ['metric', 'imperial'] as const) {
+        for (const kind of ALGAE_KINDS) {
+          const bloomed = { ...state, algae: { ...state.algae, [kind]: { ...state.algae[kind], mass } } };
+          const reading = readTank({ state: bloomed, config: DEFAULT_CONFIG, history, units }).byId[kind];
+          expect(`${reading.value} ${reading.unit}`).toBe(logQuantityIn(units)(coverage(mass)));
+        }
+      }
+    }
   });
 
   it('reads temperature in the units the reader chose', () => {

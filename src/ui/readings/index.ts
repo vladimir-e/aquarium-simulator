@@ -6,11 +6,23 @@
  * on the Overview and another in its own inspector.
  */
 
-import type { SimulationState } from '../../simulation/index.js';
 import {
-  algaeAlertLine,
+  ALGAE,
+  ALGAE_KINDS,
+  mapKinds,
+  plantLightTaken,
+  REMOVED_BY,
+  type AlgaeHabitat,
+  type AlgaeKind,
+  type BloomRemoval,
+  type SimulationState,
+} from '../../simulation/index.js';
+import { habitatPlaces, namePlaces } from '../../simulation/algae/index.js';
+import {
   ammoniaAlertLine,
+  BLOOM_COVERAGE_LINE,
   HIGH_CO2_THRESHOLD,
+  PLANT_LIGHT_LINE,
   waterLevelAlertLine,
 } from '../../simulation/alerts/index.js';
 import {
@@ -29,7 +41,6 @@ import {
 } from '../build';
 import {
   algaeReading,
-  algaeStatus,
   bacteriaReadout,
   bedReading,
   dailyLightReading,
@@ -78,6 +89,7 @@ import {
 } from '../run';
 import { categorizeLog } from '../review/category.js';
 import {
+  COVERAGE_DECIMALS,
   formatTemperatureRange,
   toDisplayTemperature,
   type UnitSystem,
@@ -100,7 +112,7 @@ export type ReadingId =
   | 'potassium'
   | 'iron'
   | 'bed'
-  | 'algae'
+  | AlgaeKind
   | 'dailyLight';
 
 /** One arm of a stock's balance: what it is, and how fast it moves. */
@@ -162,8 +174,8 @@ export interface Roster {
   fish: SpeciesGroup[];
   fry: FryBatch | null;
   plants: PlantSpeciesGroup[];
-  /** The bloom as the one population row both rosters carry. */
-  algae: PopulationRosterRow;
+  /** The blooms, a population row per kind, as both rosters carry them. */
+  algae: PopulationRosterRow[];
 }
 
 /** The rack, and the clock the scheduled devices keep. */
@@ -235,7 +247,7 @@ function tapeOf(state: SimulationState, history: RunSnapshot[], units: UnitSyste
       level: (s) => s.waterPct,
       oxygen: (s) => s.oxygen,
       co2: (s) => s.co2,
-      algae: (s) => s.algaeMass,
+      ...mapKinds((kind): Series => (s) => s.algae[kind]),
     },
   };
 }
@@ -258,7 +270,7 @@ export const DECIMALS: Record<ReadingId, number> = {
   potassium: 1,
   iron: 2,
   bed: TAB_DECIMALS,
-  algae: 0,
+  ...mapKinds(() => COVERAGE_DECIMALS),
   dailyLight: DAILY_LIGHT_DECIMALS,
 };
 
@@ -419,7 +431,9 @@ function nutrientView(
     sentence:
       reading.needed > 0
         ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops${harm && `; ${harm}`}.`
-        : `Nothing planted, so nothing is asking for it${harm && `; ${harm}`}.`,
+        : reading.key === 'nitrate' && reading.asked
+          ? `Ammonia, which plants take first, meets all the nitrogen they ask for${harm && `; ${harm}`}.`
+          : `Nothing planted, so nothing is asking for it${harm && `; ${harm}`}.`,
     net: null,
     fills,
     drains: [],
@@ -454,6 +468,52 @@ function bedView(bed: BedReading): NeedView {
   };
 }
 
+/** What a bloom's coverage is, in words, by the places its habitat has. */
+const COVERAGE_SENTENCE: Record<AlgaeHabitat, (places: string) => string> = {
+  column: (places) => `How clouded ${places} is with suspended cells, shading everything below them, the deepest most.`,
+  surfaces: (places) => `How coated ${places} are, and every leaf with them, which it dims.`,
+};
+
+/** What takes a bloom out of the tank, by the verb that does. */
+const REMOVAL_SENTENCE: Record<BloomRemoval, string> = {
+  waterChange: 'A water change carries out the cells in the water it changes.',
+  scrubAlgae: 'A scrub takes the coat off the glass.',
+};
+
+/** What a bloom does to the plants, and where the engine alerts over it. */
+function lightTakenSentence(kind: AlgaeKind, state: SimulationState, taken: number): string {
+  const coverage = `${said(kind, BLOOM_COVERAGE_LINE)} % coverage`;
+  return state.plants.length > 0
+    ? `It takes ${Math.round(taken)} % of the plants' light; past ${PLANT_LIGHT_LINE} % of it, or ${coverage}, the engine alerts.`
+    : `Nothing is planted for it to shade; past ${coverage} the engine alerts.`;
+}
+
+/** A bloom's coverage, on its kind's ladder, in the tone of its `bloomLevel`. */
+function bloomView(kind: AlgaeKind, state: SimulationState, ahead: HourAhead, taken: number, tape: Tape): ReadingView {
+  const mass = state.algae[kind].mass;
+  const { habitat } = ALGAE[kind];
+  const at = scale(DISPLAY_CEILING.algae);
+  return {
+    id: kind,
+    name: ALGAE[kind].name,
+    value: mass.toFixed(DECIMALS[kind]),
+    unit: '%',
+    at: at(mass),
+    band: { from: 0, to: at(BLOOM_COVERAGE_LINE) },
+    tone: toneOf(algaeReading(kind, mass, taken).status),
+    trend: projectedDrift(ahead.algae[kind].mass - mass),
+    sentence: [
+      COVERAGE_SENTENCE[habitat](namePlaces(habitatPlaces(habitat, state))),
+      REMOVAL_SENTENCE[REMOVED_BY[habitat]],
+      lightTakenSentence(kind, state, taken),
+    ].join(' '),
+    net: null,
+    fills: [],
+    drains: [],
+    series: tape.series[kind] ?? null,
+  };
+}
+
 /**
  * Read the whole tank once. Everything the console draws comes out of this
  * call, so the expensive derivations — the hour the next tick settles, the
@@ -484,15 +544,13 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const tempBand = stockedBand(state, (data) => data.temperatureRange);
   const phBand = stockedBand(state, (data) => data.phRange);
   const ghBand = stockedBand(state, (data) => data.ghRange);
-  const algae = state.algae.mass;
-  const algaeLine = algaeAlertLine(config);
+  const shares = plantLightTaken(state, config.optics);
+  const taken = mapKinds((kind) => shares[kind] * 100);
   const levelLine = waterLevelAlertLine(config);
-  const algaeAt = scale(DISPLAY_CEILING.algae);
   const wasteAt = scale(DISPLAY_CEILING.waste);
   const oxygenAt = scale(DISPLAY_CEILING.oxygen);
   const co2At = scale(DISPLAY_CEILING.co2);
   const lightAt = scale(DISPLAY_CEILING.dailyLight);
-  const algaeDrift = projectedDrift(ahead.algaeMass - algae);
 
   const nitrateFills: ReadingFlow[] = [
     { label: 'NOB clearing NO₂', rate: ratePerHour(rates.nitriteToNitrate, 'ppm') },
@@ -529,7 +587,11 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
         { label: 'Fish gills', rate: ratePerHour(rates.gillsToAmmonia, 'ppm') },
         { label: 'Food decaying', rate: ratePerHour(rates.foodToAmmonia, 'ppm') },
       ],
-      drains: [{ label: 'AOB oxidising', rate: ratePerHour(-rates.ammoniaOxidised, 'ppm') }],
+      drains: [
+        { label: 'AOB oxidising', rate: ratePerHour(-rates.ammoniaOxidised, 'ppm') },
+        { label: 'Plants feeding', rate: ratePerHour(-rates.plantAmmoniaUptake, 'ppm') },
+        { label: 'Algae feeding', rate: ratePerHour(-rates.algaeAmmoniaUptake, 'ppm') },
+      ],
     }),
     nitrite: fromWater('nitrite', tape, {
       reading: read('nitrite'),
@@ -543,7 +605,9 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       sentence:
         nitrate.needed > 0
           ? `Plants go short under ${nitrate.neededText} ppm; ${harmClause('nitrate', nitrate.ceiling)}.`
-          : `Nothing planted to feed on it; ${harmClause('nitrate', nitrate.ceiling)}.`,
+          : nitrate.asked
+            ? `The plants take their nitrogen as ammonia for now; ${harmClause('nitrate', nitrate.ceiling)}.`
+            : `Nothing planted to feed on it; ${harmClause('nitrate', nitrate.ceiling)}.`,
       fills: nitrateFills,
       drains: [],
     }),
@@ -576,7 +640,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     kh: fromWater('kh', tape, {
       reading: read('kh'),
       sentence:
-        'The buffer that holds pH against CO₂. Tap water brings it; nitrification, driftwood and aqua soil spend it; calcite adds it.',
+        'The buffer that holds pH against CO₂. Tap water and calcite add it; driftwood and aqua soil spend it. Nitrogen moves it by its charge: ammonia arriving adds, nitrifying spends twice that, and plants and algae spend it taking ammonia and return it taking nitrate.',
     }),
     gh: fromWater('gh', tape, {
       reading: read('gh'),
@@ -629,21 +693,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     potassium: nutrientView('potassium', nutrient('potassium'), tape),
     iron: nutrientView('iron', nutrient('iron'), tape),
     bed: bedView(bed),
-    algae: {
-      id: 'algae',
-      name: 'Algae',
-      value: algae.toFixed(DECIMALS.algae),
-      unit: '%',
-      at: algaeAt(algae),
-      band: { from: 0, to: algaeAt(algaeLine) },
-      tone: toneOf(algaeStatus(algae, algaeLine)),
-      trend: algaeDrift,
-      sentence: `Coverage the plants are competing with; over ${said('algae', algaeLine)} % it shades them, and the engine alerts.`,
-      net: null,
-      fills: [],
-      drains: [],
-      series: tape.series.algae ?? null,
-    },
+    ...mapKinds((kind) => bloomView(kind, state, ahead, taken[kind], tape)),
     dailyLight: {
       id: 'dailyLight',
       name: 'Daily light',
@@ -684,17 +734,17 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       fish: groupBySpecies(fish, config.livestock),
       fry: groupFry(fish, config.livestock),
       plants: groupPlantsBySpecies(specimens),
-      algae: {
+      algae: ALGAE_KINDS.map((kind) => ({
         kind: 'population',
-        key: 'algae',
-        name: 'Algae',
-        figure: `${byId.algae.value} %`,
+        key: kind,
+        name: byId[kind].name,
+        figure: `${byId[kind].value} %`,
         caption: 'coverage',
-        trend: algaeDrift,
-        at: byId.algae.at,
-        band: byId.algae.band,
-        ...algaeReading(algae, algaeLine),
-      },
+        trend: projectedDrift(ahead.algae[kind].mass - state.algae[kind].mass),
+        at: byId[kind].at,
+        band: byId[kind].band,
+        ...algaeReading(kind, state.algae[kind].mass, taken[kind]),
+      })),
     },
     rack: {
       devices: equipmentRows(state, bacteria, units),

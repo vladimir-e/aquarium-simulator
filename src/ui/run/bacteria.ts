@@ -17,6 +17,7 @@ import {
   nobCapacity,
 } from '../../simulation/systems/index.js';
 import {
+  ALGAE_KINDS,
   calculateSubstrateLeach,
   wasteSettlingShare,
   type Resources,
@@ -116,9 +117,13 @@ export interface ConversionRates {
   gillsToAmmonia: number;
   /** NH₃ ppm the oxidised share of decaying food releases this hour. */
   foodToAmmonia: number;
+  /** NH₃ ppm the plants' new tissue takes up from the water this hour. */
+  plantAmmoniaUptake: number;
+  /** NH₃ ppm the blooms' new tissue takes up from the water this hour. */
+  algaeAmmoniaUptake: number;
   /** NH₃ ppm the AOB colony takes out of the water this hour. */
   ammoniaOxidised: number;
-  /** Arriving minus oxidised — positive means ammonia is climbing. */
+  /** Arriving minus what the flora take and the AOB oxidise — positive means ammonia is climbing. */
   netAmmonia: number;
   /** NO₂ ppm the AOB colony produces this hour. */
   ammoniaToNitrite: number;
@@ -201,17 +206,20 @@ export function bacteriaReadout(
   const ceiling = calculateMaxBacteria(r.surface, nc);
   const water = r.water;
 
-  // The AOB stage sees both of these: gill excretion lands in the active tier,
-  // ahead of the passive nitrogen cycle, and mineralisation runs first inside it.
-  // Decaying food lands in the same passive pass, so the colony meets it next hour.
+  // The AOB stage sees the ammonia the flora left, gill excretion landing
+  // after them in the active tier, and mineralisation, which runs first inside
+  // the passive nitrogen cycle. Decaying food lands in the same passive pass,
+  // so the colony meets it next hour.
   const gills = ahead.gillAmmonia;
   const food = ahead.foodAmmonia;
+  const algae = ALGAE_KINDS.reduce((sum, kind) => sum + ahead.algae[kind].waterUptake.ammonia, 0);
+  const flora = ahead.waterUptake.ammonia + algae;
   const { ammoniaProduced } = calculateWasteToAmmonia(
     mineralisationBase(state, config, wasteInflow(state, config, ahead)),
     config
   );
   const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
-    r.ammonia + gills + ammoniaProduced,
+    r.ammonia - flora + gills + ammoniaProduced,
     water,
     r.aob,
     r.temperature,
@@ -233,14 +241,21 @@ export function bacteriaReadout(
     wasteToAmmonia: getPpm(ammoniaProduced, water),
     gillsToAmmonia: getPpm(gills, water),
     foodToAmmonia: getPpm(food, water),
+    plantAmmoniaUptake: getPpm(ahead.waterUptake.ammonia, water),
+    algaeAmmoniaUptake: getPpm(algae, water),
     ammoniaOxidised: getPpm(ammoniaConsumed, water),
-    netAmmonia: getPpm(gills + ammoniaProduced + food - ammoniaConsumed, water),
+    netAmmonia: getPpm(gills + ammoniaProduced + food - flora - ammoniaConsumed, water),
     ammoniaToNitrite: getPpm(nitriteProduced, water),
     nitriteToNitrate: getPpm(nitriteConsumed, water),
     netNitrite: getPpm(nitriteProduced - nitriteConsumed, water),
   };
   const atTrace = getPpm(r.ammonia, water) < TRACE_PPM && getPpm(r.nitrite, water) < TRACE_PPM;
-  const ammoniaArriving = rates.wasteToAmmonia + rates.gillsToAmmonia + rates.foodToAmmonia;
+  const colonyLoad =
+    rates.wasteToAmmonia +
+    rates.gillsToAmmonia +
+    rates.foodToAmmonia -
+    rates.plantAmmoniaUptake -
+    rates.algaeAmmoniaUptake;
   return {
     aob: colony(r.aob, ceiling),
     nob: colony(r.nob, ceiling),
@@ -249,12 +264,8 @@ export function bacteriaReadout(
     atTrace,
     cycled:
       atTrace &&
-      clearsAtTrace(aobThroughput, nc.aobAmmoniaHalfSaturation, ammoniaArriving) &&
-      clearsAtTrace(
-        nobThroughput,
-        nc.nobNitriteHalfSaturation,
-        ammoniaArriving * NH3_TO_NO2_MASS_RATIO
-      ),
+      clearsAtTrace(aobThroughput, nc.aobAmmoniaHalfSaturation, colonyLoad) &&
+      clearsAtTrace(nobThroughput, nc.nobNitriteHalfSaturation, colonyLoad * NH3_TO_NO2_MASS_RATIO),
     rates,
   };
 }
@@ -264,6 +275,17 @@ export interface CycleProjection {
   hours: number;
   /** Nitrite at the peak, ppm. */
   ppm: number;
+  /** Flora the chain alone never sees: what they draw and what they shed both move the peak off `ppm`. */
+  feeders: ('plants' | 'algae')[];
+}
+
+/** Plants, and blooms the lamp can light or whose bank can grow them in the dark. */
+function ammoniaFeeders(state: SimulationState): CycleProjection['feeders'] {
+  const { light } = state.equipment;
+  const feeders: CycleProjection['feeders'] = [];
+  if (state.plants.length > 0) feeders.push('plants');
+  if ((light.enabled && light.par > 0) || ALGAE_KINDS.some((kind) => state.algae[kind].surplus > 0)) feeders.push('algae');
+  return feeders;
 }
 
 /**
@@ -285,13 +307,18 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
 }
 
 /**
- * Run the engine's own nitrogen model forward to find the nitrite peak.
+ * Run the engine's own nitrogen chain forward to find the nitrite peak.
  *
  * Waste inflow, decaying food, biofilm surface, temperature and dissolved
- * oxygen are held at today's values, so this answers "if nothing else changes" — feeding more,
- * adding fish or a water change all move it. Evaporation and the bed's leaching
- * and settling are not choices: they run every tick whatever the keeper does,
- * so the projection carries them.
+ * oxygen are held at today's values, so this answers "if nothing else changes"
+ * — feeding more, adding fish or a water change all move it. Evaporation and
+ * the bed's leaching and settling are not choices: they run every tick whatever
+ * the keeper does, so the projection carries them.
+ *
+ * The chain runs alone. Plants and the blooms move the peak either way — growth
+ * draws ammonia, shedding and die-back rot back into it — and which way turns
+ * on the whole flora pass rather than a rate to hold, so the figure is the
+ * cycle's alone and names the flora that will shift it.
  */
 export function projectNitritePeak(
   state: SimulationState,
@@ -374,7 +401,8 @@ export function projectNitritePeak(
     }
   }
 
-  return peakAt > 0 ? { hours: peakAt, ppm: peakPpm } : null;
+  if (peakAt === 0) return null;
+  return { hours: peakAt, ppm: peakPpm, feeders: ammoniaFeeders(state) };
 }
 
 function inDays(hours: number): string {
@@ -384,7 +412,8 @@ function inDays(hours: number): string {
 
 function peakClause(projection: CycleProjection | null): string {
   if (!projection) return ` No nitrite peak within ${PROJECTION_HORIZON / 24} d at this production rate.`;
-  return ` Nitrite peaks ${inDays(projection.hours)} at ${projection.ppm.toFixed(2)} ppm.`;
+  const peak = ` The cycle alone peaks nitrite at ${projection.ppm.toFixed(2)} ppm ${inDays(projection.hours)}`;
+  return projection.feeders.length > 0 ? `${peak}; the ${projection.feeders.join(' and ')} here will shift it.` : `${peak}.`;
 }
 
 /** What the two colonies mean together — the sentence the numbers add up to. */

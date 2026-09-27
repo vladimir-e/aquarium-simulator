@@ -10,10 +10,18 @@
  * the commit would leave as the live one.
  */
 
-import { floorShade, type FishSpeciesData, type SimulationState } from '../../simulation/index.js';
 import {
-  algaeAlertLine,
+  ALGAE,
+  ALGAE_KINDS,
+  floorLight,
+  floorShade,
+  plantLightTaken,
+  type FishSpeciesData,
+  type SimulationState,
+} from '../../simulation/index.js';
+import {
   ammoniaAlertLine,
+  BLOOM_COVERAGE_LINE,
   HIGH_CO2_THRESHOLD,
   waterLevelAlertLine,
 } from '../../simulation/alerts/index.js';
@@ -26,11 +34,12 @@ import {
   OxygenResource,
   PhosphateResource,
   PotassiumResource,
+  WasteResource,
 } from '../../simulation/resources/index.js';
 import type { StripBand } from '../components/ui/strip.js';
 import { DISPLAY_CEILING, onScale } from '../readings';
 import {
-  algaeStatus,
+  algaeReading,
   bedReading,
   classifyVital,
   nutrientProbe,
@@ -49,6 +58,7 @@ import {
   type WaterReading,
 } from '../run';
 import {
+  COVERAGE_DECIMALS,
   formatTemperature,
   getTemperatureUnit,
   toDisplayTemperature,
@@ -59,13 +69,12 @@ export interface PreviewRow {
   key: string;
   label: string;
   before: string;
-  /** A range when the engine randomises the outcome, a figure otherwise. */
   after: string;
   unit: string;
   status: Status;
   /** Where the standing value sits on the track, 0–1. */
   from: number;
-  /** Where the commit would leave it; the worst end where the engine rolls. */
+  /** Where the commit would leave it. */
   to: number;
   band: StripBand | null;
   /** The engine fact that qualifies the new value, when there is one. */
@@ -215,7 +224,7 @@ function nutrient(key: Nutrient, label: string, decimals: number): Reading {
 
 /**
  * Canonical order: the nitrogen cycle, then the physical readings, then the
- * dissolved gases, then plant food and the bed, then the two organic stocks,
+ * dissolved gases, then plant food and the bed, then the organic stocks,
  * then the planting's shade and its largest unit. A verb's rows come out in
  * this order however many of them move.
  */
@@ -346,19 +355,34 @@ const READINGS: Reading[] = [
     note: none,
   },
   {
-    key: 'algae',
-    label: 'Algae',
-    read: ({ state }) => state.algae.mass,
-    unit: PERCENT,
+    key: 'waste',
+    label: 'Waste',
+    read: ({ state }) => state.resources.waste,
+    unit: () => 'g',
     display: same,
-    decimals: 0,
-    status: (value, { config }) => algaeStatus(value, algaeAlertLine(config)),
-    at: (value) => onScale(DISPLAY_CEILING.algae, value),
-    band: ({ config }) => ({ from: 0, to: onScale(DISPLAY_CEILING.algae, algaeAlertLine(config)) }),
+    decimals: WasteResource.precision,
+    status: quiet,
+    at: (value) => onScale(DISPLAY_CEILING.waste, value),
+    band: none,
     note: none,
   },
+  ...ALGAE_KINDS.map(
+    (kind): Reading => ({
+      key: kind,
+      label: ALGAE[kind].name,
+      read: ({ state }) => state.algae[kind].mass,
+      unit: PERCENT,
+      display: same,
+      decimals: COVERAGE_DECIMALS,
+      status: (value, { state, config }) =>
+        algaeReading(kind, value, plantLightTaken(state, config.optics)[kind] * 100).status,
+      at: (value) => onScale(DISPLAY_CEILING.algae, value),
+      band: () => ({ from: 0, to: onScale(DISPLAY_CEILING.algae, BLOOM_COVERAGE_LINE) }),
+      note: none,
+    })
+  ),
   {
-    key: 'shade',
+    key: 'floorShade',
     label: 'Floor shade',
     read: ({ state, config }) =>
       floorShade(state.plants, state.tank.capacity, config.optics) * 100,
@@ -367,6 +391,18 @@ const READINGS: Reading[] = [
     decimals: 1,
     status: quiet,
     at: (value) => value / 100,
+    band: none,
+    note: none,
+  },
+  {
+    key: 'floorLight',
+    label: 'Floor light',
+    read: ({ state, config }) => floorLight(state, config.optics),
+    unit: () => 'PAR',
+    display: same,
+    decimals: 0,
+    status: quiet,
+    at: (value, { state }) => onScale(state.equipment.light.par, value),
     band: none,
     note: none,
   },
@@ -384,54 +420,38 @@ const READINGS: Reading[] = [
   },
 ];
 
-const RANK: Record<Status, number> = { neutral: 0, ok: 1, warn: 2, alert: 3 };
-
 export interface PreviewInput {
   before: SimulationState;
-  /** One state per outcome the engine could land in; more than one is a roll. */
-  outcomes: SimulationState[];
+  /** The state the commit leaves. */
+  after: SimulationState;
   config: TunableConfig;
   units: UnitSystem;
 }
 
-/**
- * The rows for every reading the outcomes move. More than one outcome renders
- * as a range: the scrub is the one verb the engine randomises, and naming its
- * bounds is truer than picking a figure out of them.
- */
-export function previewRows({ before, outcomes, config, units }: PreviewInput): PreviewRow[] {
+/** The rows for every reading the commit moves. */
+export function previewRows({ before, after, config, units }: PreviewInput): PreviewRow[] {
   const standing = sheetOf(before, config, units);
-  const sheets = outcomes.map((state) => sheetOf(state, config, units, standing.bed.nutrient));
+  const sheet = sheetOf(after, config, units, standing.bed.nutrient);
   const rows: PreviewRow[] = [];
 
   for (const reading of READINGS) {
     const format = (value: number): string =>
       reading.display(value, units).toFixed(reading.decimals);
     const from = reading.read(standing);
-    const values = sheets.map(reading.read);
-    if (values.every((value) => format(value) === format(from))) continue;
-
-    const low = Math.min(...values);
-    const high = Math.max(...values);
-
-    let worst = 0;
-    sheets.forEach((sheet, i) => {
-      if (RANK[reading.status(values[i], sheet)] > RANK[reading.status(values[worst], sheets[worst])]) {
-        worst = i;
-      }
-    });
+    const value = reading.read(sheet);
+    if (format(value) === format(from)) continue;
 
     rows.push({
       key: reading.key,
       label: reading.label,
       before: format(from),
-      after: format(low) === format(high) ? format(values[0]) : `${format(low)}–${format(high)}`,
+      after: format(value),
       unit: reading.unit(units),
-      status: reading.status(values[worst], sheets[worst]),
-      from: reading.at(from, sheets[worst]),
-      to: reading.at(values[worst], sheets[worst]),
-      band: reading.band(sheets[worst]),
-      note: reading.note(values[worst], from, sheets[worst], standing),
+      status: reading.status(value, sheet),
+      from: reading.at(from, sheet),
+      to: reading.at(value, sheet),
+      band: reading.band(sheet),
+      note: reading.note(value, from, sheet, standing),
     });
   }
 

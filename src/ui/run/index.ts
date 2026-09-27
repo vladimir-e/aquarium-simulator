@@ -33,7 +33,7 @@ export {
   worstStatus,
 } from './status.js';
 export {
-  type BloomBankAhead,
+  type BloomAhead,
   type HourAhead,
   type OrganismAhead,
   type PlantAhead,
@@ -116,9 +116,12 @@ export {
 export {
   type Ledger,
   type LedgerFactor,
+  type LightPathView,
+  type LightStep,
   type LedgerBank,
-  type LedgerLight,
+  type LedgerRow,
   type LedgerTarget,
+  bloomVerb,
   LEDGER_DECIMALS,
   readLedger,
 } from './ledger.js';
@@ -132,7 +135,7 @@ export {
 } from './light.js';
 export {
   algaeReading,
-  algaeStatus,
+  isReported,
   type PlantLabel,
   plantLabels,
   familyTitle,

@@ -2,30 +2,30 @@ import { describe, it, expect } from 'vitest';
 import {
   canopyLight,
   floorCover,
+  floorLight,
   floorShade,
-  fullRateUnits,
-  getTotalRateUnits,
   isOvergrown,
   LEAF_AREA_PER_RATE_UNIT,
+  leafArea,
   lightAtHeight,
   plantHeight,
+  plantLightTaken,
   rateUnits,
   type CanopyLight,
 } from './canopy.js';
 import { GROWTH_FORMS, growthFormOf, PLANT_SPECIES_DATA, type PlantSpecies } from './species.js';
-import {
-  calculateFloorArea,
-  calculateTankHeight,
-  createSimulation,
-  type Plant,
-  type SimulationState,
-} from '../state.js';
+import { createSimulation, type Blooms, type Plant, type SimulationState } from '../state.js';
+import { calculateFloorArea, calculateTankHeight } from '../core/geometry.js';
 import { opticsDefaults, type OpticsConfig } from '../config/optics.js';
 import { plantsDefaults } from '../config/plants.js';
 import { buildPlantBenefits, buildPlantStressors } from '../systems/plant-vitality.js';
 import { calculateNutrientSufficiency } from '../systems/nutrients.js';
 import { nutrientsDefaults, type Nutrient } from '../config/nutrients.js';
 import { scheduledLightByHour } from '../equipment/light.js';
+import { emptyBlooms } from '../algae/blooms.js';
+import { ALGAE_KINDS } from '../algae/traits.js';
+import { lightLoss, waterExtinction } from '../algae/light-loss.js';
+import { produce } from 'immer';
 import { plantRecord } from '../tests/plant.js';
 import { mirroredPools } from '../tests/pools.js';
 
@@ -38,7 +38,7 @@ const SPECIES = Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[];
 
 const unit = (species: PlantSpecies, size = 100): Unit => ({ species, size });
 const light = (plants: Unit[], optics: OpticsConfig = opticsDefaults): CanopyLight[] =>
-  canopyLight(plants, CAPACITY, optics);
+  canopyLight(plants, CAPACITY, optics, emptyBlooms());
 
 const A_FEW_PERCENT = 3;
 const MIXED: Unit[] = [
@@ -51,12 +51,6 @@ const MIXED: Unit[] = [
 ];
 
 describe('geometry', () => {
-  it('floors the 2:1:1 box at twice its depth squared', () => {
-    for (const capacity of [20, 150, 300]) {
-      expect(calculateFloorArea(capacity)).toBeCloseTo(2 * calculateTankHeight(capacity) ** 2, 9);
-    }
-  });
-
   it('stands a carpet at its full height whatever its size, and grows the others up with it', () => {
     expect(plantHeight(unit('monte_carlo', 5), DEPTH)).toBe(GROWTH_FORMS.carpet.heightCm);
     expect(plantHeight(unit('amazon_sword', 100), DEPTH)).toBe(GROWTH_FORMS.rosette.heightCm);
@@ -71,13 +65,9 @@ describe('geometry', () => {
   it('carries its leaf area over its footprint: a full unit is LAI × F, in 500 cm² rate units', () => {
     for (const species of SPECIES) {
       const { leafAreaIndex, footprintCm2 } = growthFormOf(species);
-      expect(fullRateUnits(species)).toBeCloseTo((leafAreaIndex * footprintCm2) / LEAF_AREA_PER_RATE_UNIT, 12);
-      expect(rateUnits(unit(species, 40))).toBeCloseTo(0.4 * fullRateUnits(species), 12);
+      expect(rateUnits(unit(species))).toBeCloseTo((leafAreaIndex * footprintCm2) / LEAF_AREA_PER_RATE_UNIT, 12);
+      expect(rateUnits(unit(species, 40))).toBeCloseTo(0.4 * rateUnits(unit(species)), 12);
     }
-    expect(getTotalRateUnits(MIXED)).toBeCloseTo(
-      MIXED.reduce((sum, p) => sum + rateUnits(p), 0),
-      12
-    );
   });
 });
 
@@ -183,7 +173,7 @@ describe('the regulator', () => {
     const day = scheduledLightByHour(
       { enabled: true, par: fixturePar, schedule: { startHour: 0, duration: 8 } },
       DEPTH,
-      opticsDefaults
+      K_W
     );
     return day.reduce((net, par) => {
       const hour = { ...resources, light: par, lightByHour: day };
@@ -193,7 +183,6 @@ describe('the regulator', () => {
         waterVolume: resources.water,
         plantsConfig: plantsDefaults,
         nutrientSufficiency: calculateNutrientSufficiency(mirroredPools(resources), species, nutrientsDefaults),
-        algaeMass: 0,
         light: lightAtHeight(plant, canopy, hour, DEPTH),
       };
       const sum = (factors: { amount: number }[]): number => factors.reduce((s, f) => s + f.amount, 0);
@@ -247,5 +236,103 @@ describe('floor cover and shade', () => {
     const [atFloor] = light([floorLeaf, ...planting]);
     const relief = 0.5 * opticsDefaults.leafAttenuationPerLai * growthFormOf(floorLeaf.species).leafAreaIndex;
     expect(atFloor.leaf * Math.exp(-relief)).toBeCloseTo(1 - floorShade(planting, CAPACITY, opticsDefaults), 12);
+  });
+});
+
+describe('under the blooms', () => {
+  const blooms = (greenWater: number, film: number): Blooms =>
+    produce(emptyBlooms(), (draft) => {
+      draft.greenWater.mass = greenWater;
+      draft.film.mass = film;
+    });
+  const under = (plants: Unit[], algae: Blooms): CanopyLight[] => canopyLight(plants, CAPACITY, opticsDefaults, algae);
+  const TWO: Unit[] = [unit('monte_carlo', 80), unit('amazon_sword', 80)];
+
+  it('carries the lamp to each leaf along its path: the path is the leaf’s share of the lamp', () => {
+    const algae = blooms(40, 30);
+    const k = waterExtinction(algae, opticsDefaults);
+    under(MIXED, algae).forEach(({ leaf, path }) => {
+      const passed = Object.values(path.blooms).reduce((product, pass) => product * pass, path.water * path.canopy);
+      expect(leaf * Math.exp(-k * DEPTH)).toBeCloseTo(passed, 12);
+    });
+  });
+
+  it('dims every leaf and crown top by the share the film on it passes, wherever it stands', () => {
+    const { leafPass } = lightLoss(blooms(0, 60), opticsDefaults);
+    const clear = under(MIXED, emptyBlooms());
+    under(MIXED, blooms(0, 60)).forEach((coated, i) => {
+      expect(coated.leaf).toBeCloseTo(clear[i].leaf * leafPass, 12);
+      expect(coated.top).toBeCloseTo(clear[i].top * leafPass, 12);
+    });
+  });
+
+  it('takes green water’s share from a leaf by the depth above it, so a carpet loses more than a sword', () => {
+    const green = blooms(60, 0);
+    const k = lightLoss(green, opticsDefaults).blooms.greenWater.extinction;
+    const clear = under(TWO, emptyBlooms());
+    const [carpet, sword] = under(TWO, green).map((at, i) => (at.leaf * Math.exp(-k * DEPTH)) / clear[i].leaf);
+
+    expect(carpet).toBeCloseTo(Math.exp(-k * (DEPTH - plantHeight(TWO[0], DEPTH) / 2)), 12);
+    expect(carpet).toBeLessThan(sword);
+  });
+});
+
+describe('plantLightTaken', () => {
+  const tank = (plants: Plant[], greenWater: number, film: number): Pick<SimulationState, 'plants' | 'tank' | 'algae'> => ({
+    plants,
+    tank: { capacity: CAPACITY, hardscapeSlots: 0 },
+    algae: produce(emptyBlooms(), (draft) => {
+      draft.greenWater.mass = greenWater;
+      draft.film.mass = film;
+    }),
+  });
+  const plant = (id: string, species: PlantSpecies): Plant => plantRecord({ id, species, size: 80, condition: 100, surplus: 0 });
+  const carpet = plant('carpet', 'monte_carlo');
+  const sword = plant('sword', 'amazon_sword');
+
+  it('takes nothing with nothing planted', () => {
+    expect(plantLightTaken(tank([], 90, 90), opticsDefaults)).toEqual({ greenWater: 0, film: 0 });
+  });
+
+  it('takes film’s coat from every planting alike', () => {
+    const { coat } = lightLoss(tank([], 0, 50).algae, opticsDefaults).blooms.film;
+    for (const plants of [[carpet], [sword], [carpet, sword]]) {
+      expect(plantLightTaken(tank(plants, 0, 50), opticsDefaults).film).toBeCloseTo(coat, 12);
+    }
+  });
+
+  it('is each kind’s take along the canopy’s own path to every leaf, weighted by leaf area', () => {
+    const plants = MIXED.map((p, i) => plantRecord({ id: `p${i}`, ...p, condition: 100, surplus: 0 }));
+    const state = tank(plants, 40, 30);
+    const paths = canopyLight(plants, CAPACITY, opticsDefaults, state.algae).map(({ path }) => path);
+    const leaf = plants.reduce((sum, p) => sum + leafArea(p), 0);
+    const taken = plantLightTaken(state, opticsDefaults);
+    for (const kind of ALGAE_KINDS) {
+      const alongPaths = plants.reduce((sum, p, i) => sum + leafArea(p) * (1 - paths[i].blooms[kind]), 0) / leaf;
+      expect(taken[kind]).toBeGreaterThan(0);
+      expect(taken[kind]).toBeCloseTo(alongPaths, 12);
+    }
+  });
+
+  it('weighs green water’s take at each leaf by the leaf area there', () => {
+    const taken = (plants: Plant[]): number => plantLightTaken(tank(plants, 50, 0), opticsDefaults).greenWater;
+    const both = (leafArea(carpet) * taken([carpet]) + leafArea(sword) * taken([sword])) / (leafArea(carpet) + leafArea(sword));
+    expect(taken([carpet])).toBeGreaterThan(taken([sword]));
+    expect(taken([carpet, sword])).toBeCloseTo(both, 12);
+  });
+});
+
+describe('floorLight', () => {
+  it('is the lamp through the water as it stands, less the canopy’s floor shade', () => {
+    const state = produce(createSimulation({ tankCapacity: CAPACITY }), (draft) => {
+      draft.plants = MIXED.map((p, i) => plantRecord({ id: `p${i}`, ...p, condition: 100, surplus: 0 }));
+      draft.algae.greenWater.mass = 30;
+    });
+    const k = waterExtinction(state.algae, opticsDefaults);
+    expect(floorLight(state, opticsDefaults)).toBeCloseTo(
+      state.equipment.light.par * Math.exp(-k * DEPTH) * (1 - floorShade(state.plants, CAPACITY, opticsDefaults)),
+      12
+    );
+    expect(floorLight(produce(state, (draft) => void (draft.equipment.light.enabled = false)), opticsDefaults)).toBe(0);
   });
 });

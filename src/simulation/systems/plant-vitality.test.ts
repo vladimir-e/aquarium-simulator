@@ -3,9 +3,9 @@ import {
   buildPlantStressors,
   buildPlantBenefits,
   computePlantVitality,
-  plantHealingRate,
   type PlantVitalityContext,
 } from './plant-vitality.js';
+import { dailyLightEdge, floraHealingRate, saturationIrradiance } from './flora.js';
 import { calculateNutrientSufficiency } from './nutrients.js';
 import { getRespirationTemperatureFactor } from './respiration.js';
 import { toleranceFactor } from '../livestock/tolerance.js';
@@ -18,16 +18,12 @@ import { lightAtHeight, type CanopyLight } from '../plants/canopy.js';
 import type { VitalityFactor } from './vitality.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
 import { getGhMass } from '../resources/helpers.js';
-import {
-  CARE_SHEET_PHOTOPERIOD,
-  dailyLightEdge,
-  getSaturationIrradiance,
-  PLANT_SPECIES_DATA,
-  type PlantSpecies,
-} from '../plants/species.js';
+import { PLANT_SPECIES_DATA, plantTraits, type PlantSpecies } from '../plants/species.js';
+import { CARE_SHEET_PHOTOPERIOD } from './flora.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
 import { plantRecord } from '../tests/plant.js';
 import { VIGOUR_SPAN } from '../plants/create-plant.js';
+import { mapKinds } from '../algae/blooms.js';
 import { mirroredPools } from '../tests/pools.js';
 
 function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant {
@@ -72,12 +68,13 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
   }, { ph: 6.8, ...overrides });
 }
 
+const FULL_LIGHT: CanopyLight = { leaf: 1, top: 1, path: { water: 1, canopy: 1, blooms: mapKinds(() => 1) } };
+
 function ctx(
   plant: Plant,
   resources: Resources,
-  algaeMass: number = 0,
   plantsConfig = plantsDefaults,
-  canopy: CanopyLight = { leaf: 1, top: 1 }
+  canopy: CanopyLight = FULL_LIGHT
 ): PlantVitalityContext {
   const nutrientSufficiency = calculateNutrientSufficiency(
     mirroredPools(resources),
@@ -90,7 +87,6 @@ function ctx(
     waterVolume: resources.water,
     plantsConfig,
     nutrientSufficiency,
-    algaeMass,
     light: lightAtHeight(plant, canopy, resources, 50),
   };
 }
@@ -99,10 +95,9 @@ describe('buildPlantStressors', () => {
   const amount = (
     species: PlantSpecies,
     key: string,
-    resources: ResourceOverrides,
-    algaeMass = 0
+    resources: ResourceOverrides
   ): number =>
-    buildPlantStressors(ctx(makePlant(species), makeResources(resources), algaeMass)).find(
+    buildPlantStressors(ctx(makePlant(species), makeResources(resources))).find(
       (s) => s.key === key
     )?.amount ?? 0;
 
@@ -130,7 +125,7 @@ describe('buildPlantStressors', () => {
       const plantsConfig = { ...plantsDefaults, sufficiencyEdge: edge };
       const at = (nutrientSufficiency: number): number =>
         buildPlantStressors({
-          ...ctx(makePlant('monte_carlo'), makeResources(), 0, plantsConfig),
+          ...ctx(makePlant('monte_carlo'), makeResources(), plantsConfig),
           nutrientSufficiency,
         }).find((s) => s.key === 'nutrients')!.amount;
 
@@ -144,7 +139,7 @@ describe('buildPlantStressors', () => {
   it('charges a gone nutrient at full severity on the light curve, and nothing in the dark', () => {
     for (const light of [0, 20, 60, 400]) {
       expect(amount('monte_carlo', 'nutrients', { potassium: 0, light })).toBeCloseTo(
-        lightSaturationFactor(light, getSaturationIrradiance('monte_carlo', plantsDefaults)) *
+        lightSaturationFactor(light, saturationIrradiance(plantTraits('monte_carlo'), plantsDefaults)) *
           plantsDefaults.nutrientDeficiencySeverity *
           (1 - PLANT_SPECIES_DATA.monte_carlo.hardiness),
         10
@@ -172,15 +167,6 @@ describe('buildPlantStressors', () => {
     });
   });
 
-  it('charges algae shading only above the threshold, linear past it', () => {
-    const at = (algae: number): number => amount('amazon_sword', 'algae', {}, algae);
-    const threshold = plantsDefaults.algaeShadingThreshold;
-
-    expect(at(threshold)).toBe(0);
-    expect(at(threshold + 20)).toBeCloseTo(2 * at(threshold + 10), 10);
-    expect(at(threshold + 10)).toBeGreaterThan(0);
-  });
-
   describe('light starvation, on the daily light integral', () => {
     const starved = (species: PlantSpecies, resources: ResourceOverrides): number =>
       amount(species, 'lightStarvation', resources);
@@ -193,10 +179,11 @@ describe('buildPlantStressors', () => {
       }
     });
 
-    it('rises linearly with the shortfall below the edge, to full severity in a dark day', () => {
+    it('rises linearly with the shortfall below the edge, to full severity at its growth rate in a dark day', () => {
       const dark = starved('monte_carlo', { lightByHour: litDay(0, 0) });
       const half = starved('monte_carlo', { lightByHour: litDay(lo, CARE_SHEET_PHOTOPERIOD / 2) });
-      const factor = getRespirationTemperatureFactor(25, plantsDefaults) * (1 - PLANT_SPECIES_DATA.monte_carlo.hardiness);
+      const { growthRate, hardiness } = PLANT_SPECIES_DATA.monte_carlo;
+      const factor = growthRate * getRespirationTemperatureFactor(25, plantsDefaults) * (1 - hardiness);
 
       expect(dark).toBeCloseTo(plantsDefaults.lightStarvationSeverity * factor, 12);
       expect(half).toBeCloseTo(dark / 2, 12);
@@ -217,7 +204,7 @@ describe('buildPlantStressors', () => {
     });
 
     it('asks a sun species for more light than a shade species', () => {
-      expect(dailyLightEdge('monte_carlo')).toBeGreaterThan(dailyLightEdge('anubias'));
+      expect(dailyLightEdge(plantTraits('monte_carlo'))).toBeGreaterThan(dailyLightEdge(plantTraits('anubias')));
       const dim = litDay(20, CARE_SHEET_PHOTOPERIOD);
       expect(starved('anubias', { lightByHour: dim })).toBe(0);
       expect(starved('monte_carlo', { lightByHour: dim })).toBeGreaterThan(0);
@@ -236,7 +223,7 @@ describe('buildPlantBenefits', () => {
     resources: Resources,
     plantsConfig = plantsDefaults
   ): number =>
-    buildPlantBenefits(ctx(makePlant(species), resources, 0, plantsConfig)).reduce(
+    buildPlantBenefits(ctx(makePlant(species), resources, plantsConfig)).reduce(
       (sum, b) => sum + b.amount,
       0
     );
@@ -263,7 +250,7 @@ describe('buildPlantBenefits', () => {
     expect(benefits.map((b) => b.key).sort()).toEqual(['co2', 'ph', 'temperature']);
 
     const drive =
-      lightSaturationFactor(30, getSaturationIrradiance('anubias', plantsDefaults)) * context.nutrientSufficiency;
+      lightSaturationFactor(30, saturationIrradiance(plantTraits('anubias'), plantsDefaults)) * context.nutrientSufficiency;
     const carbon = calculateCo2Factor(5, 'anubias');
     for (const benefit of benefits) {
       const share = benefit.key === 'co2' ? carbon : 1;
@@ -375,8 +362,8 @@ describe('buildPlantBenefits', () => {
       for (const one of species) {
         for (const other of species) {
           if (
-            getSaturationIrradiance(one, plantsDefaults) <
-            getSaturationIrradiance(other, plantsDefaults)
+            saturationIrradiance(plantTraits(one), plantsDefaults) <
+            saturationIrradiance(plantTraits(other), plantsDefaults)
           ) {
             expect(earned(one, 50)).toBeGreaterThan(earned(other, 50));
           }
@@ -405,8 +392,8 @@ describe('light at the plant\'s own height', () => {
   const plant = makePlant('amazon_sword');
   const factor = (factors: VitalityFactor[], key: string): number =>
     factors.find((f) => f.key === key)?.amount ?? 0;
-  const read = (resources: ResourceOverrides, canopy: CanopyLight): PlantVitalityContext =>
-    ctx(plant, makeResources({ potassium: 0, ...resources }), 0, plantsDefaults, canopy);
+  const read = (resources: ResourceOverrides, scale: Pick<CanopyLight, 'leaf' | 'top'>): PlantVitalityContext =>
+    ctx(plant, makeResources({ potassium: 0, ...resources }), plantsDefaults, { ...FULL_LIGHT, ...scale });
 
   it('starves on the day at its mean leaf: the substrate day times its leaf scale', () => {
     const day = litDay(15, CARE_SHEET_PHOTOPERIOD);
@@ -436,7 +423,7 @@ describe('light at the plant\'s own height', () => {
 
   it('burns on the PAR at its crown top, whatever reaches its mean leaf', () => {
     const edge = PLANT_SPECIES_DATA.amazon_sword.tolerableLight[1];
-    const burnt = (light: number, canopy: CanopyLight): number =>
+    const burnt = (light: number, canopy: Pick<CanopyLight, 'leaf' | 'top'>): number =>
       factor(buildPlantStressors(read({ light }, canopy)), 'light');
 
     expect(burnt(edge, { leaf: 2, top: 1 })).toBe(0);
@@ -456,16 +443,13 @@ describe('computePlantVitality', () => {
     expect(full.surplus).toBeGreaterThan(0);
   });
 
-  it('heals from the bank at the pace the species grows', () => {
+  it('heals from the bank at the rate the species grows', () => {
     const dark = makeResources({ light: 0 });
     const healed = (species: PlantSpecies): number =>
       computePlantVitality(ctx(makePlant(species, { condition: 50, surplus: 10 }), dark)).breakdown.healed;
 
-    expect(plantHealingRate(makePlant('amazon_sword'), plantsDefaults)).toBeCloseTo(
-      PLANT_SPECIES_DATA.amazon_sword.growthRate * plantsDefaults.healingDrawRate,
-      12
-    );
-    expect(healed('amazon_sword')).toBeCloseTo(10 * plantHealingRate(makePlant('amazon_sword'), plantsDefaults), 12);
+    const rate = floraHealingRate(plantTraits('amazon_sword'), plantsDefaults);
+    expect(healed('amazon_sword')).toBeCloseTo(10 * -Math.expm1(-rate), 12);
     expect(healed('monte_carlo')).toBeGreaterThan(healed('anubias'));
   });
 

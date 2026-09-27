@@ -46,11 +46,11 @@ describe('computeVitality', () => {
         input({ stressors: [stressor('ph', damage)], condition: 100, surplus: 20, healingRate: 0.1 })
       );
       expect(result.surplus).toBeCloseTo(20 - result.breakdown.healed, 12);
-      expect(result.breakdown.healed).toBeLessThanOrEqual(0.1 * 20 + 1e-12);
+      expect(result.breakdown.healed).toBeLessThanOrEqual(-Math.expm1(-0.1) * 20 + 1e-12);
     }
   });
 
-  it('heals min(deficit, share × bank) below 100', () => {
+  it('heals min(deficit, (1 − e^−rate) × bank) below 100: the first-order drain over the hour', () => {
     const shallow = computeVitality(
       input({ stressors: [stressor('a', 0.5)], condition: 100, surplus: 20, healingRate: 0.1 })
     );
@@ -58,9 +58,10 @@ describe('computeVitality', () => {
     expect(shallow.newCondition).toBeCloseTo(100, 12);
 
     const deep = computeVitality(input({ condition: 60, surplus: 20, healingRate: 0.1 }));
-    expect(deep.breakdown.healed).toBeCloseTo(2, 12);
-    expect(deep.newCondition).toBeCloseTo(62, 12);
-    expect(deep.surplus).toBeCloseTo(18, 12);
+    const drained = 20 * (1 - Math.exp(-0.1));
+    expect(deep.breakdown.healed).toBeCloseTo(drained, 12);
+    expect(deep.newCondition).toBeCloseTo(60 + drained, 12);
+    expect(deep.surplus).toBeCloseTo(20 * Math.exp(-0.1), 12);
   });
 
   it('heals in proportion to the bank', () => {
@@ -91,10 +92,13 @@ describe('computeVitality', () => {
     expect(result.newCondition).toBe(0);
   });
 
-  it('holds the bank share within [0, 1]', () => {
-    const result = computeVitality(input({ condition: 10, surplus: 20, healingRate: 3 }));
-    expect(result.surplus).toBe(0);
-    expect(result.newCondition).toBe(30);
+  it('drains a bank under deep damage as an exponential, however fast the rate: two hours at k are an hour at 2k', () => {
+    const drained = (surplus: number, healingRate: number): number =>
+      computeVitality(input({ condition: 0, surplus, healingRate })).surplus;
+    for (const rate of [0.05, 1.5, 30]) {
+      expect(drained(drained(20, rate), rate)).toBeCloseTo(drained(20, 2 * rate), 12);
+      expect(drained(20, rate)).toBeGreaterThan(0);
+    }
   });
 
   it('keeps every factor in the breakdown, zero amounts included', () => {

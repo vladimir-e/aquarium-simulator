@@ -1,5 +1,6 @@
 /**
- * Molecular weights and the mass ratios derived from them.
+ * Molecular weights, the mass ratios derived from them, and the protons each
+ * nitrogen process moves.
  *
  * These are measurements of the physical world, not tunables: nothing in
  * `config/` may restate one, and a system that converts between two compounds
@@ -28,6 +29,12 @@ export const N_TO_NH3_MASS_RATIO = MW_NH3 / MW_N;
 export const NH3_TO_NO2_MASS_RATIO = MW_NO2 / MW_NH3;
 /** ≈ 1.348. */
 export const NO2_TO_NO3_MASS_RATIO = MW_NO3 / MW_NO2;
+/**
+ * ≈ 0.275. The reduction a plant runs on the nitrate it takes before building
+ * it into protein, NO3⁻ → NH4⁺: the ammonia that carries a gram of nitrate's
+ * nitrogen.
+ */
+export const NO3_TO_NH3_MASS_RATIO = MW_NH3 / MW_NO3;
 
 /**
  * ≈ 0.727. 6CO2 + 6H2O → C6H12O6 + 6O2 is 1:1 in moles, so a gram of CO2 fixed
@@ -57,9 +64,26 @@ export const MW_CAO = 56.08;
 /** ≈ 17.848. mg/L of CaCO3 in one German degree of hardness, dKH or dGH alike: 10 mg/L of CaO. */
 export const CACO3_PER_DEGREE = (10 * MW_CACO3) / MW_CAO;
 
+/** ≈ 50.05. mg of CaCO3 in a milliequivalent of alkalinity: the bicarbonate one proton spends. */
+export const CACO3_PER_EQUIVALENT = MW_CACO3 / 2;
+
 /**
- * ≈ 5.877. The 2 H⁺ that ammonia oxidation releases each spend a bicarbonate —
- * one CaCO3 equivalent per mole of ammonia, the 7.14 per gram of nitrogen the
- * wastewater texts quote.
+ * Protons the water gives up per nitrogen each process carries, and so
+ * equivalents of KH it gains — negative where the process releases them:
+ * - mint: ammonia minted from organic nitrogen takes one up, NH3 + H⁺ → NH4⁺
+ * - nitrify: NH4⁺ + 1.5 O2 → NO2⁻ + 2H⁺ + H2O releases two, the 7.14 mg of
+ *   CaCO3 per mg of nitrogen the wastewater texts quote
+ * - ammoniumUptake: a cell pushes one out for each NH4⁺ it takes up
+ * - nitrateUptake: and takes one in with each NO3⁻
  */
-export const CACO3_PER_NH3_NITRIFIED = MW_CACO3 / MW_NH3;
+export const PROTONS_PER_N = {
+  mint: 1,
+  nitrify: -2,
+  ammoniumUptake: -1,
+  nitrateUptake: 1,
+} as const;
+
+/** mg of KH, as CaCO3, a process carrying this much nitrogen moves: signed, the KH gained. */
+export function alkalinityMoved(mmolN: number, protons: number): number {
+  return mmolN * protons * CACO3_PER_EQUIVALENT;
+}

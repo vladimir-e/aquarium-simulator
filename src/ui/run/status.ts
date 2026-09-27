@@ -3,7 +3,6 @@
  * condition bars, status words and alert outlines all speak it.
  */
 
-import type { VitalityResult } from '../../simulation/index.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 
 /** The four-way status every coloured element on the surface is tinted by. */
@@ -79,14 +78,15 @@ export interface VitalReading {
 }
 
 /**
- * How an organism reads over the hour its vitality was taken on. It is sick
- * while its condition falls — damage outrunning healing — at the precision the
- * trend prints, so the word and the trend cannot disagree. The figure is
+ * How an organism reads over the hour ahead, from its condition now to the
+ * condition the tick leaves it at. It is sick while its condition falls —
+ * damage outrunning healing — at the precision the trend prints, so the word
+ * and the trend cannot disagree. The figure is
  * rounded down, so it never shows a band the condition has not reached. Sickness
  * wins a tie with the condition's own word.
  */
-export function vitalReading(condition: number, vitality: VitalityResult): VitalReading {
-  const change = vitality.newCondition - condition;
+export function vitalReading(condition: number, next: number): VitalReading {
+  const change = next - condition;
   const sick = change < 0 && projectedDrift(change) !== '';
   const health = conditionReading(condition);
   return {

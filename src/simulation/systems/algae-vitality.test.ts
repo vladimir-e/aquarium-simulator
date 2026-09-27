@@ -1,231 +1,136 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildAlgaeStressors,
   buildAlgaeBenefits,
-  computeAlgaePopulation,
+  buildAlgaeStressors,
+  computeAlgaeVitality,
+  thrivingPlantDensity,
   type AlgaeVitalityContext,
 } from './algae-vitality.js';
-import { algaeVitalityDefaults } from '../config/algae-vitality.js';
+import { dailyLightEdge, floraHealingRate, saturationIrradiance } from './flora.js';
 import { getPlantPower } from './plant-power.js';
-import { getMassFromPpm } from '../resources/helpers.js';
-import type { Plant, Resources } from '../state.js';
-import type { PlantSpecies } from '../plants/species.js';
+import { getRespirationTemperatureFactor } from './respiration.js';
+import { monodFactor } from '../core/kinetics.js';
+import { ALGAE, ALGAE_KINDS } from '../algae/traits.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
+import { createSimulation, type Plant } from '../state.js';
 import { plantRecord } from '../tests/plant.js';
 
-function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant {
-  return plantRecord({
-    id: `plant_${species}`,
-    species,
-    size: 100,
-    condition: 100,
-    surplus: 0,
-    ...overrides,
-  });
-}
+const { plants: plantsConfig, algae: algaeConfig } = DEFAULT_CONFIG;
+const LITRES = 100;
 
-function makeResources(overrides: Partial<Resources> = {}): Resources {
-  return {
-    water: 100,
-    temperature: 25,
-    surface: 1000,
-    flow: 100,
-    light: 30,
-    lightByHour: new Array(24).fill(0),
-    aeration: true,
-    food: 0,
-    waste: 0,
-    ammonia: 0,
-    nitrite: 0,
-    nitrate: getMassFromPpm(algaeVitalityDefaults.referenceNitratePpm, 100),
-    phosphate: getMassFromPpm(algaeVitalityDefaults.referencePhosphatePpm, 100),
-    potassium: getMassFromPpm(7, 100),
-    iron: getMassFromPpm(0.15, 100),
-    oxygen: 8.0,
-    co2: 20.0,
-    kh: 0,
-    gh: 0,
-    aob: 0,
-    nob: 0,
-    ...overrides,
-  };
-}
+describe.each(ALGAE_KINDS)('%s', (kind) => {
+  const traits = ALGAE[kind];
 
-function ctx(overrides: Partial<AlgaeVitalityContext> = {}): AlgaeVitalityContext {
-  return {
-    plants: [],
-    resources: makeResources(),
-    algaeConfig: algaeVitalityDefaults,
-    ...overrides,
-  };
-}
+  function context(overrides: Partial<AlgaeVitalityContext> = {}): AlgaeVitalityContext {
+    const resources = { ...createSimulation({ tankCapacity: LITRES }).resources, temperature: 25, co2: 4 };
+    const edge = dailyLightEdge(traits);
+    return {
+      bloom: { mass: 20, condition: 100, surplus: 0 },
+      traits,
+      resources,
+      plants: [],
+      plantsConfig,
+      algaeConfig,
+      nutrientSufficiency: 1,
+      light: { par: 200, dailyLight: 4 * edge, needShare: 4 },
+      ...overrides,
+    };
+  }
 
-describe('buildAlgaeStressors', () => {
-  it('returns plant_suppression key with zero amount when no plants', () => {
-    const stressors = buildAlgaeStressors(ctx());
-    const suppression = stressors.find((s) => s.key === 'plant_suppression');
-    expect(suppression).toBeDefined();
-    expect(suppression?.amount).toBe(0);
-  });
+  const amount = (factors: { key: string; amount: number }[], key: string): number =>
+    factors.find((f) => f.key === key)!.amount;
+  const sum = (factors: { amount: number }[]): number => factors.reduce((total, f) => total + f.amount, 0);
 
-  it('does not fire suppression below the threshold', () => {
-    const plants = [makePlant('java_fern', { size: 50, condition: 100 })];
-    const stressors = buildAlgaeStressors(ctx({ plants }));
-    expect(stressors.find((s) => s.key === 'plant_suppression')?.amount).toBe(0);
-  });
+  const sword = (condition: number): Plant =>
+    plantRecord({ id: `s${condition}`, species: 'amazon_sword', size: 100, condition, surplus: 0 });
 
-  it('fires suppression once plant power exceeds threshold', () => {
-    const plants = [
-      makePlant('java_fern', { size: 100, condition: 100 }),
-      makePlant('anubias', { size: 100, condition: 100 }),
-      makePlant('amazon_sword', { size: 100, condition: 100 }),
-    ];
-    const stressors = buildAlgaeStressors(ctx({ plants }));
-    const suppression = stressors.find((s) => s.key === 'plant_suppression');
-    expect(suppression?.amount).toBeGreaterThan(0);
-    expect(suppression?.amount).toBeCloseTo(
-      algaeVitalityDefaults.plantSuppressionSeverity *
-        (getPlantPower(plants) - algaeVitalityDefaults.suppressionThreshold),
-      6
-    );
-  });
+  describe('allelopathy', () => {
+    it('harms the bloom in proportion to thriving plant per litre of standing water, hardened, from no plants up', () => {
+      const harm = (plants: Plant[], water = LITRES): number => {
+        const ctx = context({ plants });
+        return amount(buildAlgaeStressors({ ...ctx, resources: { ...ctx.resources, water } }), 'allelopathy');
+      };
 
-  it('weights plant power by health — sick plants do not suppress', () => {
-    const healthy = [makePlant('amazon_sword', { size: 100, condition: 100 })];
-    const dying = [makePlant('amazon_sword', { size: 100, condition: 0 })];
-
-    const healthyAmount = buildAlgaeStressors(ctx({ plants: healthy })).find(
-      (s) => s.key === 'plant_suppression'
-    )?.amount;
-    const dyingAmount = buildAlgaeStressors(ctx({ plants: dying })).find(
-      (s) => s.key === 'plant_suppression'
-    )?.amount;
-
-    expect(healthyAmount).toBeGreaterThan(0);
-    expect(dyingAmount).toBe(0);
-  });
-});
-
-describe('buildAlgaeBenefits', () => {
-  it('emits all four benefit keys every tick (zero when inactive)', () => {
-    const benefits = buildAlgaeBenefits(ctx());
-    const keys = benefits.map((b) => b.key);
-    expect(keys).toContain('excess_light');
-    expect(keys).toContain('excess_nutrients');
-    expect(keys).toContain('nutrient_deficiency');
-    expect(keys).toContain('low_plant_power');
-  });
-
-  it('fires excess_light only above the substrate-PAR threshold', () => {
-    const lowLight = ctx({ resources: makeResources({ light: 30 }) });
-    expect(buildAlgaeBenefits(lowLight).find((b) => b.key === 'excess_light')?.amount).toBe(0);
-
-    const highLight = ctx({ resources: makeResources({ light: 80 }) });
-    expect(
-      buildAlgaeBenefits(highLight).find((b) => b.key === 'excess_light')?.amount
-    ).toBeGreaterThan(0);
-  });
-
-  it('caps excess_light at the configured peak', () => {
-    const blasted = ctx({ resources: makeResources({ light: 1000 }) });
-    const amount = buildAlgaeBenefits(blasted).find((b) => b.key === 'excess_light')?.amount;
-    expect(amount).toBe(algaeVitalityDefaults.excessLightPeak);
-  });
-
-  it('fires excess_nutrients when NO3 climbs above the reference', () => {
-    const overdosed = ctx({
-      resources: makeResources({
-        nitrate: getMassFromPpm(algaeVitalityDefaults.referenceNitratePpm * 3, 100),
-      }),
+      expect(harm([])).toBe(0);
+      expect(harm([sword(100)])).toBeCloseTo(
+        algaeConfig.allelopathySeverity * (getPlantPower([sword(100)]) / LITRES) * (1 - traits.hardiness),
+        12
+      );
+      expect(harm([sword(100), sword(100)])).toBeCloseTo(2 * harm([sword(100)]), 12);
+      expect(harm([sword(100)], 2 * LITRES)).toBeCloseTo(harm([sword(100)]) / 2, 12);
     });
-    expect(
-      buildAlgaeBenefits(overdosed).find((b) => b.key === 'excess_nutrients')?.amount
-    ).toBeGreaterThan(0);
-  });
 
-  it('does not fire excess_nutrients when both NO3 and PO4 sit at the reference', () => {
-    expect(buildAlgaeBenefits(ctx()).find((b) => b.key === 'excess_nutrients')?.amount).toBe(0);
-  });
-
-  it('fires nutrient_deficiency when nutrients fall below the reference', () => {
-    const starved = ctx({
-      resources: makeResources({
-        nitrate: 0,
-        phosphate: 0,
-      }),
+    it('comes from thriving plants only: a dying one harms nothing, a half-well one half', () => {
+      expect(thrivingPlantDensity([sword(0)], LITRES)).toBe(0);
+      expect(thrivingPlantDensity([sword(50)], LITRES)).toBeCloseTo(thrivingPlantDensity([sword(100)], LITRES) / 2, 12);
     });
-    expect(
-      buildAlgaeBenefits(starved).find((b) => b.key === 'nutrient_deficiency')?.amount
-    ).toBeGreaterThan(0);
   });
 
-  it('fires low_plant_power when plant power falls below weakness threshold', () => {
-    const benefits = buildAlgaeBenefits(ctx({ plants: [] }));
-    expect(benefits.find((b) => b.key === 'low_plant_power')?.amount).toBeGreaterThan(0);
+  describe('income', () => {
+    it('runs on the plants’ light curve and the Liebig sufficiency, and is nothing in the dark', () => {
+      const earned = (par: number, nutrientSufficiency = 1): number =>
+        sum(buildAlgaeBenefits(context({ light: { par, dailyLight: 1, needShare: 1 }, nutrientSufficiency })));
+      const ik = saturationIrradiance(traits, plantsConfig);
+
+      expect(earned(0)).toBe(0);
+      expect(earned(ik) / earned(1e6)).toBeCloseTo(Math.tanh(1), 6);
+      expect(earned(200, 0.5)).toBeCloseTo(earned(200) / 2, 12);
+      expect(earned(200, 0)).toBe(0);
+    });
+
+    it('earns CO₂ on its own half-saturation', () => {
+      const co2Income = (co2: number): number =>
+        amount(buildAlgaeBenefits(context({ resources: { ...context().resources, co2 } })), 'co2');
+
+      expect(co2Income(25) / co2Income(4)).toBeCloseTo(
+        monodFactor(25, traits.co2HalfSaturation) / monodFactor(4, traits.co2HalfSaturation),
+        12
+      );
+    });
   });
 
-  it('does not fire low_plant_power when plant power sits in the deadband', () => {
-    const plants = [makePlant('java_fern', { size: 50, condition: 100 })];
-    const benefits = buildAlgaeBenefits(ctx({ plants }));
-    expect(benefits.find((b) => b.key === 'low_plant_power')?.amount).toBe(0);
-  });
-});
+  describe('light starvation', () => {
+    const starvation = (needShare: number): number =>
+      amount(
+        buildAlgaeStressors(
+          context({ light: { par: 0, dailyLight: needShare * dailyLightEdge(traits), needShare } })
+        ),
+        'lightStarvation'
+      );
 
-describe('buildAlgaeBenefits — an empty tank', () => {
-  it('handles waterVolume = 0 without dividing by zero', () => {
-    const benefits = buildAlgaeBenefits(ctx({ resources: makeResources({ water: 0 }) }));
-    expect(benefits.find((b) => b.key === 'excess_nutrients')?.amount).toBe(0);
-  });
-});
+    it('charges nothing while the day’s light meets its edge, and grows as it falls short', () => {
+      expect(starvation(1)).toBe(0);
+      expect(starvation(2)).toBe(0);
+      expect(starvation(0.25)).toBeCloseTo(0.75 * starvation(0), 12);
+    });
 
-describe('computeAlgaePopulation (aggregate)', () => {
-  it('pure-light tank with no plants and no dosing produces a positive net', () => {
-    const result = computeAlgaePopulation(
-      ctx({
-        plants: [],
-        resources: makeResources({ light: 120, nitrate: 0, phosphate: 0 }),
-      })
-    );
-    expect(result.net).toBeGreaterThan(0);
-    expect(result.breakdown.benefitRate).toBeGreaterThan(0);
-    expect(result.breakdown.damageRate).toBe(0);
-  });
-
-  it('overdosed tank with weak plants — nutrients dominate, net positive', () => {
-    const plants = [makePlant('amazon_sword', { size: 100, condition: 0 })];
-    const result = computeAlgaePopulation(
-      ctx({
-        plants,
-        resources: makeResources({
-          nitrate: getMassFromPpm(algaeVitalityDefaults.referenceNitratePpm * 3, 100),
-        }),
-      })
-    );
-    expect(result.net).toBeGreaterThan(0);
+    it('costs what respiration does, at the bloom’s growth rate', () => {
+      expect(starvation(0)).toBeCloseTo(
+        plantsConfig.lightStarvationSeverity *
+          traits.growthRate *
+          getRespirationTemperatureFactor(25, plantsConfig) *
+          (1 - traits.hardiness),
+        12
+      );
+    });
   });
 
-  it('applies hardiness to stressors but not benefits', () => {
-    const plants = [
-      makePlant('amazon_sword', { size: 100, condition: 100 }),
-      makePlant('monte_carlo', { size: 100, condition: 100 }),
-      makePlant('java_fern', { size: 100, condition: 100 }),
-    ];
-    const baseConfig = { ...algaeVitalityDefaults, hardiness: 0 };
-    const hardyConfig = { ...algaeVitalityDefaults, hardiness: 0.5 };
+  describe('computeAlgaeVitality', () => {
+    it('heals on the plants’ law, integrated over the hour', () => {
+      const hurt = computeAlgaeVitality(
+        context({ bloom: { mass: 20, condition: 10, surplus: 10 }, light: { par: 0, dailyLight: 4 * dailyLightEdge(traits), needShare: 4 } })
+      );
+      expect(hurt.breakdown.healed).toBeCloseTo(10 * -Math.expm1(-floraHealingRate(traits, plantsConfig)), 12);
+    });
 
-    const baseResult = computeAlgaePopulation(ctx({ plants, algaeConfig: baseConfig }));
-    const hardyResult = computeAlgaePopulation(ctx({ plants, algaeConfig: hardyConfig }));
+    it('banks income only at full condition, and heals a bloom below it from the bank', () => {
+      const full = computeAlgaeVitality(context());
+      expect(full.newCondition).toBe(100);
+      expect(full.surplus).toBeGreaterThan(0);
 
-    expect(hardyResult.breakdown.damageRate).toBeCloseTo(baseResult.breakdown.damageRate * 0.5, 8);
-    expect(hardyResult.breakdown.benefitRate).toBeCloseTo(baseResult.breakdown.benefitRate, 8);
-  });
-
-  it('clamps hardiness to [0, 1] for pathological config values', () => {
-    const plants = [
-      makePlant('amazon_sword', { size: 100, condition: 100 }),
-      makePlant('monte_carlo', { size: 100, condition: 100 }),
-    ];
-    const overHardy = { ...algaeVitalityDefaults, hardiness: 5 };
-    const result = computeAlgaePopulation(ctx({ plants, algaeConfig: overHardy }));
-    expect(result.breakdown.damageRate).toBe(0);
+      const hurt = computeAlgaeVitality(context({ bloom: { mass: 20, condition: 60, surplus: 10 } }));
+      expect(hurt.breakdown.healed).toBeGreaterThan(0);
+      expect(hurt.surplus).toBeLessThan(10);
+    });
   });
 });

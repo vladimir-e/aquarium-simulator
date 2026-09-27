@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
+  ALGAE_KINDS,
+  BLOOM_COVERAGE_LINE,
+  PLANT_LIGHT_LINE,
   applyAction,
+  bloomAlert,
   calculateFloorArea,
   calculateNutrientSufficiency,
   tankPools,
@@ -11,8 +15,10 @@ import {
   growthFormOf,
   getPlantsToTrimCount,
   getSubstrateNutrients,
+  plantLightTaken,
   readPlantLight,
   tick,
+  type AlgaeKind,
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -23,7 +29,6 @@ import { MAX_DOSE_ML } from '../../simulation/actions/dose.js';
 import { produce } from 'immer';
 import {
   algaeReading,
-  algaeStatus,
   bedReading,
   doseDeltas,
   doseToCover,
@@ -36,10 +41,12 @@ import {
   plantLabels,
   plantRows,
   TRIM_TARGETS,
+  type NutrientReading,
   type PlantRow,
   type PlantSpeciesGroup,
 } from './flora';
 import { readHourAhead } from './ahead';
+import { COVERAGE_DECIMALS } from '../utils/units';
 import { conditionStatus, conditionWord, projectedTrend, type Reading } from './status';
 
 const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
@@ -78,22 +85,63 @@ describe('condition + algae words', () => {
     expect(conditionWord(95)).toBe('thriving');
   });
 
-  it('maps algae mass to status and word (low is good)', () => {
-    expect(algaeStatus(30, 30)).toBe('ok');
-    expect(algaeStatus(45, 30)).toBe('warn');
-    expect(algaeStatus(61, 30)).toBe('alert');
-    expect(algaeReading(1, 30).word).toBe('sparse');
-    expect(algaeReading(45, 30).word).toBe('spreading');
-    expect(algaeReading(95, 30).word).toBe('booming');
+  it('reads green water as the water’s clarity and film as how coated the glass is', () => {
+    const words = (kind: AlgaeKind): string[] =>
+      [0, 0.3, 0.8, 1.5, 3].map((share) => algaeReading(kind, share * BLOOM_COVERAGE_LINE, 0).word);
+    expect(words('greenWater')).toEqual(['clear', 'hazy', 'cloudy', 'green', 'pea soup']);
+    expect(words('film')).toEqual(['clean', 'dusted', 'filmed', 'coated', 'smothered']);
   });
 
-  it('cuts the word ladder from the same line as the tone, wherever it is tuned', () => {
-    for (const line of [20, 80]) {
-      expect(algaeReading(line * 0.4, line)).toEqual({ status: 'ok', word: 'sparse' });
-      expect(algaeReading(line, line)).toEqual({ status: 'ok', word: 'active' });
-      expect(algaeReading(line * 1.5, line)).toEqual({ status: 'warn', word: 'spreading' });
-      expect(algaeReading(line * 2.5, line)).toEqual({ status: 'alert', word: 'booming' });
-    }
+  describe.each(ALGAE_KINDS)('%s', (kind) => {
+    it('reads its word for none while the coverage prints as none', () => {
+      const none = algaeReading(kind, 0, 0);
+      const printed = 0.5 / 10 ** COVERAGE_DECIMALS;
+      expect(none.status).toBe('ok');
+      expect(algaeReading(kind, 0.9 * printed, 0).word).toBe(none.word);
+      expect(algaeReading(kind, printed, 0).word).not.toBe(none.word);
+    });
+
+    it('maps its coverage to status (low is good)', () => {
+      expect(algaeReading(kind, BLOOM_COVERAGE_LINE, 0).status).toBe('ok');
+      expect(algaeReading(kind, 1.5 * BLOOM_COVERAGE_LINE, 0).status).toBe('warn');
+      expect(algaeReading(kind, 2.1 * BLOOM_COVERAGE_LINE, 0).status).toBe('alert');
+    });
+
+    it('takes the worse tone of its coverage and the plants’ light it takes, keeping its coverage word', () => {
+      const light = BLOOM_COVERAGE_LINE / 2;
+      expect(algaeReading(kind, light, 0).status).toBe('ok');
+      expect(algaeReading(kind, light, 1.5 * PLANT_LIGHT_LINE)).toEqual({
+        status: 'warn',
+        word: algaeReading(kind, light, 0).word,
+      });
+      expect(algaeReading(kind, light, 2.5 * PLANT_LIGHT_LINE).status).toBe('alert');
+      expect(algaeReading(kind, 3 * BLOOM_COVERAGE_LINE, 0).status).toBe('alert');
+    });
+
+    it('on its coverage alone, turns amber and coral each on a word of its own', () => {
+      const tonesOf = new Map<string, Set<string>>();
+      for (let i = 0; i <= 300; i++) {
+        const { word, status } = algaeReading(kind, (i / 100) * BLOOM_COVERAGE_LINE, 0);
+        tonesOf.set(word, (tonesOf.get(word) ?? new Set()).add(status));
+      }
+      const tones = [...tonesOf.values()];
+      expect(tones.every((set) => set.size === 1)).toBe(true);
+      expect(tones.filter((set) => set.has('warn'))).toHaveLength(1);
+      expect(tones.filter((set) => set.has('alert'))).toHaveLength(1);
+    });
+
+    it('turns amber exactly where the engine alerts, planted or not', () => {
+      for (const bed of [tank(), planted(['monte_carlo', 'amazon_sword'])]) {
+        for (let mass = 0; mass <= 95; mass += 5) {
+          const state = produce(bed, (draft) => {
+            draft.algae[kind].mass = mass;
+          });
+          const taken = plantLightTaken(state, DEFAULT_CONFIG.optics)[kind] * 100;
+          const alerts = bloomAlert(kind).check(state, DEFAULT_CONFIG).log !== null;
+          expect(algaeReading(kind, mass, taken).status !== 'ok').toBe(alerts);
+        }
+      }
+    });
   });
 });
 
@@ -344,6 +392,23 @@ describe('nutrientReadings', () => {
       expect(r.needed / need('monte_carlo', n)).toBeCloseTo(readings[0]!.needed / need('monte_carlo', 'nitrate'), 10);
     });
     expect(readings.every((r) => r.ppm === 0 && r.fill === 0)).toBe(true);
+  });
+
+  it('asks nitrate only for the nitrogen the ammonia in the water leaves, and none once ammonia meets it', () => {
+    const state = planted(['java_fern']);
+    const withAmmonia = (ppm: number): NutrientReading => {
+      const dosed = { ...state, resources: { ...state.resources, ammonia: ppm * state.resources.water } };
+      return nutrientReadings(dosed, DEFAULT_CONFIG).find((r) => r.key === 'nitrate')!;
+    };
+    const none = withAmmonia(0);
+    const some = withAmmonia(0.5 * speciesHalfSaturation('java_fern', 'ammonia', DEFAULT_CONFIG.nutrients));
+    const plenty = withAmmonia(100 * speciesHalfSaturation('java_fern', 'ammonia', DEFAULT_CONFIG.nutrients));
+
+    expect(some.needed).toBeGreaterThan(0);
+    expect(some.needed).toBeLessThan(none.needed);
+    expect(plenty.needed).toBe(0);
+    expect(plenty.asked).toBe(true);
+    expect(plenty.limiting).toBe(false);
   });
 
   it('asks less of every nutrient for a low-demand planting than a high-demand one', () => {

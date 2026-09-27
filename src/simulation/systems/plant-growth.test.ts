@@ -6,7 +6,6 @@ import {
   sizeBought,
   supply,
   getSpeciesGrowthRate,
-  growthTaper,
 } from './plant-growth.js';
 import type { Plant } from '../state.js';
 import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
@@ -26,18 +25,6 @@ function makePlant(
     ...overrides,
   });
 }
-
-describe('growthTaper', () => {
-  it('is whole at size 0 and closed at a full unit', () => {
-    expect(growthTaper(0)).toBe(1);
-    expect(growthTaper(100)).toBe(0);
-  });
-
-  it('closes linearly in between', () => {
-    expect(growthTaper(25)).toBe(0.75);
-    expect(growthTaper(75)).toBe(0.25);
-  });
-});
 
 function withdrawal(plant: Plant): number {
   return plant.surplus - spendSurplus(plant).surplus;
@@ -80,11 +67,11 @@ describe('spendSurplus', () => {
     expect(spendSurplus(plant).surplus).toBeGreaterThan(0);
   });
 
-  it('size gain = surplus × growthDrawRate × (1 − size/100) × speciesRate × sizePerSurplus', () => {
+  it('size gain = surplus × (1 − e^−growthDrawRate) × (1 − size/100) × speciesRate × sizePerSurplus', () => {
     const plant = makePlant('java_fern', { surplus: 10, size: 60 });
     const expected =
       10 *
-      plantsDefaults.growthDrawRate *
+      (1 - Math.exp(-plantsDefaults.growthDrawRate)) *
       (1 - 60 / 100) *
       getSpeciesGrowthRate('java_fern') *
       plantsDefaults.sizePerSurplus;
@@ -127,7 +114,7 @@ describe('spendSurplus', () => {
     expect(after.surplus).toBe(plant.surplus);
   });
 
-  it('buys at most 0.72 of what is left to a full unit in a tick, so never reaches it, at any bound the tunables allow', () => {
+  it('buys under what is left to a full unit in a tick, so never reaches it, at any bound the tunables allow', () => {
     const bound = (key: keyof PlantsConfig): number =>
       plantsConfigMeta.find((knob) => knob.key === key)!.max;
     const config: PlantsConfig = {
@@ -138,20 +125,23 @@ describe('spendSurplus', () => {
     const fastest = (Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]).reduce((a, b) =>
       getSpeciesGrowthRate(a) > getSpeciesGrowthRate(b) ? a : b
     );
+    const share =
+      (bound('surplusCap') * (1 - Math.exp(-config.growthDrawRate)) * getSpeciesGrowthRate(fastest) * config.sizePerSurplus) / 100;
+    expect(share).toBeLessThan(1);
 
     for (const size of [0, 50, 99, 99.999]) {
       const plant = makePlant(fastest, { surplus: bound('surplusCap'), size });
       const after = spendSurplus(plant, config);
-      expect(after.size - size).toBeLessThanOrEqual(0.72 * (100 - size) + 1e-9);
+      expect(after.size - size).toBeLessThanOrEqual(share * (100 - size) + 1e-9);
       expect(after.size).toBeLessThan(100);
     }
   });
 
-  it('never withdraws more than the bank holds, at any rate a config can carry', () => {
+  it('never withdraws more than the bank holds, at any rate a save can carry', () => {
     const maxTunable = plantsConfigMeta.find((knob) => knob.key === 'growthDrawRate')?.max;
     expect(maxTunable).toBeGreaterThan(plantsDefaults.growthDrawRate);
 
-    for (const growthDrawRate of [maxTunable!, 1, 1.5, 100]) {
+    for (const growthDrawRate of [maxTunable!, 1, 1e6]) {
       const plant = makePlant('monte_carlo', { surplus: plantsDefaults.surplusCap, size: 0 });
       const after = spendSurplus(plant, { ...plantsDefaults, growthDrawRate });
       expect(after.surplus).toBeGreaterThanOrEqual(0);

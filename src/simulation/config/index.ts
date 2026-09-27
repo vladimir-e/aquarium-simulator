@@ -26,17 +26,14 @@ export {
   evaporationDefaults,
   evaporationConfigMeta,
 } from './evaporation.js';
-export {
-  type AlgaeVitalityConfig,
-  algaeVitalityDefaults,
-  algaeVitalityConfigMeta,
-} from './algae-vitality.js';
+export { type AlgaeConfig, algaeDefaults, algaeConfigMeta } from './algae.js';
 export {
   type OpticsConfig,
   opticsDefaults,
   opticsConfigMeta,
   MAX_WATER_ATTENUATION_PER_CM,
   MAX_LEAF_ATTENUATION_PER_LAI,
+  MAX_ALGAE_ATTENUATION_PER_GRAM,
 } from './optics.js';
 export {
   type WaterChemistryConfig,
@@ -47,8 +44,10 @@ export {
   type PlantsConfig,
   plantsDefaults,
   plantsConfigMeta,
+  MAX_SIZE_PER_SURPLUS,
   MAX_SUFFICIENCY_EDGE,
 } from './plants.js';
+export { MAX_SURPLUS_CAP } from './vitality.js';
 export {
   NUTRIENTS,
   type Nutrient,
@@ -56,6 +55,11 @@ export {
   type NutrientVector,
   mapNutrients,
   ZERO_NUTRIENTS,
+  NUTRIENT_FORMS,
+  type NutrientForm,
+  type FormVector,
+  FORMS_OF,
+  mapForms,
   type WasteNutrient,
   type MineralVector,
   type NutrientsConfig,
@@ -95,11 +99,7 @@ import {
   evaporationDefaults,
   evaporationConfigMeta,
 } from './evaporation.js';
-import {
-  type AlgaeVitalityConfig,
-  algaeVitalityDefaults,
-  algaeVitalityConfigMeta,
-} from './algae-vitality.js';
+import { type AlgaeConfig, algaeDefaults, algaeConfigMeta } from './algae.js';
 import { type OpticsConfig, opticsDefaults, opticsConfigMeta } from './optics.js';
 import {
   type WaterChemistryConfig,
@@ -128,7 +128,7 @@ export interface TunableConfig {
   gasExchange: GasExchangeConfig;
   temperature: TemperatureConfig;
   evaporation: EvaporationConfig;
-  algae: AlgaeVitalityConfig;
+  algae: AlgaeConfig;
   optics: OpticsConfig;
   waterChemistry: WaterChemistryConfig;
   plants: PlantsConfig;
@@ -145,7 +145,7 @@ export const DEFAULT_CONFIG: TunableConfig = {
   gasExchange: gasExchangeDefaults,
   temperature: temperatureDefaults,
   evaporation: evaporationDefaults,
-  algae: algaeVitalityDefaults,
+  algae: algaeDefaults,
   optics: opticsDefaults,
   waterChemistry: waterChemistryDefaults,
   plants: plantsDefaults,
@@ -173,7 +173,7 @@ const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
     gasExchange: gasExchangeConfigMeta,
     temperature: temperatureConfigMeta,
     evaporation: evaporationConfigMeta,
-    algae: algaeVitalityConfigMeta,
+    algae: algaeConfigMeta,
     optics: opticsConfigMeta,
     waterChemistry: waterChemistryConfigMeta,
     plants: plantsConfigMeta,

@@ -10,6 +10,7 @@ import { DEFAULT_SETTINGS } from '../actions/verbs.js';
 import { createSimulation, type SimulationState } from '../../simulation/state.js';
 import {
   applyAction,
+  calculateParAtDepth,
   calculateTankHeight,
   dailyLightIntegral,
   getDgh,
@@ -20,6 +21,7 @@ import {
   placeHardscape,
   scheduledLightHistory,
   tick,
+  waterExtinction,
 } from '../../simulation/index.js';
 import { cycledColony, cycledHardness } from '../../simulation/seed.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
@@ -699,16 +701,16 @@ describe('useSimulation', () => {
       const tickBefore = result.current.sim.state.tick;
       expect(before).toBeGreaterThan(0);
 
+      const optics = { ...DEFAULT_CONFIG.optics, waterAttenuationPerCm: DEFAULT_CONFIG.optics.waterAttenuationPerCm * 2 };
       act(() => {
-        result.current.config.setTunable(
-          'optics.waterAttenuationPerCm',
-          DEFAULT_CONFIG.optics.waterAttenuationPerCm * 2
-        );
+        result.current.config.setTunable('optics.waterAttenuationPerCm', optics.waterAttenuationPerCm);
       });
 
-      const after = result.current.sim.state.resources.light;
-      expect(after / par).toBeCloseTo((before / par) ** 2, 10);
-      expect(result.current.sim.state.tick).toBe(tickBefore);
+      const { state } = result.current.sim;
+      const depth = calculateTankHeight(state.tank.capacity);
+      expect(state.resources.light).toBeCloseTo(calculateParAtDepth(par, depth, waterExtinction(state.algae, optics)), 10);
+      expect(state.resources.light).toBeLessThan(before);
+      expect(state.tick).toBe(tickBefore);
     });
 
     it('opens a resized tank in the water the config describes', () => {

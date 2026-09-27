@@ -1,12 +1,15 @@
 import type { SimulationState } from '../../simulation/state.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { floorCover, floorShade } from '../../simulation/plants/canopy.js';
+import { floorCover, floorLight, floorShade } from '../../simulation/plants/canopy.js';
 import { freeAmmoniaPpm } from '../../simulation/systems/nitrogen-cycle.js';
 import { FREE_AMMONIA_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
 import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
+import { BLOOM_COVERAGE_LINE } from '../../simulation/alerts/bloom.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/helpers.js';
 import { getPh } from '../../simulation/core/carbonate.js';
+import { ALGAE, ALGAE_KINDS, type AlgaeKind } from '../../simulation/algae/index.js';
 import { toFahrenheit } from '../units.js';
+import { snakeCase, type SnakeCase } from '../names.js';
 
 export interface Band {
   green: readonly [number, number];
@@ -33,6 +36,11 @@ const mean = (values: number[]): number | null =>
   values.length === 0 ? null : values.reduce((sum, v) => sum + v, 0) / values.length;
 
 const ANY = Infinity;
+
+const BLOOM_WHY: Record<AlgaeKind, string> = {
+  greenWater: 'a trace in the water is normal; the water going green is not',
+  film: 'a kept tank shows some film on its glass; a coated one is not kept',
+};
 
 const DEFINITIONS = [
   {
@@ -174,6 +182,18 @@ const DEFINITIONS = [
     band: { green: [0, 0.8], amber: [0, 0.95], why: 'past this the understory is in the dark' },
   },
   {
+    id: 'floor_par',
+    label: 'floor PAR',
+    unit: 'PAR',
+    digits: 0,
+    read: (s, config): number => floorLight(s, config.optics),
+    band: {
+      green: [8, ANY],
+      amber: [2, ANY],
+      why: 'the hardiest plant on the roster lives from 8 PAR; under 2 the floor is dark',
+    },
+  },
+  {
     id: 'plant_cond',
     label: 'plant cond',
     unit: '%',
@@ -198,14 +218,16 @@ const DEFINITIONS = [
     read: (s): number | null => mean(s.fish.map((f) => f.health)),
     band: { green: [70, 100], amber: [40, 100], why: 'fish in a maintained tank look healthy' },
   },
-  {
-    id: 'algae',
-    label: 'algae',
-    unit: '/100',
-    digits: 0,
-    read: (s): number => s.algae.mass,
-    band: { green: [0, 30], amber: [0, 60], why: 'some film is normal between scrapes; glass going green is not' },
-  },
+  ...ALGAE_KINDS.map(
+    (kind): Reading<SnakeCase<AlgaeKind>> => ({
+      id: snakeCase(kind),
+      label: ALGAE[kind].name.toLowerCase(),
+      unit: '/100',
+      digits: 0,
+      read: (s) => s.algae[kind].mass,
+      band: { green: [0, BLOOM_COVERAGE_LINE], amber: [0, 2 * BLOOM_COVERAGE_LINE], why: BLOOM_WHY[kind] },
+    })
+  ),
 ] as const satisfies readonly Reading[];
 
 export type ReadingId = (typeof DEFINITIONS)[number]['id'];

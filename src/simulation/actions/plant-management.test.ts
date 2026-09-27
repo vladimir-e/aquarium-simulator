@@ -5,7 +5,8 @@ import {
   canAddPlant,
   checkPlantFootprint,
 } from './plant-management.js';
-import { calculateFloorArea, createSimulation, type Plant, type SimulationState } from '../state.js';
+import { createSimulation, type Plant, type SimulationState } from '../state.js';
+import { calculateFloorArea } from '../core/geometry.js';
 import { GROWTH_FORMS, PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
 import type { SubstrateType } from '../equipment/substrate.js';
 import type { ActionResult } from './types.js';

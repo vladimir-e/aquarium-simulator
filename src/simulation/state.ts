@@ -6,29 +6,24 @@ import { celsius, createLog, liters, measured, type LogEntry } from './core/logg
 import { createRng, type RngState } from './core/rng.js';
 import type { DailySchedule } from './core/schedule.js';
 import type { Filter } from './equipment/filter.js';
-import { DEFAULT_FILTER, getFilterSurface, getFilterFlow } from './equipment/filter.js';
+import { DEFAULT_FILTER } from './equipment/filter.js';
 import type { Powerhead } from './equipment/powerhead.js';
-import { DEFAULT_POWERHEAD, getPowerheadFlow } from './equipment/powerhead.js';
+import { DEFAULT_POWERHEAD } from './equipment/powerhead.js';
 import type { Substrate } from './equipment/substrate.js';
-import { DEFAULT_SUBSTRATE, freshSubstrate, getSubstrateSurface } from './equipment/substrate.js';
+import { DEFAULT_SUBSTRATE, freshSubstrate } from './equipment/substrate.js';
 import type { Hardscape, HardscapeItemSpec } from './equipment/hardscape.js';
-import {
-  DEFAULT_HARDSCAPE,
-  calculateHardscapeTotalSurface,
-  createHardscapeItem,
-} from './equipment/hardscape.js';
+import { DEFAULT_HARDSCAPE, createHardscapeItem } from './equipment/hardscape.js';
 import type { Light } from './equipment/light.js';
-import {
-  DEFAULT_LIGHT,
-  MAX_LIGHT_PAR,
-  scheduledLightByHour,
-} from './equipment/light.js';
+import { DEFAULT_LIGHT, MAX_LIGHT_PAR } from './equipment/light.js';
 import { opticsDefaults, type OpticsConfig } from './config/optics.js';
 import type { AirPump } from './equipment/air-pump.js';
-import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
+import { DEFAULT_AIR_PUMP } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
 import { applySeed, type PresetSeed, type TankSeed } from './seed.js';
+import { writePassiveResources } from './equipment/index.js';
+import type { AlgaeKind } from './algae/traits.js';
+import { emptyBlooms, mapKinds } from './algae/blooms.js';
 import { isPlantableSize, MIN_PLANTABLE_SIZE } from './plants/create-plant.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
@@ -77,26 +72,22 @@ export interface Fish {
 }
 
 /**
- * Algae as a pure population — coverage and a surplus bank.
- *
- * `mass` is aggregate biomass / coverage on a 0–100 scale. When the net rate from stressors and benefits is
- * positive, the surplus tank fills (photoperiod-gated); when it's
- * negative, the reserve buffer drains first and mass shrinks only by
- * the shortfall. No intermediate `condition` — conditions favouring
- * algae grow it; conditions hostile to it shrink it. `surplus` is the
- * banked reserve: it buffers hostile ticks and drains into mass each
- * daylight tick.
- *
- * One organism, not an array. The shape — coverage plus surplus —
- * is the prototype for future colonies (snails, shrimps): they're
- * populations too, and they don't need condition either.
+ * One kind of bloom: a population run on the plants' vitality model, without
+ * a position. `mass` is how full its habitat is, 0–100 — the share of what its
+ * habitat holds at a full bloom — so its tissue scales with the habitat.
+ * Condition and bank are the bloom's as a whole: the bank buys mass in
+ * proportion to the mass already there.
  */
 export interface AlgaeState {
-  /** Aggregate biomass / coverage, 0–100 (same scale as the old field). */
   mass: number;
-  /** Banked surplus from positive net rate; drained into mass while lights are on. */
+  /** 0–100; the bloom dies back at 0. */
+  condition: number;
+  /** Vitality bank, in condition points, up to `PlantsConfig.surplusCap`. */
   surplus: number;
 }
+
+/** Every kind's bloom, by kind: the kinds are a fixed set every tank holds, so each is read by name and none goes missing. */
+export type Blooms = Record<AlgaeKind, AlgaeState>;
 
 /**
  * A batch of eggs waiting to hatch.
@@ -298,13 +289,12 @@ export interface Equipment {
 
 /**
  * Tracks which alert conditions are currently active.
- * Used to only fire alerts once when crossing thresholds.
+ * Used to only fire alerts once when crossing thresholds. Each kind of bloom
+ * has its own, set while its `bloomLevel` is past 1.
  */
-export interface AlertState {
+export interface AlertState extends Record<AlgaeKind, boolean> {
   /** Water is below `waterLevelAlertLine` % of capacity */
   waterLevelCritical: boolean;
-  /** Algae mass is above `algaeAlertLine` */
-  highAlgae: boolean;
   /** Free NH₃ is above `FREE_AMMONIA_EDGE` */
   highAmmonia: boolean;
   /** Nitrite is above `NITRITE_EDGE` */
@@ -315,6 +305,19 @@ export interface AlertState {
   lowOxygen: boolean;
   /** CO₂ is above `HIGH_CO2_THRESHOLD` */
   highCo2: boolean;
+}
+
+/** Every alert clear: what a new or reset tank starts on. */
+export function quietAlerts(): AlertState {
+  return {
+    waterLevelCritical: false,
+    ...mapKinds(() => false),
+    highAmmonia: false,
+    highNitrite: false,
+    highNitrate: false,
+    lowOxygen: false,
+    highCo2: false,
+  };
 }
 
 export interface SimulationState {
@@ -334,8 +337,8 @@ export interface SimulationState {
   fish: Fish[];
   /** Unhatched egg clutches from egg-laying species */
   clutches: Clutch[];
-  /** Tank-wide algae as a single mass-based organism */
-  algae: AlgaeState;
+  /** The tank's blooms, one of each kind */
+  algae: Blooms;
   /** Seed and stream position every draw in this tank comes off. */
   rng: RngState;
   /** In-memory log storage */
@@ -428,48 +431,6 @@ export function calculateHardscapeSlots(capacityLiters: number): number {
   const gallons = capacityLiters / 3.785;
   const slots = Math.floor(gallons * 2);
   return Math.min(slots, 8);
-}
-
-/**
- * Height in cm of the box a capacity implies, assuming the standard
- * rectangular shape (length:width:height ≈ 2:1:1). A litre is a dm³, so the
- * cube root comes out in dm and ×10 reads it as cm: 20 L stands 21.5 cm,
- * 300 L stands 53.1.
- */
-export function calculateTankHeight(capacity: number): number {
-  return Math.cbrt(capacity / 2) * 10;
-}
-
-/** Floor of the 2:1:1 box a capacity implies, cm². */
-export function calculateFloorArea(capacity: number): number {
-  const height = calculateTankHeight(capacity);
-  return 2 * height * height;
-}
-
-/** The light history of a tank that has run its fixture's schedule all along. */
-export function scheduledLightHistory(
-  state: Pick<SimulationState, 'tank' | 'equipment'>,
-  optics: OpticsConfig
-): number[] {
-  return scheduledLightByHour(state.equipment.light, calculateTankHeight(state.tank.capacity), optics);
-}
-
-/** A tank at hour zero lit under `optics`: its light, and the day it reads, as its schedule has run. */
-export function relight(state: SimulationState, optics: OpticsConfig): SimulationState {
-  const lightByHour = scheduledLightHistory(state, optics);
-  return { ...state, resources: { ...state.resources, light: lightByHour[0], lightByHour } };
-}
-
-/**
- * Calculates tank bacteria surface area in cm² from capacity.
- * Includes 4 walls + bottom (excludes top which is open).
- */
-export function calculateTankGlassSurface(capacity: number): number {
-  const height = calculateTankHeight(capacity);
-  const width = height;
-  const length = 2 * height;
-
-  return Math.round(2 * (length * height) + 2 * (width * height) + length * width);
 }
 
 /**
@@ -622,24 +583,7 @@ export function createSimulation(
     measured`Simulation created: ${liters(tankCapacity)} tank, ${celsius(effectiveRoomTemp)} room, heater ${heaterStatus}`
   );
 
-  // Calculate tank glass surface from capacity (used in passive resource calculation)
-  const tankGlassSurface = calculateTankGlassSurface(tankCapacity);
-
-  // Calculate hardscape slots from capacity
-  const hardscapeSlots = calculateHardscapeSlots(tankCapacity);
-
-  // Calculate initial passive resources (surface, flow, aeration)
-  const initialPassiveResources = calculateInitialPassiveResources(
-    tankGlassSurface,
-    tankCapacity,
-    filterConfig,
-    powerheadConfig,
-    substrateConfig,
-    hardscapeConfig,
-    airPumpConfig
-  );
-
-  const tank: Tank = { capacity: tankCapacity, hardscapeSlots };
+  const tank: Tank = { capacity: tankCapacity, hardscapeSlots: calculateHardscapeSlots(tankCapacity) };
   const equipment: Equipment = {
     heater: heaterConfig,
     lid: lidConfig,
@@ -653,7 +597,6 @@ export function createSimulation(
     airPump: airPumpConfig,
     autoDoser: autoDoserConfig,
   };
-  const lightByHour = scheduledLightHistory({ tank, equipment }, optics ?? opticsDefaults);
 
   const state: SimulationState = {
     tick: 0,
@@ -662,12 +605,12 @@ export function createSimulation(
       // Physical
       water: tankCapacity, // Start at full capacity
       temperature: initialTemperature ?? DEFAULT_TEMPERATURE,
-      // Passive (calculated)
-      surface: initialPassiveResources.surface,
-      flow: initialPassiveResources.flow,
-      light: lightByHour[0],
-      lightByHour,
-      aeration: initialPassiveResources.aeration,
+      // Passive (settled once the tank is built)
+      surface: 0,
+      flow: 0,
+      light: 0,
+      lightByHour: [],
+      aeration: false,
       // Biological
       food: 0.0,
       waste: 0.0,
@@ -699,64 +642,13 @@ export function createSimulation(
     plants: [],
     fish: [],
     clutches: [],
-    // Algae starts at zero biomass and zero surplus. With no
-    // condition state, the empty case is naturally inert.
-    algae: { mass: 0, surplus: 0 },
+    algae: emptyBlooms(),
     rng: createRng(rngSeed),
     logs: [initialLog],
-    alertState: {
-      waterLevelCritical: false,
-      highAlgae: false,
-      highAmmonia: false,
-      highNitrite: false,
-      highNitrate: false,
-      lowOxygen: false,
-      highCo2: false,
-    },
+    alertState: quietAlerts(),
   };
 
+  writePassiveResources(state, optics ?? opticsDefaults);
   if (seed !== undefined) applySeed(state, seed);
   return state;
-}
-
-/**
- * Calculates initial passive resources from equipment configuration.
- */
-function calculateInitialPassiveResources(
-  tankGlassSurface: number,
-  tankCapacity: number,
-  filter: Filter,
-  powerhead: Powerhead,
-  substrate: Substrate,
-  hardscape: Hardscape,
-  airPump: AirPump
-): { surface: number; flow: number; aeration: boolean } {
-  // Import isFilterAirDriven inline to avoid circular dependency
-  const isFilterAirDriven = filter.type === 'sponge';
-
-  // Surface area
-  let surface = tankGlassSurface;
-  if (filter.enabled) {
-    surface += getFilterSurface(filter.type);
-  }
-  surface += getSubstrateSurface(substrate.type, tankCapacity);
-  surface += calculateHardscapeTotalSurface(hardscape.items);
-
-  // Flow rate (scaled to tank capacity)
-  let flow = 0;
-  if (filter.enabled) {
-    flow += getFilterFlow(filter.type, tankCapacity);
-  }
-  if (powerhead.enabled) {
-    flow += getPowerheadFlow(powerhead.flowRateGPH);
-  }
-  // Air pump adds small flow from bubble uplift
-  if (airPump.enabled) {
-    flow += getAirPumpFlow(tankCapacity);
-  }
-
-  // Aeration is active if air pump is on OR filter is air-driven (sponge)
-  const aeration = airPump.enabled || (filter.enabled && isFilterAirDriven);
-
-  return { surface, flow, aeration };
 }

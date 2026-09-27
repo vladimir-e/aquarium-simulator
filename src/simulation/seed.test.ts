@@ -14,6 +14,7 @@ import {
   getSubstrateKhReserve,
   getSubstrateNutrients,
   getSubstrateOrganicReserve,
+  type SubstrateType,
 } from './equipment/substrate.js';
 import { NUTRIENTS, nutrientsDefaults, ZERO_NUTRIENTS } from './config/nutrients.js';
 import { livestockDefaults } from './config/livestock.js';
@@ -21,7 +22,8 @@ import { organicNutrients } from './systems/nutrients.js';
 import { calculateMaxBacteria } from './systems/nitrogen-cycle.js';
 import { HARDSCAPE_TANNINS } from './equipment/hardscape.js';
 import { DEFAULT_PLANT_SIZE, MIN_PLANTABLE_SIZE } from './plants/create-plant.js';
-import { getDgh, getDkh } from './resources/helpers.js';
+import { getDgh, getDkh, getKhMass } from './resources/helpers.js';
+import { CACO3_PER_EQUIVALENT, MW_NO3 } from './core/chemistry.js';
 
 const TANK: SimulationConfig = { tankCapacity: 40, substrate: { type: 'aqua_soil' } };
 
@@ -222,21 +224,45 @@ describe('createSimulation seeding', () => {
       }
     });
 
-    it('keeps GH exactly as far below the tap as KH, since the bed takes both alike', () => {
+    it('charges an equivalent of KH per mole of the nitrate its leached organics left, as the nitrogen loop does', () => {
+      for (const type of ['gravel', 'sand'] as const) {
+        const { kh } = cycledHardness(type, 5, 8, 100);
+        const { nitrate } = cycledWaterNutrients(type, 100);
+
+        expect(nitrate).toBeGreaterThan(0);
+        expect(kh + (nitrate / MW_NO3) * CACO3_PER_EQUIVALENT).toBeCloseTo(getKhMass(5, 100), 10);
+      }
+    });
+
+    it('keeps GH as far below the tap as the soil took KH, and KH lower by the nitrate its organics left', () => {
       const seeded = createSimulation({ ...TANK, tapKh: 5, tapGh: 8 }, { bacteria: 'cycled' });
       const { resources, environment } = seeded;
+      const { tankCapacity } = TANK;
+      const ghShort = environment.tapGh - getDgh(resources.gh, resources.water);
       const khShort = environment.tapKh - getDkh(resources.kh, resources.water);
+      const leached = (type: SubstrateType): number =>
+        getSubstrateOrganicReserve(type, tankCapacity) - cycledReserve(type, tankCapacity);
+      const gravelSpent = 5 - getDkh(cycledHardness('gravel', 5, 8, tankCapacity).kh, tankCapacity);
 
-      expect(resources.gh).toBe(cycledHardness('aqua_soil', 5, 8, TANK.tankCapacity).gh);
-      expect(khShort).toBeGreaterThan(0);
-      expect(environment.tapGh - getDgh(resources.gh, resources.water)).toBeCloseTo(khShort, 10);
+      expect(resources.gh).toBe(cycledHardness('aqua_soil', 5, 8, tankCapacity).gh);
+      expect(ghShort).toBeGreaterThan(0);
+      expect(khShort - ghShort).toBeCloseTo((gravelSpent * leached('aqua_soil')) / leached('gravel'), 10);
     });
 
     it('takes no more KH than the tap has GH to give up alongside it', () => {
-      const { kh, gh } = cycledHardness('aqua_soil', 10, 2, 100);
+      const short = (tapKh: number, tapGh: number): { kh: number; gh: number } => {
+        const { kh, gh } = cycledHardness('aqua_soil', tapKh, tapGh, 100);
+        return { kh: tapKh - getDkh(kh, 100), gh: tapGh - getDgh(gh, 100) };
+      };
+      const capped = short(10, 2);
+      const ample = short(5, 8);
 
-      expect(gh).toBe(0);
-      expect(getDkh(kh, 100)).toBeCloseTo(8, 10);
+      expect(capped.gh).toBeCloseTo(2, 10);
+      expect(capped.kh - capped.gh).toBeCloseTo(ample.kh - ample.gh, 10);
+    });
+
+    it('spends no KH the tap never brought', () => {
+      expect(cycledHardness('aqua_soil', 0, 8, 100).kh).toBe(0);
     });
 
     it('hands a soil bed part of its buffer, spent but not exhausted', () => {

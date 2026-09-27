@@ -50,7 +50,7 @@ export function LifeWidget({
     onToggle: () => navigate('/life'),
     onInspect: (row) =>
       row.kind === 'population'
-        ? onOpenReading('algae')
+        ? onOpenReading(row.key)
         : navigate({ pathname: '/life', search: `?${new globalThis.URLSearchParams({ inspect: row.key })}` }),
     onRemove: () => navigate('/life'),
     onSellFry: () => navigate('/life'),
@@ -83,7 +83,7 @@ export function LifeWidget({
       )}
       <Roster
         layout="widget"
-        rows={[...rows.fish, book.roster.algae, ...rows.plants]}
+        rows={[...rows.fish, ...book.roster.algae, ...rows.plants]}
         handlers={handlers}
       />
     </Widget>

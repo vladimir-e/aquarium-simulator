@@ -1,169 +1,191 @@
 /**
- * Algae processing — the tank-wide bloom as a pure population.
- *
- * Pipeline:
- * 1. Compute net rate via `computeAlgaePopulation` (sum benefits −
- *    sum hardened stressors).
- * 2. Fold the net rate into the surplus reserve bank via `bankSurplus`:
- *    positive net accrues (capped, photoperiod-gated), negative net drains
- *    the bank before it touches mass. Surplus is photoperiod-gated
- *    photosynthate; the bloom's positive net overnight is discarded.
- * 3. Shrink mass by the drain *overflow* — the damage the bank couldn't
- *    cover. Runs 24/7 — a hostile-environment bloom burns reserves then
- *    dies back, at night too. A well-stocked bloom shrugs off a bad tick.
- * 4. Spend surplus on mass growth via `spendAlgaeSurplus`. Drains up
- *    to `algaeGrowthPerTickCap` per tick, converted to mass through
- *    the asymptotic factor `max(0, 1 - mass/100)` — same shape as
- *    plant growth, self-limits at MASS_MAX. Photoperiod-gated.
- *
- * No condition state. Conditions favouring algae grow it; conditions
- * hostile to it shrink it. The shape mirrors the future colony
- * organisms (snails, shrimps) — populations responding to net
- * environmental pressure.
- *
- * Sequenced **after plants** in `tick.ts` so the suppression and
- * weakness factors read freshly-updated plant condition. If algae
- * ran first, plant power would be one tick stale and stressors
- * would lag behaviour by ~1 hour.
- *
- * No effect emission. Algae mass changes happen in-place on
- * `state.algae`; nothing else in the engine reads algae as a
- * resource (the plant-side `algae_shading` stressor reads
- * `state.algae.mass` directly).
+ * A bloom — plant mechanics without a position. `mass` is the share of its
+ * habitat it fills, so its tissue scales with the habitat, and its bank buys
+ * mass in proportion to the mass standing.
  */
 
-import { produce } from 'immer';
-import type { SimulationState, AlgaeState } from '../state.js';
-import type { TunableConfig } from '../config/index.js';
-import { computeAlgaePopulation, type AlgaePopulationResult } from '../systems/algae-vitality.js';
-import type { AlgaeVitalityConfig } from '../config/algae-vitality.js';
+import type { AlgaeState, Blooms } from '../state.js';
+import type { NutrientsConfig, PlantsConfig } from '../config/index.js';
+import { lightSaturationFactor } from '../core/kinetics.js';
+import { formHalfSaturations, type Feeder } from '../systems/nutrients.js';
+import type { CarbonFixer } from '../systems/photosynthesis.js';
+import {
+  bankConversion,
+  bankDraw,
+  growthTaper,
+  loseFlora,
+  metabolicRateUnits,
+  saturationIrradiance,
+  tissuePerRateUnit,
+  type FloraLoss,
+} from '../systems/flora.js';
+import { habitatSize, placeShare, type BloomLight, type HabitatPlace, type HabitatTank } from './habitat.js';
+import { ALGAE, type AlgaeKind, type AlgaeTraits } from './traits.js';
+import { EMPTY_BLOOM, mapKinds } from './blooms.js';
 
-export interface AlgaeProcessingResult {
-  /** Updated state with algae mass / surplus written. */
-  state: SimulationState;
-  /** The net rate this tick and the factors behind it. */
-  population: AlgaePopulationResult;
-  /** That net folded into the bank, before the bank spends on mass. */
-  bank: SurplusBankTick;
+/** Grams of organic matter in this much bloom, in a habitat of this size. */
+export function bloomTissue(mass: number, habitat: number, traits: AlgaeTraits): number {
+  return (mass / 100) * traits.tissueDensity * habitat;
 }
 
-const MASS_MAX = 100;
-
-/** Outcome of folding one tick's net rate into the bloom's bank. */
-export interface SurplusBankTick {
-  /** Bank after this tick, within `[0, cap]`. */
-  surplus: number;
-  /** Reserve drained to absorb damage (≥ 0). */
-  drained: number;
-  /** Damage that outran the bank and reaches mass (≥ 0). */
-  overflowDamage: number;
+/** Rate units a bloom's metabolism runs at: its tissue's, on the plants' own relation, at its growth rate. */
+export function bloomRateUnits(mass: number, habitat: number, traits: AlgaeTraits, config: PlantsConfig): number {
+  return metabolicRateUnits(bloomTissue(mass, habitat, traits) / tissuePerRateUnit(config), traits);
 }
 
-/**
- * Fold one tick's net rate into the bloom's saturating bank. Damage drains
- * the bank first and only what it couldn't cover reaches mass; benefit
- * accrues up to `cap` when `accrue` is set, discarding the rest. The bank is
- * clamped into `[0, cap]` on entry, with a negative cap read as 0.
- *
- * The bloom's own path, not the vitality model: algae keeps no condition.
- */
-export function bankSurplus(
-  bank: number,
-  net: number,
-  cap: number,
-  accrue: boolean
-): SurplusBankTick {
-  const safeCap = Math.max(0, cap);
-  const start = Math.min(safeCap, Math.max(0, bank));
-  if (net < 0) {
-    const drained = Math.min(start, -net);
-    return { surplus: start - drained, drained, overflowDamage: -net - drained };
-  }
-  if (net > 0 && accrue) {
-    return { surplus: Math.min(safeCap, start + net), drained: 0, overflowDamage: 0 };
-  }
-  return { surplus: start, drained: 0, overflowDamage: 0 };
-}
-
-/**
- * Drain up to `algaeGrowthPerTickCap` from the surplus bank and
- * convert to mass via the asymptotic factor `max(0, 1 - mass / 100)`.
- *
- * The asymptotic factor self-limits the bloom at `MASS_MAX`: it keeps
- * drawing surplus at full rate but gets less mass per unit drawn as it
- * approaches saturation. Returns the post-spend `AlgaeState`.
- *
- * Unlike a plant, which withdraws only what converts, the bloom burns
- * what it draws, so `AlgaeState.surplus` reads near zero.
- */
-export function spendAlgaeSurplus(
-  algae: AlgaeState,
-  config: AlgaeVitalityConfig
-): AlgaeState {
-  if (algae.surplus <= 0) return algae;
-  const drained = Math.min(algae.surplus, config.algaeGrowthPerTickCap);
-  const factor = Math.max(0, 1 - algae.mass / MASS_MAX);
-  const massIncrease = drained * factor * config.massPerSurplus;
+/** A bloom feeds from the water alone, on its own nitrogen and phosphorus affinities and its demand tier for the rest. */
+export function bloomFeeder(traits: AlgaeTraits, config: NutrientsConfig): Feeder {
   return {
-    ...algae,
-    mass: Math.min(MASS_MAX, algae.mass + massIncrease),
-    surplus: algae.surplus - drained,
+    halfSaturation: {
+      ...formHalfSaturations(config.demand[traits.nutrientDemand], config),
+      ammonia: traits.ammoniaHalfSaturation,
+      nitrate: traits.nitrateHalfSaturation,
+      phosphate: traits.phosphateHalfSaturation,
+    },
+    rootShare: 0,
   };
 }
 
-/**
- * Process algae for one tick. See module docstring for the
- * pipeline shape.
- *
- * @param state - Current simulation state (plants must already be
- *   updated this tick; tick.ts enforces ordering).
- * @param config - Tunable configuration.
- */
-export function processAlgae(
-  state: SimulationState,
-  config: TunableConfig
-): AlgaeProcessingResult {
-  const algaeConfig = config.algae;
-
-  const population = computeAlgaePopulation({
-    plants: state.plants,
-    resources: state.resources,
-    algaeConfig,
-  });
-
-  const photoperiodActive = state.resources.light > 0;
-
-  const bank = bankSurplus(
-    state.algae.surplus,
-    population.net,
-    algaeConfig.surplusCap,
-    photoperiodActive
-  );
-  let next: AlgaeState = { ...state.algae, surplus: bank.surplus };
-
-  if (bank.overflowDamage > 0) {
-    next = { ...next, mass: Math.max(0, next.mass - bank.overflowDamage) };
-  }
-
-  if (photoperiodActive) {
-    next = spendAlgaeSurplus(next, algaeConfig);
-  }
-
-  const newState = produce(state, (draft) => {
-    draft.algae = next;
-  });
-
-  return { state: newState, population, bank };
+export function bloomFixer(
+  bloom: AlgaeState,
+  habitat: number,
+  light: BloomLight,
+  sufficiency: number,
+  traits: AlgaeTraits,
+  config: PlantsConfig
+): CarbonFixer {
+  return {
+    metabolicRateUnits: bloomRateUnits(bloom.mass, habitat, traits, config),
+    lightResponse: lightSaturationFactor(light.par, saturationIrradiance(traits, config)),
+    sufficiency,
+    co2HalfSaturation: traits.co2HalfSaturation,
+  };
 }
 
-// Re-export the population math for tests and UI introspection.
+/** An hour's purchase at full supply: the bloom the bank grows, and the spores that land beside it. */
+export interface BloomPurchase {
+  before: AlgaeState;
+  after: AlgaeState;
+  spores: number;
+}
+
+/** Bank points that grow a bloom of `from` by `grown`: every point buys the same e-fold. */
+function bloomPrice(from: number, grown: number, traits: AlgaeTraits, config: PlantsConfig): number {
+  return from > 0 ? (100 * Math.log1p(grown / from)) / bankConversion(traits, config) : 0;
+}
+
+/**
+ * What the bank buys this hour, before the water supplies it. The plants' draw
+ * on an empty habitat, at the plants' conversion, is the bloom's rate `r`; the
+ * mass follows the logistic exactly over the hour, its odds of room to mass
+ * falling by `e^−r`: `(100 − m₁)/m₁ = e^−r·(100 − m₀)/m₀`. It closes on a full
+ * habitat without reaching it, an empty one stays empty at any rate, and the
+ * bank pays for the growth it got. Spores come through the taper at the mass
+ * that growth reaches, since their tissue is drawn beside it.
+ */
+export function purchaseBloom(bloom: AlgaeState, traits: AlgaeTraits, config: PlantsConfig): BloomPurchase {
+  const r = (bankDraw(bloom.surplus, 0, config) * bankConversion(traits, config)) / 100;
+  const room = 100 - bloom.mass;
+  const odds = Math.exp(Math.log(room) - Math.log(bloom.mass) - r);
+  const grown = (room * -Math.expm1(-r)) / (1 + odds);
+  const mass = bloom.mass + grown;
+  return {
+    before: bloom,
+    after: { ...bloom, mass, surplus: bloom.surplus - bloomPrice(bloom.mass, grown, traits, config) },
+    spores: traits.sporeRate * growthTaper(mass),
+  };
+}
+
+/** Mass a purchase asks the water to build. */
+export function massBought({ before, after, spores }: BloomPurchase): number {
+  return after.mass - before.mass + spores;
+}
+
+/** The purchase at the share of it the water supplied, the bank paying for the growth that arrived. */
+export function supplyBloom(
+  { before, after, spores }: BloomPurchase,
+  share: number,
+  traits: AlgaeTraits,
+  config: PlantsConfig
+): BloomPurchase {
+  const grown = share * (after.mass - before.mass);
+  return {
+    before,
+    after: { ...after, mass: before.mass + grown, surplus: before.surplus - bloomPrice(before.mass, grown, traits, config) },
+    spores: share * spores,
+  };
+}
+
+export function loseBloom(
+  bloom: AlgaeState,
+  habitat: number,
+  traits: AlgaeTraits,
+  config: PlantsConfig
+): FloraLoss<AlgaeState> {
+  return loseFlora(bloom, 'mass', (mass) => bloomTissue(mass, habitat, traits), config);
+}
+
+/**
+ * Spores are the bloom's offshoots: they arrive at condition 100 with an empty
+ * bank and join the bloom by mass, diluting its deficit and its bank alike. On
+ * a bloom that died back, or on an empty one, what stands is only what landed.
+ */
+export function landSpores(bloom: AlgaeState | null, spores: number): AlgaeState {
+  const standing = bloom ?? EMPTY_BLOOM;
+  const mass = standing.mass + spores;
+  const kept = mass > 0 ? standing.mass / mass : 0;
+  return { mass, condition: 100 - (100 - standing.condition) * kept, surplus: standing.surplus * kept };
+}
+
+/**
+ * Each bloom on a habitat that changed size, its tissue kept: new habitat
+ * comes in bare and dilutes the coverage, and habitat taken out takes its
+ * share of the bloom with it, the coverage left as it was.
+ */
+export function resettle(blooms: Blooms, before: HabitatTank, after: HabitatTank): Blooms {
+  return mapKinds((kind) => {
+    const { habitat } = ALGAE[kind];
+    const grown = habitatSize(habitat, after) / habitatSize(habitat, before);
+    return grown > 1 ? { ...blooms[kind], mass: blooms[kind].mass / grown } : blooms[kind];
+  });
+}
+
+/** Each kind's coverage at a place: its mass times the share of its habitat that lies there. */
+export function coverageAt(blooms: Blooms, place: HabitatPlace, tank: HabitatTank): Record<AlgaeKind, number> {
+  return mapKinds((kind) => blooms[kind].mass * placeShare(ALGAE[kind].habitat, place, tank));
+}
+
+/**
+ * Each bloom with a place laid bare: its coverage there taken out, the tissue
+ * the rest of its habitat holds kept. Coverage is one figure over the habitat,
+ * so what is left spreads over the bare place at once.
+ */
+export function clearPlace(blooms: Blooms, place: HabitatPlace, tank: HabitatTank): Blooms {
+  const cleared = coverageAt(blooms, place, tank);
+  return mapKinds((kind) => ({ ...blooms[kind], mass: blooms[kind].mass - cleared[kind] }));
+}
+
+export { ALGAE, ALGAE_KINDS } from './traits.js';
+export { EMPTY_BLOOM, emptyBlooms, isAlgaeKind, mapKinds } from './blooms.js';
+export type { AlgaeHabitat, AlgaeKind, AlgaeTraits } from './traits.js';
 export {
-  computeAlgaePopulation,
+  bloomLight,
+  columnGain,
+  habitatGain,
+  habitatPlaces,
+  habitatSize,
+  namePlaces,
+  placesKept,
+  placeShare,
+  REMOVED_BY,
+} from './habitat.js';
+export type { BloomLight, BloomRemoval, HabitatPlace, HabitatTank } from './habitat.js';
+export { bloomPass, columnPass, lightLoss, waterExtinction } from './light-loss.js';
+export type { BloomLightLoss, LightLoss } from './light-loss.js';
+export {
+  computeAlgaeVitality,
   buildAlgaeStressors,
   buildAlgaeBenefits,
+  thrivingPlantDensity,
 } from '../systems/algae-vitality.js';
-export type {
-  AlgaeVitalityContext,
-  AlgaePopulationResult,
-  AlgaePopulationBreakdown,
-} from '../systems/algae-vitality.js';
+export type { AlgaeVitalityContext } from '../systems/algae-vitality.js';

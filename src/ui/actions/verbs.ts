@@ -2,37 +2,42 @@
  * The seven husbandry verbs in one shape: a master row, an option row, a
  * preview and a commit. Every option set is the engine's own
  * (`WATER_CHANGE_AMOUNTS`, `MAX_ROOT_TABS`, `TRIM_TARGETS`) and every refusal
- * is an engine guard (`canDose`, `canRootTab`, `canScrubAlgae`,
- * `getPlantsToTrimCount`), stated where the verb would otherwise say what it
- * is about to do — so an unavailable verb is never a dead end.
+ * is an engine guard (`canDose`, `canRootTab`, `getPlantsToTrimCount`), or a
+ * display gate on the reading the verb acts on — the coverage of each bloom
+ * whose habitat reaches the glass — stated where the verb would otherwise say
+ * what it is about to do, so an unavailable verb is never a dead end.
  */
 
 import {
+  ALGAE,
+  ALGAE_KINDS,
   applyAction,
   canDose,
   canRootTab,
-  canScrubAlgae,
+  coverage,
   getPlantsToTrimCount,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
-  MAX_SCRUB_PERCENT,
-  MIN_ALGAE_TO_SCRUB,
-  MIN_SCRUB_PERCENT,
+  placeShare,
   PLANT_SPECIES_DATA,
   WATER_CHANGE_AMOUNTS,
   type Action,
+  type AlgaeKind,
   type SimulationState,
 } from '../../simulation/index.js';
+import { namePlaces, placesKept } from '../../simulation/algae/index.js';
 import { FoodResource, getPpm, NitrateResource } from '../../simulation/resources/index.js';
 import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
 import {
   bedReading,
+  bloomVerb,
   doseToCover,
   nutrientReadings,
   plantLabels,
+  printsAsZero,
   TRIM_TARGETS,
 } from '../run';
-import { formatVolume, type UnitSystem } from '../utils/units.js';
+import { COVERAGE_DECIMALS, formatVolume, logQuantityIn, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
 
 export type VerbId =
@@ -49,7 +54,7 @@ export type SettableVerb = Extract<VerbId, 'feed' | 'waterChange' | 'dose' | 'ro
 
 export type VerbSettings = Record<SettableVerb, number>;
 
-/** Top-off refills to capacity and a scrub is a roll: neither takes an amount. */
+/** Top-off refills to capacity and a scrub clears the glass: neither takes an amount. */
 export function isSettable(id: VerbId): id is SettableVerb {
   return id !== 'topOff' && id !== 'scrubAlgae';
 }
@@ -138,7 +143,7 @@ function reached(state: SimulationState, scope: VerbScope | null): SimulationSta
   return { ...state, plants: state.plants.filter((plant) => plant.familyId === scope.familyId) };
 }
 
-/** The action a commit dispatches. Scrub takes no seed — the engine rolls it. */
+/** The action a commit dispatches. */
 export function verbAction(
   id: VerbId,
   settings: VerbSettings,
@@ -164,25 +169,6 @@ export function verbAction(
     case 'scrubAlgae':
       return { type: 'scrubAlgae' };
   }
-}
-
-/**
- * The states a commit could land in. Scrub returns both ends of the engine's
- * 10–30 % roll so the preview can show the range it actually spans.
- */
-function outcomes(
-  state: SimulationState,
-  id: VerbId,
-  settings: VerbSettings,
-  config: TunableConfig,
-  scope: VerbScope | null
-): SimulationState[] {
-  if (id === 'scrubAlgae') {
-    return [MIN_SCRUB_PERCENT, MAX_SCRUB_PERCENT].map(
-      (randomPercent) => applyAction(state, { type: 'scrubAlgae', randomPercent }, config).state
-    );
-  }
-  return [applyAction(state, verbAction(id, settings, scope), config).state];
 }
 
 function headroom(state: SimulationState): number {
@@ -244,10 +230,22 @@ function blockedReason(
         ? null
         : `nothing above ${settings.trimPlants} %`;
     case 'scrubAlgae':
-      return canScrubAlgae(state)
+      return glassKinds(state).some((kind) => !printsAsZero(state.algae[kind].mass, COVERAGE_DECIMALS))
         ? null
-        : `needs ${MIN_ALGAE_TO_SCRUB} % algae, now ${Math.floor(state.algae.mass)} %`;
+        : 'the glass is clean';
   }
+}
+
+/** The kinds whose habitat reaches the glass. */
+function glassKinds(state: SimulationState): AlgaeKind[] {
+  return ALGAE_KINDS.filter((kind) => placeShare(ALGAE[kind].habitat, 'walls', state) > 0);
+}
+
+/** Each kind a scrub reaches, named, with its coverage. */
+function onSurfaces(state: SimulationState, units: UnitSystem): string {
+  return glassKinds(state)
+    .map((kind) => `${ALGAE[kind].name.toLowerCase()} ${logQuantityIn(units)(coverage(state.algae[kind].mass))}`)
+    .join(' · ');
 }
 
 /** The number the verb acts on — its setting when it has one, its reading when it does not. */
@@ -271,7 +269,9 @@ function rowValue(
     case 'trimPlants':
       return `to ${settings.trimPlants} %`;
     case 'scrubAlgae':
-      return `${Math.round(state.algae.mass)} %`;
+      return glassKinds(state)
+        .map((kind) => logQuantityIn(units)(coverage(state.algae[kind].mass)))
+        .join(' · ');
   }
 }
 
@@ -503,7 +503,7 @@ function meta(
         : line;
     }
     case 'scrubAlgae':
-      return `algae ${Math.round(state.algae.mass)} %`;
+      return onSurfaces(state, units);
   }
 }
 
@@ -511,10 +511,22 @@ function meta(
  * Prose in the chip row's slot for the two bare verbs, so the settings step is
  * an honest statement rather than an empty panel.
  */
-const BARE_NOTE: Partial<Record<VerbId, string>> = {
-  topOff:
+const BARE_NOTE: Partial<Record<VerbId, (state: SimulationState) => string>> = {
+  topOff: () =>
     'No amount to set — top-off refills to capacity at the tank’s own temperature. The tap’s KH and GH come with it, everything else dissolved is diluted, and pH follows the CO₂ and KH that leaves.',
-  scrubAlgae: `No amount to set — a scrub takes a random ${Math.round(MIN_SCRUB_PERCENT * 100)}–${Math.round(MAX_SCRUB_PERCENT * 100)} % of standing algae. What comes off leaves the system; it does not become waste.`,
+  scrubAlgae: (state) => {
+    const onGlass = glassKinds(state);
+    return [
+      'No amount to set — a scrub clears the glass.',
+      ...ALGAE_KINDS.map((kind) => {
+        const { habitat, name } = ALGAE[kind];
+        return onGlass.includes(kind)
+          ? `${name} on the glass comes off; what coats ${namePlaces(placesKept(habitat, 'walls', state))} stays, and spreads back over the glass at once.`
+          : `${name} is not on the glass — a ${VERB[bloomVerb(kind)].name.toLowerCase()} takes it.`;
+      }),
+      'What comes off is loose in the water as waste: it rots there, and a gravel vac takes it once it settles.',
+    ].join(' ');
+  },
 };
 
 function commitLabel(
@@ -608,10 +620,10 @@ export function verbDetail(
     meta: meta(state, id, settings, units, config, scope),
     setting,
     options: setting === null ? [] : rungs(state, setting, units, config, scope),
-    note: BARE_NOTE[id] ?? null,
+    note: BARE_NOTE[id]?.(state) ?? null,
     preview: previewRows({
       before: state,
-      outcomes: outcomes(state, id, settings, config, scope),
+      after: applyAction(state, verbAction(id, settings, scope), config).state,
       config,
       units,
     }),

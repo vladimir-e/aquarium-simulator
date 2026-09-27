@@ -8,8 +8,11 @@ import {
 import { PERSISTENCE_VERSION } from './types.js';
 import {
   DEFAULT_CONFIG,
+  MAX_ALGAE_ATTENUATION_PER_GRAM,
   MAX_LEAF_ATTENUATION_PER_LAI,
+  MAX_SIZE_PER_SURPLUS,
   MAX_SUFFICIENCY_EDGE,
+  MAX_SURPLUS_CAP,
   MAX_WATER_ATTENUATION_PER_CM,
 } from '../../simulation/config/index.js';
 import {
@@ -160,6 +163,18 @@ describe('TunableConfigSchema', () => {
     expect(leaves(MAX_LEAF_ATTENUATION_PER_LAI + 1)).toBe(false);
   });
 
+  it('takes blooms that shade nothing, and refuses blooms that make light or take past the ceiling', () => {
+    const blooms = (algaeAttenuationPerGram: number): boolean =>
+      TunableConfigSchema.safeParse({
+        ...DEFAULT_CONFIG,
+        optics: { ...DEFAULT_CONFIG.optics, algaeAttenuationPerGram },
+      }).success;
+    expect(blooms(0)).toBe(true);
+    expect(blooms(MAX_ALGAE_ATTENUATION_PER_GRAM)).toBe(true);
+    expect(blooms(-1)).toBe(false);
+    expect(blooms(MAX_ALGAE_ATTENUATION_PER_GRAM + 1)).toBe(false);
+  });
+
   it('takes a sufficiency edge up to its ceiling, and refuses the 1 a Monod share never reaches', () => {
     const edge = (sufficiencyEdge: number): boolean =>
       TunableConfigSchema.safeParse({
@@ -170,6 +185,38 @@ describe('TunableConfigSchema', () => {
     expect(edge(MAX_SUFFICIENCY_EDGE)).toBe(true);
     expect(edge(1)).toBe(false);
     expect(edge(-0.1)).toBe(false);
+  });
+
+  const plants = (overrides: Partial<typeof DEFAULT_CONFIG.plants>): boolean =>
+    TunableConfigSchema.safeParse({ ...DEFAULT_CONFIG, plants: { ...DEFAULT_CONFIG.plants, ...overrides } }).success;
+  const livestock = (overrides: Partial<typeof DEFAULT_CONFIG.livestock>): boolean =>
+    TunableConfigSchema.safeParse({ ...DEFAULT_CONFIG, livestock: { ...DEFAULT_CONFIG.livestock, ...overrides } }).success;
+
+  it('takes any draw rate from 0, since a first-order draw never takes more than the bank', () => {
+    expect(plants({ growthDrawRate: 0, healingDrawRate: 0 })).toBe(true);
+    expect(plants({ growthDrawRate: 50, healingDrawRate: 50 })).toBe(true);
+    expect(livestock({ healingDrawRate: 0 })).toBe(true);
+  });
+
+  it('refuses a negative draw rate, which runs the bank backwards: healing overfills it and drains condition', () => {
+    expect(plants({ growthDrawRate: -0.01 })).toBe(false);
+    expect(plants({ healingDrawRate: -0.01 })).toBe(false);
+    expect(livestock({ healingDrawRate: -0.01 })).toBe(false);
+  });
+
+  it('takes a bank cap from 0 up to the whole condition scale, and refuses one past it', () => {
+    expect(plants({ surplusCap: 0 })).toBe(true);
+    expect(plants({ surplusCap: MAX_SURPLUS_CAP })).toBe(true);
+    expect(livestock({ surplusCap: MAX_SURPLUS_CAP })).toBe(true);
+    expect(plants({ surplusCap: -1 })).toBe(false);
+    expect(plants({ surplusCap: MAX_SURPLUS_CAP + 1 })).toBe(false);
+    expect(livestock({ surplusCap: MAX_SURPLUS_CAP + 1 })).toBe(false);
+  });
+
+  it('takes a bank point that buys something up to its ceiling, and refuses one that buys nothing or past it', () => {
+    expect(plants({ sizePerSurplus: MAX_SIZE_PER_SURPLUS })).toBe(true);
+    expect(plants({ sizePerSurplus: 0 })).toBe(false);
+    expect(plants({ sizePerSurplus: MAX_SIZE_PER_SURPLUS * 2 })).toBe(false);
   });
 
   it('refuses a species demand of nothing, which no plant has', () => {
@@ -246,11 +293,12 @@ describe('PersistedSimulationSchema', () => {
     plants: [],
     fish: [],
     clutches: [],
-    algae: { mass: 0, surplus: 0 },
+    algae: { greenWater: { mass: 0, condition: 100, surplus: 0 }, film: { mass: 0, condition: 100, surplus: 0 } },
     rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,
-      highAlgae: false,
+      greenWater: false,
+      film: false,
       highAmmonia: false,
       highNitrite: false,
       highNitrate: false,
@@ -576,11 +624,12 @@ describe('PersistedStateSchema', () => {
     plants: [],
     fish: [],
     clutches: [],
-    algae: { mass: 0, surplus: 0 },
+    algae: { greenWater: { mass: 0, condition: 100, surplus: 0 }, film: { mass: 0, condition: 100, surplus: 0 } },
     rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,
-      highAlgae: false,
+      greenWater: false,
+      film: false,
       highAmmonia: false,
       highNitrite: false,
       highNitrate: false,

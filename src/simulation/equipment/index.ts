@@ -5,7 +5,7 @@
 import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
-import { calculateTankHeight, calculateTankGlassSurface } from '../state.js';
+import { calculateTankHeight, calculateTankGlassSurface } from '../core/geometry.js';
 import { type OpticsConfig, type TunableConfig } from '../config/index.js';
 import {
   heaterUpdate,
@@ -13,6 +13,7 @@ import {
   calculateHeatingRate,
   HEATER_WATTAGE_OPTIONS,
 } from './heater.js';
+import { clearPlace, resettle, waterExtinction } from '../algae/index.js';
 import { atoUpdate } from './ato.js';
 import { getFilterSurface, getFilterFlow, isFilterAirDriven, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_TYPES, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN } from './filter.js';
 import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH, POWERHEAD_FLOW_RATES } from './powerhead.js';
@@ -240,7 +241,8 @@ export function calculateSurface(state: SimulationState): number {
  *
  * Light sources:
  * - Light fixture (when enabled and schedule active), rated at the water
- *   surface and attenuated down the column to the substrate
+ *   surface and attenuated down the column to the substrate by the water and
+ *   the blooms suspended in it
  *
  * Aeration sources:
  * - Air pump (when enabled)
@@ -271,7 +273,7 @@ export function calculatePassiveResources(
   const light = calculateParAtDepth(
     getLightOutput(equipment.light, hourOfDay),
     calculateTankHeight(tank.capacity),
-    optics
+    waterExtinction(state.algae, optics)
   );
 
   // Aeration: active if air pump is on OR filter is air-driven (sponge)
@@ -279,6 +281,40 @@ export function calculatePassiveResources(
   const aeration = equipment.airPump.enabled || filterAerates;
 
   return { surface, flow, light, aeration };
+}
+
+/** The light history of a tank that has run its fixture's schedule all along, through its water as it stands. */
+export function scheduledLightHistory(
+  state: Pick<SimulationState, 'tank' | 'equipment' | 'algae'>,
+  optics: OpticsConfig
+): number[] {
+  return scheduledLightByHour(
+    state.equipment.light,
+    calculateTankHeight(state.tank.capacity),
+    waterExtinction(state.algae, optics)
+  );
+}
+
+/**
+ * Write the passive readings off the tank as it stands, at its hour. At hour
+ * zero the tank has lived no day yet, so its light history is the schedule it
+ * was lit to; past it, the history is the hours the tick recorded.
+ */
+export function writePassiveResources(draft: SimulationState, optics: OpticsConfig): void {
+  const passive = calculatePassiveResources(draft, optics);
+  draft.resources.surface = passive.surface;
+  draft.resources.flow = passive.flow;
+  draft.resources.light = passive.light;
+  draft.resources.aeration = passive.aeration;
+  if (draft.tick !== 0) return;
+  scheduledLightHistory(draft, optics).forEach((par, hour) => {
+    draft.resources.lightByHour[hour] = par;
+  });
+}
+
+/** The tank with its passive readings settled under `optics`: the same state when none moved. */
+export function settlePassiveResources(state: SimulationState, optics: OpticsConfig): SimulationState {
+  return produce(state, (draft) => writePassiveResources(draft, optics));
 }
 
 /**
@@ -301,8 +337,9 @@ export function biofilmKept(state: SimulationState): number {
 }
 
 /**
- * Pull the bed out and lay a different one in its place, and the biofilm that
- * lived on it goes out with it.
+ * Pull the bed out and lay a different one in its place: the biofilm that
+ * lived on it and the film on the floor go out with it, and the new bed
+ * arrives sterile and bare.
  *
  * Returns the same state when the bed is already of that type.
  */
@@ -318,6 +355,7 @@ export function rescape(state: SimulationState, type: SubstrateType): Simulation
     draft.resources.aob *= kept;
     draft.resources.nob *= kept;
     draft.resources.surface = calculateSurface(draft);
+    draft.algae = clearPlace(state.algae, 'floor', state);
   });
 }
 
@@ -340,7 +378,11 @@ export function disturbBed(draft: SimulationState, share: number): void {
   draft.resources.nob *= kept;
 }
 
-/** Set a piece on the bed. It arrives sterile, and a tank with no slot left refuses it. */
+/**
+ * Set a piece on the bed. It arrives sterile and bare, so a bloom on the
+ * surfaces keeps its tissue over more of them, and a tank with no slot left
+ * refuses it.
+ */
 export function placeHardscape(state: SimulationState, item: HardscapeItem): SimulationState {
   if (!checkHardscapeCapacity(state.equipment.hardscape.items, state.tank.hardscapeSlots).ok) {
     return state;
@@ -348,12 +390,13 @@ export function placeHardscape(state: SimulationState, item: HardscapeItem): Sim
   return produce(state, (draft) => {
     draft.equipment.hardscape.items.push(item);
     draft.resources.surface = calculateSurface(draft);
+    draft.algae = resettle(state.algae, state, draft);
   });
 }
 
 /**
- * Lift pieces out: the biofilm on them leaves with them, and the patches of
- * bed they sat on — one slot's share each — are disturbed together.
+ * Lift pieces out: the biofilm and the film on them leave with them, and the
+ * patches of bed they sat on — one slot's share each — are disturbed together.
  *
  * Returns the same state when no piece has any of those ids.
  */
@@ -387,5 +430,6 @@ export function resetHardscape(state: SimulationState): SimulationState {
   return produce(lifted, (draft) => {
     draft.equipment.hardscape.items = items.map((i) => createHardscapeItem(i.id, i.type));
     draft.resources.surface = calculateSurface(draft);
+    draft.algae = resettle(lifted.algae, lifted, draft);
   });
 }

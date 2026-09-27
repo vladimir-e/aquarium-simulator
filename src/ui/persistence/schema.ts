@@ -4,11 +4,15 @@
  */
 
 import { z } from 'zod';
-import { MAX_DOSE_ML, MAX_LIGHT_PAR, MAX_ROOT_TABS, VIGOUR_SPAN } from '../../simulation/index.js';
+import { MAX_DOSE_ML, MAX_LIGHT_PAR, MAX_ROOT_TABS, VIGOUR_SPAN, mapKinds } from '../../simulation/index.js';
 import {
+  MAX_ALGAE_ATTENUATION_PER_GRAM,
   MAX_LEAF_ATTENUATION_PER_LAI,
+  MAX_SIZE_PER_SURPLUS,
   MAX_SUFFICIENCY_EDGE,
+  MAX_SURPLUS_CAP,
   MAX_WATER_ATTENUATION_PER_CM,
+  NUTRIENT_FORMS,
   NUTRIENTS,
   WASTE_NUTRIENTS,
 } from '../../simulation/config/index.js';
@@ -83,9 +87,12 @@ const ResourcesSchema = z
 const AlgaeStateSchema = z
   .object({
     mass: z.number().min(0).max(100),
+    condition: z.number().min(0).max(100),
     surplus: z.number().min(0),
   })
   .strict();
+
+const BloomsSchema = z.object(mapKinds(() => AlgaeStateSchema)).strict();
 
 // ============================================================================
 // Environment Schema
@@ -281,7 +288,7 @@ const RngStateSchema = z
 const AlertStateSchema = z
   .object({
     waterLevelCritical: z.boolean(),
-    highAlgae: z.boolean(),
+    ...mapKinds(() => z.boolean()),
     highAmmonia: z.boolean(),
     highNitrite: z.boolean(),
     highNitrate: z.boolean(),
@@ -334,7 +341,7 @@ export const PersistedSimulationSchema = z
     plants: z.array(PlantSchema),
     fish: z.array(FishSchema),
     clutches: z.array(ClutchSchema),
-    algae: AlgaeStateSchema,
+    algae: BloomsSchema,
     rng: RngStateSchema,
     alertState: AlertStateSchema,
     seed: TankSeedSchema.optional(),
@@ -412,24 +419,7 @@ const EvaporationConfigSchema = z
 
 const AlgaeConfigSchema = z
   .object({
-    hardiness: z.number(),
-    suppressionThreshold: z.number(),
-    plantSuppressionSeverity: z.number(),
-    lightExcessThreshold: z.number(),
-    excessLightPeak: z.number(),
-    excessLightSeverity: z.number(),
-    excessNutrientPeak: z.number(),
-    excessNutrientSeverity: z.number(),
-    referenceNitratePpm: z.number(),
-    referencePhosphatePpm: z.number(),
-    nutrientDeficiencyPeak: z.number(),
-    nutrientDeficiencySeverity: z.number(),
-    weaknessThreshold: z.number(),
-    lowPlantPowerPeak: z.number(),
-    lowPlantPowerSeverity: z.number(),
-    algaeGrowthPerTickCap: z.number(),
-    massPerSurplus: z.number(),
-    surplusCap: z.number().min(0),
+    allelopathySeverity: z.number(),
   })
   .strict();
 
@@ -437,6 +427,7 @@ const OpticsConfigSchema = z
   .object({
     waterAttenuationPerCm: z.number().min(0).max(MAX_WATER_ATTENUATION_PER_CM),
     leafAttenuationPerLai: z.number().min(0).max(MAX_LEAF_ATTENUATION_PER_LAI),
+    algaeAttenuationPerGram: z.number().min(0).max(MAX_ALGAE_ATTENUATION_PER_GRAM),
   })
   .strict();
 
@@ -460,10 +451,10 @@ const PlantsConfigSchema = z
     respirationReferenceTemp: z.number(),
     respirationOxygenHalfSaturation: z.number(),
     co2PerRateUnit: z.number(),
-    growthDrawRate: z.number(),
-    healingDrawRate: z.number(),
-    sizePerSurplus: z.number(),
-    surplusCap: z.number().min(0),
+    growthDrawRate: z.number().min(0),
+    healingDrawRate: z.number().min(0),
+    sizePerSurplus: z.number().positive().max(MAX_SIZE_PER_SURPLUS),
+    surplusCap: z.number().min(0).max(MAX_SURPLUS_CAP),
     // Vitality stressor severities
     lightStarvationSeverity: z.number(),
     lightExcessiveSeverity: z.number(),
@@ -474,8 +465,6 @@ const PlantsConfigSchema = z
     sufficiencyEdge: z.number().min(0).max(MAX_SUFFICIENCY_EDGE),
     nitrateStressSeverity: z.number(),
     nitrateEdge: z.number(),
-    algaeShadingSeverity: z.number(),
-    algaeShadingThreshold: z.number(),
     // Vitality benefit peaks
     co2BenefitPeak: z.number(),
     temperatureBenefitPeak: z.number(),
@@ -492,7 +481,7 @@ const NutrientsConfigSchema = z
     fertilizerFormula: NutrientVectorSchema,
     rootTab: NutrientVectorSchema,
     bedLeakRate: z.number(),
-    halfSaturation: NutrientVectorSchema,
+    halfSaturation: numbersFor(NUTRIENT_FORMS),
     demand: z
       .object({ low: DemandVectorSchema, medium: DemandVectorSchema, high: DemandVectorSchema })
       .strict(),
@@ -532,8 +521,8 @@ const LivestockConfigSchema = z
     oxygenBenefitPeak: z.number(),
     plantBenefitPeak: z.number(),
     plantBenefitSaturationPoint: z.number(),
-    surplusCap: z.number().min(0),
-    healingDrawRate: z.number(),
+    surplusCap: z.number().min(0).max(MAX_SURPLUS_CAP),
+    healingDrawRate: z.number().min(0),
     deathDecayFactor: z.number(),
   })
   .strict();

@@ -11,6 +11,11 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Actions settle the passive readings** (#73) - a verb re-reads light, flow, surface and aeration off the tank it leaves, and hosts settle after writing equipment or optics; breaking: `settlePassiveResources` replaces `relight`.
+- **Nitrogen moves KH by its charge** (#73) - minted ammonia takes up a proton, so the cycle drains KH half as fast, and a cycled seed's KH pays for its nitrate while it lasts.
+- **Flora take ammonia before nitrate** (#73) - plants and the blooms take their nitrogen as ammonia before nitrate, moving KH as they do; breaking: pools and `halfSaturation` are per form, `formShares` replaces `nutrientShares` (v33).
+- **A plant lives at the rate it grows** (#73) - its leaf fixes, respires and starves at its growth rate, so a carpet melts in a blackout an anubias rides out.
+- **Algae is a plant without a position** (#73) - green water and film grow on the plants' law, take their light and die back into waste; breaking: `state.algae` holds a bloom per kind (`Blooms`), `scrubAlgae(state)` takes no amount and `canScrubAlgae` is gone, `processFlora` replaces `processPlants`/`processAlgae`, `bloomAlerts` replace `highAlgaeAlert` (v33).
 - **The bed is a nutrient store** (#71) - aqua soil comes charged, root tabs refill any bed and it leaks into the water; swords and carpets feed partly through their roots, a cycled tank's water holds what its bed leaked, and the console reads the bed in tabs beside a Root tab verb; breaking: no `substrateRequirement`/`isSubstrateCompatible`/`getSubstrateIncompatibilityReason`, `Substrate` gains `nutrients`, `calculateNutrientSufficiency` takes pools, `cycledWaterNutrients` replaces `cycledNitrate` (v32).
 - **A plant is made of its nutrients** (#71) - growth draws its tissue's N, P, K and Fe from the water and the bed, and shedding and death return them; breaking: no `uptakePerRateUnit`, `tissuePerSize` replaces `wastePerSize`, `calculatePhotosynthesis` moves gases only (v32).
 - **A plant dies only at condition 0** (#71) - a shrunken plant lives while it has condition, and every planting, trim and seed runs from `MIN_PLANTABLE_SIZE` to 100; breaking: no `deathSizeThreshold`, `addPlant`/`trimPlants`/`canTrimPlants` take no config, `createSimulation` refuses an unplantable seed size (v32).

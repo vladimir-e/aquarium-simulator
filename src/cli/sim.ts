@@ -6,8 +6,13 @@
  * engine, persists the updated session, and prints the result.
  */
 
-import { tick, applyAction, type Action, type SimulationState } from '../simulation/index.js';
-import { relight } from '../simulation/state.js';
+import {
+  tick,
+  applyAction,
+  settlePassiveResources,
+  type Action,
+  type SimulationState,
+} from '../simulation/index.js';
 import { DEFAULT_CONFIG } from '../simulation/config/index.js';
 import {
   createPresetSimulation,
@@ -92,11 +97,12 @@ function applyAndRecord(session: Session, action: Action): { session: Session; m
   return { session: withState(session, state), message };
 }
 
-/** The session with one config leaf set; a tank still at hour zero is relit under the optics it will run on. */
+/** The session with one config leaf set, its passive readings settled under the config it will run on. */
 export function configureSession(session: Session, path: string, rawValue: string): Session {
   const config = applyConfigSet(session.config, path, rawValue);
   const configured = { ...session, config };
-  return session.state.tick === 0 ? withState(configured, relight(session.state, config.optics)) : configured;
+  const settled = settlePassiveResources(session.state, config.optics);
+  return settled === session.state ? configured : withState(configured, settled);
 }
 
 function getByPath(obj: unknown, path: string[]): unknown {
@@ -149,17 +155,8 @@ export function buildAction(type: string, args: string[]): Action {
       }
       return { type: 'rootTab', count };
     }
-    case 'scrubAlgae': {
-      const raw = args[0];
-      if (!raw) return { type: 'scrubAlgae' };
-      let pct = Number(raw);
-      if (!Number.isFinite(pct) || pct <= 0) {
-        throw new Error('scrubAlgae percent must be a positive number.');
-      }
-      if (pct > 1) pct = pct / 100;
-      pct = Math.min(0.3, Math.max(0.1, pct));
-      return { type: 'scrubAlgae', randomPercent: pct };
-    }
+    case 'scrubAlgae':
+      return { type: 'scrubAlgae' };
     case 'trimPlants': {
       return { type: 'trimPlants', targetSize: Number(args[0] ?? '85') };
     }
@@ -228,7 +225,7 @@ function printHelp(): void {
       '  config get [<dotted.path>]',
       '  config set <dotted.path> <value>',
       '  action <type> [args...]   (feed 2.5, waterChange 40, dose 1, rootTab 2,',
-      '                             topOff, scrubAlgae 20, trimPlants 85, sellFry)',
+      '                             topOff, scrubAlgae, trimPlants 85, sellFry)',
       '  smoke',
       '  scenarios [<setup>...] [--days=<n>] [--json[=<file>]] [--diff=<file>] [--trace=<day>] [--bands]',
       '      [--plant=<species>:<n>[:<size>]] [--fish=<species>:<n>] [--light=<factor>]',

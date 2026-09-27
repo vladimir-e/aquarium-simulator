@@ -17,6 +17,7 @@ import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
 import { ammoniaPerGramOfFood } from '../config/livestock.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { getPpm } from '../resources/index.js';
+import { mintAmmonia } from './nitrogen-cycle.js';
 
 /**
  * Calculate temperature factor for decay rate using Q10 coefficient.
@@ -94,12 +95,7 @@ export const decaySystem: System = {
         });
 
         const oxidizedAmount = decayAmount * (1 - decayConfig.wasteConversionRatio);
-        effects.push({
-          tier: 'passive',
-          resource: 'ammonia',
-          delta: oxidizedAmount * ammoniaPerGramOfFood(config.livestock),
-          source: 'decay',
-        });
+        effects.push(...mintAmmonia(oxidizedAmount * ammoniaPerGramOfFood(config.livestock), 'passive', 'decay'));
         for (const nutrient of WASTE_NUTRIENTS) {
           effects.push({
             tier: 'passive',

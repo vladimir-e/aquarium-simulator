@@ -6,17 +6,28 @@
  */
 
 import {
+  ALGAE,
+  ALGAE_KINDS,
   PLANT_SPECIES_DATA,
+  plantLightTaken,
+  REMOVED_BY,
+  type AlgaeHabitat,
+  type AlgaeKind,
+  type BloomRemoval,
+  type Light,
+  type LightPath,
   type SimulationState,
   type VitalityFactor,
 } from '../../simulation/index.js';
-import { algaeAlertLine } from '../../simulation/alerts/index.js';
+import { habitatPlaces, namePlaces } from '../../simulation/algae/index.js';
+import { BLOOM_COVERAGE_LINE, PLANT_LIGHT_LINE } from '../../simulation/alerts/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { VerbId, VerbScope } from '../actions/verbs.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
+import { COVERAGE_DECIMALS } from '../utils/units.js';
 import type { HourAhead } from './ahead.js';
-import { algaeReading, plantLabels, sharePercent, unitTitle } from './flora.js';
-import { crownBurns, plantLightStatus } from './light.js';
+import { algaeReading, lightTakenStatus, plantLabels, sharePercent, unitTitle } from './flora.js';
+import { crownBurns, lightStatus, plantLightStatus } from './light.js';
 import { fishNumbers, fishReading, fishSatiation, fishTitle, type Satiation } from './livestock.js';
 import { CONDITION_BAND, type SpeciesId } from './roster.js';
 import {
@@ -29,11 +40,11 @@ import {
 } from './status.js';
 import type { ReadingBand } from './water.js';
 
-/** What the ledger is open on. Algae is a population, so it carries no id. */
+/** What the ledger is open on. A bloom is a population, so it carries its kind rather than an id. */
 export type LedgerTarget =
   | { kind: 'fish'; id: string }
   | { kind: 'plant'; id: string }
-  | { kind: 'algae' };
+  | { kind: 'algae'; bloom: AlgaeKind };
 
 /** One line of the ledger: a factor, at the rate the reader's day is measured in. */
 export interface LedgerFactor {
@@ -53,30 +64,42 @@ export interface LedgerBank {
   note: string;
 }
 
-/** A plant's day of light at its own height, against what its species starves under. */
-export interface LedgerLight {
-  /** % of that need. */
+/** One taker on the light's way from the lamp to a leaf: what it did to what reached it, %. */
+export interface LightStep {
+  key: string;
+  label: string;
+  /** Signed: a taker takes, and a crown sparser than a full unit's gives. */
+  change: number;
+}
+
+/** What the lamp lands on a plant's leaf, and what took the rest on the way. */
+export interface LightPathView {
+  heading: string;
+  steps: LightStep[];
+}
+
+/** A reading beside the hero figure: an organism's day of light, or a bloom's coverage. */
+export interface LedgerRow {
   text: string;
   at: number;
   band: ReadingBand;
   status: Status;
-  /** How tall it stands — the height the light is read at. */
+  /** Where it is read, or which way it is going. */
   note: string;
 }
 
-/** The light track runs to twice the need, so the need sits mid-track. */
 const LIGHT_SCALE = 2;
 
 export interface Ledger {
   target: LedgerTarget;
-  species: SpeciesId | 'algae';
+  species: SpeciesId | AlgaeKind;
   title: string;
   /** Which individual this is, when the group chose it. */
   subtitle: string;
   /** The worst channel: what the header word says. */
   status: Status;
   word: string;
-  /** The hero figure: condition for an organism, coverage for the algae. */
+  /** The hero figure: condition. */
   value: string;
   /** How the hero figure itself reads — a fed-up fish at full condition is ink. */
   valueStatus: Status;
@@ -86,17 +109,24 @@ export interface Ledger {
   /** What the next tick does to the hero figure, per day. */
   trend: string;
   satiation: Satiation | null;
-  light: LedgerLight | null;
+  /** The day's light against what the organism starves under, % of that need. */
+  light: LedgerRow | null;
+  /** A plant's light from the lamp to its leaf. */
+  lightPath: LightPathView | null;
+  /** How much of its habitat a bloom fills, %. */
+  coverage: LedgerRow | null;
+  /** The share of the plants' light a bloom takes, % — while anything is planted. */
+  lightTaken: LedgerRow | null;
   helping: LedgerFactor[];
   hurting: LedgerFactor[];
   helps: number;
   hurts: number;
   net: number;
   bank: LedgerBank | null;
-  /** What the species asks of the two devices set for it; plants only. */
+  /** What the species asks of the tank; plants and blooms. */
   demand: string | null;
   /** The verb that moves this organism — an id the stage opens the sheet on. */
-  verb: Extract<VerbId, 'feed' | 'trimPlants' | 'scrubAlgae'>;
+  verb: Extract<VerbId, 'feed' | 'trimPlants' | 'scrubAlgae' | 'waterChange'>;
   /** What the verb is held to: a plant's own family. */
   scope: VerbScope | null;
 }
@@ -132,38 +162,61 @@ interface BankHour {
   now: number;
   next: number;
   cap: number;
-  /** Drawn to make good harm: condition healed, or damage the bloom's bank absorbs. */
+  /** Condition healed from it. */
   covered: number;
   /** What the bank buys — nothing the hour a death takes it. */
   spent: number;
 }
-
-/** What a bank is doing, in its owner's words. */
-interface BankWords {
-  covering: string;
-  buying: string;
-  holding: string;
-}
-
-const HEALING = { covering: 'healing from reserve', holding: 'held against a bad day' };
 
 /**
  * What the bank does over the hour, named by which way it moves: in, out and on
  * what, or neither. A bank held to a lowered cap drops with nothing drawn, and
  * reads as the full bank it is.
  */
-function bankNote({ now, next, cap, covered, spent }: BankHour, words: BankWords): string {
+function bankNote({ now, next, cap, covered, spent }: BankHour, buying: string): string {
   const change = (next - now) * TICKS_PER_DAY;
   if (shows(change, BANK_DECIMALS)) return 'banking';
   if (!shows(now, BANK_DECIMALS)) return 'empty';
   if (shows(-change, BANK_DECIMALS) && covered + spent > 0) {
-    return covered >= spent ? words.covering : words.buying;
+    return covered >= spent ? 'healing from reserve' : buying;
   }
-  return now >= cap ? 'full' : words.holding;
+  return now >= cap ? 'full' : 'held against a bad day';
 }
 
-function bankOf(hour: BankHour, words: BankWords): Pick<LedgerBank, 'at' | 'note'> {
-  return { at: bankShare(hour.now, hour.cap), note: bankNote(hour, words) };
+function bankOf(hour: BankHour, buying: string): Pick<LedgerBank, 'at' | 'note'> {
+  return { at: bankShare(hour.now, hour.cap), note: bankNote(hour, buying) };
+}
+
+/**
+ * The lamp's rating carried down the path to the leaf, and the takers that
+ * moved it by a whole percent. The product of the path is the leaf's share of
+ * the lamp, so the heading is what the leaf reads while the lamp is on.
+ */
+function lightPathView(path: LightPath, lamp: Light): LightPathView {
+  const passes: [string, string, number][] = [
+    ['water', 'Water', path.water],
+    ['canopy', 'Canopy', path.canopy],
+    ...ALGAE_KINDS.map((kind): [string, string, number] => [kind, ALGAE[kind].name, path.blooms[kind]]),
+  ];
+  const rating = lamp.enabled ? lamp.par : 0;
+  const leaf = passes.reduce((par, [, , pass]) => par * pass, rating);
+  return {
+    heading: rating > 0 ? `${Math.round(leaf)} of the lamp's ${rating} PAR reach its leaf` : 'No lamp lights it',
+    steps: passes
+      .map(([key, label, pass]) => ({ key, label, change: (pass - 1) * 100 }))
+      .filter((step) => !printsAsZero(step.change, 0)),
+  };
+}
+
+/** The track runs to twice the need, so the need sits mid-track. */
+function lightRow(needShare: number, status: Status, note: string): LedgerRow {
+  return {
+    text: String(sharePercent(needShare)),
+    at: Math.min(1, needShare / LIGHT_SCALE),
+    band: { from: 1 / LIGHT_SCALE, to: 1 },
+    status,
+    note,
+  };
 }
 
 function fishLedger(
@@ -183,7 +236,7 @@ function fishLedger(
 
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
-  const vital = vitalReading(fish.health, vitality);
+  const vital = vitalReading(fish.health, vitality.newCondition);
   const reading = fishReading(fish, vital.reading, livestock);
 
   return {
@@ -201,6 +254,9 @@ function fishLedger(
     trend: vital.trend,
     satiation: fishSatiation(fish.satiation, livestock),
     light: null,
+    lightPath: null,
+    coverage: null,
+    lightTaken: null,
     helping,
     hurting,
     helps: total(breakdown.benefits),
@@ -217,7 +273,7 @@ function fishLedger(
           covered: breakdown.healed,
           spent,
         },
-        { ...HEALING, buying: 'buying a brood' }
+        'buying a brood'
       ),
     },
     demand: null,
@@ -244,7 +300,7 @@ function plantLedger(
   const data = PLANT_SPECIES_DATA[plant.species];
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
-  const { reading, value, trend } = vitalReading(plant.condition, vitality);
+  const { reading, value, trend } = vitalReading(plant.condition, vitality.newCondition);
   const [lightLow, lightHigh] = data.tolerableLight;
 
   return {
@@ -261,15 +317,16 @@ function plantLedger(
     band: CONDITION_BAND,
     trend,
     satiation: null,
-    light: {
-      text: String(sharePercent(light.needShare)),
-      at: Math.min(1, light.needShare / LIGHT_SCALE),
-      band: { from: 1 / LIGHT_SCALE, to: 1 },
-      status: plantLightStatus(light, plant.species),
-      note: crownBurns(light, plant.species)
+    light: lightRow(
+      light.needShare,
+      plantLightStatus(light, plant.species),
+      crownBurns(light, plant.species)
         ? `${Math.round(light.heightCm)} cm tall · crown past ${lightHigh} PAR`
-        : `${Math.round(light.heightCm)} cm tall`,
-    },
+        : `${Math.round(light.heightCm)} cm tall`
+    ),
+    lightPath: lightPathView(light.path, state.equipment.light),
+    coverage: null,
+    lightTaken: null,
     helping,
     hurting,
     helps: total(breakdown.benefits),
@@ -280,7 +337,7 @@ function plantLedger(
       unit: '% to offshoot',
       ...bankOf(
         { now: plant.surplus, next: vitality.surplus - spent, cap, covered: breakdown.healed, spent },
-        { ...HEALING, buying: buds ? 'buying an offshoot' : 'buying growth' }
+        buds ? 'buying an offshoot' : 'buying growth'
       ),
     },
     demand:
@@ -290,43 +347,80 @@ function plantLedger(
   };
 }
 
-function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourAhead): Ledger {
-  const { breakdown, net } = ahead.algae;
-  const { mass, surplus } = state.algae;
-  const { drained, spent, next } = ahead.algaeBank;
-  const cap = config.algae.surplusCap;
-  const line = algaeAlertLine(config);
-  const reading = algaeReading(mass, line);
+/**
+ * Each habitat in the ledger's words — how a bloom lies in its places, where
+ * its light is read, and how it takes the plants' light.
+ */
+const HABITAT: Record<AlgaeHabitat, { lies: string; lit: string; takes: string }> = {
+  column: { lies: 'suspended in', lit: 'through the water column', takes: 'the deeper a leaf, the more' },
+  surfaces: { lies: 'on', lit: 'on the glass and under the canopy', takes: 'coating every leaf alike' },
+};
+
+/** The verb that takes a kind out of the tank, by where it lives. */
+export function bloomVerb(kind: AlgaeKind): BloomRemoval {
+  return REMOVED_BY[ALGAE[kind].habitat];
+}
+
+/**
+ * A bloom as the organism it is — condition, what feeds it and what harms it,
+ * the bank buying it mass — headed by its kind's word for how much of it there
+ * is.
+ */
+function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourAhead, kind: AlgaeKind): Ledger {
+  const { mass, condition, surplus } = state.algae[kind];
+  const next = ahead.algae[kind];
+  const { breakdown } = next.vitality;
+  const traits = ALGAE[kind];
+  const place = HABITAT[traits.habitat];
+  const cap = config.plants.surplusCap;
+  const taken = plantLightTaken(state, config.optics)[kind] * 100;
+  const coverage = algaeReading(kind, mass, taken);
+  const { value, trend } = vitalReading(condition, next.condition);
 
   return {
-    target: { kind: 'algae' },
-    species: 'algae',
-    title: 'Algae',
-    subtitle: 'the tank’s one uninvited population',
-    ...reading,
-    value: Math.round(mass).toString(),
-    valueStatus: reading.status,
-    unit: '% coverage',
-    at: mass / 100,
-    band: { from: 0, to: line / 100 },
-    trend: projectedTrend(ahead.algaeMass - mass),
+    target: { kind: 'algae', bloom: kind },
+    species: kind,
+    title: traits.name,
+    subtitle: `${place.lies} ${namePlaces(habitatPlaces(traits.habitat, state))}`,
+    ...coverage,
+    value,
+    valueStatus: conditionStatus(condition),
+    unit: '% condition',
+    at: condition / 100,
+    band: CONDITION_BAND,
+    trend,
     satiation: null,
-    light: null,
+    light: lightRow(next.light.needShare, lightStatus(next.light.needShare), place.lit),
+    lightPath: null,
+    coverage: {
+      text: mass.toFixed(COVERAGE_DECIMALS),
+      at: mass / 100,
+      band: { from: 0, to: BLOOM_COVERAGE_LINE / 100 },
+      status: coverage.status,
+      note: projectedTrend(next.mass - mass),
+    },
+    lightTaken:
+      state.plants.length > 0
+        ? {
+            text: String(Math.round(taken)),
+            at: taken / 100,
+            band: { from: 0, to: PLANT_LIGHT_LINE / 100 },
+            status: lightTakenStatus(taken),
+            note: place.takes,
+          }
+        : null,
     helping: factors(breakdown.benefits),
     hurting: factors(breakdown.stressors),
     helps: total(breakdown.benefits),
     hurts: total(breakdown.stressors),
-    net: net * TICKS_PER_DAY,
+    net: breakdown.net * TICKS_PER_DAY,
     bank: {
       text: surplus.toFixed(BANK_DECIMALS),
       unit: `of ${cap}`,
-      ...bankOf(
-        { now: surplus, next, cap, covered: drained, spent },
-        { covering: 'covering damage', buying: 'buying coverage', holding: 'held while dark' }
-      ),
+      ...bankOf({ now: surplus, next: next.surplus, cap, covered: breakdown.healed, spent: next.spent }, 'buying growth'),
     },
-    demand: null,
-    verb: 'scrubAlgae',
+    demand: `half-fed at ${traits.ammoniaHalfSaturation} ppm NH₃, ${traits.nitrateHalfSaturation} NO₃, ${traits.phosphateHalfSaturation} PO₄ · light from ${traits.lowLight} PAR`,
+    verb: bloomVerb(kind),
     scope: null,
   };
 }
@@ -349,6 +443,6 @@ export function readLedger(
     case 'plant':
       return plantLedger(state, config, ahead, target.id, subtitle);
     case 'algae':
-      return algaeLedger(state, config, ahead);
+      return algaeLedger(state, config, ahead, target.bloom);
   }
 }

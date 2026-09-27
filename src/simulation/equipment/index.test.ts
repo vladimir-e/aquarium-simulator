@@ -6,24 +6,24 @@ import {
   disturbBed,
   liftHardscape,
   placeHardscape,
+  rescape,
   resetHardscape,
   calculatePassiveResources,
   processEquipment,
+  settlePassiveResources,
   type PassiveResourceValues,
 } from './index.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { getSubstrateSurface, type SubstrateType } from './substrate.js';
-import {
-  calculateTankHeight,
-  createSimulation,
-  type SimulationState,
-  type SimulationConfig,
-} from '../state.js';
+import { createSimulation, type SimulationState, type SimulationConfig } from '../state.js';
+import { calculateTankHeight } from '../core/geometry.js';
 import { calculateParAtDepth } from './light.js';
 import { opticsDefaults } from '../config/optics.js';
 import { FILTER_SURFACE, getFilterFlow } from './filter.js';
 import { POWERHEAD_FLOW_LPH } from './powerhead.js';
 import { calculateHardscapeTotalSurface, createHardscapeItem, type HardscapeItem } from './hardscape.js';
+import { ALGAE, ALGAE_KINDS, placeShare, waterExtinction } from '../algae/index.js';
+import { bloomsTissue, kindTissue } from '../tests/blooms.js';
 
 const passive = (state: SimulationState): PassiveResourceValues =>
   calculatePassiveResources(state, opticsDefaults);
@@ -98,7 +98,7 @@ describe('calculatePassiveResources', () => {
 
   describe('light', () => {
     const atSubstrate = (capacity: number, surfacePar: number): number =>
-      calculateParAtDepth(surfacePar, calculateTankHeight(capacity), opticsDefaults);
+      calculateParAtDepth(surfacePar, calculateTankHeight(capacity), opticsDefaults.waterAttenuationPerCm);
 
     const lit = (
       tick: number,
@@ -116,6 +116,26 @@ describe('calculatePassiveResources', () => {
       const light = lit(10, { par: 150, schedule: { startHour: 8, duration: 10 } });
       expect(light).toBeCloseTo(atSubstrate(100, 150), 10);
       expect(light).toBeLessThan(150);
+    });
+
+    it('lands through the green water standing in the column, and not through the film on the glass', () => {
+      const bloomed = (greenWater: number, film: number): number =>
+        passive(
+          produce(tank(), (draft) => {
+            draft.tick = 10;
+            draft.algae.greenWater.mass = greenWater;
+            draft.algae.film.mass = film;
+          })
+        ).light;
+      const green = produce(tank(), (draft) => void (draft.algae.greenWater.mass = 50));
+      const { light } = green.equipment;
+
+      expect(bloomed(50, 0)).toBeCloseTo(
+        calculateParAtDepth(light.par, calculateTankHeight(100), waterExtinction(green.algae, opticsDefaults)),
+        10
+      );
+      expect(bloomed(50, 0)).toBeLessThan(bloomed(0, 0));
+      expect(bloomed(0, 90)).toBe(bloomed(0, 0));
     });
 
     it('is dark when disabled or off schedule', () => {
@@ -140,6 +160,17 @@ describe('calculatePassiveResources', () => {
   });
 });
 
+describe('settlePassiveResources', () => {
+  it('leaves a new tank as it stands, though hour zero rewrites its whole day', () => {
+    const state = createSimulation({
+      tankCapacity: 100,
+      light: { enabled: true, par: 90, schedule: { startHour: 0, duration: 12 } },
+    });
+
+    expect(settlePassiveResources(state, opticsDefaults)).toBe(state);
+  });
+});
+
 describe('biofilmKept', () => {
   const bedded = (substrate: SubstrateType): SimulationState =>
     createSimulation({ tankCapacity: 100, substrate: { type: substrate } });
@@ -157,6 +188,46 @@ describe('biofilmKept', () => {
 
   it('costs a tank with no bed nothing at all', () => {
     expect(biofilmKept(bedded('none'))).toBe(1);
+  });
+});
+
+describe('rescape', () => {
+  const coated = (): SimulationState =>
+    produce(
+      createSimulation({
+        tankCapacity: 100,
+        substrate: { type: 'gravel' },
+        hardscape: { items: [createHardscapeItem('rock', 'neutral_rock')] },
+      }),
+      (draft) => {
+        draft.resources.aob = 1000;
+        for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 40, condition: 80, surplus: 3 };
+      }
+    );
+
+  it('lays the new bed in and takes the colony on the old one out with it', () => {
+    const state = coated();
+    const swapped = rescape(state, 'sand');
+
+    expect(swapped.equipment.substrate.type).toBe('sand');
+    expect(swapped.resources.aob).toBeCloseTo(1000 * biofilmKept(state), 9);
+  });
+
+  it('takes the floor’s share of every bloom out with the bed, keeping what the rest of its habitat holds', () => {
+    const state = coated();
+    const swapped = rescape(state, 'sand');
+
+    for (const kind of ALGAE_KINDS) {
+      const floor = placeShare(ALGAE[kind].habitat, 'floor', state);
+      expect(kindTissue(swapped, kind)).toBeCloseTo(kindTissue(state, kind) * (1 - floor), 12);
+      expect(swapped.algae[kind]).toMatchObject({ condition: 80, surplus: 3 });
+    }
+    expect(bloomsTissue(swapped)).toBeLessThan(bloomsTissue(state));
+  });
+
+  it('leaves a bed of the same type where it is', () => {
+    const state = coated();
+    expect(rescape(state, 'gravel')).toBe(state);
   });
 });
 
@@ -283,6 +354,19 @@ describe('hardscape moves', () => {
     expect(reset.equipment.substrate.organicReserve).toBe(0);
     expect(reset.resources.surface).toBe(calculateSurface(reset));
     expect(reset.resources.aob).toBeLessThan(state.resources.aob);
+  });
+
+  it('takes the lifted pieces’ share of every bloom out and sets them back bare', () => {
+    const state = produce(crowded(4, 8), (draft) => {
+      for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 40, condition: 100, surplus: 0 };
+    });
+    const reset = resetHardscape(state);
+
+    for (const kind of ALGAE_KINDS) {
+      const lifted = placeShare(ALGAE[kind].habitat, 'hardscape', state);
+      expect(kindTissue(reset, kind)).toBeCloseTo(kindTissue(state, kind) * (1 - lifted), 12);
+    }
+    expect(bloomsTissue(reset)).toBeLessThan(bloomsTissue(state));
   });
 
   it('keeps every piece of a tank carrying more than its slots', () => {

@@ -3,7 +3,9 @@ import { produce, type Draft } from 'immer';
 import {
   alerts,
   checkAlerts,
-  highAlgaeAlert,
+  bloomAlert,
+  bloomAlerts,
+  bloomLevel,
   highAmmoniaAlert,
   ammoniaAlertLine,
   highCo2Alert,
@@ -11,25 +13,25 @@ import {
   highNitriteAlert,
   lowOxygenAlert,
   waterLevelAlert,
-  algaeAlertLine,
   waterLevelAlertLine,
+  BLOOM_COVERAGE_LINE,
+  PLANT_LIGHT_LINE,
   HIGH_CO2_THRESHOLD,
   type Alert,
 } from './index.js';
-import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
+import { DEFAULT_CONFIG, configRange, type TunableConfig } from '../config/index.js';
 import { computeFishVitality } from '../systems/fish-health.js';
-import { buildPlantStressors } from '../systems/plant-vitality.js';
 import { createFish } from '../livestock/create-fish.js';
-import { createPlant } from '../plants/create-plant.js';
-import { lightAtHeight } from '../plants/canopy.js';
+import { plantLightTaken } from '../plants/canopy.js';
+import { plantRecord } from '../tests/plant.js';
 import { FREE_AMMONIA_EDGE, NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../livestock/tolerance.js';
 import { createSimulation, type AlertState, type SimulationState } from '../state.js';
 import { getPh } from '../core/carbonate.js';
+import { ALGAE_KINDS, type AlgaeKind } from '../algae/index.js';
 
 const CAPACITY = 100;
 const config = DEFAULT_CONFIG;
 const LEVEL_LINE = waterLevelAlertLine(config);
-const ALGAE_LINE = algaeAlertLine(config);
 
 type Setter = (draft: Draft<SimulationState>, value: number) => void;
 
@@ -63,18 +65,20 @@ const CASES: Case[] = [
     edge: { value: LEVEL_LINE, fires: false },
     decimals: 1,
   },
-  {
-    alert: highAlgaeAlert,
-    flag: 'highAlgae',
-    source: 'algae',
-    set: (draft, mass): void => {
-      draft.algae.mass = mass;
-    },
-    firing: ALGAE_LINE + 5,
-    quiet: ALGAE_LINE / 2,
-    edge: { value: ALGAE_LINE, fires: false },
-    decimals: 1,
-  },
+  ...ALGAE_KINDS.map(
+    (kind, i): Case => ({
+      alert: bloomAlerts[i],
+      flag: kind,
+      source: 'algae',
+      set: (draft, mass): void => {
+        draft.algae[kind].mass = mass;
+      },
+      firing: BLOOM_COVERAGE_LINE + 5,
+      quiet: BLOOM_COVERAGE_LINE / 2,
+      edge: { value: BLOOM_COVERAGE_LINE, fires: false },
+      decimals: 1,
+    })
+  ),
   {
     alert: highAmmoniaAlert,
     flag: 'highAmmonia',
@@ -174,12 +178,8 @@ describe.each(CASES)('$alert.id', (c) => {
   });
 });
 
-function tuned(waterLevelStressThreshold: number, algaeShadingThreshold: number): TunableConfig {
-  return {
-    ...config,
-    livestock: { ...config.livestock, waterLevelStressThreshold },
-    plants: { ...config.plants, algaeShadingThreshold },
-  };
+function tuned(waterLevelStressThreshold: number): TunableConfig {
+  return { ...config, livestock: { ...config.livestock, waterLevelStressThreshold } };
 }
 
 describe('waterLevelAlert', () => {
@@ -195,7 +195,7 @@ describe('waterLevelAlert', () => {
 
   it('fires exactly where the water starts to harm fish, wherever that is tuned', () => {
     for (const line of [30, 50, 70]) {
-      const at = tuned(line, ALGAE_LINE);
+      const at = tuned(line);
       for (const percent of [line - 5, line, line + 5]) {
         const state = tank(CASES[0]!, percent);
         const fish = createFish({ species: 'neon_tetra', stage: 'adult', rng: { ...state.rng } });
@@ -215,26 +215,71 @@ describe('waterLevelAlert', () => {
   });
 });
 
-describe('highAlgaeAlert', () => {
-  it('fires exactly where the bloom starts to shade plants, wherever that is tuned', () => {
-    for (const line of [20, 30, 50]) {
-      const at = tuned(LEVEL_LINE, line);
-      for (const mass of [line - 5, line, line + 5]) {
-        const state = tank(CASES[1]!, mass);
-        const plant = createPlant({ species: 'java_fern', rng: { ...state.rng } });
-        const shading = buildPlantStressors({
-          plant,
-          resources: state.resources,
-          waterVolume: state.resources.water,
-          plantsConfig: at.plants,
-          nutrientSufficiency: 1,
-          algaeMass: mass,
-          light: lightAtHeight(plant, { leaf: 1, top: 1 }, state.resources, 40),
-        }).find((s) => s.key === 'algae')!;
+describe('bloomLevel', () => {
+  it('is the further of its coverage and the plants’ light it takes, each over its line, led by that figure', () => {
+    expect(bloomLevel(2 * BLOOM_COVERAGE_LINE, PLANT_LIGHT_LINE)).toEqual({ level: 2, leads: 'coverage' });
+    expect(bloomLevel(BLOOM_COVERAGE_LINE, 3 * PLANT_LIGHT_LINE)).toEqual({ level: 3, leads: 'light' });
+  });
+});
 
-        expect(highAlgaeAlert.check(state, at).log !== null).toBe(shading.amount > 0);
+describe('bloomAlert', () => {
+  const planted = (kind: AlgaeKind, mass: number): SimulationState =>
+    produce(createSimulation({ tankCapacity: CAPACITY }), (draft) => {
+      draft.plants = [
+        plantRecord({ id: 'carpet', species: 'monte_carlo', size: 80, condition: 100, surplus: 0 }),
+        plantRecord({ id: 'sword', species: 'amazon_sword', size: 80, condition: 100, surplus: 0 }),
+      ];
+      draft.algae[kind].mass = mass;
+    });
+  const unplanted = (kind: AlgaeKind, mass: number): SimulationState => ({ ...planted(kind, mass), plants: [] });
+  const attenuated = (perGram: number): TunableConfig => ({ ...config, optics: { ...config.optics, algaeAttenuationPerGram: perGram } });
+  const fires = (kind: AlgaeKind, state: SimulationState, at = config): boolean => bloomAlert(kind).check(state, at).log !== null;
+
+  it.each(ALGAE_KINDS)('fires for %s exactly where its level passes 1: coverage past its line, or the plants’ light it takes past its own', (kind) => {
+    for (let mass = 5; mass <= 95; mass += 5) {
+      for (const state of [planted(kind, mass), unplanted(kind, mass)]) {
+        const taken = plantLightTaken(state, config.optics)[kind] * 100;
+        expect(fires(kind, state)).toBe(mass > BLOOM_COVERAGE_LINE || taken > PLANT_LIGHT_LINE);
       }
     }
+  });
+
+  it.each(ALGAE_KINDS)('fires for %s at its coverage line on the light it takes alone, once that passes its line', (kind) => {
+    const dense = attenuated(configRange('optics.algaeAttenuationPerGram')!.max);
+    const state = planted(kind, BLOOM_COVERAGE_LINE);
+
+    expect(plantLightTaken(state, dense.optics)[kind] * 100).toBeGreaterThan(PLANT_LIGHT_LINE);
+    expect(fires(kind, state, dense)).toBe(true);
+    expect(fires(kind, state, attenuated(0))).toBe(false);
+    expect(fires(kind, unplanted(kind, BLOOM_COVERAGE_LINE), dense)).toBe(false);
+  });
+
+  it('is each kind’s own: one kind’s bloom raises its flag alone', () => {
+    const state = produce(createSimulation({ tankCapacity: CAPACITY }), (draft) => {
+      draft.algae.film.mass = BLOOM_COVERAGE_LINE + 10;
+    });
+    const { alertState } = checkAlerts(state, config);
+    expect(alertState.film).toBe(true);
+    expect(alertState.greenWater).toBe(false);
+  });
+
+  it.each(ALGAE_KINDS)('names for %s the figure that leads its level', (kind) => {
+    const message = (state: SimulationState, at: TunableConfig): string => bloomAlert(kind).check(state, at).log!.message;
+    const dense = attenuated(configRange('optics.algaeAttenuationPerGram')!.max);
+    const byLight = planted(kind, BLOOM_COVERAGE_LINE);
+    const byCoverage = unplanted(kind, 2 * BLOOM_COVERAGE_LINE);
+
+    expect(bloomLevel(BLOOM_COVERAGE_LINE, plantLightTaken(byLight, dense.optics)[kind] * 100).leads).toBe('light');
+    expect(message(byLight, dense)).toContain("of the plants' light");
+    expect(message(byLight, dense)).not.toContain('coverage');
+    expect(message(byCoverage, config)).toContain('coverage');
+    expect(message(byCoverage, config)).not.toContain("plants' light");
+  });
+
+  it('names the verb that takes its kind out', () => {
+    const message = (kind: AlgaeKind): string => bloomAlert(kind).check(planted(kind, 2 * BLOOM_COVERAGE_LINE), config).log!.message;
+    expect(message('greenWater')).toContain('water change');
+    expect(message('film')).toContain('scrub');
   });
 });
 

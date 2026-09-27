@@ -3,12 +3,20 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createSimulation, scheduledLightHistory, tick } from '../../simulation/index.js';
+import { produce } from 'immer';
+import {
+  calculatePassiveResources,
+  createSimulation,
+  scheduledLightHistory,
+  settlePassiveResources,
+  tick,
+} from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { getPresetById } from '../../simulation/presets.js';
 import { createSession, loadSession, saveSession, hasSession, SESSION_VERSION } from '../session.js';
 import { appendSnapshot, HISTORY_CAP, snapshot } from '../history.js';
 import { configureSession } from '../sim.js';
+import { renderObserve } from '../format.js';
 
 let dir: string;
 let path: string;
@@ -106,10 +114,8 @@ describe('session roundtrip', () => {
   });
 
   it('rejects a stale v4 session, written before light became PAR', () => {
-    // A v4 session parses and runs — through the night. It carries no
-    // `config.optics`, and the substrate-PAR calculation returns early while
-    // surface PAR is zero, so the missing attenuation coefficient is not read
-    // until the photoperiod opens. A session that loaded would die at 08:00.
+    // A v4 session parses, and carries no `config.optics`: its first tick dies
+    // reading the water's extinction.
     const preParConfig: Record<string, unknown> = { ...DEFAULT_CONFIG };
     delete preParConfig.optics;
     const config = preParConfig as unknown as TunableConfig;
@@ -118,7 +124,7 @@ describe('session roundtrip', () => {
       tankCapacity: 40,
       light: { enabled: true, par: 50, schedule: { startHour: 0, duration: 24 } },
     });
-    expect(() => tick(lit, config)).toThrow(/waterAttenuationPerCm/);
+    expect(() => tick(lit, config)).toThrow(/algaeAttenuationPerGram/);
 
     saveSession({ ...createSession(lit, config), version: 4 }, { path });
     expect(() => loadSession({ path })).toThrow(/Unsupported session version/);
@@ -144,7 +150,7 @@ describe('configureSession', () => {
   const fresh = createSession(createSimulation({ tankCapacity: 200 }), DEFAULT_CONFIG, 'optics');
   const attenuation = String(2 * DEFAULT_CONFIG.optics.waterAttenuationPerCm);
 
-  it('relights a tank still at hour zero under the optics it will run on', () => {
+  it('reads a tank still at hour zero, its whole day, through the optics it will run on', () => {
     const tuned = configureSession(fresh, 'optics.waterAttenuationPerCm', attenuation);
 
     expect(tuned.state.resources.lightByHour).toEqual(scheduledLightHistory(tuned.state, tuned.config.optics));
@@ -152,8 +158,38 @@ describe('configureSession', () => {
     expect(tuned.history.at(-1)).toEqual(snapshot(tuned.state));
   });
 
-  it('leaves a running tank the day it has lived', () => {
-    const running = { ...fresh, state: tick(fresh.state, fresh.config) };
-    expect(configureSession(running, 'optics.waterAttenuationPerCm', attenuation).state).toBe(running.state);
+  it('reads a running tank through the retuned water, and leaves it the day it has lived', () => {
+    const lit = createSimulation({
+      tankCapacity: 200,
+      light: { enabled: true, par: 100, schedule: { startHour: 0, duration: 24 } },
+    });
+    let state = lit;
+    for (let i = 0; i < 5; i++) state = tick(state, DEFAULT_CONFIG);
+    const running = createSession(state, DEFAULT_CONFIG, 'optics');
+
+    const tuned = configureSession(running, 'optics.waterAttenuationPerCm', attenuation);
+    const light = calculatePassiveResources(tuned.state, tuned.config.optics).light;
+
+    expect(tuned.state.resources.light).toBe(light);
+    expect(Math.round(light)).toBeLessThan(Math.round(running.state.resources.light));
+    expect(renderObserve(tuned)).toContain(`**Light** ${Math.round(light)} PAR`);
+    expect(tuned.state.resources.lightByHour).toEqual(running.state.resources.lightByHour);
+  });
+
+  it('a non-optics leaf leaves a settled tank as it stands', () => {
+    const green = produce(
+      createSimulation({
+        tankCapacity: 200,
+        light: { enabled: true, par: 100, schedule: { startHour: 0, duration: 24 } },
+      }),
+      (draft) => {
+        draft.algae.greenWater.mass = 60;
+      }
+    );
+    const settled = settlePassiveResources(tick(green, DEFAULT_CONFIG), DEFAULT_CONFIG.optics);
+    expect(settled.resources.light).toBeGreaterThan(0);
+
+    const running = createSession(settled, DEFAULT_CONFIG, 'optics');
+    expect(configureSession(running, 'nutrients.fertilizerFormula.nitrate', '10').state).toBe(settled);
   });
 });

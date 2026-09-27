@@ -6,9 +6,8 @@ import { produce } from 'immer';
 import type { SimulationState } from './state.js';
 import { applyEffects, type Effect, type EffectTier } from './core/effects.js';
 import { coreSystems } from './systems/index.js';
-import { processEquipment, calculatePassiveResources } from './equipment/index.js';
-import { processPlants } from './plants/index.js';
-import { processAlgae } from './algae/index.js';
+import { processEquipment, writePassiveResources } from './equipment/index.js';
+import { processFlora } from './flora/index.js';
 import { processLivestock } from './livestock/index.js';
 import { processBreeding } from './livestock/breeding.js';
 import { checkAlerts } from './alerts/index.js';
@@ -39,7 +38,7 @@ function collectSystemEffects(
  * own drift and evaporation applied, and the equipment's response to what they
  * left.
  *
- * Plants, algae and livestock all run against this rather than against the state
+ * The flora and the livestock both run against this rather than against the state
  * the tick was handed, so this is also the state anything measuring what a tick
  * did to them has to read. It is a pure function of `state`, so a measurement
  * can rebuild it from the same input and get the hour the tick actually ran.
@@ -50,12 +49,8 @@ export function settleEnvironment(
 ): SimulationState {
   let settled = produce(state, (draft) => {
     draft.tick += 1;
-    const passiveValues = calculatePassiveResources(draft, config.optics);
-    draft.resources.surface = passiveValues.surface;
-    draft.resources.flow = passiveValues.flow;
-    draft.resources.light = passiveValues.light;
-    draft.resources.lightByHour[draft.tick % 24] = passiveValues.light;
-    draft.resources.aeration = passiveValues.aeration;
+    writePassiveResources(draft, config.optics);
+    draft.resources.lightByHour[draft.tick % 24] = draft.resources.light;
   });
 
   settled = applyEffects(settled, collectSystemEffects(settled, 'immediate', config), config);
@@ -80,24 +75,11 @@ export function tick(
   // Tier 1: IMMEDIATE - Environmental effects, then equipment responses
   let newState = settleEnvironment(state, config);
 
-  // Tier 2: ACTIVE - Living processes (plants, algae, livestock).
-  // Order matters: algae stressors / benefits read freshly-updated
-  // plant condition (suppression and weakness factors) and the
-  // shared `getPlantPower` reads each plant's current condition.
-  // Running algae before plants would lag the suppression signal by
-  // one tick.
-  const plantsResult = processPlants(newState, config);
-  newState = plantsResult.state;
-  newState = applyEffects(newState, plantsResult.effects, config);
+  // Tier 2: ACTIVE - Living processes: plants and the blooms in one pass, then
+  // livestock, which read the planting as the flora leave it.
+  const floraResult = processFlora(newState, config);
+  newState = applyEffects(floraResult.state, floraResult.effects, config);
 
-  // Algae uses the just-updated plant.condition to compute power.
-  const algaeResult = processAlgae(newState, config);
-  newState = algaeResult.state;
-
-  // Livestock can now read current algae mass if it ever needs to
-  // (no current dependency, but the order keeps the read graph
-  // monotone from immediate → equipment → plants → algae →
-  // livestock → other-active → passive).
   const livestockResult = processLivestock(newState, config);
   newState = livestockResult.state;
   newState = applyEffects(newState, livestockResult.effects, config);

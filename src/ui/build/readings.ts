@@ -6,15 +6,19 @@
  */
 
 import {
+  ALGAE,
+  ALGAE_KINDS,
   calculateHeatingRate,
   calculateParAtDepth,
   calculateTankHeight,
+  columnPass,
   getFilterFlow,
   getAirPumpFlow,
   getAirPumpOutput,
   getLightOutput,
   isAirPumpUndersized,
   isScheduleActive,
+  lightLoss,
   FILTER_SPECS,
   FILTER_SURFACE,
   FISH_SPECIES_DATA,
@@ -36,6 +40,7 @@ import {
   doseDeltas,
   formatDose,
   DAILY_LIGHT_UNIT,
+  printsAsZero,
   type BacteriaReadout,
   type HourAhead,
   type Status,
@@ -168,8 +173,13 @@ function lightReadings({ state, config, ahead }: DeviceReadingInput): DeviceRead
   const lit = light.enabled && isScheduleActive(hour, light.schedule);
   const depth = calculateTankHeight(state.tank.capacity);
   const surfacePar = getLightOutput(light, hour);
-  const wouldLand = Math.round(calculateParAtDepth(light.par, depth, config.optics));
-  const column = `${Math.round(depth)} cm of water`;
+  const loss = lightLoss(state.algae, config.optics);
+  const wouldLand = Math.round(calculateParAtDepth(light.par, depth, loss.extinction));
+  const clouding = ALGAE_KINDS.flatMap((kind) => {
+    const taken = (1 - columnPass(loss.blooms[kind], depth)) * 100;
+    return printsAsZero(taken, 0) ? [] : [`${ALGAE[kind].name.toLowerCase()} taking ${Math.round(taken)} %`];
+  });
+  const column = [`${Math.round(depth)} cm of water`, ...clouding].join(', ');
   const daily = dailyLightReading(ahead);
 
   return [

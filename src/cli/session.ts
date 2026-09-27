@@ -18,6 +18,18 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v17 put algae on the plants' vitality model as two kinds and fed every
+ *    flora ammonia before nitrate. `state.algae` holds a bloom per kind,
+ *    `AlgaeState` gains `condition`, the `algae` config section is rebuilt as
+ *    `AlgaeConfig`, and `NutrientsConfig.halfSaturation` gains `ammonia`. The
+ *    blooms shade through light: `OpticsConfig` gains
+ *    `algaeAttenuationPerGram`, `PlantsConfig` drops the `algaeShading*` pair,
+ *    and `AlertState` trades `highAlgae` for a flag per kind. The history's
+ *    `algae` holds `Blooms`, so the trace's `algae_mass` and `algae_surplus`
+ *    become a column per kind and figure (`green_water_mass`,
+ *    `film_condition`…). A v16 session parses, and the first tick reads each
+ *    kind's bloom, its allelopathy severity, every ammonia half-saturation and
+ *    the blooms' attenuation off keys it does not carry.
  * v16 made the bed a nutrient store and plants of their nutrients, and let a
  *    plant die only at condition 0. `Substrate` gains `nutrients`;
  *    `NutrientsConfig` drops `uptakePerRateUnit` and gains `rootTab` and
@@ -130,7 +142,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 16;
+export const SESSION_VERSION = 17;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

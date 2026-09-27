@@ -136,13 +136,13 @@ describe('AppShell — what needs the keeper', () => {
   });
 
   it('dots in the tone the alert’s own reading carries', () => {
-    renderShell({ highAlgae: true });
+    renderShell({ film: true });
 
     expect(screen.getByRole('link', { name: 'Life' }).querySelector('.bg-warn')).toBeTruthy();
   });
 
   it('counts the same needs in the top bar', () => {
-    renderShell({ highAmmonia: true, highAlgae: true });
+    renderShell({ highAmmonia: true, film: true });
 
     expect(screen.getByRole('link', { name: '2 needs you' })).toBeTruthy();
   });

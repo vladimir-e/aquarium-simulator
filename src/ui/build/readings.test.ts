@@ -15,7 +15,7 @@ import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { bacteriaReadout, colonyCount, readHourAhead } from '../run/index.js';
 import { calculateParAtDepth } from '../../simulation/equipment/light.js';
 import { formatCo2Rate } from '../../simulation/equipment/co2-generator.js';
-import { calculateTankHeight } from '../../simulation/state.js';
+import { calculateTankHeight } from '../../simulation/core/geometry.js';
 import { getPresetById } from '../../simulation/presets.js';
 import type { UnitSystem } from '../utils/units.js';
 import type { EquipmentId } from './devices';
@@ -410,7 +410,7 @@ describe('light readings', () => {
     });
 
     expect(value(read('light', fresh), 'Output now').value).toBe('90 PAR');
-    const landed = calculateParAtDepth(90, calculateTankHeight(40), DEFAULT_CONFIG.optics);
+    const landed = calculateParAtDepth(90, calculateTankHeight(40), DEFAULT_CONFIG.optics.waterAttenuationPerCm);
     expect(value(read('light', fresh), 'At substrate')).toEqual({
       label: 'At substrate',
       value: `${Math.round(landed)} PAR`,

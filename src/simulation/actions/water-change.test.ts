@@ -37,6 +37,17 @@ describe('waterChange', () => {
     }
   });
 
+  it.each([0.1, 0.5, 1])('carries %d of the green water out with the water, and leaves the film on the glass', (amount) => {
+    const before = produce(tank(), (draft) => {
+      draft.algae.greenWater = { mass: 60, condition: 80, surplus: 5 };
+      draft.algae.film = { mass: 40, condition: 90, surplus: 3 };
+    });
+    const after = change(before, amount).state;
+
+    expect(after.algae.greenWater).toEqual({ ...before.algae.greenWater, mass: 60 * (1 - amount) });
+    expect(after.algae.film).toEqual(before.algae.film);
+  });
+
   it('moves KH toward the tap by the share changed, from either side', () => {
     const at = (dkh: number): SimulationState =>
       produce(tank(), (draft) => {

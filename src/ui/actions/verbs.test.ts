@@ -2,10 +2,12 @@ import { describe, it, expect } from 'vitest';
 import {
   applyAction,
   calculateSurface,
+  createHardscapeItem,
   createSimulation,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
-  MIN_ALGAE_TO_SCRUB,
+  onTheGlass,
+  placeHardscape,
   WATER_CHANGE_AMOUNTS,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -33,7 +35,7 @@ function tank(): SimulationState {
   state.equipment.substrate.type = 'aqua_soil';
   state.resources.surface = calculateSurface(state);
   state.resources.water = 196.4;
-  state.algae.mass = 47;
+  state.algae.film.mass = 47;
   return state;
 }
 
@@ -182,12 +184,12 @@ describe('the seven verbs', () => {
         familyId: first,
       }).preview;
 
-      expect(preview.map((row) => row.key)).toEqual(['shade']);
+      expect(preview.map((row) => row.key)).toEqual(['floorShade']);
       expect(Number(preview[0].after)).toBeLessThan(Number(preview[0].before));
     });
   });
 
-  it('dispatches the shape the engine reads, and lets it roll its own scrub', () => {
+  it('dispatches the shape the engine reads', () => {
     const settings: VerbSettings = { feed: 2, waterChange: 0.9, dose: 4, rootTab: 3, trimPlants: 50 };
 
     expect(verbAction('feed', settings)).toEqual({ type: 'feed', amount: 2 });
@@ -224,17 +226,26 @@ describe('the seven verbs', () => {
     const bare = tank();
     const empty = { ...bare, resources: { ...bare.resources, water: 0 } };
     const full = { ...bare, resources: { ...bare.resources, water: bare.tank.capacity } };
-    const clean = { ...bare, algae: { ...bare.algae, mass: MIN_ALGAE_TO_SCRUB - 2 } };
+    const clean = { ...bare, algae: { ...bare.algae, film: { ...bare.algae.film, mass: 0.4 } } };
 
     expect(row(bare, 'dose').blocked).toBe('no plants to fertilise');
     expect(row(bare, 'dose').value).toBe('2 ml');
     expect(row(empty, 'waterChange').blocked).toBe('no water to change');
     expect(row(full, 'topOff').blocked).toBe('already at capacity');
-    expect(row(clean, 'scrubAlgae').blocked).toBe(`needs ${MIN_ALGAE_TO_SCRUB} % algae, now 3 %`);
+    expect(row(clean, 'scrubAlgae').blocked).toBe('the glass is clean');
+    expect(row(bare, 'scrubAlgae').blocked).toBeNull();
     expect(row(planted([40]), 'trimPlants').blocked).toBe('nothing above 75 %');
     const bareBottom = { ...bare, equipment: { ...bare.equipment, substrate: { ...bare.equipment.substrate, type: 'none' as const } } };
     expect(row(bareBottom, 'rootTab').blocked).toBe('no bed to push a tab into');
     expect(detail(bareBottom, 'rootTab').options.every((o) => o.disabled)).toBe(true);
+  });
+
+  it('gates the scrub on the coverage its row prints, not the walls’ share of it', () => {
+    const bare = tank();
+    const faint = { ...bare, algae: { ...bare.algae, film: { ...bare.algae.film, mass: 0.6 } } };
+    expect(onTheGlass(faint).film.toFixed(0)).toBe('0');
+    expect(row(faint, 'scrubAlgae').value).toBe('1 %');
+    expect(row(faint, 'scrubAlgae').blocked).toBeNull();
   });
 
   it('offers the tabs that cover a starving root feeder, and previews the bed they fill', () => {
@@ -319,8 +330,26 @@ describe('the seven verbs', () => {
       expect(bare.note).toMatch(/No amount to set/);
     }
 
-    expect(detail(tank(), 'scrubAlgae').note).toContain('10–30 %');
+    expect(detail(tank(), 'scrubAlgae').note).toContain('clears the glass');
     expect(detail(tank(), 'topOff').note).toContain('diluted');
+  });
+
+  it('previews the light a water change lets back onto the floor through green water', () => {
+    const green = produce(tank(), (draft) => {
+      draft.algae.greenWater.mass = 80;
+    });
+    const floor = detail(green, 'waterChange', { ...DEFAULT_SETTINGS, waterChange: 0.5 }).preview.find(
+      (preview) => preview.key === 'floorLight'
+    )!;
+
+    expect(Number(floor.after)).toBeGreaterThan(Number(floor.before));
+  });
+
+  it('names what a scrub leaves standing by the places the tank has off the glass', () => {
+    const rocked = placeHardscape(tank(), createHardscapeItem('rock', 'neutral_rock'));
+
+    expect(detail(tank(), 'scrubAlgae').note).toContain('what coats the floor stays');
+    expect(detail(rocked, 'scrubAlgae').note).toContain('what coats the floor and the hardscape stays');
   });
 
   it('points the chips at the verb they configure, under the heading they read', () => {

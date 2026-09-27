@@ -6,7 +6,7 @@ import { readTank } from '../readings';
 import { bare, stocked, type Run } from '../test/run';
 import { query, renderStage } from '../test/stage';
 import { stubSim } from '../test/stubSim';
-import { DEFAULT_CONFIG, NUTRIENTS } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
   createSimulation,
@@ -87,10 +87,22 @@ describe('OverviewSection', () => {
 
   it('opens the verb that answers a need, rather than routing to the module', () => {
     const onAct = vi.fn();
-    renderOverview(bare(), { highAlgae: true }, onAct);
+    const coated = createSimulation({ tankCapacity: 200 });
+    coated.algae.film.mass = 40;
+    renderOverview(bare(coated), { film: true }, onAct);
 
     fireEvent.click(within(strip()!).getByRole('button', { name: /Scrub/ }));
     expect(onAct).toHaveBeenCalledWith('scrubAlgae');
+  });
+
+  it('answers green water’s need with a water change', () => {
+    const onAct = vi.fn();
+    const green = createSimulation({ tankCapacity: 200 });
+    green.algae.greenWater.mass = 40;
+    renderOverview(bare(green), { greenWater: true }, onAct);
+
+    fireEvent.click(within(strip()!).getByRole('button', { name: /Water change/ }));
+    expect(onAct).toHaveBeenCalledWith('waterChange');
   });
 
   it('routes a need no husbandry verb answers into the module that owns the gear', () => {
@@ -207,9 +219,9 @@ describe('OverviewSection', () => {
     expect(query().get('add')).toBe('fish');
   });
 
-  it('gives the algae row no dots to speak of', () => {
+  it('gives the bloom rows no dots to speak of', () => {
     renderOverview(stocked());
-    expect(within(widget('Life')).queryByRole('img', { name: /Algae/i })).toBeNull();
+    expect(within(widget('Life')).queryByRole('img', { name: /Green water|Film/i })).toBeNull();
   });
 
   it('invites stocking when the tank is bare', () => {
@@ -239,10 +251,13 @@ describe('OverviewSection', () => {
   });
 
   it('reads the plant foods against what the plants ask for', () => {
-    renderOverview(stocked());
+    const run = stocked();
+    const asked = nutrientReadings(run.state, DEFAULT_CONFIG).filter((reading) => reading.needed > 0);
+    renderOverview(run);
     const nutrients = within(widget('Nutrients'));
 
-    expect(nutrients.getAllByText(/^need /)).toHaveLength(NUTRIENTS.length);
+    expect(asked.length).toBeGreaterThan(0);
+    expect(nutrients.getAllByText(/^need /)).toHaveLength(asked.length);
     expect(nutrients.getByText(/1 ml moves/)).toBeTruthy();
   });
 

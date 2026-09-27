@@ -1,15 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { logText } from './core/logging.js';
-import {
-  createSimulation,
-  calculateTankHeight,
-  calculateTankGlassSurface,
-  DEFAULT_HEATER,
-  relight,
-} from './state.js';
+import { createSimulation, DEFAULT_HEATER } from './state.js';
+import { calculateTankHeight } from './core/geometry.js';
 import { DEFAULT_CONFIG } from './config/index.js';
 import { opticsDefaults } from './config/optics.js';
 import { DEFAULT_FILTER } from './equipment/filter.js';
+import { settlePassiveResources } from './equipment/index.js';
 import {
   calculateParAtDepth,
   dailyLightIntegral,
@@ -74,13 +70,6 @@ describe('createSimulation', () => {
   });
 });
 
-describe('calculateTankHeight', () => {
-  it('reads the 2:1:1 box the glass surface already assumes', () => {
-    expect(calculateTankHeight(8 * 40) / calculateTankHeight(40)).toBeCloseTo(2, 10);
-    expect(calculateTankGlassSurface(8 * 40) / calculateTankGlassSurface(40)).toBeCloseTo(4, 3);
-  });
-});
-
 describe('createSimulation - the light a tank opens on', () => {
   const lit = (startHour: number): number =>
     createSimulation({
@@ -89,7 +78,7 @@ describe('createSimulation - the light a tank opens on', () => {
     }).resources.light;
 
   it('reads what the fixture lands at hour 0, not zero', () => {
-    expect(lit(0)).toBeCloseTo(calculateParAtDepth(90, calculateTankHeight(40), opticsDefaults), 10);
+    expect(lit(0)).toBeCloseTo(calculateParAtDepth(90, calculateTankHeight(40), opticsDefaults.waterAttenuationPerCm), 10);
   });
 
   it('reads nothing when the photoperiod has not started', () => {
@@ -113,7 +102,7 @@ describe('createSimulation - the light a tank opens on', () => {
     const expected = scheduledLightByHour(
       { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
       calculateTankHeight(40),
-      opticsDefaults
+      opticsDefaults.waterAttenuationPerCm
     );
 
     expect(createSimulation(config).resources.lightByHour).toEqual(expected);
@@ -121,7 +110,7 @@ describe('createSimulation - the light a tank opens on', () => {
     expect(dailyLightIntegral(expected)).toBeGreaterThan(0);
   });
 
-  it('opens on the day its own optics give — the one a day of running them leaves, and a relight lands', () => {
+  it('opens on the day its own optics give — the one a day of running them leaves, and a settle under them lands', () => {
     const optics = { ...opticsDefaults, waterAttenuationPerCm: 3 * opticsDefaults.waterAttenuationPerCm };
     const build = {
       tankCapacity: 40,
@@ -131,7 +120,7 @@ describe('createSimulation - the light a tank opens on', () => {
     const day = dailyLightIntegral(opened.resources.lightByHour);
 
     expect(day).toBeLessThan(dailyLightIntegral(createSimulation(build).resources.lightByHour));
-    expect(relight(createSimulation(build), optics).resources).toEqual(opened.resources);
+    expect(settlePassiveResources(createSimulation(build), optics).resources).toEqual(opened.resources);
 
     let state = opened;
     for (let hour = 0; hour < 24; hour++) state = tick(state, { ...DEFAULT_CONFIG, optics });

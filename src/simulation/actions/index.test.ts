@@ -3,6 +3,8 @@ import { applyAction } from './index';
 import type { Action } from './types';
 import { createSimulation, type SimulationState } from '../state';
 import { DEFAULT_CONFIG } from '../config/index.js';
+import { calculatePassiveResources, scheduledLightHistory } from '../equipment/index.js';
+import { tick } from '../tick.js';
 import { produce } from 'immer';
 
 describe('applyAction', () => {
@@ -26,7 +28,8 @@ describe('applyAction', () => {
         { type: 'addPlant', species: 'anubias' }
       ).state;
       return produce(planted, (draft) => {
-        draft.algae.mass = 50;
+        draft.algae.greenWater.mass = 50;
+        draft.algae.film.mass = 50;
       });
     };
 
@@ -36,7 +39,6 @@ describe('applyAction', () => {
       (amount): Action => ({ type: 'waterChange', amount }),
       (targetSize): Action => ({ type: 'trimPlants', targetSize }),
       (initialSize): Action => ({ type: 'addPlant', species: 'anubias', initialSize }),
-      (randomPercent): Action => ({ type: 'scrubAlgae', randomPercent }),
     ];
 
     for (const value of [NaN, Infinity, -Infinity]) {
@@ -47,6 +49,41 @@ describe('applyAction', () => {
         }
       });
     }
+  });
+
+  describe('the light a water change leaves, settled under the optics of the config it is handed', () => {
+    const config = produce(DEFAULT_CONFIG, (draft) => {
+      draft.optics.waterAttenuationPerCm *= 2;
+    });
+    const greenTank = (): SimulationState =>
+      produce(
+        createSimulation({
+          tankCapacity: 100,
+          light: { enabled: true, par: 100, schedule: { startHour: 0, duration: 24 } },
+          optics: config.optics,
+        }),
+        (draft) => {
+          draft.algae.greenWater.mass = 60;
+        }
+      );
+    const changed = (state: SimulationState): SimulationState =>
+      applyAction(state, { type: 'waterChange', amount: 0.5 }, config).state;
+
+    it('reads through the cleared water, and leaves the day the tank has lived to the tick', () => {
+      const lit = tick(greenTank(), config);
+      const after = changed(lit);
+
+      expect(after.resources.light).toBe(calculatePassiveResources(after, config.optics).light);
+      expect(after.resources.light).toBeGreaterThan(lit.resources.light);
+      expect(after.resources.lightByHour).toEqual(lit.resources.lightByHour);
+    });
+
+    it('reads the day through the cleared water at hour zero, the tank having lived none', () => {
+      const after = changed(greenTank());
+
+      expect(after.resources.lightByHour).toEqual(scheduledLightHistory(after, config.optics));
+      expect(after.resources.light).toBe(after.resources.lightByHour[0]);
+    });
   });
 
   it('mixes a dose to the formula the config carries', () => {

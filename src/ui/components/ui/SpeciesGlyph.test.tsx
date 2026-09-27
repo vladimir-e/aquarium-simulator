@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
-import { FISH_SPECIES_DATA, PLANT_SPECIES_DATA } from '../../../simulation/index.js';
+import { ALGAE_KINDS, FISH_SPECIES_DATA, PLANT_SPECIES_DATA } from '../../../simulation/index.js';
 import { GLYPH_KEYS, SpeciesGlyph, type SpeciesKey } from './SpeciesGlyph';
 
 afterEach(cleanup);
@@ -11,9 +11,9 @@ function paths(species: SpeciesKey): number {
 }
 
 describe('SpeciesGlyph', () => {
-  it('draws every species the engine can stock, and the algae', () => {
+  it('draws every species the engine can stock, and every kind of bloom', () => {
     expect(new Set(GLYPH_KEYS)).toEqual(
-      new Set([...Object.keys(FISH_SPECIES_DATA), ...Object.keys(PLANT_SPECIES_DATA), 'algae'])
+      new Set([...Object.keys(FISH_SPECIES_DATA), ...Object.keys(PLANT_SPECIES_DATA), ...ALGAE_KINDS])
     );
   });
 

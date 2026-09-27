@@ -1,6 +1,7 @@
 /**
- * What light loses on the way down — to the water column and to the leaves
- * above — as distinct from the fixture that emits it.
+ * What light loses on the way down — to the water column, the blooms in it and
+ * on the leaves, and the leaves above — as distinct from the fixture that
+ * emits it.
  */
 
 export interface OpticsConfig {
@@ -15,11 +16,19 @@ export interface OpticsConfig {
    * zero is leaves that shade nothing, and light at height is the water's alone.
    */
   leafAttenuationPerLai: number;
+  /**
+   * Beer–Lambert extinction per gram of algal tissue the light crosses, per
+   * cm² of its path — the same for every kind of bloom. Phytoplankton take
+   * about 0.02 m² per mg of chlorophyll, and chlorophyll is about 1 % of their
+   * organic matter, so 2,000–3,000 cm²/g; zero is a bloom that shades nothing.
+   */
+  algaeAttenuationPerGram: number;
 }
 
 export const opticsDefaults: OpticsConfig = {
   waterAttenuationPerCm: 0.010,
   leafAttenuationPerLai: 0.7,
+  algaeAttenuationPerGram: 3000,
 };
 
 /**
@@ -36,6 +45,13 @@ export const MAX_WATER_ATTENUATION_PER_CM = 1;
  * and a runaway one overflows a small crown's self-shade relief to infinite light.
  */
 export const MAX_LEAF_ATTENUATION_PER_LAI = 2;
+
+/**
+ * Chlorophyll at its absorption peak, at the most of it a cell carries, takes
+ * about 12,000 cm² a gram of tissue. Past twice that a coefficient is a typo;
+ * a negative one turns a bloom into a light source.
+ */
+export const MAX_ALGAE_ATTENUATION_PER_GRAM = 25000;
 
 export interface OpticsConfigMeta {
   key: keyof OpticsConfig;
@@ -62,5 +78,13 @@ export const opticsConfigMeta: OpticsConfigMeta[] = [
     min: 0,
     max: 1.2,
     step: 0.05,
+  },
+  {
+    key: 'algaeAttenuationPerGram',
+    label: 'Algae Attenuation',
+    unit: 'cm²/g',
+    min: 0,
+    max: 10000,
+    step: 100,
   },
 ];

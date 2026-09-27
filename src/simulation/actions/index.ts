@@ -1,5 +1,6 @@
 import type { SimulationState } from '../state.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
+import { settlePassiveResources } from '../equipment/index.js';
 import type { Action, ActionResult } from './types.js';
 import { topOff } from './top-off.js';
 import { feed } from './feed.js';
@@ -24,7 +25,8 @@ export * from './fish-management.js';
 
 /**
  * Apply a user action to the simulation state.
- * Actions are applied immediately (do not wait for tick).
+ * Actions are applied immediately (do not wait for tick), and the passive
+ * readings are settled off the tank the action leaves.
  * Returns new state and result message.
  */
 export function applyAction(
@@ -32,6 +34,12 @@ export function applyAction(
   action: Action,
   config: TunableConfig = DEFAULT_CONFIG
 ): ActionResult {
+  const result = dispatch(state, action, config);
+  if (result.state === state) return result;
+  return { ...result, state: settlePassiveResources(result.state, config.optics) };
+}
+
+function dispatch(state: SimulationState, action: Action, config: TunableConfig): ActionResult {
   // Note: When adding new action types:
   // 1. Add the type to ActionType in types.ts
   // 2. Add a case here - TypeScript will error if missing
@@ -41,7 +49,7 @@ export function applyAction(
     case 'feed':
       return feed(state, action);
     case 'scrubAlgae':
-      return scrubAlgae(state, action);
+      return scrubAlgae(state);
     case 'waterChange':
       return waterChange(state, action);
     case 'trimPlants':

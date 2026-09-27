@@ -17,19 +17,23 @@ and a month of cycling are all read off the same integer.
 
 | Stage | What settles | Why here |
 |---|---|---|
-| Environment | The clock advances, the passive readings are recomputed — light, flow, surface, aeration — and the hour's light is written into the day's history; then room-driven drift and evaporation apply | The hour has to exist before anything can read it |
+| Environment | The clock advances, the passive readings are recomputed — light, through the green water the hour starts with, flow, surface, aeration — and the hour's light is written into the day's history; then room-driven drift and evaporation apply | The hour has to exist before anything can read it |
 | Equipment | Substrate, hardscape, heater, top-off, CO₂ and doser act on the water they have just met | Equipment answers conditions, so it cannot run ahead of them |
-| Biology | Plants, then algae, then livestock, then breeding on the banks livestock just settled | Each reads the one before it |
+| Biology | Plants and the blooms in one pass, then livestock, then breeding on the banks livestock just settled | Each reads the one before it; plants and the blooms draw on the water as one |
 | Resources | Decay, nitrification and gas exchange move what the living just produced | The chemistry closes the hour's books on everything emitted above |
 | Alerts | Thresholds are compared against the settled hour, and each crossing is logged once | An alert on a mid-tick number describes a state the tank was never in |
 
 ## Order is a read graph, not a preference
 
 The sequence exists so that every reader sees a value that has already settled
-this hour. Plants read the equipment's hour, algae read the plant conditions
-plants have just written, livestock read a tank the flora has already been
-through. Reversing any pair would not break anything visibly — it would quietly
-make one of them an hour stale.
+this hour. Plants and the blooms read the equipment's hour, livestock read a tank
+the flora has already been through. Reversing any pair would not break anything
+visibly — it would quietly make one of them an hour stale. Plants and the blooms
+share one pass because they share the water: they draw their tissue in one
+call, so none gets first pick of the water, and each reads the others as the
+hour starts. Against the nitrifying colony the order does pick: the flora take
+their ammonia from what the colony left, and the colony oxidises what they
+leave beside the hour's excretion and mineralization.
 
 Inside a stage the opposite rule holds. Systems in the same tier all read the
 same state and their results are applied together, so two of them drawing on one
@@ -60,4 +64,4 @@ changes a tank, and the next tick meets the tank they left behind.
 
 `src/simulation/` — the tick and the system registry at its root, the core
 systems under `systems/`, the devices under `equipment/`, and the per-organism
-orchestrators under `plants/`, `algae/` and `livestock/`.
+orchestrators under `flora/` — plants and the blooms — and `livestock/`.

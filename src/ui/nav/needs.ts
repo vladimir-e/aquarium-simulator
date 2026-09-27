@@ -6,10 +6,10 @@
  * reported twice in different words or in different colours.
  */
 
-import type { AlertState, SimulationState } from '../../simulation/index.js';
+import { ALGAE, ALGAE_KINDS, type AlertState, type SimulationState } from '../../simulation/index.js';
 import { verbName, type VerbId } from '../actions';
 import type { ReadingBook, ReadingId } from '../readings';
-import { STATUS_SEVERITY, worstStatus } from '../run';
+import { bloomVerb, STATUS_SEVERITY, worstStatus } from '../run';
 import type { SectionId } from './sections.js';
 
 /** The two tones that ask for the keeper: past a line fish take harm at, and short of it. */
@@ -95,14 +95,16 @@ const ALERTS: readonly AlertSpec[] = [
     act: 'waterChange',
     to: '/water',
   },
-  {
-    id: 'highAlgae',
-    section: 'life',
-    text: 'Algae bloom',
-    reading: 'algae',
-    act: 'scrubAlgae',
-    to: '/life',
-  },
+  ...ALGAE_KINDS.map(
+    (kind): AlertSpec => ({
+      id: kind,
+      section: 'life',
+      text: `${ALGAE[kind].name} bloom`,
+      reading: kind,
+      act: bloomVerb(kind),
+      to: '/life',
+    })
+  ),
 ];
 
 /** Every alert the strip speaks for, and nothing it does not. */
@@ -111,6 +113,11 @@ export const ALERT_IDS: readonly (keyof AlertState)[] = ALERTS.map((spec) => spe
 /** Anything short of an alert that still asks for the keeper asks at the milder tone. */
 function needTone(tone: string): NeedTone {
   return tone === 'alert' ? 'alert' : 'warn';
+}
+
+/** The verb that answers an alert, and the husbandry verb the strip opens where it has one. */
+function answer(spec: AlertSpec): Pick<Need, 'verb' | 'act'> {
+  return spec.act === undefined ? { verb: spec.verb } : { verb: verbName(spec.act), act: spec.act };
 }
 
 function alertNeed(spec: AlertSpec, book: ReadingBook): Need {
@@ -122,8 +129,7 @@ function alertNeed(spec: AlertSpec, book: ReadingBook): Need {
     text: spec.text,
     figure: `${reading.value} ${reading.unit}`.trim(),
     sentence: reading.sentence,
-    verb: spec.act === undefined ? spec.verb : verbName(spec.act),
-    act: spec.act,
+    ...answer(spec),
     to: spec.to,
   };
 }
@@ -175,9 +181,7 @@ function fishNeed(book: ReadingBook): Need | null {
  */
 export function activeNeeds(state: SimulationState, book: ReadingBook): Need[] {
   const latched = (section: SectionId): Need[] =>
-    ALERTS.filter((spec) => spec.section === section && state.alertState[spec.id]).map((spec) =>
-      alertNeed(spec, book)
-    );
+    ALERTS.filter((spec) => spec.section === section && state.alertState[spec.id]).map((spec) => alertNeed(spec, book));
   const fish = fishNeed(book);
   return [...latched('water'), ...(fish ? [fish] : []), ...latched('life')].sort(
     (a, b) => STATUS_SEVERITY[b.tone] - STATUS_SEVERITY[a.tone]

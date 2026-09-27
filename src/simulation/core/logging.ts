@@ -18,12 +18,14 @@ export type LogEvent =
   | 'fish-died' // a fish died (any cause)
   | 'plant-died' // a plant died from poor conditions
   | 'plant-propagated' // a full bank bought an offshoot — a runner, plantlet or rhizome branch
+  | 'algae-died' // the bloom died back at condition 0, stating the coverage it took
   | 'fry-sold'; // the sell-fry action removed every fry at once
 
 /** A figure a log line states, kept in engine units so each reader renders it in its own. */
 export type LogQuantity =
   | { kind: 'volume'; liters: number }
-  | { kind: 'temperature'; celsius: number };
+  | { kind: 'temperature'; celsius: number }
+  | { kind: 'coverage'; percent: number };
 
 export interface LogEntry {
   /** Simulation tick when event occurred */
@@ -46,6 +48,7 @@ export type LogText = Pick<LogEntry, 'message' | 'quantities'>;
 
 export const liters = (value: number): LogQuantity => ({ kind: 'volume', liters: value });
 export const celsius = (value: number): LogQuantity => ({ kind: 'temperature', celsius: value });
+export const coverage = (value: number): LogQuantity => ({ kind: 'coverage', percent: value });
 
 /** A log line whose figures stay quantities: measured`Topped off: +${liters(x)}`. */
 export function measured(
@@ -64,10 +67,16 @@ export function measured(
 
 export type QuantityFormat = (quantity: LogQuantity) => string;
 
-export const metricQuantity: QuantityFormat = (quantity) =>
-  quantity.kind === 'volume'
-    ? `${quantity.liters.toFixed(1)} L`
-    : `${quantity.celsius.toFixed(1)}°C`;
+export const metricQuantity: QuantityFormat = (quantity) => {
+  switch (quantity.kind) {
+    case 'volume':
+      return `${quantity.liters.toFixed(1)} L`;
+    case 'temperature':
+      return `${quantity.celsius.toFixed(1)}°C`;
+    case 'coverage':
+      return `${quantity.percent.toFixed(1)} %`;
+  }
+};
 
 /** A log line as its reader reads it, every quantity rendered by `format`. */
 export function logText(

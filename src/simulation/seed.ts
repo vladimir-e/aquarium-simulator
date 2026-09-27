@@ -21,8 +21,9 @@ import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
 import { mapNutrients, nutrientsDefaults, type NutrientVector } from './config/nutrients.js';
 import { organicNutrients } from './systems/nutrients.js';
-import { NH3_TO_NO2_MASS_RATIO } from './core/chemistry.js';
+import { alkalinityMoved, MW_NO3, NH3_TO_NO2_MASS_RATIO, PROTONS_PER_N } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
+import { KhResource } from './resources/kh.js';
 import { createFish } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
 
@@ -215,30 +216,37 @@ export function cycledKhReserve(type: SubstrateType, capacity: number): number {
  */
 const CYCLED_WATER_RETAINED = 0.25;
 
-/**
- * mg of each nutrient a cycled tank of this bed and capacity carries: the
- * organics its bed leached, rotted at the recipe, and what its nutrient store
- * leaked, at the share the keeper's changes left.
- */
-export function cycledWaterNutrients(type: SubstrateType, capacity: number): NutrientVector {
+/** mg of each nutrient the organics a cycled bed leached left in the water, rotted at the recipe. */
+function cycledRot(type: SubstrateType, capacity: number): NutrientVector {
   const leached = getSubstrateOrganicReserve(type, capacity) - cycledReserve(type, capacity);
   const recipe = organicNutrients(livestockDefaults, nutrientsDefaults);
+  return mapNutrients((n) => leached * recipe[n] * CYCLED_WATER_RETAINED);
+}
+
+/**
+ * mg of each nutrient a cycled tank of this bed and capacity carries: the
+ * organics its bed leached and what its nutrient store leaked, at the share
+ * the keeper's changes left.
+ */
+export function cycledWaterNutrients(type: SubstrateType, capacity: number): NutrientVector {
+  const rot = cycledRot(type, capacity);
   const fresh = getSubstrateNutrients(type, capacity);
   const kept = cycledBedNutrients(type, capacity);
-  return mapNutrients((n) => (leached * recipe[n] + fresh[n] - kept[n]) * CYCLED_WATER_RETAINED);
+  return mapNutrients((n) => rot[n] + (fresh[n] - kept[n]) * CYCLED_WATER_RETAINED);
 }
 
 /**
  * Share of the tap's KH an aqua soil tank still holds after a month of weekly
  * 25 % changes: the bed strips each change back down before the next, and the
- * week averages out near 0.15 of the tap. Inert beds keep the tap's KH.
+ * week averages out near 0.15 of the tap. Inert beds take none.
  */
 const CYCLED_SOIL_KH_RETAINED = 0.15;
 
 /**
  * mg of CaCO3 of KH and GH a cycled tank of this bed, tap and capacity carries.
  * The bed takes both out in equal measure and stops when either runs dry, so
- * soft tap water caps what it takes at the tap's GH.
+ * soft tap water caps what it takes at the tap's GH. KH alone also pays for
+ * the nitrate the leached organics left, minted and nitrified.
  */
 export function cycledHardness(
   type: SubstrateType,
@@ -248,8 +256,10 @@ export function cycledHardness(
 ): { kh: number; gh: number } {
   const taken =
     type === 'aqua_soil' ? Math.min(tapKh * (1 - CYCLED_SOIL_KH_RETAINED), tapGh) : 0;
+  const rotNitrogen = cycledRot(type, capacity).nitrate / MW_NO3;
+  const nitrified = alkalinityMoved(rotNitrogen, PROTONS_PER_N.mint + PROTONS_PER_N.nitrify);
   return {
-    kh: getKhMass(tapKh - taken, capacity),
+    kh: Math.max(KhResource.bounds.min, getKhMass(tapKh - taken, capacity) + nitrified),
     gh: getGhMass(tapGh - taken, capacity),
   };
 }

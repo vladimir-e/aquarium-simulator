@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateCo2Factor,
   calculatePhotosynthesis,
+  plantFixer,
   type PhotosynthesisResult,
 } from './photosynthesis.js';
 import { calculateNutrientSufficiency } from './nutrients.js';
@@ -13,7 +14,8 @@ import type { Plant, Resources } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { CO2_TO_O2_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
 import { lightSaturationFactor, monodFactor, monodUptake } from '../core/kinetics.js';
-import { getSaturationIrradiance } from '../plants/species.js';
+import { plantTraits } from '../plants/species.js';
+import { saturationIrradiance } from './flora.js';
 import { rateUnits } from '../plants/canopy.js';
 import { plantRecord } from '../tests/plant.js';
 import { mirroredPools } from '../tests/pools.js';
@@ -105,20 +107,21 @@ describe('calculatePhotosynthesis', () => {
       config?: PlantsConfig;
     } = {}
   ): PhotosynthesisResult {
+    const sufficiency = sufficiencyOf(plants, resources, volume);
     return calculatePhotosynthesis(
-      plants,
-      plants.map(() => lightPar),
+      plants.map((p, i) => plantFixer(p, lightPar, sufficiency[i], config)),
       co2,
       volume,
-      sufficiencyOf(plants, resources, volume),
       config
     );
   }
 
+  const metabolic = (p: Plant): number => rateUnits(p) * plantTraits(p.species).growthRate;
+
   function carbonCapacity(p: Plant, config = plantsDefaults): number {
     return (
-      rateUnits(p) *
-      lightSaturationFactor(light, getSaturationIrradiance(p.species, config)) *
+      metabolic(p) *
+      lightSaturationFactor(light, saturationIrradiance(plantTraits(p.species), config)) *
       calculateNutrientSufficiency(mirroredPools(buildResources(waterVolume)), p.species) *
       config.basePhotosynthesisRate *
       config.co2PerRateUnit
@@ -189,11 +192,11 @@ describe('calculatePhotosynthesis', () => {
     it('shares the carbon yield with respiration, which is why there is one of it', () => {
       const fern = plant(100, 'java_fern');
       for (const config of [plantsDefaults, { ...plantsDefaults, co2PerRateUnit: 7 }]) {
-        const respired = calculateRespiration(rateUnits(fern), 25, AIR_SATURATED_O2, config).co2ProducedMg;
+        const respired = calculateRespiration(metabolic(fern), 25, AIR_SATURATED_O2, config).co2ProducedMg;
         const capacity =
           ((respired / config.baseRespirationRate) * config.basePhotosynthesisRate) /
           monodFactor(AIR_SATURATED_O2, config.respirationOxygenHalfSaturation) *
-          lightSaturationFactor(light, getSaturationIrradiance('java_fern', config)) *
+          lightSaturationFactor(light, saturationIrradiance(plantTraits('java_fern'), config)) *
           calculateNutrientSufficiency(mirroredPools(buildResources(waterVolume)), 'java_fern');
 
         expect(photosynthesis([fern], { config }).co2ConsumedMg).toBeCloseTo(
@@ -359,26 +362,25 @@ describe('calculatePhotosynthesis', () => {
       expect(r100.co2ConsumedMg).toBeCloseTo(r50.co2ConsumedMg * 2, 6);
     });
 
-    it('rates a plant by its leaf, not its size: a full sword out-fixes a full carpet patch by their rate units', () => {
+    it('rates a plant by its leaf at its growth rate, not its size: a full sword and a full carpet patch fix by their metabolic rate units', () => {
       const fixed = (p: Plant): number =>
         photosynthesis([p], { co2: PLENTIFUL_CO2, lightPar: 1e6 }).co2ConsumedMg /
         calculateNutrientSufficiency(mirroredPools(buildResources(waterVolume)), p.species);
       const sword = plant(100, 'amazon_sword');
       const patch = plant(100, 'monte_carlo');
 
-      expect(fixed(sword) / fixed(patch)).toBeCloseTo(rateUnits(sword) / rateUnits(patch), 6);
+      expect(fixed(sword) / fixed(patch)).toBeCloseTo(metabolic(sword) / metabolic(patch), 6);
     });
 
     it('runs each plant on the light at its own leaf', () => {
       const lit = plant(100, 'java_fern');
       const shaded = { ...plant(100, 'java_fern'), id: 'shaded' };
       const resources = buildResources(waterVolume);
+      const sufficiency = sufficiencyOf([lit, shaded], resources, waterVolume);
       const both = calculatePhotosynthesis(
-        [lit, shaded],
-        [light, 0],
+        [plantFixer(lit, light, sufficiency[0]), plantFixer(shaded, 0, sufficiency[1])],
         PLENTIFUL_CO2,
-        waterVolume,
-        sufficiencyOf([lit, shaded], resources, waterVolume)
+        waterVolume
       );
 
       expect(both).toEqual(photosynthesis([lit], { co2: PLENTIFUL_CO2 }));

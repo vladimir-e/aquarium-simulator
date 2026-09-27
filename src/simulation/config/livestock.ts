@@ -9,7 +9,7 @@
  *   age stressor kicks in for a smooth decline.
  */
 
-import { SURPLUS_CAP_DEFAULT } from './vitality.js';
+import { MAX_SURPLUS_CAP, SURPLUS_CAP_DEFAULT } from './vitality.js';
 import { MW_N, MW_NO3, N_TO_NH3_MASS_RATIO } from '../core/chemistry.js';
 
 export interface LivestockConfig {
@@ -142,8 +142,8 @@ export interface LivestockConfig {
    */
   surplusCap: number;
   /**
-   * Share of the bank a 1 g fish draws each hour to heal health below 100;
-   * scaled by adult mass to the −¼ power (see `fishHealingRate`).
+   * Rate, per hour, a 1 g fish's bank heals health below 100 at; scaled by
+   * adult mass to the −¼ power (see `fishHealingRate`).
    */
   healingDrawRate: number;
 
@@ -271,9 +271,9 @@ export const livestockDefaults: LivestockConfig = {
 
   // Bank ceiling — half the condition scale by default.
   surplusCap: SURPLUS_CAP_DEFAULT,
-  // 5 %/h at 1 g: a full bank heals a 1 g fish 2.5 %/h at first, more than its
-  // whole benefit budget, and runs out with a ~20 h time constant under a
-  // steady insult. A neon draws 6 %/h of its bank, an angelfish 2.5.
+  // 0.05 /h at 1 g: a full bank heals a 1 g fish 2.4 %/h at first, more than
+  // its whole benefit budget, and runs out with a 20 h time constant under a
+  // steady insult. A neon heals at 0.06 /h, an angelfish at 0.025.
   healingDrawRate: 0.05,
 
   // Death
@@ -385,7 +385,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'plantBenefitPeak', label: 'Plant Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'plantBenefitSaturationPoint', label: 'Plant Benefit Saturation', unit: 'power', min: 1, max: 10, step: 0.5 },
   // Surplus
-  { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: 100, step: 5 },
+  { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: MAX_SURPLUS_CAP, step: 5 },
   { key: 'healingDrawRate', label: 'Healing Draw Rate', unit: '/hr at 1 g', min: 0.005, max: 0.5, step: 0.005 },
   // Death
   { key: 'deathDecayFactor', label: 'Death Decay Factor', unit: '', min: 0.1, max: 1.0, step: 0.1 },

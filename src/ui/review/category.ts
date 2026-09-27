@@ -6,6 +6,7 @@
  */
 
 import type { LogEntry } from '../../simulation/index.js';
+import { isReported } from '../run/index.js';
 
 /** Bucket a log line belongs to; `sim` is the catch-all for engine chatter. */
 export type LogCategory = 'cycle' | 'user' | 'life' | 'sim';
@@ -39,9 +40,9 @@ export function categorizeLog(log: LogEntry): LogCategory {
   return 'sim';
 }
 
+/** The lines the console reports, in the chip's bucket. */
 export function filterLogs(logs: LogEntry[], filter: LogFilter): LogEntry[] {
-  if (filter === 'all') return logs;
-  return logs.filter((log) => categorizeLog(log) === filter);
+  return logs.filter((log) => isReported(log) && (filter === 'all' || categorizeLog(log) === filter));
 }
 
 /** The chemistry / life thing an alert points at, for its short chip label. */

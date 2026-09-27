@@ -147,7 +147,7 @@ outside the range-declaration rule the rest of the engine follows.
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | `temperature` drives the nitrifier Q10; `water` turns stored mass into the ppm every threshold reads |
 | [Light](/subsystems/light/) | The fixture's surface PAR, while lit, as heat | Depth, from the same box capacity implies |
 | [Plants](/subsystems/plants/) · [Livestock](/subsystems/livestock/) | — | `temperature` is a two-sided stressor for both and a comfort benefit for plants alone; plants stand in the box's depth and fill its floor |
-| [Algae](/subsystems/algae/) | — | Standing `water`, to turn stored nutrient mass into the ppm the ratio needs |
+| [Algae](/subsystems/algae/) | — | Capacity, the litres green water fills and the box whose glass film coats; `temperature` for each kind's band and respiration; depth, for the column's mean light |
 | [Actions](/subsystems/actions/) | — | Tap temperature, KH and GH are what a water change blends toward |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | `water` below `waterLevelStressThreshold` of capacity raises the low water-level alert |
 | [State & persistence](/subsystems/state-and-persistence/) | — | `tank.capacity` — what every per-litre seed figure resolves against |
@@ -155,4 +155,4 @@ outside the range-declaration rule the rest of the engine follows.
 ## Source
 
 `src/simulation/systems/` for drift and evaporation, `src/simulation/config/` for
-their tunables; the box geometry is derived at the state root.
+their tunables, `src/simulation/core/` for the box geometry.

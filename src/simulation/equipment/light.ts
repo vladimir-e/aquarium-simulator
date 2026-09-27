@@ -5,7 +5,6 @@
 
 import type { DailySchedule } from '../core/schedule.js';
 import { isScheduleActive } from '../core/schedule.js';
-import type { OpticsConfig } from '../config/optics.js';
 
 export type LightPar = 25 | 50 | 90 | 150;
 
@@ -65,18 +64,13 @@ export function getLightOutput(light: Light, hourOfDay: number): number {
  *
  * @param surfacePar - PAR at the water surface (µmol/m²/s)
  * @param depthCm - Depth of water the light travels through
- * @param optics - Water column optics (attenuation coefficient)
+ * @param extinction - The water's extinction as it stands, per cm (`waterExtinction`)
  * @returns PAR at that depth (µmol/m²/s)
  */
-export function calculateParAtDepth(
-  surfacePar: number,
-  depthCm: number,
-  optics: OpticsConfig
-): number {
+export function calculateParAtDepth(surfacePar: number, depthCm: number, extinction: number): number {
   if (surfacePar <= 0) return 0;
 
-  const attenuation = optics.waterAttenuationPerCm * Math.max(0, depthCm);
-  return surfacePar * Math.exp(-attenuation);
+  return surfacePar * Math.exp(-extinction * Math.max(0, depthCm));
 }
 
 const HOURS_PER_DAY = 24;
@@ -86,11 +80,12 @@ const MOL_PER_PAR_HOUR = 3600 / 1e6;
 
 /**
  * PAR at `depthCm` for every hour of the day under the fixture's schedule —
- * the light history a tank that has run this schedule all along carries.
+ * the light history a tank that has run this schedule all along, through water
+ * of this extinction, carries.
  */
-export function scheduledLightByHour(light: Light, depthCm: number, optics: OpticsConfig): number[] {
+export function scheduledLightByHour(light: Light, depthCm: number, extinction: number): number[] {
   return Array.from({ length: HOURS_PER_DAY }, (_, hour) =>
-    calculateParAtDepth(getLightOutput(light, hour), depthCm, optics)
+    calculateParAtDepth(getLightOutput(light, hour), depthCm, extinction)
   );
 }
 

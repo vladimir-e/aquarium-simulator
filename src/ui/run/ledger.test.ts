@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import {
+  ALGAE_KINDS,
   applyAction,
   createSimulation,
   getPresetById,
+  plantLightTaken,
   tick,
   type Fish,
   type SimulationState,
@@ -222,6 +224,20 @@ describe('readLedger', () => {
       expect(burns).toContain(false);
     });
 
+    it('carries the lamp to its leaf, naming each taker that moved the light', () => {
+      const green = produce(planted(10), (draft) => {
+        draft.algae.greenWater.mass = 40;
+        draft.algae.film.mass = 40;
+      });
+      const { lightPath } = plantLedger(green);
+      const { light } = readHourAhead(green, DEFAULT_CONFIG).plants[0];
+      const lamp = green.equipment.light.par;
+
+      expect(lightPath!.steps.map((step) => step.key)).toEqual(expect.arrayContaining(['water', 'greenWater', 'film']));
+      expect(lightPath!.steps.every((step) => step.key === 'canopy' || step.change < 0)).toBe(true);
+      expect(lightPath!.heading).toBe(`${Math.round(light.par)} of the lamp's ${lamp} PAR reach its leaf`);
+    });
+
     it('trends by the condition the next tick leaves it at', () => {
       const dawn = planted(7);
       const state = { ...dawn, plants: dawn.plants.map((plant) => ({ ...plant, condition: 70 })) };
@@ -231,25 +247,34 @@ describe('readLedger', () => {
     });
   });
 
-  it('trends the algae by what the next tick does to its coverage, by day and by night, beside the bloom’s own balance', () => {
+  it.each(ALGAE_KINDS)('reads %s as an organism: its condition trended as the next tick leaves it, its coverage by what the tick does to the mass', (kind) => {
     const preset = getPresetById('planted')!;
     let state = produce(createSimulation(preset.config, preset.seed), (draft) => {
-      draft.algae.mass = 20;
-      draft.algae.surplus = 10;
+      Object.assign(draft.algae[kind], { mass: 20, condition: 70, surplus: 0 });
     });
-    const trends = new Set<string>();
     for (let hour = 0; hour < 24; hour++) {
       const next = tick(state, DEFAULT_CONFIG);
-      const { trend, helps, hurts, net } = ledgerOf(state, { kind: 'algae' })!;
+      const ledger = ledgerOf(state, { kind: 'algae', bloom: kind })!;
+      const { vitality } = readHourAhead(state, DEFAULT_CONFIG).algae[kind];
 
-      expect(trend).toBe(projectedTrend(next.algae.mass - state.algae.mass));
-      expect(net).toBeCloseTo(readHourAhead(state, DEFAULT_CONFIG).algae.net * 24, 10);
-      expect(helps - hurts).toBeCloseTo(net, 10);
-      trends.add(trend);
+      expect(ledger.value).toBe(Math.floor(state.algae[kind].condition).toString());
+      expect(ledger.trend).toBe(projectedTrend(next.algae[kind].condition - state.algae[kind].condition));
+      expect(ledger.coverage!.note).toBe(projectedTrend(next.algae[kind].mass - state.algae[kind].mass));
+      expect(ledger.net).toBeCloseTo(vitality.breakdown.net * 24, 10);
+      expect(ledger.helps - ledger.hurts).toBeCloseTo(ledger.net, 10);
       state = next;
     }
-    expect(trends).toContain('steady');
-    expect([...trends].some((trend) => trend.startsWith('↗'))).toBe(true);
+  });
+
+  it('reads the share of the plants’ light a bloom takes, and none with nothing planted', () => {
+    const carpeted = applyAction(tank([]), { type: 'addPlant', species: 'monte_carlo' }).state;
+    const green = produce(carpeted, (draft) => {
+      draft.algae.greenWater.mass = 40;
+    });
+    const { lightTaken } = ledgerOf(green, { kind: 'algae', bloom: 'greenWater' })!;
+
+    expect(Number(lightTaken!.text)).toBe(Math.round(plantLightTaken(green, DEFAULT_CONFIG.optics).greenWater * 100));
+    expect(ledgerOf(tank([]), { kind: 'algae', bloom: 'greenWater' })!.lightTaken).toBeNull();
   });
 
   it('has nothing to open for a fish the tank no longer holds', () => {
@@ -259,18 +284,20 @@ describe('readLedger', () => {
     expect(ledgerOf(state, { kind: 'plant', id: 'plant_a_1' })).toBeNull();
   });
 
-  it('always has the algae to open — a population needs no id', () => {
-    const algae = ledgerOf(tank([]), { kind: 'algae' })!;
+  it('always has every bloom to open — a population needs no id — each on the verb that takes it out', () => {
+    const verbs = ALGAE_KINDS.map((kind) => ledgerOf(tank([]), { kind: 'algae', bloom: kind })!);
 
-    expect(algae.species).toBe('algae');
-    expect(algae.verb).toBe('scrubAlgae');
+    expect(verbs.map((ledger) => ledger.species)).toEqual([...ALGAE_KINDS]);
+    expect(ledgerOf(tank([]), { kind: 'algae', bloom: 'greenWater' })!.verb).toBe('waterChange');
+    expect(ledgerOf(tank([]), { kind: 'algae', bloom: 'film' })!.verb).toBe('scrubAlgae');
   });
 
-  it('reads the bloom’s bank buying coverage while lit, and held while dark', () => {
+  it.each(ALGAE_KINDS)('reads the %s bank banking while lit and buying growth through the night', (kind) => {
     const preset = getPresetById('planted')!;
     let state = produce(createSimulation(preset.config, preset.seed), (draft) => {
-      draft.algae.mass = 20;
-      draft.algae.surplus = 10;
+      draft.plants = [];
+      draft.resources.nitrate = 100 * draft.resources.water;
+      Object.assign(draft.algae[kind], { mass: 20, condition: 100, surplus: 10 });
     });
     const notes = new Map<boolean, Set<string>>([
       [true, new Set()],
@@ -278,14 +305,13 @@ describe('readLedger', () => {
     ]);
     for (let hour = 0; hour < 24; hour++) {
       const next = tick(state, DEFAULT_CONFIG);
-      const { bank } = ledgerOf(state, { kind: 'algae' })!;
+      const { bank } = ledgerOf(state, { kind: 'algae', bloom: kind })!;
 
       notes.get(next.resources.light > 0)!.add(bank!.note);
-      expect(bank!.text).toBe(state.algae.surplus.toFixed(1));
+      expect(bank!.text).toBe(state.algae[kind].surplus.toFixed(1));
       state = next;
     }
-    expect(notes.get(true)).toContain('buying coverage');
-    expect([...notes.get(false)!].every((note) => note !== 'buying coverage')).toBe(true);
-    expect(notes.get(false)).toContain('held while dark');
+    expect(notes.get(true)).toContain('banking');
+    expect(notes.get(false)).toContain('buying growth');
   });
 });

@@ -6,6 +6,7 @@
  * extent is stated in the caption rather than left implied.
  */
 
+import { ALGAE, ALGAE_KINDS } from '../../simulation/index.js';
 import { DECIMALS } from '../readings/index.js';
 import type { RunSnapshot } from '../run/index.js';
 import type { AlertKind } from './category.js';
@@ -65,7 +66,7 @@ export const TRACKS: TrackDef[] = [
   },
   {
     id: 'population',
-    // `AlgaeState.mass` is a percentage despite the name, as `Plant.size` is.
+    // `AlgaeState.mass` is a coverage percentage despite the name, as `Plant.size` is.
     title: 'Populations',
     shortLabel: 'pop.',
     alertKinds: ['algae'],
@@ -73,7 +74,14 @@ export const TRACKS: TrackDef[] = [
       { key: 'fishCount', label: 'fish', decimals: 0, accessor: (s) => s.fishCount },
       { key: 'fryCount', label: 'fry', decimals: 0, accessor: (s) => s.fryCount },
       { key: 'plantCount', label: 'plants', decimals: 0, accessor: (s) => s.plantCount },
-      { key: 'algaeMass', label: 'algae', decimals: DECIMALS.algae, accessor: (s) => s.algaeMass },
+      ...ALGAE_KINDS.map(
+        (kind): TrackSeries => ({
+          key: kind,
+          label: ALGAE[kind].name.toLowerCase(),
+          decimals: DECIMALS[kind],
+          accessor: (s) => s.algae[kind],
+        })
+      ),
     ],
   },
 ];
@@ -84,6 +92,7 @@ export const TRACK_COLORS = [
   'var(--chart-2)',
   'var(--chart-3)',
   'var(--chart-4)',
+  'var(--chart-5)',
 ];
 
 export interface TrackPair {

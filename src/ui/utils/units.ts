@@ -14,6 +14,9 @@ export type UnitSystem = 'metric' | 'imperial';
 
 const LITERS_PER_GALLON = 3.785411784;
 
+/** Coverage prints in whole percent. */
+export const COVERAGE_DECIMALS = 0;
+
 function celsiusToFahrenheit(celsius: number): number {
   return (celsius * 9) / 5 + 32;
 }
@@ -47,10 +50,16 @@ export function formatVolume(liters: number, system: UnitSystem, precision = 1):
 }
 
 export function logQuantityIn(system: UnitSystem): QuantityFormat {
-  return (quantity) =>
-    quantity.kind === 'volume'
-      ? formatVolume(quantity.liters, system)
-      : formatTemperature(quantity.celsius, system);
+  return (quantity) => {
+    switch (quantity.kind) {
+      case 'volume':
+        return formatVolume(quantity.liters, system);
+      case 'temperature':
+        return formatTemperature(quantity.celsius, system);
+      case 'coverage':
+        return `${quantity.percent.toFixed(COVERAGE_DECIMALS)} %`;
+    }
+  };
 }
 
 /**

@@ -5,27 +5,32 @@
  * A unit spreads its leaves evenly from the floor to its height over its own
  * footprint. The light it reads is the substrate PAR scaled by
  *
- *   leaf  s_i = exp( k_w·z_i + ½·k_L·LAI_i·(1 − u_i) − Σ_{j≠i} c_j·τ_j(z_i) ),  z_i = h_i / 2
- *   top   χ_i = exp( k_w·h_i − Σ_{j≠i} c_j·τ_j(h_i) )
+ *   leaf  s_i = f · exp( k·z_i + ½·k_L·LAI_i·(1 − u_i) − Σ_{j≠i} c_j·τ_j(z_i) ),  z_i = h_i / 2
+ *   top   χ_i = f · exp( k·h_i − Σ_{j≠i} c_j·τ_j(h_i) )
  *
  *   τ_j(z) = 1 − exp(−k_L·LAI_j·u_j·max(0, 1 − z/h_j))
  *   c_j    = F_j / A
  *
- * with u the size as a share of a full unit; k_w, k_L the optics attenuations;
- * LAI, F a form's leaf area index and footprint; A the floor area; h the
- * plant's height. Water above a leaf is a gain over the substrate. A unit's own
- * crown is written against a full unit's, so a lone grown plant reads the
+ * with u the size as a share of a full unit; k the water's extinction as it
+ * stands and k_L the leaves'; f the share of a leaf's light the film coating it
+ * passes; LAI, F a form's leaf area index and footprint; A the floor area; h
+ * the plant's height. Water above a leaf is a gain over the substrate. A unit's
+ * own crown is written against a full unit's, so a lone grown plant reads the
  * care-sheet light at its leaf and a sparse one is less self-shaded; the crown
  * top has none of its own leaves above it. Other crowns fall at random over the
  * floor, so each takes at most its floor share, and a crown no taller than a
  * leaf never shades it.
  */
 
-import type { Plant, Resources, SimulationState } from '../state.js';
-import { calculateFloorArea, calculateTankHeight } from '../state.js';
+import type { Blooms, Plant, Resources, SimulationState } from '../state.js';
+import { calculateFloorArea, calculateTankHeight } from '../core/geometry.js';
 import type { OpticsConfig } from '../config/optics.js';
-import { dailyLightIntegral } from '../equipment/light.js';
-import { dailyLightEdge, growthFormOf, type PlantSpecies } from './species.js';
+import { calculateParAtDepth, dailyLightIntegral } from '../equipment/light.js';
+import { growthFormOf, plantTraits, type PlantSpecies } from './species.js';
+import { dailyLightEdge } from '../systems/flora.js';
+import type { AlgaeKind } from '../algae/traits.js';
+import { mapKinds } from '../algae/blooms.js';
+import { bloomPass, lightLoss, waterExtinction, type LightLoss } from '../algae/light-loss.js';
 
 type Unit = Pick<Plant, 'species' | 'size'>;
 
@@ -51,13 +56,15 @@ export function rateUnits(plant: Unit): number {
   return leafArea(plant) / LEAF_AREA_PER_RATE_UNIT;
 }
 
-/** Rate units in one full unit of the species. */
-export function fullRateUnits(species: PlantSpecies): number {
-  return rateUnits({ species, size: 100 });
-}
-
-export function getTotalRateUnits(plants: readonly Unit[]): number {
-  return plants.reduce((sum, plant) => sum + rateUnits(plant), 0);
+/**
+ * The share of the lamp's light each taker lets through to a plant's mean leaf;
+ * their product is the leaf's share of the lamp.
+ */
+export interface LightPath {
+  water: number;
+  /** Past 1 where its own crown, sparser than a full unit's, shades its leaf less than the care sheet assumes. */
+  canopy: number;
+  blooms: Record<AlgaeKind, number>;
 }
 
 /** Light at a plant's height over the PAR at the substrate. */
@@ -66,6 +73,7 @@ export interface CanopyLight {
   leaf: number;
   /** At the top of its crown: what burns it. */
   top: number;
+  path: LightPath;
 }
 
 /** Share of the floor one unit of the species claims: its footprint over the floor area. */
@@ -93,19 +101,31 @@ function shadeAt(crown: Crown, z: number, leafAttenuation: number): number {
   return crown.floorShare * (1 - Math.exp(-leafAttenuation * crown.leafAreaIndex * (1 - z / crown.height)));
 }
 
+function overLeaf(plant: Unit, depth: number, optics: OpticsConfig, loss: LightLoss): Pick<LightPath, 'water' | 'blooms'> {
+  const below = depth - plantHeight(plant, depth) / 2;
+  return {
+    water: Math.exp(-optics.waterAttenuationPerCm * below),
+    blooms: mapKinds((kind) => bloomPass(loss.blooms[kind], below)),
+  };
+}
+
 /**
- * Per plant, in `plants` order. A lone unit above a few % of a unit reads more
- * light at its leaf the smaller it is. Below that a rosette or clump loses water
- * gain faster than it gains self-shade relief, and in a shorter canopy the
- * neighbours' shade takes the relief back.
+ * Per plant, in `plants` order, through the water and the blooms as they
+ * stand. A lone unit above a few % of a unit reads more light at its leaf the
+ * smaller it is. Below that a rosette or clump loses water gain faster than it
+ * gains self-shade relief, and in a shorter canopy the neighbours' shade takes
+ * the relief back.
  */
 export function canopyLight(
   plants: readonly Unit[],
   capacity: number,
-  optics: OpticsConfig
+  optics: OpticsConfig,
+  blooms: Blooms
 ): CanopyLight[] {
   const depth = calculateTankHeight(capacity);
   const k = optics.leafAttenuationPerLai;
+  const loss = lightLoss(blooms, optics);
+  const { extinction, leafPass } = loss;
   const crowns = plants.map((plant) => crownOf(plant, depth, capacity));
 
   return plants.map((plant, i) => {
@@ -120,8 +140,9 @@ export function canopyLight(
     }
     const selfShadeRelief = 0.5 * k * growthFormOf(plant.species).leafAreaIndex * (1 - plant.size / 100);
     return {
-      leaf: Math.exp(optics.waterAttenuationPerCm * meanLeaf + selfShadeRelief - aboveLeaf),
-      top: Math.exp(optics.waterAttenuationPerCm * own.height - aboveTop),
+      leaf: leafPass * Math.exp(extinction * meanLeaf + selfShadeRelief - aboveLeaf),
+      top: leafPass * Math.exp(extinction * own.height - aboveTop),
+      path: { ...overLeaf(plant, depth, optics, loss), canopy: Math.exp(selfShadeRelief - aboveLeaf) },
     };
   });
 }
@@ -139,6 +160,7 @@ export interface PlantLight {
   /** The day's light at the substrate that leaves its leaf on the species edge. */
   substrateEdge: number;
   heightCm: number;
+  path: LightPath;
 }
 
 /** A plant's light at its place in the canopy, on the tank's light as it stands. */
@@ -149,7 +171,7 @@ export function lightAtHeight(
   waterDepth: number
 ): PlantLight {
   const dailyLight = dailyLightIntegral(resources.lightByHour) * canopy.leaf;
-  const edge = dailyLightEdge(plant.species);
+  const edge = dailyLightEdge(plantTraits(plant.species));
   return {
     par: resources.light * canopy.leaf,
     crownPar: resources.light * canopy.top,
@@ -157,6 +179,7 @@ export function lightAtHeight(
     needShare: dailyLight / edge,
     substrateEdge: edge / canopy.leaf,
     heightCm: plantHeight(plant, waterDepth),
+    path: canopy.path,
   };
 }
 
@@ -178,6 +201,38 @@ export function floorShade(plants: readonly Unit[], capacity: number, optics: Op
     0
   );
   return 1 - Math.exp(-taken);
+}
+
+/**
+ * PAR that reaches the floor while the lamp is on: its rating through the
+ * water as it stands, less the canopy's floor shade.
+ */
+export function floorLight(
+  state: Pick<SimulationState, 'plants' | 'tank' | 'equipment' | 'algae'>,
+  optics: OpticsConfig
+): number {
+  const { light } = state.equipment;
+  const depth = calculateTankHeight(state.tank.capacity);
+  const landed = calculateParAtDepth(light.enabled ? light.par : 0, depth, waterExtinction(state.algae, optics));
+  return landed * (1 - floorShade(state.plants, state.tank.capacity, optics));
+}
+
+/**
+ * The share of the planting's light each kind of bloom takes: what it takes at
+ * each plant's mean leaf, weighted by the plant's leaf area. With nothing
+ * planted it takes none.
+ */
+export function plantLightTaken(
+  state: Pick<SimulationState, 'plants' | 'tank' | 'algae'>,
+  optics: OpticsConfig
+): Record<AlgaeKind, number> {
+  const depth = calculateTankHeight(state.tank.capacity);
+  const loss = lightLoss(state.algae, optics);
+  const passed = state.plants.map((plant) => overLeaf(plant, depth, optics, loss).blooms);
+  const leaf = state.plants.reduce((sum, plant) => sum + leafArea(plant), 0);
+  return mapKinds((kind) =>
+    leaf > 0 ? state.plants.reduce((sum, plant, i) => sum + leafArea(plant) * (1 - passed[i][kind]), 0) / leaf : 0
+  );
 }
 
 export function isOvergrown(state: Pick<SimulationState, 'plants' | 'tank'>): boolean {

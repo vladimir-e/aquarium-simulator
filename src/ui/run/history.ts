@@ -4,7 +4,7 @@
  * window; oldest entries drop past the cap. Session-scoped — not persisted.
  */
 
-import { getLightOutput, type SimulationState } from '../../simulation/index.js';
+import { getLightOutput, mapKinds, type AlgaeKind, type SimulationState } from '../../simulation/index.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/index.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import { countFry } from './livestock.js';
@@ -28,7 +28,8 @@ export interface RunSnapshot {
   fishCount: number;
   fryCount: number;
   plantCount: number;
-  algaeMass: number;
+  /** Each kind's coverage, 0–100. */
+  algae: Record<AlgaeKind, number>;
   food: number;
   lightOn: boolean;
 }
@@ -52,7 +53,7 @@ export function snapshotFromState(state: SimulationState): RunSnapshot {
     fishCount: state.fish.length - fryCount,
     fryCount,
     plantCount: state.plants.length,
-    algaeMass: state.algae.mass,
+    algae: mapKinds((kind) => state.algae[kind].mass),
     food: r.food,
     lightOn: getLightOutput(state.equipment.light, state.tick % 24) > 0,
   };

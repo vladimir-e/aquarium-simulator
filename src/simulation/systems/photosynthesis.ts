@@ -1,10 +1,10 @@
 /**
- * Photosynthesis calculations for plants.
+ * Photosynthesis — plants and algae alike.
  *
  * Photosynthesis occurs when lights are on and moves gases only — carbon
- * fixed, oxygen released. Plant size growth flows through the surplus supply
- * chain (vitality → `Plant.surplus` → growth), and the nutrients new tissue
- * takes come out of the water and the bed where growth buys it (`drawTissue`).
+ * fixed, oxygen released. Growth flows through the surplus supply chain
+ * (vitality → bank → growth), and the nutrients new tissue takes come out of
+ * the water and the bed where growth buys it (`drawTissue`).
  */
 
 import type { Plant } from '../state.js';
@@ -12,11 +12,8 @@ import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
 import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
 import { lightSaturationFactor, monodFactor, monodUptake } from '../core/kinetics.js';
-import {
-  getCo2HalfSaturation,
-  getSaturationIrradiance,
-  type PlantSpecies,
-} from '../plants/species.js';
+import { getCo2HalfSaturation, plantTraits, type PlantSpecies } from '../plants/species.js';
+import { metabolicRateUnits, saturationIrradiance } from './flora.js';
 import { getMassFromPpm } from '../resources/index.js';
 import { rateUnits } from '../plants/canopy.js';
 
@@ -39,43 +36,62 @@ export function calculateCo2Factor(
   return monodFactor(co2, getCo2HalfSaturation(species, config));
 }
 
+/** One photosynthesiser's hour, as the carbon it can fix reads it. */
+export interface CarbonFixer {
+  metabolicRateUnits: number;
+  /** `tanh(PAR / Ik)` at the light it stands in, 0–1. */
+  lightResponse: number;
+  /** Liebig sufficiency, 0–1. */
+  sufficiency: number;
+  /** Dissolved CO₂ (mg/L) it fixes at half rate on. */
+  co2HalfSaturation: number;
+}
+
+/** A plant as photosynthesis reads it, at the PAR on its mean leaf. */
+export function plantFixer(
+  plant: Plant,
+  par: number,
+  sufficiency: number,
+  config: PlantsConfig = plantsDefaults
+): CarbonFixer {
+  const traits = plantTraits(plant.species);
+  return {
+    metabolicRateUnits: metabolicRateUnits(rateUnits(plant), traits),
+    lightResponse: lightSaturationFactor(par, saturationIrradiance(traits, config)),
+    sufficiency,
+    co2HalfSaturation: getCo2HalfSaturation(plant.species, config),
+  };
+}
+
 /**
- * Calculate photosynthesis gas effects.
+ * Calculate photosynthesis gas effects for everything fixing carbon in the
+ * tank, drawn together on the one CO₂ stock.
  *
- * Per-plant contribution, with m_i its rate units (`plants/canopy.ts`), PAR_i
- * the light at its mean leaf and sufficiency_i its Liebig sufficiency, both
- * index-aligned with `plants`:
- *   lightResponse_i = tanh(PAR_i / Ik_i), the species' saturating light curve
- *   carbon_i        = m_i × lightResponse_i × sufficiency_i × basePhotosynthesisRate × co2PerRateUnit
+ * Per fixer, with m_i its metabolic rate units:
+ *   carbon_i = m_i × lightResponse_i × sufficiency_i × basePhotosynthesisRate × co2PerRateUnit
  *
  * Aggregate outputs, all masses in mg:
- *   co2    = monodUptake(CO2, Σ carbon_i, carbon-weighted mean of the species' CO₂ half-saturations, as mass)
+ *   co2    = monodUptake(CO2, Σ carbon_i, carbon-weighted mean of the CO₂ half-saturations, as mass)
  *   oxygen = co2 × CO2_TO_O2_MASS_RATIO
  */
 export function calculatePhotosynthesis(
-  plants: readonly Plant[],
-  parByPlant: readonly number[],
+  fixers: readonly CarbonFixer[],
   co2: number,
   waterVolume: number,
-  sufficiencyByPlant: readonly number[],
   plantsConfig: PlantsConfig = plantsDefaults
 ): PhotosynthesisResult {
   let carbonCapacity = 0;
   let carbonHalfSaturationWeight = 0;
-  plants.forEach((plant, i) => {
-    const lightResponse = lightSaturationFactor(
-      parByPlant[i],
-      getSaturationIrradiance(plant.species, plantsConfig)
-    );
+  for (const fixer of fixers) {
     const carbon =
-      rateUnits(plant) *
-      lightResponse *
-      sufficiencyByPlant[i] *
+      fixer.metabolicRateUnits *
+      fixer.lightResponse *
+      fixer.sufficiency *
       plantsConfig.basePhotosynthesisRate *
       plantsConfig.co2PerRateUnit;
     carbonCapacity += carbon;
-    carbonHalfSaturationWeight += carbon * getCo2HalfSaturation(plant.species, plantsConfig);
-  });
+    carbonHalfSaturationWeight += carbon * fixer.co2HalfSaturation;
+  }
 
   const co2ConsumedMg = monodUptake(
     getMassFromPpm(co2, waterVolume),

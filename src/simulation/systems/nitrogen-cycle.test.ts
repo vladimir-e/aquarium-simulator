@@ -10,6 +10,7 @@ import {
   restingColony,
   calculateWasteToAmmonia,
   calculateAmmoniaToNitrite,
+  mintAmmonia,
   calculateNitriteToNitrate,
   aobCapacity,
   nobCapacity,
@@ -17,7 +18,7 @@ import {
   nobProcessingRateMultiplier,
 } from './nitrogen-cycle.js';
 import {
-  CACO3_PER_NH3_NITRIFIED,
+  CACO3_PER_EQUIVALENT,
   MW_N,
   MW_NH3,
   NH3_TO_NO2_MASS_RATIO,
@@ -227,6 +228,15 @@ describe('restingColony', () => {
   });
 });
 
+describe('mintAmmonia', () => {
+  it('pairs the ammonia with an equivalent of KH per mole, on the tier and source it was minted at', () => {
+    const [ammonia, kh] = mintAmmonia(2 * MW_NH3, 'active', 'fish-gill-excretion');
+
+    expect(ammonia).toEqual({ tier: 'active', resource: 'ammonia', delta: 2 * MW_NH3, source: 'fish-gill-excretion' });
+    expect(kh).toEqual({ tier: 'active', resource: 'kh', delta: 2 * CACO3_PER_EQUIVALENT, source: 'fish-gill-excretion' });
+  });
+});
+
 describe('calculateWasteToAmmonia', () => {
   it('returns zero for no waste', () => {
     const result = calculateWasteToAmmonia(0);
@@ -282,8 +292,8 @@ describe('calculateAmmoniaToNitrite', () => {
     const two = calculateAmmoniaToNitrite(glut, W, 200, REF, AMPLE_O2, SAT);
     const nitrogen = one.ammoniaConsumed * (MW_N / MW_NH3);
 
-    expect(one.alkalinityConsumedMg / nitrogen).toBeCloseTo(7.14, 2);
-    expect(two.alkalinityConsumedMg).toBeCloseTo(2 * one.alkalinityConsumedMg, 10);
+    expect(one.alkalinityMoved / nitrogen).toBeCloseTo(-7.14, 2);
+    expect(two.alkalinityMoved).toBeCloseTo(2 * one.alkalinityMoved, 10);
   });
 
   it('doubles the mass it clears when the colony doubles', () => {
@@ -669,6 +679,22 @@ describe('nitrogenCycleSystem', () => {
       }
     });
 
+    it('returns KH on the ammonia it mints, so waste carried on to nitrate nets the 3.57 mg CaCO3 per mg N the wastewater texts quote', () => {
+      const effects = nitrogenCycleSystem.update(
+        createTestState({ waste: 10, ammonia: ppmToMass(1.0), aob: 100, water: 40 }),
+        DEFAULT_CONFIG
+      );
+      const perNitrogen = (source: string): number => {
+        const delta = (resource: 'kh' | 'ammonia'): number =>
+          effects.find((e) => e.resource === resource && e.source === source)!.delta;
+        return delta('kh') / Math.abs((delta('ammonia') * MW_N) / MW_NH3);
+      };
+      const returned = perNitrogen('nitrogen-cycle-mineralization');
+
+      expect(returned).toBeCloseTo(3.57, 2);
+      expect(returned + perNitrogen('nitrogen-cycle-aob')).toBeCloseTo(-3.57, 2);
+    });
+
     it('produces no ammonia when waste is 0', () => {
       const state = createTestState({ waste: 0 });
       const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
@@ -699,7 +725,7 @@ describe('nitrogenCycleSystem', () => {
       expect(nitriteEffect!.delta).toBeCloseTo(-ammoniaEffect!.delta * NH3_TO_NO2_MASS_RATIO, 10);
     });
 
-    it('spends KH for the ammonia it oxidises', () => {
+    it('spends two equivalents of KH per mole of ammonia it oxidises', () => {
       const state = createTestState({ ammonia: ppmToMass(1.0), aob: 100 });
       const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
@@ -707,7 +733,7 @@ describe('nitrogenCycleSystem', () => {
       const kh = effects.filter((e) => e.resource === 'kh');
 
       expect(kh).toHaveLength(1);
-      expect(kh[0]!.delta).toBeCloseTo(ammonia!.delta * CACO3_PER_NH3_NITRIFIED, 10);
+      expect(kh[0]!.delta).toBeCloseTo((2 * ammonia!.delta * CACO3_PER_EQUIVALENT) / MW_NH3, 10);
     });
 
     it('does not process ammonia when AOB is 0', () => {

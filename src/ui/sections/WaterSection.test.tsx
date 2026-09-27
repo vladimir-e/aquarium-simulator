@@ -6,6 +6,7 @@ import { group, renderStage, row } from '../test/stage';
 import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { createSimulation } from '../../simulation/index.js';
+import { nutrientReadings } from '../run';
 
 afterEach(cleanup);
 
@@ -86,15 +87,20 @@ describe('WaterSection', () => {
   });
 
   it('opens the toxin from the cycle’s NO₃ and the plant food from the nutrients’', () => {
-    renderWater(stocked());
+    const run = stocked();
+    const nitrate = nutrientReadings(run.state, DEFAULT_CONFIG).find((reading) => reading.key === 'nitrate')!;
+    renderWater(run);
 
+    expect(nitrate.asked && nitrate.needed === 0).toBe(true);
     fireEvent.click(row('Nitrogen', 'NO₃'));
     const toxin = screen.getByRole('dialog', { name: 'NO₃' });
-    expect(within(toxin).getByText(/the engine alerts over/)).toBeTruthy();
+    expect(within(toxin).getByText(/^The plants take their nitrogen as ammonia for now; the engine alerts over/)).toBeTruthy();
     fireEvent.click(within(toxin).getByRole('button', { name: 'Close NO₃' }));
 
     fireEvent.click(row('Nutrients', 'NO₃'));
-    expect(within(screen.getByRole('dialog', { name: 'NO₃' })).getByText(/Plants ask for/)).toBeTruthy();
+    expect(
+      within(screen.getByRole('dialog', { name: 'NO₃' })).getByText(/^Ammonia, which plants take first, meets all the nitrogen they ask for/)
+    ).toBeTruthy();
   });
 
   it('carries the biofilter, its guilds and where the nitrite peak falls', () => {
@@ -105,7 +111,7 @@ describe('WaterSection', () => {
     expect(within(biofilter).getByText('AOB')).toBeTruthy();
     expect(within(biofilter).getByText('NOB')).toBeTruthy();
     expect(within(biofilter).getByText(/Uncycled\./)).toBeTruthy();
-    expect(within(biofilter).getByText(/Nitrite peaks in|No nitrite peak within/)).toBeTruthy();
+    expect(within(biofilter).getByText(/The cycle alone peaks nitrite at|No nitrite peak within/)).toBeTruthy();
   });
 
   it('names every waste source, substrate included, on an unstocked soil tank', () => {

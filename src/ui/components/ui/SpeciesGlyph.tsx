@@ -1,17 +1,19 @@
 import React from 'react';
 import {
+  ALGAE_KINDS,
   FISH_SPECIES_DATA,
   PLANT_SPECIES_DATA,
+  type AlgaeKind,
   type FishSpecies,
   type PlantSpecies,
 } from '../../../simulation/index.js';
 
-/** Everything the roster draws a silhouette for: a species, or the algae. */
-export type SpeciesKey = FishSpecies | PlantSpecies | 'algae';
+/** Everything the roster draws a silhouette for: a species, or a kind of bloom. */
+export type SpeciesKey = FishSpecies | PlantSpecies | AlgaeKind;
 
 /**
- * One 16 px monoline silhouette per species in the engine's tables, plus the
- * algae. Ink-2 strokes on nothing — the single place this instrument spends
+ * One 16 px monoline silhouette per species in the engine's tables, plus each
+ * kind of bloom. Ink-2 strokes on nothing — the single place this instrument spends
  * personality, and the only way a row says *what* it is before you read it.
  *
  * Every path is drawn in a 16-unit square on the same 1.2 stroke, so a tetra
@@ -89,12 +91,21 @@ const PATHS: Record<SpeciesKey, React.ReactNode> = {
       <circle cx="11.6" cy="9.8" r="1.5" />
     </>
   ),
-  algae: (
+  greenWater: (
     <>
-      <path d="M3.4 14c1.4-1.4 1.8-3.4 1.2-5.8" />
-      <path d="M7.6 14c.8-2 .4-4.8-.8-7.2" />
-      <path d="M11.8 14c-.2-2.6.6-4.8 2.2-6.6" />
-      <path d="M4.6 8.2c-.8-1-1.2-2-1.2-3.2M6.8 6.8c.6-1 .8-2 .8-3.2" />
+      <path d="M8 1.8c2.6 3.2 4.4 5.8 4.4 8.2a4.4 4.4 0 0 1-8.8 0c0-2.4 1.8-5 4.4-8.2z" />
+      <circle cx="6.6" cy="10.2" r="0.7" />
+      <circle cx="9.5" cy="9.2" r="0.7" />
+      <circle cx="8.6" cy="12.2" r="0.6" />
+    </>
+  ),
+  film: (
+    <>
+      <path d="M4 2.4h8a1.6 1.6 0 0 1 1.6 1.6v8a1.6 1.6 0 0 1-1.6 1.6H4A1.6 1.6 0 0 1 2.4 12V4A1.6 1.6 0 0 1 4 2.4z" />
+      <circle cx="5.8" cy="6" r="1.1" />
+      <circle cx="10.2" cy="5.4" r="0.7" />
+      <circle cx="8.8" cy="10" r="1.4" />
+      <circle cx="5.2" cy="10.8" r="0.6" />
     </>
   ),
 };
@@ -109,7 +120,7 @@ const FALLBACK = <circle cx="8" cy="8" r="5.4" />;
 export const GLYPH_KEYS: SpeciesKey[] = [
   ...(Object.keys(FISH_SPECIES_DATA) as FishSpecies[]),
   ...(Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]),
-  'algae',
+  ...ALGAE_KINDS,
 ];
 
 export function SpeciesGlyph({

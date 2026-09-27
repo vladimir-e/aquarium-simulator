@@ -1,7 +1,7 @@
 /**
  * Flora derivations: what each plant is doing on the hour the next tick
  * settles, how the planting folds into species and families and how the reader
- * counts them, how the bloom reads off its coverage, and the tank's nutrient
+ * counts them, how each bloom reads off its coverage, and the tank's nutrient
  * readings, the bed's among them. Nothing here invents a band — a nutrient or
  * the bed reads short when the engine's own sufficiency would rise if it were
  * topped up, and high past a line the engine itself charges or alerts from, so
@@ -10,16 +10,22 @@
  */
 
 import {
+  bedPool,
   calculateNutrientSufficiency,
   canRootTab,
   floorCover,
+  formShares,
   getDosePreview,
   getSubstrateNutrients,
   growthFormOf,
   isOvergrown,
   PLANT_SPECIES_DATA,
+  plantFeeder,
   plantNitrateEdge,
-  speciesHalfSaturation,
+  tankPools,
+  type AlgaeKind,
+  type LogEntry,
+  type NutrientPool,
   type Plant,
   type PlantSpecies,
   type Resources,
@@ -35,6 +41,7 @@ import {
   type ResourceDefinition,
 } from '../../simulation/resources/index.js';
 import {
+  FORMS_OF,
   mapNutrients,
   NUTRIENTS,
   type FertilizerFormula,
@@ -44,6 +51,8 @@ import {
   type TunableConfig,
 } from '../../simulation/config/index.js';
 import { NITRATE_EDGE } from '../../simulation/livestock/tolerance.js';
+import { BLOOM_COVERAGE_LINE, bloomLevel, PLANT_LIGHT_LINE } from '../../simulation/alerts/index.js';
+import { COVERAGE_DECIMALS } from '../utils/units.js';
 import type { HourAhead } from './ahead.js';
 import { groupBy, mean, numbered } from './fold.js';
 import { plantLightStatus } from './light.js';
@@ -64,25 +73,74 @@ import {
  */
 export const TRIM_TARGETS = [50, 75, 85];
 
-/**
- * The bloom's ladder, each rung a multiple of the line it alerts over, so its
- * word and its tone move together. Low algae is good for the player, so the
- * tones run green → coral as it climbs.
- */
-const ALGAE_LADDER: readonly { upTo: number; reading: Reading }[] = [
-  { upTo: 0.5, reading: { status: 'ok', word: 'sparse' } },
-  { upTo: 1, reading: { status: 'ok', word: 'active' } },
-  { upTo: 2, reading: { status: 'warn', word: 'spreading' } },
-  { upTo: Infinity, reading: { status: 'alert', word: 'booming' } },
-];
-
-/** How the bloom reads off its coverage, against the line it alerts over. */
-export function algaeReading(mass: number, line: number): Reading {
-  return ALGAE_LADDER.find((rung) => mass <= rung.upTo * line)!.reading;
+/** Whether there is any bloom to see: its coverage prints as more than none. */
+function bloomShows(mass: number): boolean {
+  return !printsAsZero(mass, COVERAGE_DECIMALS);
 }
 
-export function algaeStatus(mass: number, line: number): Status {
-  return algaeReading(mass, line).status;
+/**
+ * Where a figure's tone turns, as a multiple of the line the engine alerts
+ * past. Low algae is good for the player, so the tones run green → coral as it
+ * climbs.
+ */
+const TONE_TURNS = { warn: 1, alert: 2 } as const;
+
+function lineStatus(multiple: number): Status {
+  return multiple > TONE_TURNS.alert ? 'alert' : multiple > TONE_TURNS.warn ? 'warn' : 'ok';
+}
+
+/**
+ * A bloom's words above none, each rung reaching to a multiple of the coverage
+ * a bloom alerts past; the rungs past the tone's turns are its amber and coral
+ * words.
+ */
+const ALGAE_LADDER = [0.5, TONE_TURNS.warn, TONE_TURNS.alert, Infinity] as const;
+
+/** The rung a coverage that shows stands on. */
+function rungOf(mass: number): number {
+  return ALGAE_LADDER.findIndex((upTo) => mass / BLOOM_COVERAGE_LINE <= upTo);
+}
+
+type WordPer<T extends readonly unknown[]> = { [K in keyof T]: string };
+type LadderWords = readonly [none: string, ...rungs: WordPer<typeof ALGAE_LADDER>];
+
+/**
+ * Each kind's words for its coverage, none first and then up the ladder: green
+ * water reads as the water's clarity, film as how coated the glass is.
+ */
+const ALGAE_WORDS: Record<AlgaeKind, LadderWords> = {
+  greenWater: ['clear', 'hazy', 'cloudy', 'green', 'pea soup'],
+  film: ['clean', 'dusted', 'filmed', 'coated', 'smothered'],
+};
+
+/** How the share of the plants' light a bloom takes reads, %. */
+export function lightTakenStatus(taken: number): Status {
+  return lineStatus(taken / PLANT_LIGHT_LINE);
+}
+
+/**
+ * How a bloom reads: its kind's word for its coverage — none while there is
+ * none to see — in the tone of its `bloomLevel`, amber exactly where it
+ * alerts. `taken` is the share of the plants' light it takes, %.
+ */
+export function algaeReading(kind: AlgaeKind, mass: number, taken: number): Reading {
+  const words = ALGAE_WORDS[kind];
+  return {
+    status: lineStatus(bloomLevel(mass, taken).level),
+    word: bloomShows(mass) ? words[rungOf(mass) + 1] : words[0],
+  };
+}
+
+/**
+ * Whether the console reports a log line. The engine logs every die-back,
+ * spores that starved in a dark tank among them; the console reports one only
+ * where it took a bloom there was any of to see.
+ */
+export function isReported(log: LogEntry): boolean {
+  return (
+    log.event !== 'algae-died' ||
+    (log.quantities ?? []).some((quantity) => quantity.kind === 'coverage' && bloomShows(quantity.percent))
+  );
 }
 
 /** Where a plant stands among its kin, numbered the way a reader counts. */
@@ -156,7 +214,7 @@ export function plantRows(state: SimulationState, config: TunableConfig, ahead: 
   const labels = plantLabels(state.plants);
   return state.plants.map((plant, i) => {
     const { vitality, light } = ahead.plants[i];
-    const { sick, reading } = vitalReading(plant.condition, vitality);
+    const { sick, reading } = vitalReading(plant.condition, vitality.newCondition);
     return {
       id: plant.id,
       species: plant.species,
@@ -286,7 +344,9 @@ export interface NutrientReading {
   label: string;
   ppm: number;
   text: string;
-  /** ppm the hungriest plant in the tank needs; 0 when nothing is planted. */
+  /** Some plant feeds on it from the water. */
+  asked: boolean;
+  /** ppm the hungriest plant in the tank needs beside what the forms it takes first meet; 0 when nothing is planted, or those forms meet it all. */
   needed: number;
   neededText: string;
   /** Position against that need, 0–1. */
@@ -327,16 +387,24 @@ const FEEDS_FROM = {
 
 /**
  * ppm, in one pool, at which the hungriest of these plants has its need there
- * met up to the edge where deficiency harm starts. A plant feeding from both
- * pools reaches that edge with each at its own.
+ * met up to the edge where deficiency harm starts, counting what the forms it
+ * takes first already meet — nitrate is asked only for what the ammonia leaves.
+ * A plant feeding from both pools reaches that edge with each at its own.
  */
-function neededPpm(plants: readonly Plant[], key: Nutrient, config: TunableConfig): number {
+function neededPpm(plants: readonly Plant[], key: Nutrient, pool: NutrientPool, config: TunableConfig): number {
   const edge = config.plants.sufficiencyEdge;
-  const halfSaturation = Math.max(
+  const forms = FORMS_OF[key];
+  const before = forms.slice(0, forms.indexOf(key));
+  return Math.max(
     0,
-    ...plants.map((plant) => speciesHalfSaturation(plant.species, key, config.nutrients))
+    ...plants.map((plant) => {
+      const feeder = plantFeeder(plant.species, config.nutrients);
+      const shares = formShares(pool, feeder);
+      const left = before.reduce((unmet, f) => unmet * (1 - shares[f]), 1);
+      const share = 1 - (1 - edge) / left;
+      return share > 0 ? (feeder.halfSaturation[key] * share) / (1 - share) : 0;
+    })
   );
-  return (halfSaturation * edge) / (1 - edge);
 }
 
 /**
@@ -355,9 +423,10 @@ export function nutrientProbe(state: SimulationState, config: TunableConfig): Nu
   const water = state.resources.water;
   const capacity = state.tank.capacity;
   const standing = state.equipment.substrate.nutrients;
+  const [inWater, inBed] = tankPools(state);
   const need = {
-    water: mapNutrients((n) => neededPpm(state.plants.filter(FEEDS_FROM.water), n, config)),
-    bed: mapNutrients((n) => neededPpm(state.plants.filter(FEEDS_FROM.bed), n, config)),
+    water: mapNutrients((n) => neededPpm(state.plants.filter(FEEDS_FROM.water), n, inWater, config)),
+    bed: mapNutrients((n) => neededPpm(state.plants.filter(FEEDS_FROM.bed), n, inBed, config)),
   };
   const met: Resources = { ...state.resources };
   if (water > 0) {
@@ -369,10 +438,7 @@ export function nutrientProbe(state: SimulationState, config: TunableConfig): Nu
     bed: mapNutrients((n) => Math.max(standing[n], getMassFromPpm(need.bed[n], capacity))),
     sufficiency: (w, b, species) =>
       calculateNutrientSufficiency(
-        [
-          { stock: w, volume: water },
-          { stock: b, volume: capacity },
-        ],
+        [{ stock: w, volume: water }, bedPool(b, capacity)],
         species,
         config.nutrients
       ),
@@ -417,6 +483,7 @@ export function nutrientReadings(
       label: NUTRIENT_LABEL[key],
       ppm,
       text: ppm.toFixed(resource.precision),
+      asked: plants.length > 0,
       needed,
       neededText: needed > 0 ? needed.toFixed(resource.precision) : '—',
       fill: needed > 0 ? Math.min(1, ppm / needed) : 0,

@@ -415,7 +415,7 @@ function Line({
       return (
         <div className={`${ROW} ${ROW_H} ${TEMPLATE[layout]}`}>
           <RowOverlay label={`${row.name} — ${row.word}`} onClick={() => handlers.onInspect(row)} />
-          <SpeciesGlyph species="algae" className="relative pointer-events-none" />
+          <SpeciesGlyph species={row.key} className="relative pointer-events-none" />
           <span className={`${NAME} text-[14px] font-medium text-ink`}>
             {row.name}
             <span className={`ml-1.5 text-[13px] font-normal text-ink-2 ${layout === 'widget' ? '' : 'md:hidden'}`}>

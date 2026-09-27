@@ -1,20 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import {
+  ALGAE_KINDS,
   applyEffects,
   calculateDecay,
   createSimulation,
   dailyLightIntegral,
   getPresetById,
-  processAlgae,
   processBreeding,
+  processFlora,
   processLivestock,
-  processPlants,
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
 import { settleEnvironment } from '../../simulation/tick.js';
-import { bankSurplus, spendAlgaeSurplus } from '../../simulation/algae/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
 
@@ -45,7 +44,7 @@ function recovering(): SimulationState {
     }
     Object.assign(draft.fish[0], { sex: 'female', health: 100, surplus: config.livestock.surplusCap });
     draft.fish[1].sex = 'male';
-    draft.algae.mass = 20;
+    for (const kind of ALGAE_KINDS) draft.algae[kind].mass = 20;
     draft.resources.food = 1;
   });
 }
@@ -135,6 +134,7 @@ describe('readHourAhead', () => {
       draft.resources.ammonia = 500 * draft.resources.water;
       Object.assign(draft.plants[1], { condition: 0.001, surplus: 1 });
       for (const fish of draft.fish) Object.assign(fish, { health: 0.5, surplus: 1 });
+      for (const kind of ALGAE_KINDS) Object.assign(draft.algae[kind], { condition: 0.001, surplus: 1 });
     });
     const ahead = readHourAhead(dying, config);
     const next = tick(dying, config);
@@ -145,6 +145,8 @@ describe('readHourAhead', () => {
     expect(gone(dying.plants, next.plants)).toContain(true);
     gone(dying.fish, next.fish).forEach((died, i) => died && expect(ahead.fish[i].spent).toBe(0));
     gone(dying.plants, next.plants).forEach((died, i) => died && expect(ahead.plants[i].spent).toBe(0));
+    expect(next.logs.filter((log) => log.event === 'algae-died')).toHaveLength(ALGAE_KINDS.length);
+    for (const kind of ALGAE_KINDS) expect(ahead.algae[kind].spent).toBe(0);
   });
 
   it('reads the waste the fish pass, the ammonia they breathe out and the food they leave to rot off the hour the plants and bloom leave them', () => {
@@ -154,9 +156,8 @@ describe('readHourAhead', () => {
     for (const { state } of hours) {
       const ahead = readHourAhead(state, config);
       const settled = settleEnvironment(state, config);
-      const plantPass = processPlants(settled, config);
-      const bloom = processAlgae(applyEffects(plantPass.state, plantPass.effects, config), config).state;
-      const livestock = processLivestock(bloom, config);
+      const flora = processFlora(settled, config);
+      const livestock = processLivestock(applyEffects(flora.state, flora.effects, config), config);
       const delta = (resource: string, source: string): number =>
         livestock.effects
           .filter((e) => e.resource === resource && e.source === source)
@@ -173,26 +174,28 @@ describe('readHourAhead', () => {
     }
   });
 
-  it('reads the bloom exactly as the next tick banks and grows it, at every hour of the day', () => {
-    const { algae } = config;
+  it('reads every bloom exactly as the next tick runs it, at every hour of the day', () => {
     for (const { state, next } of hours) {
       const ahead = readHourAhead(state, config);
-      const lit = next.resources.light > 0;
-      const bank = bankSurplus(state.algae.surplus, ahead.algae.net, algae.surplusCap, lit);
-      const shrunk = {
-        ...state.algae,
-        surplus: bank.surplus,
-        mass: Math.max(0, state.algae.mass - bank.overflowDamage),
-      };
-      const grown = lit ? spendAlgaeSurplus(shrunk, algae) : shrunk;
 
-      expect(grown).toEqual(next.algae);
-      expect(ahead.algaeMass).toBe(next.algae.mass);
-      expect(ahead.algaeBank).toEqual({
-        drained: bank.drained,
-        spent: bank.surplus - next.algae.surplus,
-        next: next.algae.surplus,
-      });
+      for (const kind of ALGAE_KINDS) {
+        expect(ahead.algae[kind].condition).toBe(next.algae[kind].condition);
+        expect(ahead.algae[kind].surplus).toBe(next.algae[kind].surplus);
+        expect(ahead.algae[kind].mass).toBe(next.algae[kind].mass);
+      }
+    }
+  });
+
+  it('reads the spores diluting a bloom’s bank as nothing spent', () => {
+    const empty = produce(recovering(), (draft) => {
+      for (const kind of ALGAE_KINDS) Object.assign(draft.algae[kind], { mass: 0, surplus: 5 });
+    });
+    const ahead = readHourAhead(empty, config);
+
+    for (const kind of ALGAE_KINDS) {
+      expect(ahead.algae[kind].spent).toBe(0);
+      expect(ahead.algae[kind].surplus).toBe(0);
+      expect(tick(empty, config).algae[kind].surplus).toBe(0);
     }
   });
 });

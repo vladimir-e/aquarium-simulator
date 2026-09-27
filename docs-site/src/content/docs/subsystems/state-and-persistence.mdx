@@ -42,7 +42,7 @@ it was handed, so the state a tick began with is still readable when it ends.
 | `environment` | Room temperature, tap temperature, tap KH and GH — what the tank sits in |
 | `equipment` | Eleven fixtures, each with its own settings and schedule |
 | `plants` · `fish` · `clutches` | The organisms, as arrays of individuals. A plant carries its lineage — `parentId`, `familyId` — its `age` and its `vigour` beside its size, condition and bank ([Plants](/subsystems/plants/#lineage-family-age-and-vigour)) |
-| `algae` | One population, mass and bank — not an array |
+| `algae` | One bloom per kind, keyed by kind — `greenWater`, `film` — each its mass, as the share of its habitat it fills, its condition and its bank: a population, not an array of individuals |
 | `rng` | The seed and the stream position every draw comes off |
 | `logs` | The event stream |
 | `alertState` | One latched flag per warning condition |
@@ -64,12 +64,12 @@ would be lost on a save. Every draw mixes the position through splitmix32 and
 advances the counter by one, so the stream is a pure function of where it is.
 
 Name a seed at construction and the tank runs the same life every time —
-organisms, individual variation, scrub bites and ids all replay. Leave it out
+organisms, individual variation and ids all replay. Leave it out
 and the tank takes a time-derived one.
 
 Everything the engine cannot derive from physics comes off this stream: a fish's
-sex, its hardiness offset, its health jitter, a plant's vigour, a scrub's bite,
-and every organism's name. That last one is what makes ids replay too.
+sex, its hardiness offset, its health jitter, a plant's vigour, and every
+organism's name. That last one is what makes ids replay too.
 
 ### Ids
 
@@ -104,7 +104,7 @@ say anything the state shape can hold.
 copied into it. It is a claim about a month of running, not only about the
 filter, so it carries every figure that month moved: the colony it grew, the
 bed reserves it spent, the nitrate it made net of the water changes a keeper
-would have done, and the KH and GH the bed let it keep. A preset resized or
+would have done, and the KH and GH the bed and that nitrate let it keep. A preset resized or
 rebuilt at the door still gets all of them sized to fit. Hardscape starts as
 bought.
 
@@ -161,7 +161,7 @@ browser storage.
 | `CYCLED_RESERVE_FRACTION` | Share of a fresh bed's organics still in it on day 30 — one curve every bed type follows | `0.1` |
 | `CYCLED_BED_NUTRIENT_FRACTION` | Share of a fresh bed's nutrient store left on day 30 — a plantless month of the leak, rounded down | `0.85` |
 | `CYCLED_SOIL_KH_RESERVE_FRACTION` | Share of a fresh soil bed's KH reserve left on day 30 under weekly 25 % changes | `0.8` |
-| `CYCLED_SOIL_KH_RETAINED` | Share of the tap's KH an aqua soil tank holds a month in, under weekly 25 % changes; inert beds keep all of it | `0.15` |
+| `CYCLED_SOIL_KH_RETAINED` | Share of the tap's KH an aqua soil bed leaves a tank a month in, under weekly 25 % changes; inert beds take none | `0.15` |
 | `CYCLED_WATER_RETAINED` | Share of what the bed leached and leaked still in the water, rounded to the low side because the handed-over tank has just been changed | `0.25` |
 | `HARDINESS_OFFSET_SPAN` | Per-individual hardiness spread, as a fraction of the species baseline | `0.15` |
 | Tank capacity bounds | What the save schema will accept as a tank | `1`–`10000` L |
@@ -176,7 +176,7 @@ browser storage.
 | [Plants](/subsystems/plants/) | — | Seeded plantings, at a named plantable size and age, each founding its own family at full condition with an empty bank; the draw stream for every unit's vigour and id, offshoots included |
 | [Water & gases](/subsystems/water-and-gases/) | `tapKh` and `tapGh`, which a `'cycled'` KH and GH resolve against | Both dissolved gases, KH and GH, where a seed names them |
 | [Environment](/subsystems/environment/) | `tank.capacity` — every per-litre seed figure resolves against it | — |
-| [Actions](/subsystems/actions/) | — | Supplies the draw stream for ids and the scrub's bite, and takes back the advanced position |
+| [Actions](/subsystems/actions/) | — | Supplies the draw stream for ids, and takes back the advanced position |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | `alertState` crosses a save; `logs` do not |
 
 ## Source

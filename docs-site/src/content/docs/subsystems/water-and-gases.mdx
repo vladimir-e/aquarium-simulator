@@ -27,7 +27,8 @@ CO₂ against KH wherever something needs it.
 | Aeration | <Badge text="scaffolding" variant="caution" /> | A boolean. Any aerating fitting multiplies exchange by exactly 3, off-gasses CO₂ 1.5× faster and injects the same `0.05` mg/L/hr, whatever the tank. |
 | pH from CO₂ and KH | <Badge text="settled" variant="success" /> | The hobby relation `CO₂ = 3 × KH × 10^(7 − pH)`, derived on read and never stored, so it cannot lag or drift. |
 | Soft-water floor | <Badge text="scaffolding" variant="caution" /> | A fixed `0.1` dKH of background buffer and `0.1` mg/L of residual CO₂ keep pH finite at KH 0 and CO₂ 0. Stand-ins for the phosphate and humic buffers a real tank carries. |
-| Nitrification spends KH | <Badge text="settled" variant="success" /> | Stoichiometric — see [Nitrogen cycle](/subsystems/nitrogen-cycle/). |
+| Nitrogen moves KH by its charge | <Badge text="settled" variant="success" /> | Stoichiometric: minting ammonia, nitrifying it and the flora's uptake each move an equivalent per proton they take up or release — see [KH and pH](#kh-and-ph). |
+| Nitrification at KH 0 | <Badge text="scaffolding" variant="caution" /> | Nitrifiers never run short of carbonate: at KH 0 they keep making nitrate and the `kh` floor absorbs the acid, so a soft tank's nitrate outgrows its charge. A cycled seed does the same — aqua soil over 0.5 dKH tap seeds 0 dKH beside nitrate its KH never paid for. |
 | Tap, top-off and evaporation | <Badge text="settled" variant="success" /> | KH and GH are masses, so evaporation concentrates them and every litre of tap water brings `tapKh` and `tapGh` with it. |
 | Hardscape and substrate | <Badge text="scaffolding" variant="caution" /> | Hand-set rates and reserves. Calcite dissolves in proportion to [H⁺] and never runs out; driftwood's tannins and aqua soil's buffer are finite and taper as they are spent. |
 | Calcite and soil move GH with KH | <Badge text="settled" variant="success" /> | Stoichiometric: CaCO₃ dissolves into equal CaCO₃-equivalents of Ca²⁺ and carbonate, and soil's cation exchange takes up Ca²⁺ and Mg²⁺ for the H⁺ that spends carbonate. |
@@ -141,8 +142,9 @@ column above rather than the constant itself.
 ### Ordering within the tick
 
 The budget is not solved simultaneously. Environment and equipment settle first,
-so CO₂ injection is in the water before plants run. Plants, then algae, then
-livestock each apply their effects before the next reads the stock. Decay, the
+so CO₂ injection is in the water before plants run. Plants and the blooms fix
+and respire carbon in one pass, drawing on one CO₂ stock together; then
+livestock apply theirs, each stage before the next reads the stock. Decay, the
 nitrogen cycle and gas exchange run last and **share one snapshot** —
 all three oxygen consumers size their draw against the same starting
 concentration, and their deltas add.
@@ -175,10 +177,26 @@ What moves KH:
 |---|---|---|
 | Tap water | + | `tapKh` per litre added — a fill, a water change, a top-off or the ATO |
 | Evaporation | concentrates | the mass stays, the water goes |
-| Nitrification | − | per mg of ammonia oxidised — see [Nitrogen cycle](/subsystems/nitrogen-cycle/) |
+| Nitrogen | − or + | an equivalent, `CACO3_PER_EQUIVALENT` = `MW_CaCO3 / 2`, per proton — below |
 | Calcite rock | + | `calciteDissolutionRate` per rock at pH 7, ×10 per pH unit lower |
 | Driftwood | − | `tanninLeachRate` of the piece's remaining tannins per hour |
 | Aqua soil | − | `aquaSoilKhUptake` of the tank's KH per hour, scaled by the share of the bed's buffer left |
+
+Nitrogen moves KH by its charge: KH gains an equivalent for each proton a
+process takes from the water and loses one for each it releases.
+
+| Process | Protons taken per nitrogen |
+|---|---|
+| Ammonia minted from organic nitrogen — at the gills, out of decaying food, mineralised from waste: NH₃ + H⁺ → NH₄⁺ | `+1` |
+| Nitrification, NH₄⁺ → NO₂⁻ ([Nitrogen cycle](/subsystems/nitrogen-cycle/)) | `−2` |
+| Plants and the blooms taking ammonia | `−1` |
+| Plants and the blooms taking nitrate, from the water or the bed | `+1` |
+
+While KH lasts, these processes move it exactly with the charge on the
+inorganic nitrogen in the water and the bed, so organic nitrogen carried to
+nitrate nets one equivalent spent, and nitrogen that goes back into tissue, in
+either form, nets none. Every other flow here — and a fertiliser dose or a
+water change — moves KH and that charge independently.
 
 Four hobby behaviours fall out. A heavily stocked tank left without water
 changes drains its KH and its pH sags — old tank syndrome. A lightly stocked
@@ -186,7 +204,8 @@ one topped off with hard tap water creeps the other way. A calcite scape
 settles where dissolution, slowing as pH climbs, balances what the tank spends.
 And a fresh soil tank starts acidic and drifts toward tap chemistry over the
 months its buffer takes to run down — the reserves themselves are on
-[Equipment](/subsystems/equipment/).
+[Equipment](/subsystems/equipment/). Plants slow the first: a planting that
+keeps pace with its stocking holds its KH.
 
 ### GH
 
@@ -203,8 +222,8 @@ plant uptake read it — and it moves with KH wherever the two share a cause:
 | Plants | − | a fixed share of the nutrients they draw, on [Plants](/subsystems/plants/) |
 
 Driftwood and nitrification spend carbonate, not calcium, so a tank that drains
-its KH keeps its GH. A cycled soil tank sits as far below the tap in GH as it
-does in KH, since the bed and the water changes treat both alike.
+its KH keeps its GH. A cycled soil tank sits as far below the tap in GH as the
+soil took KH, and its KH lower still by the nitrate its month made.
 
 ### Stocks and rates
 
@@ -212,7 +231,7 @@ does in KH, since the bed and the water changes treat both alike.
 |---|---|---|---|
 | `oxygen` | Gas exchange toward saturation; aeration bubbles; photosynthesis | Fish, plant respiration, decay, both nitrifier guilds | mg/L |
 | `co2` | Injection; fish, plant respiration, decay | Off-gassing toward atmospheric; photosynthesis | mg/L |
-| `kh` | Tap water; calcite | Nitrification; driftwood; aqua soil; the old water a change removes | mg CaCO₃ |
+| `kh` | Tap water; calcite; ammonia minted from organic nitrogen; nitrate the flora take | Nitrification; ammonia the flora take; driftwood; aqua soil; the old water a change removes | mg CaCO₃ |
 | `gh` | Tap water; calcite | Aqua soil; plants; the old water a change removes | mg CaCO₃ |
 
 ## Key tunables
@@ -242,11 +261,11 @@ the system that quotes it rather than here; their values are in the table above.
 |---|---|---|
 | [Environment](/subsystems/environment/) | `temperature` sets O₂ saturation; standing `water` is the divisor every gas mass passes through; `tapKh` and `tapGh` | — |
 | [Equipment](/subsystems/equipment/) | `flow` and `aeration` set the exchange rate | Hardscape and substrate set the KH and GH flows; the ATO blends `oxygen` and `co2` toward tap values and adds tap `kh` and `gh` as it refills |
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | pH, for the free-ammonia fraction | Both guilds draw `oxygen`, and their Monod factor is what standing nitrite is made of; AOB spend `kh` |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | pH, for the free-ammonia fraction | Both guilds draw `oxygen`, and their Monod factor is what standing nitrite is made of; mineralisation and decaying food return `kh` on the ammonia they release, AOB spend it |
 | [Light](/subsystems/light/) | — | Indirectly: the photoperiod is what makes oxygen and CO₂ swing across a day |
-| [Plants](/subsystems/plants/) | pH and GH, against each species' band | Photosynthesis adds `oxygen` and takes `co2` and a little `gh`; respiration does the reverse, day and night |
-| [Livestock](/subsystems/livestock/) | pH and GH, against each species' band | Fish draw `oxygen` and exhale `co2`; the same factor scales their ammonia output |
-| [Algae](/subsystems/algae/) | — | Nothing. Algae moves no gas in either direction |
+| [Plants](/subsystems/plants/) | pH and GH, against each species' band | Photosynthesis adds `oxygen` and takes `co2` and a little `gh`; respiration does the reverse, day and night; the nitrogen growth takes moves `kh` |
+| [Livestock](/subsystems/livestock/) | pH and GH, against each species' band | Fish draw `oxygen` and exhale `co2`; the same factor scales their ammonia output, which returns `kh` |
+| [Algae](/subsystems/algae/) | pH, against its band | Photosynthesis beside the plants' on the same CO₂ stock, respiration day and night — a dense bloom strips CO₂ by day and draws oxygen down by night; the nitrogen growth takes moves `kh` as the plants' does |
 | [Actions](/subsystems/actions/) | — | A water change blends `oxygen` and `co2` toward tap values and moves `kh` and `gh` toward the tap; a top-off adds tap `kh` and `gh` |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Oxygen below `4` mg/L and CO₂ above `40` mg/L each raise an alert once per crossing |
 
