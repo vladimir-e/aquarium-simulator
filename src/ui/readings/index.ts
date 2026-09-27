@@ -30,7 +30,6 @@ import {
 import {
   algaeReading,
   algaeStatus,
-  COVERAGE_DECIMALS,
   bacteriaReadout,
   bedReading,
   dailyLightReading,
@@ -79,6 +78,7 @@ import {
 } from '../run';
 import { categorizeLog } from '../review/category.js';
 import {
+  COVERAGE_DECIMALS,
   formatTemperatureRange,
   toDisplayTemperature,
   type UnitSystem,

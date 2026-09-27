@@ -133,7 +133,7 @@ export {
 export {
   algaeReading,
   algaeStatus,
-  COVERAGE_DECIMALS,
+  isReported,
   type PlantLabel,
   plantLabels,
   familyTitle,

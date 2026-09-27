@@ -100,10 +100,10 @@ describe('light starvation', () => {
     expect(starvation(0.25)).toBeCloseTo(0.75 * starvation(0), 12);
   });
 
-  it('costs what respiration does, at the bloom’s pace', () => {
+  it('costs what respiration does, at the bloom’s growth rate', () => {
     expect(starvation(0)).toBeCloseTo(
       plantsConfig.lightStarvationSeverity *
-        ALGAE.pace *
+        ALGAE.growthRate *
         getRespirationTemperatureFactor(25, plantsConfig) *
         (1 - ALGAE.hardiness),
       12

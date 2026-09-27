@@ -1,9 +1,9 @@
 /**
  * The flora law — what a plant and a bloom share, written over the traits both
- * are described in: the light they saturate and starve at, the pace their
- * tissue runs at, how fast they heal, how the bank draws toward growth, what
- * low condition sheds, and the vitality channels both have. Each caller adds
- * the channels only it has and hardens the list itself.
+ * are described in: the light they saturate and starve at, the growth rate
+ * their tissue lives at, how the bank draws toward growth, what low condition
+ * sheds, and the vitality channels both have. Each caller adds the channels
+ * only it has and hardens the list itself.
  */
 
 import type { Resources } from '../state.js';
@@ -12,17 +12,18 @@ import { getPh } from '../core/carbonate.js';
 import { lightSaturationFactor, monodFactor } from '../core/kinetics.js';
 import { parHoursToDli } from '../equipment/light.js';
 import { getRespirationTemperatureFactor } from './respiration.js';
-import { bandComfort, outsideBand, shortfall, type VitalityFactor } from './vitality.js';
+import { bandComfort, hourlyDraw, outsideBand, shortfall, type VitalityFactor } from './vitality.js';
 
 /** Hours a day the care-sheet PAR bands assume the lamps are on. */
 export const CARE_SHEET_PHOTOPERIOD = 8;
 
 /** What a plant species and a bloom are both written in. */
 export interface FloraTraits {
-  /** Relative growth rate: what a bank point buys, and how fast the bank heals. */
+  /**
+   * Relative growth rate: what a bank point buys, how fast the bank heals, and
+   * the pace its tissue fixes, respires and starves at, against a leaf at 1.
+   */
   growthRate: number;
-  /** How many times faster than a leaf its tissue fixes, respires and starves. */
-  pace: number;
   /** PAR at the low end of its band. */
   lowLight: number;
   tolerableTemp: readonly [number, number];
@@ -45,7 +46,7 @@ export function dailyLightEdge(traits: FloraTraits): number {
   return parHoursToDli(traits.lowLight, CARE_SHEET_PHOTOPERIOD);
 }
 
-/** Rate its bank heals condition below 100 at, per hour: it repairs at the pace it grows. */
+/** Rate its bank heals condition below 100 at, per hour: it repairs at the rate it grows. */
 export function floraHealingRate(traits: FloraTraits, config: PlantsConfig): number {
   return traits.growthRate * config.healingDrawRate;
 }
@@ -55,9 +56,9 @@ export function growthTaper(fill: number): number {
   return 1 - fill / 100;
 }
 
-/** Bank points drawn toward growth this hour: `growthDrawRate` of the bank, through the taper. */
+/** Bank points drawn toward growth this hour: a first-order draw at `growthDrawRate`, through the taper. */
 export function bankDraw(surplus: number, fill: number, config: PlantsConfig): number {
-  return Math.max(0, surplus) * config.growthDrawRate * growthTaper(fill);
+  return Math.max(0, surplus) * hourlyDraw(config.growthDrawRate) * growthTaper(fill);
 }
 
 /** Growth one bank point buys: a plant's size in points, a bloom's mass in percent e-folds. */
@@ -70,9 +71,9 @@ export function tissuePerRateUnit(config: PlantsConfig): number {
   return 100 * config.tissuePerSize;
 }
 
-/** Rate units its metabolism runs at: the rate units its tissue is, at its pace. */
+/** Rate units its metabolism runs at: the rate units its tissue is, at its growth rate. */
 export function metabolicRateUnits(tissueRateUnits: number, traits: FloraTraits): number {
-  return tissueRateUnits * traits.pace;
+  return tissueRateUnits * traits.growthRate;
 }
 
 /** Share of itself it sheds in an hour at this condition: the square of its deficit, at `maxSheddingRate`. */
@@ -128,8 +129,8 @@ function lightResponse({ traits, plantsConfig, light }: FloraHour): number {
 /**
  * The harms both have, unhardened. Starvation reads the day it has had, so a
  * scheduled night costs nothing; its cost is respiration's, so it runs on
- * respiration's Q10 and at the feeder's pace. Nutrient demand rides the light
- * curve, as income does: a feeder in the dark asks for nothing.
+ * respiration's Q10 and at the feeder's growth rate. Nutrient demand rides the
+ * light curve, as income does: a feeder in the dark asks for nothing.
  */
 export function floraStressors(hour: FloraHour): VitalityFactor[] {
   const { traits, resources, plantsConfig, nutrientSufficiency, light } = hour;
@@ -139,7 +140,7 @@ export function floraStressors(hour: FloraHour): VitalityFactor[] {
       label: 'Light starvation',
       amount:
         plantsConfig.lightStarvationSeverity *
-        traits.pace *
+        traits.growthRate *
         shortfall(light.dailyLight, dailyLightEdge(traits)) *
         getRespirationTemperatureFactor(resources.temperature, plantsConfig),
     },

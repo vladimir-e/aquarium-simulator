@@ -6,7 +6,7 @@ import {
   classifyAlert,
   LOG_FILTERS,
 } from './category';
-import { COVERAGE_DECIMALS } from '../run/flora';
+import { COVERAGE_DECIMALS, logQuantityIn } from '../utils/units';
 import { coverage, createLog, measured, type LogEntry } from '../../simulation/index.js';
 
 describe('categorizeLog', () => {
@@ -60,12 +60,16 @@ describe('filterLogs', () => {
     expect(filterLogs(logs, 'life').map((l) => l.tick)).toEqual([3]);
   });
 
-  it('shows a die-back only where the bloom it took printed any coverage, under every filter that holds it', () => {
-    const dieBacks = [0.1 / 10 ** COVERAGE_DECIMALS, 12].map((mass) =>
+  it('shows a die-back exactly where its line prints any coverage, under every filter that holds it', () => {
+    const printed = (mass: number): string => logQuantityIn('metric')(coverage(mass));
+    const step = 10 ** -COVERAGE_DECIMALS;
+    const masses = [0, 0.4 * step, 0.5 * step, 12];
+    const dieBacks = masses.map((mass) =>
       createLog(4, 'simulation', 'warning', measured`Algae died back from ${coverage(mass)} coverage`, 'algae-died')
     );
+    const shown = dieBacks.filter((_, i) => printed(masses[i]) !== printed(0));
     for (const filter of ['all', 'life'] as const) {
-      expect(filterLogs([...logs, ...dieBacks], filter).filter((l) => l.event === 'algae-died')).toEqual([dieBacks[1]]);
+      expect(filterLogs([...logs, ...dieBacks], filter).filter((l) => l.event === 'algae-died')).toEqual(shown);
     }
   });
 

@@ -7,7 +7,9 @@ import { z } from 'zod';
 import { MAX_DOSE_ML, MAX_LIGHT_PAR, MAX_ROOT_TABS, VIGOUR_SPAN } from '../../simulation/index.js';
 import {
   MAX_LEAF_ATTENUATION_PER_LAI,
+  MAX_SIZE_PER_SURPLUS,
   MAX_SUFFICIENCY_EDGE,
+  MAX_SURPLUS_CAP,
   MAX_WATER_ATTENUATION_PER_CM,
   NUTRIENTS,
   WASTE_NUTRIENTS,
@@ -444,10 +446,10 @@ const PlantsConfigSchema = z
     respirationReferenceTemp: z.number(),
     respirationOxygenHalfSaturation: z.number(),
     co2PerRateUnit: z.number(),
-    growthDrawRate: z.number().min(0).max(1),
+    growthDrawRate: z.number().min(0),
     healingDrawRate: z.number().min(0),
-    sizePerSurplus: z.number(),
-    surplusCap: z.number().min(0),
+    sizePerSurplus: z.number().positive().max(MAX_SIZE_PER_SURPLUS),
+    surplusCap: z.number().min(0).max(MAX_SURPLUS_CAP),
     // Vitality stressor severities
     lightStarvationSeverity: z.number(),
     lightExcessiveSeverity: z.number(),
@@ -516,7 +518,7 @@ const LivestockConfigSchema = z
     oxygenBenefitPeak: z.number(),
     plantBenefitPeak: z.number(),
     plantBenefitSaturationPoint: z.number(),
-    surplusCap: z.number().min(0),
+    surplusCap: z.number().min(0).max(MAX_SURPLUS_CAP),
     healingDrawRate: z.number().min(0),
     deathDecayFactor: z.number(),
   })

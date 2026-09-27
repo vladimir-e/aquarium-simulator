@@ -3,14 +3,14 @@
  *
  * Each plant's vitality banks the income it earns at full condition, on
  * `Plant.surplus` and capped at `surplusCap`. Every tick, day and night, a
- * plant draws `growthDrawRate` of the bank toward new tissue through the taper
- * `1 − size/100`, which closes the draw down as its unit fills. Only what
+ * plant draws `1 − e^−growthDrawRate` of the bank toward new tissue through the
+ * taper `1 − size/100`, which closes the draw down as its unit fills. Only what
  * becomes size leaves the bank, so a filling unit keeps income banked against
  * a bad spell — and a nearly full one banks up to the cap, where the bank buys
  * a new unit of its family instead.
  *
  * Nothing clamps growth: within the tunables' bounds and the roster's growth
- * rates one tick buys at most 0.72 of what is left to 100, so the taper keeps
+ * rates one tick buys at most 0.65 of what is left to 100, so the taper keeps
  * every plant below it.
  */
 

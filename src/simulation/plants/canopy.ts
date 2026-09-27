@@ -52,15 +52,6 @@ export function rateUnits(plant: Unit): number {
   return leafArea(plant) / LEAF_AREA_PER_RATE_UNIT;
 }
 
-/** Rate units in one full unit of the species. */
-export function fullRateUnits(species: PlantSpecies): number {
-  return rateUnits({ species, size: 100 });
-}
-
-export function getTotalRateUnits(plants: readonly Unit[]): number {
-  return plants.reduce((sum, plant) => sum + rateUnits(plant), 0);
-}
-
 /** Light at a plant's height over the PAR at the substrate. */
 export interface CanopyLight {
   /** At its mean leaf: what it earns and starves on. */

@@ -50,7 +50,7 @@ describe('dailyLightEdge', () => {
 });
 
 describe('floraHealingRate', () => {
-  it('heals at the pace it grows', () => {
+  it('heals at the rate it grows', () => {
     for (const traits of [...ROSTER.map(plantTraits), ALGAE]) {
       expect(floraHealingRate(traits, config)).toBe(traits.growthRate * config.healingDrawRate);
     }
@@ -67,11 +67,17 @@ describe('growthTaper', () => {
 });
 
 describe('bankDraw', () => {
-  it('draws growthDrawRate of the bank through the taper, and nothing from an empty or negative one', () => {
-    expect(bankDraw(10, 40, config)).toBeCloseTo(10 * config.growthDrawRate * 0.6, 12);
+  it('draws 1 − e^−growthDrawRate of the bank through the taper, and nothing from an empty or negative one', () => {
+    expect(bankDraw(10, 40, config)).toBeCloseTo(10 * (1 - Math.exp(-config.growthDrawRate)) * 0.6, 12);
     expect(bankDraw(20, 40, config)).toBeCloseTo(2 * bankDraw(10, 40, config), 12);
     expect(bankDraw(0, 40, config)).toBe(0);
     expect(bankDraw(-1, 40, config)).toBe(0);
+  });
+
+  it('never draws more than the bank, at any rate', () => {
+    for (const growthDrawRate of [1, 50, 1e6]) {
+      expect(bankDraw(10, 0, { ...config, growthDrawRate })).toBeLessThanOrEqual(10);
+    }
   });
 });
 
@@ -83,10 +89,10 @@ describe('bankConversion', () => {
 });
 
 describe('metabolicRateUnits', () => {
-  it('runs the rate units its tissue is at its pace, a plant’s as a bloom’s', () => {
+  it('runs the rate units its tissue is at its growth rate, a plant’s as a bloom’s', () => {
     for (const traits of [...ROSTER.map(plantTraits), ALGAE]) {
-      expect(metabolicRateUnits(3, traits)).toBe(3 * traits.pace);
-      expect(metabolicRateUnits(3, { ...traits, pace: 2 * traits.pace })).toBe(2 * metabolicRateUnits(3, traits));
+      expect(metabolicRateUnits(3, traits)).toBe(3 * traits.growthRate);
+      expect(metabolicRateUnits(3, { ...traits, growthRate: 2 * traits.growthRate })).toBe(2 * metabolicRateUnits(3, traits));
     }
   });
 });
@@ -106,11 +112,13 @@ describe('the channels a plant and a bloom share', () => {
   const amount = (factors: { key: string; amount: number }[], key: string): number =>
     factors.find((f) => f.key === key)!.amount;
 
-  it('charges starvation at respiration’s cost, in proportion to the feeder’s pace', () => {
-    const starving = amount(floraStressors(hour()), 'lightStarvation');
-    expect(starving).toBeCloseTo(config.lightStarvationSeverity * getRespirationTemperatureFactor(25, config), 12);
-    const quick = { ...plantTraits('amazon_sword'), pace: 30 };
-    expect(amount(floraStressors(hour({ traits: quick })), 'lightStarvation')).toBeCloseTo(30 * starving, 12);
+  it('charges starvation at respiration’s cost, in proportion to the feeder’s growth rate', () => {
+    for (const traits of [...ROSTER.map(plantTraits), ALGAE]) {
+      expect(amount(floraStressors(hour({ traits })), 'lightStarvation')).toBeCloseTo(
+        config.lightStarvationSeverity * traits.growthRate * getRespirationTemperatureFactor(25, config),
+        12
+      );
+    }
   });
 
   it('earns on the light curve, the sufficiency and vigour, and CO₂ on the feeder’s own half-saturation', () => {

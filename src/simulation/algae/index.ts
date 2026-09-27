@@ -27,7 +27,7 @@ export function bloomTissue(mass: number, litres: number, traits: AlgaeTraits): 
   return (mass / 100) * traits.tissuePerLitre * litres;
 }
 
-/** Rate units a bloom's metabolism runs at: its tissue's, on the plants' own relation, at its pace. */
+/** Rate units a bloom's metabolism runs at: its tissue's, on the plants' own relation, at its growth rate. */
 export function bloomRateUnits(mass: number, litres: number, traits: AlgaeTraits, config: PlantsConfig): number {
   return metabolicRateUnits(bloomTissue(mass, litres, traits) / tissuePerRateUnit(config), traits);
 }
@@ -68,15 +68,17 @@ function bloomPrice(from: number, grown: number, traits: AlgaeTraits, config: Pl
 /**
  * What the bank buys this hour, before the water supplies it. The plants' draw
  * on an empty habitat, at the plants' conversion, is the bloom's rate `r`; the
- * mass follows the logistic exactly over the hour,
- * `m₁ = 100·m₀ / (m₀ + (100 − m₀)·e^−r)`, so it closes on a full habitat without
- * reaching it, and the bank pays for the growth it got. Spores come through the
- * taper at the mass that growth reaches, since their tissue is drawn beside it.
+ * mass follows the logistic exactly over the hour, its odds of room to mass
+ * falling by `e^−r`: `(100 − m₁)/m₁ = e^−r·(100 − m₀)/m₀`. It closes on a full
+ * habitat without reaching it, an empty one stays empty at any rate, and the
+ * bank pays for the growth it got. Spores come through the taper at the mass
+ * that growth reaches, since their tissue is drawn beside it.
  */
 export function purchaseBloom(bloom: AlgaeState, traits: AlgaeTraits, config: PlantsConfig): BloomPurchase {
   const r = (bankDraw(bloom.surplus, 0, config) * bankConversion(traits, config)) / 100;
   const room = 100 - bloom.mass;
-  const grown = (bloom.mass * room * -Math.expm1(-r)) / (bloom.mass + room * Math.exp(-r));
+  const odds = Math.exp(Math.log(room) - Math.log(bloom.mass) - r);
+  const grown = (room * -Math.expm1(-r)) / (1 + odds);
   const mass = bloom.mass + grown;
   return {
     before: bloom,

@@ -3,8 +3,6 @@ import {
   canopyLight,
   floorCover,
   floorShade,
-  fullRateUnits,
-  getTotalRateUnits,
   isOvergrown,
   LEAF_AREA_PER_RATE_UNIT,
   lightAtHeight,
@@ -71,13 +69,9 @@ describe('geometry', () => {
   it('carries its leaf area over its footprint: a full unit is LAI × F, in 500 cm² rate units', () => {
     for (const species of SPECIES) {
       const { leafAreaIndex, footprintCm2 } = growthFormOf(species);
-      expect(fullRateUnits(species)).toBeCloseTo((leafAreaIndex * footprintCm2) / LEAF_AREA_PER_RATE_UNIT, 12);
-      expect(rateUnits(unit(species, 40))).toBeCloseTo(0.4 * fullRateUnits(species), 12);
+      expect(rateUnits(unit(species))).toBeCloseTo((leafAreaIndex * footprintCm2) / LEAF_AREA_PER_RATE_UNIT, 12);
+      expect(rateUnits(unit(species, 40))).toBeCloseTo(0.4 * rateUnits(unit(species)), 12);
     }
-    expect(getTotalRateUnits(MIXED)).toBeCloseTo(
-      MIXED.reduce((sum, p) => sum + rateUnits(p), 0),
-      12
-    );
   });
 });
 

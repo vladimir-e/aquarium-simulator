@@ -1,5 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { coverage } from '../../simulation/index.js';
 import {
+  COVERAGE_DECIMALS,
   formatTemperature,
   formatTemperatureRange,
   formatVolume,
@@ -11,6 +13,7 @@ import {
   toDisplayVolume,
   detectUnitSystem,
   getTankSizeOptions,
+  logQuantityIn,
 } from './units';
 
 describe('formatTemperature', () => {
@@ -52,6 +55,15 @@ describe('formatVolume', () => {
   it('respects precision parameter', () => {
     expect(formatVolume(37.854, 'metric', 2)).toBe('37.85 L');
     expect(formatVolume(37.854, 'imperial', 2)).toBe('10.00 gal');
+  });
+});
+
+describe('logQuantityIn', () => {
+  it('prints coverage at the precision every other surface prints it, in either system', () => {
+    for (const system of ['metric', 'imperial'] as const) {
+      expect(logQuantityIn(system)(coverage(0.4))).toBe(`${(0.4).toFixed(COVERAGE_DECIMALS)} %`);
+      expect(logQuantityIn(system)(coverage(12.34))).toBe(`${(12.34).toFixed(COVERAGE_DECIMALS)} %`);
+    }
   });
 });
 

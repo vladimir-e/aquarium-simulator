@@ -45,6 +45,7 @@ import {
   type TunableConfig,
 } from '../../simulation/config/index.js';
 import { NITRATE_EDGE } from '../../simulation/livestock/tolerance.js';
+import { COVERAGE_DECIMALS } from '../utils/units.js';
 import type { HourAhead } from './ahead.js';
 import { groupBy, mean, numbered } from './fold.js';
 import { plantLightStatus } from './light.js';
@@ -65,11 +66,8 @@ import {
  */
 export const TRIM_TARGETS = [50, 75, 85];
 
-/** Coverage prints in whole percent. */
-export const COVERAGE_DECIMALS = 0;
-
 /** Whether there is any bloom to see: its coverage prints as more than none. */
-export function bloomShows(mass: number): boolean {
+function bloomShows(mass: number): boolean {
   return !printsAsZero(mass, COVERAGE_DECIMALS);
 }
 

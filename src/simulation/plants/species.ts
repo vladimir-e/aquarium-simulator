@@ -65,7 +65,7 @@ export interface PlantSpeciesData {
   name: string;
   /** Carbon need: picks the half-saturation its photosynthesis runs on */
   co2Requirement: Co2Requirement;
-  /** Relative growth rate (higher = faster biomass distribution) */
+  /** Relative growth rate: its growth, its healing and the pace its leaf metabolises at */
   growthRate: number;
   /** Nutrient demand tier */
   nutrientDemand: NutrientDemand;
@@ -186,7 +186,7 @@ export function growthFormOf(species: PlantSpecies): GrowthFormData {
  */
 export function plantTraits(species: PlantSpecies): FloraTraits {
   const { growthRate, tolerableLight, tolerableTemp, tolerablePH } = PLANT_SPECIES_DATA[species];
-  return { growthRate, pace: 1, lowLight: tolerableLight[0], tolerableTemp, tolerablePH };
+  return { growthRate, lowLight: tolerableLight[0], tolerableTemp, tolerablePH };
 }
 
 export function getCo2HalfSaturation(species: PlantSpecies, config: PlantsConfig): number {

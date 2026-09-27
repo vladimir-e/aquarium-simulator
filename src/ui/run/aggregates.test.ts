@@ -5,7 +5,7 @@ import {
   accrueTicks,
   accrueWaterChanged,
 } from './aggregates';
-import { COVERAGE_DECIMALS } from './flora';
+import { COVERAGE_DECIMALS } from '../utils/units';
 import { coverage, createLog, measured, type LogEntry } from '../../simulation/index.js';
 
 describe('emptyAggregates', () => {

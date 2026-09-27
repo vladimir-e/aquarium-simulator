@@ -27,7 +27,7 @@ coded: plants beat a bloom or lose to it on the rates.
 | Growth | <Badge text="settled" variant="success" /> | Logistic, exact over the hour: the plants' draw sets its rate, every bank point buys the same e-fold, and no bank or tunable takes mass past a full habitat. Day and night. |
 | Spores | <Badge text="settled" variant="success" /> | Its offshoots: a constant rate through the taper, landing at condition 100 on an empty bank and joining the bloom by mass, so an empty tank is never closed to a bloom and an empty bloom is the same whatever came before. Whether they take is the condition's business. |
 | Nutrients | <Badge text="settled" variant="success" /> | The plants' recipe, from the water alone, in one draw with every plant: no feeder is served before another. |
-| Carbon and oxygen | <Badge text="settled" variant="success" /> | The plants' photosynthesis and respiration on one CO₂ stock, its tissue rated at the plants' relation and run at its pace. |
+| Carbon and oxygen | <Badge text="settled" variant="success" /> | The plants' photosynthesis and respiration on one CO₂ stock, its tissue rated at the plants' relation and run at its growth rate. |
 | Allelopathy | <Badge text="settled" variant="success" /> | One harm rate on thriving plant leaf per litre, with no threshold. It stands in for the small competition the model leaves out as well. |
 | Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape — the square of the deficit — and condition 0 kills what is left, bank and all. Both return it as waste, and a die-back is logged with the coverage it took. |
 | Scrubbing | <Badge text="scaffolding" variant="caution" /> | A random 10–30 % bite off the standing mass, refused below mass `5`. The bite is waste in the water. |
@@ -44,7 +44,7 @@ coded: plants beat a bloom or lose to it on the rates.
 |---|---|---|
 | CO₂ | income | Monod on dissolved CO₂ at its `co2HalfSaturation` — far under any plant's, since algae take bicarbonate too |
 | Temperature · pH | income, then harm | The plants' band helpers on its own bands: comfort peaks mid-band, damage starts at the edge |
-| Light starvation | harm | The day's light over the column against its daily light edge, at respiration's Q10 and its pace: a bloom respires fast, so it starves fast |
+| Light starvation | harm | The day's light over the column against its daily light edge, at respiration's Q10 and its growth rate: a bloom respires fast, so it starves fast |
 | Nutrient deficiency | harm | Liebig sufficiency under `sufficiencyEdge`, on the light curve |
 | Allelopathy | harm | `allelopathySeverity × Σ(plant rate units × condition/100) / litres` |
 
@@ -53,9 +53,9 @@ is on; the bank carries it through the night.
 
 ### The bank buys mass
 
-The rate is the plants': `growthDrawRate` of the bank at their conversion,
-`growthRate × sizePerSurplus`, is the bloom's specific growth rate `r` for the
-hour. Mass follows the logistic exactly over that hour,
+The rate is the plants': their draw, `1 − e^−growthDrawRate` of the bank, at
+their conversion, `growthRate × sizePerSurplus`, is the bloom's specific growth
+rate `r` for the hour. Mass follows the logistic exactly over that hour,
 
 ```
 m₁ = 100·m₀ / (m₀ + (100 − m₀)·e⁻ʳ)
@@ -85,7 +85,7 @@ Beer–Lambert averaged from surface to floor, a little above the substrate
 figure. It saturates at low light.
 
 Its tissue is organic matter at the plants' recipe. A gram of it is the same
-rate units a gram of leaf is, run at the bloom's pace, so a dense bloom
+rate units a gram of leaf is, run at the bloom's growth rate, so a dense bloom
 strips CO₂ by day and draws oxygen down by night. Growth draws its N, P, K and
 Fe from the water in the same pooled call as the plants; shed, dead and scrubbed
 tissue goes back as waste, so a crashing bloom spikes ammonia as it rots.
@@ -94,17 +94,16 @@ tissue goes back as waste, so a crashing bloom spikes ammonia as it rots.
 
 Starvation reads the day's light, so a scheduled night costs nothing. A dead
 fixture starves the bloom as its day empties: the bank goes in hours and the
-condition within two days, and the bloom dies back — the hobby's blackout, which
-costs a plant its bank and little else. Relit, it grows again from spores that
-land healthy. Kept dark, the spores starve in turn, and their dust dies back
-about every day and a half.
+condition within two days, and the bloom dies back — the hobby's blackout,
+which costs a carpet its bank and a few points of condition. Relit, it grows
+again from spores that land healthy. Kept dark, the spores starve in turn, and
+their dust dies back about every day and a half.
 
 ## Key tunables and traits
 
 | Name | Meaning | Value |
 |---|---|---|
-| `growthRate` | Bank-to-mass conversion and healing rate, on the plants' scale | `30` |
-| `pace` | How many times faster than a leaf its tissue fixes, respires and starves: its growth rate | `30` |
+| `growthRate` | Bank-to-mass conversion, healing rate, and the pace its tissue fixes, respires and starves at, on the plants' scale | `30` |
 | `hardiness` | Scales every harm by `1 − hardiness` | `0.4` |
 | `lowLight` | PAR at the bottom of its band: its daily light edge over a care-sheet day, and `Ik` at `saturationIrradianceFactor ×` it | `6` PAR |
 | `nutrientDemand` | Its demand tier, as a plant's | low |

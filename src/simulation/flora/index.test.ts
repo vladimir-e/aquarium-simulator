@@ -723,7 +723,7 @@ describe('processFlora — plants', () => {
       expect(born(11).map((p) => p.vigour)).not.toEqual(born(12).map((p) => p.vigour));
     });
 
-    it('keeps every field finite every hour of a month that opens budding', () => {
+    it('keeps every field finite every hour of a month that buds', () => {
       let state = tank({
         plants: [mother(CAP), plantRecord({ id: 'mc', species: 'monte_carlo', size: 95, condition: C, surplus: CAP })],
         light: 80,
@@ -735,6 +735,7 @@ describe('processFlora — plants', () => {
         state = processFlora(state, DEFAULT_CONFIG).state;
         expect(nonFinitePaths(state)).toEqual([]);
       }
+      expect(state.logs.some((log) => log.event === 'plant-propagated')).toBe(true);
     });
   });
 });

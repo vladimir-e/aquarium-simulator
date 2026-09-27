@@ -13,7 +13,7 @@ thriving, normal at 100. Benefit rates raise it and damage rates lower it, so
 nothing dies or heals instantly.
 
 A threshold that switches a mechanism on or off is a defect; a rate that starts
-at a tolerance edge is not ([Rates into stocks](/concepts/rates-into-stocks/#where-switches-still-live)).
+at a tolerance edge is not ([Rates into stocks](/concepts/rates-into-stocks/#switches-and-what-only-looks-like-one)).
 
 ## One hour
 
@@ -55,7 +55,7 @@ and it ends when the rates turn round.
 | Organism | Healing rate | Shipped |
 |---|---|---|
 | Fish | `healingDrawRate × adultMass^−¼`, the way mass-specific metabolism scales | 0.06 /h for a neon, 0.025 /h for an angelfish |
-| Plant | `healingDrawRate × growthRate` — a plant repairs at the pace it grows | 0.09 /h for monte carlo, 0.015 /h for anubias |
+| Plant | `healingDrawRate × growthRate` — a plant repairs at the rate it grows | 0.09 /h for monte carlo, 0.015 /h for anubias |
 | Algae | The plants' law, at the bloom's growth rate | 1.5 /h — 78 % of its bank in an hour |
 
 ## What the bank buys

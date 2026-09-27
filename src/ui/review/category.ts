@@ -6,7 +6,7 @@
  */
 
 import type { LogEntry } from '../../simulation/index.js';
-import { isReported } from '../run/flora.js';
+import { isReported } from '../run/index.js';
 
 /** Bucket a log line belongs to; `sim` is the catch-all for engine chatter. */
 export type LogCategory = 'cycle' | 'user' | 'life' | 'sim';

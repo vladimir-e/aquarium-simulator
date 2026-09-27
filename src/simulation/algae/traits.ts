@@ -18,8 +18,6 @@ export interface AlgaeTraits extends FloraTraits {
   sporeRate: number;
 }
 
-const growthRate = 30;
-
 /**
  * Green algae, suspended in the water column. It saturates by 12 PAR, lives on
  * a lean column, and takes the warm, alkaline water plants struggle in.
@@ -33,8 +31,7 @@ const growthRate = 30;
  */
 export const ALGAE: AlgaeTraits = {
   name: 'Algae',
-  growthRate,
-  pace: growthRate,
+  growthRate: 30,
   hardiness: 0.4,
   lowLight: 6,
   nutrientDemand: 'low',

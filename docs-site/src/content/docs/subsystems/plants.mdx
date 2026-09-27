@@ -21,11 +21,11 @@ family. Low condition sheds tissue.
 |---|---|---|
 | Photosynthesis on PAR | <Badge text="settled" variant="success" /> | Jassby–Platt `tanh(PAR/Ik)`, per plant, on the light at its own mean leaf against its own saturating irradiance. |
 | Rated by leaf | <Badge text="settled" variant="success" /> | Photosynthesis, respiration, plant power and waste run on leaf area, in rate units of 500 cm², so a full sword counts for more than a full carpet patch. |
-| Metabolic pace | <Badge text="scaffolding" variant="caution" /> | A flora trait scaling the rate units it fixes and respires on, and its starvation. Every species runs at a leaf's pace, 1, where the bloom runs at its growth rate. |
+| Metabolic pace | <Badge text="settled" variant="success" /> | Every flora fixes, respires and starves at its growth rate against a leaf at 1, so a monte carlo's leaf runs 1.8×, an anubias's 0.3× and a bloom's 30×. |
 | Carbon–oxygen exchange | <Badge text="settled" variant="success" /> | One yield, run both ways. Respiration releases the carbon photosynthesis fixed, and the oxygen derives from it at the molar mass ratio rather than from a second constant. |
 | Respiration | <Badge text="settled" variant="success" /> | Runs 24/7 on Q10 × Monod, so a plant in suffocating water respires slower and releases proportionally less carbon. |
 | Light starvation | <Badge text="settled" variant="success" /> | A rate on the day's light at the plant's own leaf, short of the species' edge — the day, not the hour. |
-| The bank | <Badge text="settled" variant="success" /> | Income banks at full condition; the bank heals at the pace the species grows, buys size through a taper, and buys an offshoot once full. |
+| The bank | <Badge text="settled" variant="success" /> | Income banks at full condition; the bank heals at the rate the species grows, buys size through a taper, and buys an offshoot once full. |
 | Size of a unit | <Badge text="settled" variant="success" /> | Size is how full one unit of the growth form is. Growth tapers to nothing at 100, so no ceiling clamps it. |
 | Self-shading | <Badge text="settled" variant="success" /> | A unit's own crown shades its leaves, so a plant too big for its light sheds to a size its light holds, with no switch. |
 | Offshoots | <Badge text="settled" variant="success" /> | A full bank buys a new unit of the family at the growth conversion — value conserved, no timer, no space test. |
@@ -108,15 +108,15 @@ rateUnits = leafArea / 500
 
 Size says how full the unit is: it drives growth's taper, the height and the
 self-shading. Leaf area says how much plant there is: it drives every flux the
-tank sees, in rate units of 500 cm² of leaf. No crown stands taller than the
-water.
+tank sees, in rate units of 500 cm² of leaf, and the plant's metabolism runs
+them at its growth rate. No crown stands taller than the water.
 
 ### Photosynthesis
 
 ```
 // PAR_i at the plant's mean leaf; K_i by the species' CO₂ need
 lightResponse_i = tanh(PAR_i / Ik_i)
-carbon_i        = rateUnits_i × lightResponse_i × sufficiency_i
+carbon_i        = rateUnits_i × growthRate_i × lightResponse_i × sufficiency_i
 K               = Σ carbon_i × K_i / Σ carbon_i
 co2 drawn       = monodUptake(CO₂, Σ carbon_i × basePhotosynthesisRate × co2PerRateUnit, K)
 ```
@@ -139,7 +139,7 @@ carbon-weighted mean of its CO₂ half-saturations, so a dense planting slows
 its own draw and never takes the water's last milligram. The drive is summed
 across the planting and multiplied by `basePhotosynthesisRate` to give the
 tank's rate in rate units, where one rate unit is an hour of 500 cm² of leaf at
-saturating carbon and light.
+growth rate 1, under saturating carbon and light.
 
 It never adds size: growth flows through the bank, and the nutrients new tissue
 needs come out of the water and the bed where the bank buys it
@@ -149,8 +149,8 @@ needs come out of the water and the bed where the bank buys it
 
 | Direction | Carbon | Oxygen |
 |---|---|---|
-| Photosynthesis | the Monod draw on `rateUnits × lightResponse × sufficiency × basePhotosynthesisRate × co2PerRateUnit`, read at the tick's closing CO₂ | derived from the carbon fixed, at `CO2_TO_O2_MASS_RATIO` |
-| Respiration | `baseRespirationRate × rateUnits × warmth × air`, then `× co2PerRateUnit` | derived from the carbon released, same ratio |
+| Photosynthesis | the Monod draw on `rateUnits × growthRate × lightResponse × sufficiency × basePhotosynthesisRate × co2PerRateUnit`, read at the tick's closing CO₂ | derived from the carbon fixed, at `CO2_TO_O2_MASS_RATIO` |
+| Respiration | `baseRespirationRate × rateUnits × growthRate × warmth × air`, then `× co2PerRateUnit` | derived from the carbon released, same ratio |
 
 One reaction run both ways, so one yield. The day/night asymmetry lives entirely
 in `baseRespirationRate`, and the oxygen partner is not a second knob. A
@@ -294,7 +294,7 @@ carries out by the same factor a fish's is: `nitrateEdge × 2^hardiness`.
 
 ```
 shortfall = max(0, 1 − dli_i / edge)
-damage    = lightStarvationSeverity × shortfall
+damage    = lightStarvationSeverity × growthRate × shortfall
             × q10(temperature) × (1 − hardiness)
 ```
 
@@ -302,13 +302,16 @@ damage    = lightStarvationSeverity × shortfall
 edge, both as [Light](/subsystems/light/#the-days-light) defines them.
 
 A plant starves on the light it has had, not the light it has now, once that
-integral drops under its edge. The cost is respiration's, on the same Q10, so a
-warm blackout bites harder than a cool one.
+integral drops under its edge. The cost is respiration's, on the same Q10 and
+at the same growth rate, so a warm blackout bites harder than a cool one and a
+fast grower starves first.
 
 Starvation is damage like any other: the bank heals it first, then condition
-falls, then the plant sheds. In a clean tank at 25 °C a monte carlo spends its
-bank in the first days of total darkness and is gone in two to three weeks; a
-java fern, hardier and needing less light, lasts about five.
+falls, then the plant sheds. In total darkness at 25 °C a monte carlo spends
+its bank in under five days and is gone in two weeks, an amazon sword in a
+month; a java fern lasts some fifteen weeks, and an anubias outlasts five
+months. The hobby's three-day blackout costs a carpet its bank and some eight
+points of condition, and a java fern half its bank.
 
 ### The bank
 
@@ -317,16 +320,16 @@ java fern, hardier and needing less light, lasts about five.
 | Banking | income past full condition, up to `surplusCap` | condition at 100 |
 | Healing | `1 − e^−(healingDrawRate × growthRate)` of the bank, up to the deficit | condition under 100 |
 | Offshoot | what the new unit's size costs at the growth conversion | the bank full |
-| Growth | `growthDrawRate × (1 − size / 100)` of the bank, at the share the water and the bed supply | every hour, day and night |
+| Growth | `(1 − e^−growthDrawRate) × (1 − size / 100)` of the bank, at the share the water and the bed supply | every hour, day and night |
 
 A plant arrives at full condition with an empty bank, as a fish does. It heals
-at the pace it grows: under heavy damage a carpet draws its bank down on repair
+at the rate it grows: under heavy damage a carpet draws its bank down on repair
 in about half a day, an anubias in about three.
 
 ### Growth and its taper
 
 ```
-drawn = bank × growthDrawRate × (1 − size / 100) × supply
+drawn = bank × (1 − e^−growthDrawRate) × (1 − size / 100) × supply
 size += drawn × growthRate × sizePerSurplus
 bank −= drawn
 ```
@@ -436,7 +439,7 @@ sword fouls the water more than a carpet patch of the same size.
 
 | Constant | Meaning | Value |
 |---|---|---|
-| `basePhotosynthesisRate` | Photosynthetic rate per rate unit of leaf, at full carbon and saturating light | `1.0` /hr |
+| `basePhotosynthesisRate` | Photosynthetic rate per rate unit of leaf at growth rate 1, at full carbon and saturating light | `1.0` /hr |
 | `saturationIrradianceFactor` | Multiple of a species' band low at which it saturates — the `Ik` of the light curve | `2.0` × band low |
 | `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which each carbon-need tier photosynthesises at half rate | `1.5` · `3` · `8` mg/L |
 | `co2PerRateUnit` | Carbon one rate unit moves, in either direction | `30` mg |
@@ -447,7 +450,7 @@ sword fouls the water more than a carpet patch of the same size.
 | `respirationOxygenHalfSaturation` | O₂ at which respiration runs at half rate | `0.5` mg/L |
 | `surplusCap` | Ceiling on the bank; a full one buys an offshoot | `50` condition points |
 | `healingDrawRate` | First-order rate the bank heals condition at, per unit of species growth rate | `0.05` /hr |
-| `growthDrawRate` | Share of the bank drawn toward new tissue each hour, before the taper | `0.02` /hr |
+| `growthDrawRate` | First-order rate the bank draws toward new tissue at, before the taper | `0.02` /hr |
 | `sizePerSurplus` | Size gained per bank point converted, before the species growth rate — the conversion growth and offshoots share | `0.4` %/pt |
 | `tissuePerSize` | Organic matter in a % of a rate unit of tissue — what growth draws the recipe for, and shedding and death return as waste | `0.01` g |
 | `lightStarvationSeverity` | Damage in a day without light, at the reference temperature | `0.3` %/hr |

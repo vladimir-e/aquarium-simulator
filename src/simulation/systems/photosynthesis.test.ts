@@ -116,9 +116,11 @@ describe('calculatePhotosynthesis', () => {
     );
   }
 
+  const metabolic = (p: Plant): number => rateUnits(p) * plantTraits(p.species).growthRate;
+
   function carbonCapacity(p: Plant, config = plantsDefaults): number {
     return (
-      rateUnits(p) *
+      metabolic(p) *
       lightSaturationFactor(light, saturationIrradiance(plantTraits(p.species), config)) *
       calculateNutrientSufficiency(mirroredPools(buildResources(waterVolume)), p.species) *
       config.basePhotosynthesisRate *
@@ -190,7 +192,7 @@ describe('calculatePhotosynthesis', () => {
     it('shares the carbon yield with respiration, which is why there is one of it', () => {
       const fern = plant(100, 'java_fern');
       for (const config of [plantsDefaults, { ...plantsDefaults, co2PerRateUnit: 7 }]) {
-        const respired = calculateRespiration(rateUnits(fern), 25, AIR_SATURATED_O2, config).co2ProducedMg;
+        const respired = calculateRespiration(metabolic(fern), 25, AIR_SATURATED_O2, config).co2ProducedMg;
         const capacity =
           ((respired / config.baseRespirationRate) * config.basePhotosynthesisRate) /
           monodFactor(AIR_SATURATED_O2, config.respirationOxygenHalfSaturation) *
@@ -360,14 +362,14 @@ describe('calculatePhotosynthesis', () => {
       expect(r100.co2ConsumedMg).toBeCloseTo(r50.co2ConsumedMg * 2, 6);
     });
 
-    it('rates a plant by its leaf, not its size: a full sword out-fixes a full carpet patch by their rate units', () => {
+    it('rates a plant by its leaf at its growth rate, not its size: a full sword and a full carpet patch fix by their metabolic rate units', () => {
       const fixed = (p: Plant): number =>
         photosynthesis([p], { co2: PLENTIFUL_CO2, lightPar: 1e6 }).co2ConsumedMg /
         calculateNutrientSufficiency(mirroredPools(buildResources(waterVolume)), p.species);
       const sword = plant(100, 'amazon_sword');
       const patch = plant(100, 'monte_carlo');
 
-      expect(fixed(sword) / fixed(patch)).toBeCloseTo(rateUnits(sword) / rateUnits(patch), 6);
+      expect(fixed(sword) / fixed(patch)).toBeCloseTo(metabolic(sword) / metabolic(patch), 6);
     });
 
     it('runs each plant on the light at its own leaf', () => {

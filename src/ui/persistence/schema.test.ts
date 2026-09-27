@@ -9,7 +9,9 @@ import { PERSISTENCE_VERSION } from './types.js';
 import {
   DEFAULT_CONFIG,
   MAX_LEAF_ATTENUATION_PER_LAI,
+  MAX_SIZE_PER_SURPLUS,
   MAX_SUFFICIENCY_EDGE,
+  MAX_SURPLUS_CAP,
   MAX_WATER_ATTENUATION_PER_CM,
 } from '../../simulation/config/index.js';
 import {
@@ -172,21 +174,36 @@ describe('TunableConfigSchema', () => {
     expect(edge(-0.1)).toBe(false);
   });
 
-  it('takes draw rates from 0, the growth draw up to the whole bank, and refuses any a bank would run negative on', () => {
-    const plants = (overrides: Partial<typeof DEFAULT_CONFIG.plants>): boolean =>
-      TunableConfigSchema.safeParse({ ...DEFAULT_CONFIG, plants: { ...DEFAULT_CONFIG.plants, ...overrides } }).success;
-    const fishHealing = (healingDrawRate: number): boolean =>
-      TunableConfigSchema.safeParse({
-        ...DEFAULT_CONFIG,
-        livestock: { ...DEFAULT_CONFIG.livestock, healingDrawRate },
-      }).success;
+  const plants = (overrides: Partial<typeof DEFAULT_CONFIG.plants>): boolean =>
+    TunableConfigSchema.safeParse({ ...DEFAULT_CONFIG, plants: { ...DEFAULT_CONFIG.plants, ...overrides } }).success;
+  const livestock = (overrides: Partial<typeof DEFAULT_CONFIG.livestock>): boolean =>
+    TunableConfigSchema.safeParse({ ...DEFAULT_CONFIG, livestock: { ...DEFAULT_CONFIG.livestock, ...overrides } }).success;
+
+  it('takes any draw rate from 0, since a first-order draw never takes more than the bank', () => {
     expect(plants({ growthDrawRate: 0, healingDrawRate: 0 })).toBe(true);
-    expect(plants({ growthDrawRate: 1 })).toBe(true);
-    expect(fishHealing(0)).toBe(true);
-    expect(plants({ growthDrawRate: 1.01 })).toBe(false);
+    expect(plants({ growthDrawRate: 50, healingDrawRate: 50 })).toBe(true);
+    expect(livestock({ healingDrawRate: 0 })).toBe(true);
+  });
+
+  it('refuses a negative draw rate, which runs the bank backwards: healing overfills it and drains condition', () => {
     expect(plants({ growthDrawRate: -0.01 })).toBe(false);
     expect(plants({ healingDrawRate: -0.01 })).toBe(false);
-    expect(fishHealing(-0.01)).toBe(false);
+    expect(livestock({ healingDrawRate: -0.01 })).toBe(false);
+  });
+
+  it('takes a bank cap from 0 up to the whole condition scale, and refuses one past it', () => {
+    expect(plants({ surplusCap: 0 })).toBe(true);
+    expect(plants({ surplusCap: MAX_SURPLUS_CAP })).toBe(true);
+    expect(livestock({ surplusCap: MAX_SURPLUS_CAP })).toBe(true);
+    expect(plants({ surplusCap: -1 })).toBe(false);
+    expect(plants({ surplusCap: MAX_SURPLUS_CAP + 1 })).toBe(false);
+    expect(livestock({ surplusCap: MAX_SURPLUS_CAP + 1 })).toBe(false);
+  });
+
+  it('takes a bank point that buys something up to its ceiling, and refuses one that buys nothing or past it', () => {
+    expect(plants({ sizePerSurplus: MAX_SIZE_PER_SURPLUS })).toBe(true);
+    expect(plants({ sizePerSurplus: 0 })).toBe(false);
+    expect(plants({ sizePerSurplus: MAX_SIZE_PER_SURPLUS * 2 })).toBe(false);
   });
 
   it('refuses a species demand of nothing, which no plant has', () => {

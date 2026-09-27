@@ -23,7 +23,6 @@ import { MAX_DOSE_ML } from '../../simulation/actions/dose.js';
 import { produce } from 'immer';
 import {
   algaeReading,
-  COVERAGE_DECIMALS,
   algaeStatus,
   bedReading,
   doseDeltas,
@@ -41,6 +40,7 @@ import {
   type PlantSpeciesGroup,
 } from './flora';
 import { readHourAhead } from './ahead';
+import { COVERAGE_DECIMALS } from '../utils/units';
 import { conditionStatus, conditionWord, projectedTrend, type Reading } from './status';
 
 const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;

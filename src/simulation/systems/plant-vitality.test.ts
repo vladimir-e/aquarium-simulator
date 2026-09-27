@@ -188,10 +188,11 @@ describe('buildPlantStressors', () => {
       }
     });
 
-    it('rises linearly with the shortfall below the edge, to full severity in a dark day', () => {
+    it('rises linearly with the shortfall below the edge, to full severity at its growth rate in a dark day', () => {
       const dark = starved('monte_carlo', { lightByHour: litDay(0, 0) });
       const half = starved('monte_carlo', { lightByHour: litDay(lo, CARE_SHEET_PHOTOPERIOD / 2) });
-      const factor = getRespirationTemperatureFactor(25, plantsDefaults) * (1 - PLANT_SPECIES_DATA.monte_carlo.hardiness);
+      const { growthRate, hardiness } = PLANT_SPECIES_DATA.monte_carlo;
+      const factor = growthRate * getRespirationTemperatureFactor(25, plantsDefaults) * (1 - hardiness);
 
       expect(dark).toBeCloseTo(plantsDefaults.lightStarvationSeverity * factor, 12);
       expect(half).toBeCloseTo(dark / 2, 12);
@@ -451,7 +452,7 @@ describe('computePlantVitality', () => {
     expect(full.surplus).toBeGreaterThan(0);
   });
 
-  it('heals from the bank at the pace the species grows', () => {
+  it('heals from the bank at the rate the species grows', () => {
     const dark = makeResources({ light: 0 });
     const healed = (species: PlantSpecies): number =>
       computePlantVitality(ctx(makePlant(species, { condition: 50, surplus: 10 }), dark)).breakdown.healed;

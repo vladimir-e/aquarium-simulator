@@ -82,6 +82,11 @@ export function hardened(factors: VitalityFactor[], hardiness: number): Vitality
   return factors.map((f) => ({ ...f, amount: f.amount * factor }));
 }
 
+/** Share of the bank a first-order draw at `rate` per hour takes over the hour: `1 − e^−rate`. */
+export function hourlyDraw(rate: number): number {
+  return -Math.expm1(-rate);
+}
+
 /**
  * One tick of vitality:
  * 1. clamp the bank into `[0, cap]`;
@@ -110,7 +115,7 @@ export function computeVitality(input: VitalityInput): VitalityResult {
     surplus += banked;
     condition = 100;
   } else if (condition < 100) {
-    healed = Math.min(100 - condition, -Math.expm1(-input.healingRate) * surplus);
+    healed = Math.min(100 - condition, hourlyDraw(input.healingRate) * surplus);
     surplus -= healed;
     condition += healed;
   }

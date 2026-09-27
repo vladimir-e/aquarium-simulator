@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { losePlant, tissueMass } from './plant-lifecycle.js';
 import { plantsDefaults } from '../config/plants.js';
-import { fullRateUnits } from '../plants/canopy.js';
+import { rateUnits } from '../plants/canopy.js';
+import { tissuePerRateUnit } from './flora.js';
 import type { Plant } from '../state.js';
 import { plantRecord } from '../tests/plant.js';
 
@@ -46,13 +47,13 @@ describe('losePlant', () => {
 
   it('turns what it sheds into waste by the leaf it carried', () => {
     const { survivor: after, shed } = losePlant(makePlant({ condition: 20 }));
-    expect(shed).toBeCloseTo((100 - after!.size) * fullRateUnits('java_fern') * plantsDefaults.tissuePerSize, 12);
+    expect(shed).toBeCloseTo(rateUnits({ species: 'java_fern', size: 100 - after!.size }) * tissuePerRateUnit(plantsDefaults), 12);
   });
 
   it('fouls the water more for a sword melting than a carpet patch, by their leaf', () => {
     const waste = (species: Plant['species']): number => losePlant(makePlant({ species, condition: 20 })).shed;
     expect(waste('amazon_sword') / waste('monte_carlo')).toBeCloseTo(
-      fullRateUnits('amazon_sword') / fullRateUnits('monte_carlo'),
+      rateUnits({ species: 'amazon_sword', size: 100 }) / rateUnits({ species: 'monte_carlo', size: 100 }),
       12
     );
   });

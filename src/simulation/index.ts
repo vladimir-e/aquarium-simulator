@@ -401,7 +401,6 @@ export {
   plantHeight,
   leafArea,
   rateUnits,
-  getTotalRateUnits,
   canopyLight,
   floorCover,
   floorShade,

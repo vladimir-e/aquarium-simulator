@@ -137,15 +137,15 @@ for any bloom.
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `basePhotosynthesisRate` | Rate one rate unit — 500 cm² of leaf — fixes carbon at, under ideal conditions | /hr |
+| `basePhotosynthesisRate` | Rate one rate unit — 500 cm² of leaf at growth rate 1 — fixes carbon at, under ideal conditions | /hr |
 | `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which a species of each carbon need photosynthesises at half rate | mg/L |
 | `saturationIrradianceFactor` | Multiple of a species' band low at which its light response saturates | × band low |
 | `co2PerRateUnit` | CO₂ carried by one rate unit; oxygen derives from it at the molar ratio | mg |
-| `baseRespirationRate` | Dark respiration per rate unit of leaf, running around the clock | /hr |
+| `baseRespirationRate` | Dark respiration per rate unit of leaf at growth rate 1, running around the clock | /hr |
 | `respirationQ10` | Factor respiration and light starvation multiply by per 10 °C | — |
 | `respirationReferenceTemp` | Temperature respiration and light starvation are quoted at | °C |
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which respiration runs at half rate | mg/L |
-| `growthDrawRate` | Share of the bank drawn toward new tissue each hour, before the taper `1 − size/100` | /hr |
+| `growthDrawRate` | First-order rate the bank draws toward new tissue at, before the taper `1 − size/100` | /hr |
 | `healingDrawRate` | First-order rate the bank heals condition at, per unit of species growth rate | /hr per growth rate |
 | `sizePerSurplus` | Size gained per bank point converted, before the species growth multiplier — the conversion growth and offshoots share | %/pt |
 | `surplusCap` | Ceiling on the bank; a full one buys an offshoot | pts |

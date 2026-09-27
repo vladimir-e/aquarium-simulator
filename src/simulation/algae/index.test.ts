@@ -36,10 +36,10 @@ describe('bloomTissue', () => {
 });
 
 describe('bloomRateUnits', () => {
-  it('rates its tissue on the plants’ relation, at its pace', () => {
+  it('rates its tissue on the plants’ relation, at its growth rate', () => {
     const units = bloomRateUnits(40, 100, ALGAE, plants);
-    expect(units).toBeCloseTo((bloomTissue(40, 100, ALGAE) / tissuePerRateUnit(plants)) * ALGAE.pace, 12);
-    expect(bloomRateUnits(40, 100, { ...ALGAE, pace: 2 * ALGAE.pace }, plants)).toBeCloseTo(2 * units, 12);
+    expect(units).toBeCloseTo((bloomTissue(40, 100, ALGAE) / tissuePerRateUnit(plants)) * ALGAE.growthRate, 12);
+    expect(bloomRateUnits(40, 100, { ...ALGAE, growthRate: 2 * ALGAE.growthRate }, plants)).toBeCloseTo(2 * units, 12);
   });
 });
 
@@ -85,12 +85,13 @@ describe('purchaseBloom', () => {
     }
   });
 
-  it('stays on the habitat at any rate, however far past the tunables', () => {
+  it('stays on the habitat at any rate, however far past the tunables, and an empty one stays empty', () => {
     for (const sizePerSurplus of [1e3, 1e6]) {
-      for (const mass of [0.01, 50, 99]) {
+      for (const mass of [0, 0.01, 50, 99]) {
         const bought = purchaseBloom(bloom({ mass, surplus: 30 }), ALGAE, { ...plants, sizePerSurplus });
         expect(bought.after.mass).toBeLessThanOrEqual(100);
-        expect(bought.after.mass).toBeGreaterThan(mass);
+        expect(bought.after.mass).toBeGreaterThanOrEqual(mass);
+        expect(bought.after.mass > mass).toBe(mass > 0);
         expect(Number.isFinite(bought.after.surplus)).toBe(true);
       }
     }
