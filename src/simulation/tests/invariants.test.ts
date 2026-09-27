@@ -415,7 +415,7 @@ describe('the keeper’s hands on the blooms', () => {
   });
 
   it('keep every gram of a scrub in the tank, as waste', () => {
-    const scrubbed = applyAction(coated, { type: 'scrubAlgae', randomPercent: 0.2 }).state;
+    const scrubbed = applyAction(coated, { type: 'scrubAlgae' }).state;
     expect(scrubbed.algae.greenWater).toEqual(coated.algae.greenWater);
     expect(nitrogenInPools(scrubbed) / nitrogenInPools(coated)).toBeCloseTo(1, 12);
   });

@@ -167,9 +167,9 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     );
   });
 
-  step('scrubAlgae action (no-op when clean)', () => {
+  step('scrubAlgae action', () => {
     const session = loadSession({ path });
-    applyAction(session.state, { type: 'scrubAlgae', randomPercent: 0.2 }, session.config);
+    applyAction(session.state, { type: 'scrubAlgae' }, session.config);
   });
 
   step('config set (nitrogenCycle.wasteConversionRate)', () => {

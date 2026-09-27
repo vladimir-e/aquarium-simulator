@@ -5,7 +5,6 @@ import {
   createSimulation,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
-  MIN_ALGAE_TO_SCRUB,
   WATER_CHANGE_AMOUNTS,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -224,13 +223,14 @@ describe('the seven verbs', () => {
     const bare = tank();
     const empty = { ...bare, resources: { ...bare.resources, water: 0 } };
     const full = { ...bare, resources: { ...bare.resources, water: bare.tank.capacity } };
-    const clean = { ...bare, algae: { ...bare.algae, film: { ...bare.algae.film, mass: MIN_ALGAE_TO_SCRUB - 2 } } };
+    const clean = { ...bare, algae: { ...bare.algae, film: { ...bare.algae.film, mass: 0.4 } } };
 
     expect(row(bare, 'dose').blocked).toBe('no plants to fertilise');
     expect(row(bare, 'dose').value).toBe('2 ml');
     expect(row(empty, 'waterChange').blocked).toBe('no water to change');
     expect(row(full, 'topOff').blocked).toBe('already at capacity');
-    expect(row(clean, 'scrubAlgae').blocked).toBe(`needs ${MIN_ALGAE_TO_SCRUB} % film algae, now 3 %`);
+    expect(row(clean, 'scrubAlgae').blocked).toBe('the glass is clean');
+    expect(row(bare, 'scrubAlgae').blocked).toBeNull();
     expect(row(planted([40]), 'trimPlants').blocked).toBe('nothing above 75 %');
     const bareBottom = { ...bare, equipment: { ...bare.equipment, substrate: { ...bare.equipment.substrate, type: 'none' as const } } };
     expect(row(bareBottom, 'rootTab').blocked).toBe('no bed to push a tab into');
@@ -319,7 +319,7 @@ describe('the seven verbs', () => {
       expect(bare.note).toMatch(/No amount to set/);
     }
 
-    expect(detail(tank(), 'scrubAlgae').note).toContain('10–30 %');
+    expect(detail(tank(), 'scrubAlgae').note).toContain('clears the glass');
     expect(detail(tank(), 'topOff').note).toContain('diluted');
   });
 

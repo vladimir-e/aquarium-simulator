@@ -37,8 +37,6 @@ export interface FeedAction extends BaseAction {
 
 export interface ScrubAlgaeAction extends BaseAction {
   type: 'scrubAlgae';
-  /** Optional: deterministic percentage for testing (0.1-0.3) */
-  randomPercent?: number;
 }
 
 export interface WaterChangeAction extends BaseAction {

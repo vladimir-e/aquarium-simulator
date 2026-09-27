@@ -37,7 +37,6 @@ describe('applyAction', () => {
       (amount): Action => ({ type: 'waterChange', amount }),
       (targetSize): Action => ({ type: 'trimPlants', targetSize }),
       (initialSize): Action => ({ type: 'addPlant', species: 'anubias', initialSize }),
-      (randomPercent): Action => ({ type: 'scrubAlgae', randomPercent }),
     ];
 
     for (const value of [NaN, Infinity, -Infinity]) {

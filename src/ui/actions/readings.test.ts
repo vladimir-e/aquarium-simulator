@@ -4,8 +4,7 @@ import {
   applyAction,
   calculateSurface,
   createSimulation,
-  MAX_SCRUB_PERCENT,
-  MIN_SCRUB_PERCENT,
+  onTheGlass,
   type FishSpecies,
   type Resources,
   type SimulationState,
@@ -168,7 +167,7 @@ describe('preview readings', () => {
     const state = fixture();
     const quarter = applyAction(state, { type: 'waterChange', amount: 0.25 }).state;
 
-    expect(detail(state, 'waterChange').preview).toEqual(previewRows({ before: state, outcomes: [quarter], config: DEFAULT_CONFIG, units: 'metric' }));
+    expect(detail(state, 'waterChange').preview).toEqual(previewRows({ before: state, after: quarter, config: DEFAULT_CONFIG, units: 'metric' }));
     expect(applyAction(state, { type: 'waterChange', amount: 25 }).state.resources.water).toBe(
       state.resources.water
     );
@@ -189,13 +188,11 @@ describe('preview readings', () => {
     expect(detail(fixture(), 'feed').preview.map((r) => r.key)).toEqual(['food']);
   });
 
-  it('previews a scrub as the range the engine rolls, on the film alone', () => {
+  it('previews a scrub as the film the glass holds coming off, and nothing else living', () => {
     const state = fixture();
     const rows = detail(state, 'scrubAlgae').preview;
-    const gentle = state.algae.film.mass * (1 - MIN_SCRUB_PERCENT);
-    const hard = state.algae.film.mass * (1 - MAX_SCRUB_PERCENT);
 
-    expect(row(rows, 'film').after).toBe(`${hard.toFixed(0)}–${gentle.toFixed(0)}`);
+    expect(row(rows, 'film').after).toBe((state.algae.film.mass - onTheGlass(state).film).toFixed(0));
     expect(rows.map((r) => r.key)).toEqual(['waste', 'film']);
   });
 

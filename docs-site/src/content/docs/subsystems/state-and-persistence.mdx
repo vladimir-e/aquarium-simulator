@@ -64,12 +64,12 @@ would be lost on a save. Every draw mixes the position through splitmix32 and
 advances the counter by one, so the stream is a pure function of where it is.
 
 Name a seed at construction and the tank runs the same life every time —
-organisms, individual variation, scrub bites and ids all replay. Leave it out
+organisms, individual variation and ids all replay. Leave it out
 and the tank takes a time-derived one.
 
 Everything the engine cannot derive from physics comes off this stream: a fish's
-sex, its hardiness offset, its health jitter, a plant's vigour, a scrub's bite,
-and every organism's name. That last one is what makes ids replay too.
+sex, its hardiness offset, its health jitter, a plant's vigour, and every
+organism's name. That last one is what makes ids replay too.
 
 ### Ids
 
@@ -176,7 +176,7 @@ browser storage.
 | [Plants](/subsystems/plants/) | — | Seeded plantings, at a named plantable size and age, each founding its own family at full condition with an empty bank; the draw stream for every unit's vigour and id, offshoots included |
 | [Water & gases](/subsystems/water-and-gases/) | `tapKh` and `tapGh`, which a `'cycled'` KH and GH resolve against | Both dissolved gases, KH and GH, where a seed names them |
 | [Environment](/subsystems/environment/) | `tank.capacity` — every per-litre seed figure resolves against it | — |
-| [Actions](/subsystems/actions/) | — | Supplies the draw stream for ids and the scrub's bite, and takes back the advanced position |
+| [Actions](/subsystems/actions/) | — | Supplies the draw stream for ids, and takes back the advanced position |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | `alertState` crosses a save; `logs` do not |
 
 ## Source

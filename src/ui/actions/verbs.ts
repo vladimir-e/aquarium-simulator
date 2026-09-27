@@ -2,9 +2,10 @@
  * The seven husbandry verbs in one shape: a master row, an option row, a
  * preview and a commit. Every option set is the engine's own
  * (`WATER_CHANGE_AMOUNTS`, `MAX_ROOT_TABS`, `TRIM_TARGETS`) and every refusal
- * is an engine guard (`canDose`, `canRootTab`, `canScrubAlgae`,
- * `getPlantsToTrimCount`), stated where the verb would otherwise say what it
- * is about to do — so an unavailable verb is never a dead end.
+ * is an engine guard (`canDose`, `canRootTab`, `getPlantsToTrimCount`), or
+ * the engine's own reading of what a verb would take (`onTheGlass`), stated
+ * where the verb would otherwise say what it is about to do — so an
+ * unavailable verb is never a dead end.
  */
 
 import {
@@ -12,15 +13,12 @@ import {
   applyAction,
   canDose,
   canRootTab,
-  canScrubAlgae,
   coverage,
   getPlantsToTrimCount,
   kindsIn,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
-  MAX_SCRUB_PERCENT,
-  MIN_ALGAE_TO_SCRUB,
-  MIN_SCRUB_PERCENT,
+  onTheGlass,
   PLANT_SPECIES_DATA,
   WATER_CHANGE_AMOUNTS,
   type Action,
@@ -33,9 +31,10 @@ import {
   doseToCover,
   nutrientReadings,
   plantLabels,
+  printsAsZero,
   TRIM_TARGETS,
 } from '../run';
-import { formatVolume, logQuantityIn, type UnitSystem } from '../utils/units.js';
+import { COVERAGE_DECIMALS, formatVolume, logQuantityIn, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
 
 export type VerbId =
@@ -141,7 +140,7 @@ function reached(state: SimulationState, scope: VerbScope | null): SimulationSta
   return { ...state, plants: state.plants.filter((plant) => plant.familyId === scope.familyId) };
 }
 
-/** The action a commit dispatches. Scrub takes no seed — the engine rolls it. */
+/** The action a commit dispatches. */
 export function verbAction(
   id: VerbId,
   settings: VerbSettings,
@@ -167,25 +166,6 @@ export function verbAction(
     case 'scrubAlgae':
       return { type: 'scrubAlgae' };
   }
-}
-
-/**
- * The states a commit could land in. Scrub returns both ends of the engine's
- * 10–30 % roll so the preview can show the range it actually spans.
- */
-function outcomes(
-  state: SimulationState,
-  id: VerbId,
-  settings: VerbSettings,
-  config: TunableConfig,
-  scope: VerbScope | null
-): SimulationState[] {
-  if (id === 'scrubAlgae') {
-    return [MIN_SCRUB_PERCENT, MAX_SCRUB_PERCENT].map(
-      (randomPercent) => applyAction(state, { type: 'scrubAlgae', randomPercent }, config).state
-    );
-  }
-  return [applyAction(state, verbAction(id, settings, scope), config).state];
 }
 
 function headroom(state: SimulationState): number {
@@ -246,17 +226,19 @@ function blockedReason(
       return getPlantsToTrimCount(reached(state, scope), settings.trimPlants) > 0
         ? null
         : `nothing above ${settings.trimPlants} %`;
-    case 'scrubAlgae':
-      return canScrubAlgae(state)
+    case 'scrubAlgae': {
+      const glass = onTheGlass(state);
+      return kindsIn('surfaces').some((kind) => !printsAsZero(glass[kind], COVERAGE_DECIMALS))
         ? null
-        : `needs ${MIN_ALGAE_TO_SCRUB} % ${onSurfaces(state, (mass) => `, now ${Math.floor(mass)} %`)}`;
+        : 'the glass is clean';
+    }
   }
 }
 
-/** Each kind a scrub reaches, named and followed by its coverage as `read` states it. */
-function onSurfaces(state: SimulationState, read: (mass: number) => string): string {
+/** Each kind a scrub reaches, named, with its coverage. */
+function onSurfaces(state: SimulationState, units: UnitSystem): string {
   return kindsIn('surfaces')
-    .map((kind) => `${ALGAE[kind].name.toLowerCase()}${read(state.algae[kind].mass)}`)
+    .map((kind) => `${ALGAE[kind].name.toLowerCase()} ${logQuantityIn(units)(coverage(state.algae[kind].mass))}`)
     .join(' · ');
 }
 
@@ -515,7 +497,7 @@ function meta(
         : line;
     }
     case 'scrubAlgae':
-      return onSurfaces(state, (mass) => ` ${logQuantityIn(units)(coverage(mass))}`);
+      return onSurfaces(state, units);
   }
 }
 
@@ -526,7 +508,8 @@ function meta(
 const BARE_NOTE: Partial<Record<VerbId, string>> = {
   topOff:
     'No amount to set — top-off refills to capacity at the tank’s own temperature. The tap’s KH and GH come with it, everything else dissolved is diluted, and pH follows the CO₂ and KH that leaves.',
-  scrubAlgae: `No amount to set — a scrub takes a random ${Math.round(MIN_SCRUB_PERCENT * 100)}–${Math.round(MAX_SCRUB_PERCENT * 100)} % of the film on the glass, the floor and the hardscape; green water floats free of it, and leaves with a water change. What comes off is loose in the water as waste: it rots there, and a gravel vac takes it once it settles.`,
+  scrubAlgae:
+    'No amount to set — a scrub clears the glass. The film on the walls comes off; the film on the floor and the hardscape stays, and green water floats free of it — a water change takes that. What comes off is loose in the water as waste: it rots there, and a gravel vac takes it once it settles.',
 };
 
 function commitLabel(
@@ -623,7 +606,7 @@ export function verbDetail(
     note: BARE_NOTE[id] ?? null,
     preview: previewRows({
       before: state,
-      outcomes: outcomes(state, id, settings, config, scope),
+      after: applyAction(state, verbAction(id, settings, scope), config).state,
       config,
       units,
     }),

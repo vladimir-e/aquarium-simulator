@@ -21,7 +21,7 @@ conditions pick the winner — there is no split and no coded preference.
 | Kind | Habitat | Size of it | Light it reads | Taken out by |
 |---|---|---|---|---|
 | Green water | The water column | The tank's litres | The column's mean | A water change, by the share changed |
-| Film | The lit surfaces that do not grow: the glass walls, the floor and the hardscape | cm² of them | The walls at the column's mean, the floor and hardscape at what the canopy leaves, weighted by area | A scrub |
+| Film | The lit surfaces that do not grow: the glass walls, the floor and the hardscape | cm² of them | The walls at the column's mean, the floor and hardscape at what the canopy leaves, weighted by area | A scrub, off the glass |
 
 Mass is how full the habitat is, 0–100, so a full bloom's tissue scales with
 its habitat. Film's habitat moves only with the hardscape, never with the
@@ -42,7 +42,7 @@ planting.
 | Carbon and oxygen | <Badge text="settled" variant="success" /> | The plants' photosynthesis and respiration on one CO₂ stock, its tissue rated at the plants' relation and run at its growth rate. |
 | Allelopathy | <Badge text="settled" variant="success" /> | One harm rate on thriving plant leaf per litre of water, with no threshold, on every kind — the minor term beside the ammonia plants take. It stands in for the small effects the model leaves out, and cannot hold a fed bloom on its own. |
 | Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape — the square of the deficit — and condition 0 kills what is left, bank and all. Both return it as waste, and a die-back is logged with the kind and the coverage it took. |
-| Scrubbing | <Badge text="scaffolding" variant="caution" /> | A random 10–30 % bite off the film, refused below mass `5`. The bite is waste in the water. A weekly bite cannot hold film at its pace: it coats a maintained tank within two months. |
+| Scrubbing | <Badge text="scaffolding" variant="caution" /> | The keeper clears the glass: every bloom loses its mass times the walls' share of its habitat, so the share follows the tank's geometry and its hardscape. The floor's and the hardscape's film stays — nothing in the tank grazes it. What comes off is waste in the water. Coverage is one figure over the habitat, so after a scrub the film left on the bed spreads back over the glass as it regrows. |
 | Shading plants | <Badge text="scaffolding" variant="caution" /> | A damage rate on plants past `algaeShadingThreshold`, standing in for the light a bloom would take from their leaves ([Plants](/subsystems/plants/#status)). It reads the two kinds combined, `100·(1 − Π(1 − mass/100))`, as the high-algae alert does. |
 | Calibration | <Badge text="scaffolding" variant="caution" /> | Traits and knobs are first-pass: believable, not fitted. |
 
@@ -145,7 +145,7 @@ All but the last are traits, beside the plant species; `allelopathySeverity` is 
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | NH₃ and NO₃, PO₄, K and Fe, as the water holds them | Tissue drawn out, its ammonia from what the colony left; shed, dead and scrubbed tissue in as waste |
 | [Water & gases](/subsystems/water-and-gases/) | CO₂, O₂, temperature, pH | CO₂ fixed and O₂ released by day, respired day and night; KH moved by the form its nitrogen comes in |
 | [Equipment](/subsystems/equipment/) | The hardscape's surface, part of film's habitat | — |
-| [Actions](/subsystems/actions/) | — | A water change takes its share of the green water out of the tank; a scrub takes 10–30 % of the film into the waste; placing hardscape thins film's coverage over the bare surface |
+| [Actions](/subsystems/actions/) | — | A water change takes its share of the green water out of the tank; a scrub takes the film on the glass into the waste; placing hardscape thins film's coverage over the bare surface |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Combined coverage above `algaeShadingThreshold` raises the bloom alert once per crossing; an `algae-died` entry per die-back, naming the kind and stating the coverage it took |
 
 ## Source

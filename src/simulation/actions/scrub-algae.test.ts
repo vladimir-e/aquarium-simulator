@@ -1,125 +1,97 @@
 import { describe, it, expect } from 'vitest';
-import {
-  scrubAlgae,
-  canScrubAlgae,
-  MIN_SCRUB_PERCENT,
-  MAX_SCRUB_PERCENT,
-  MIN_ALGAE_TO_SCRUB,
-} from './scrub-algae.js';
-import { createSimulation, type SimulationState } from '../state.js';
-import { ALGAE, bloomTissue, habitatSize } from '../algae/index.js';
 import { produce } from 'immer';
+import { onTheGlass, scrubAlgae } from './scrub-algae.js';
+import { createSimulation, calculateFloorArea, calculateTankGlassSurface, type SimulationState } from '../state.js';
+import { ALGAE, ALGAE_KINDS, bloomTissue, habitatSize, placeShare } from '../algae/index.js';
+import { createHardscapeItem } from '../equipment/hardscape.js';
+import { placeHardscape } from '../equipment/index.js';
 
 /** A tank with this much film on its surfaces, and green water at `greenWater`. */
-function withAlgae(mass: number, rngSeed?: number, greenWater = 0): SimulationState {
-  return produce(createSimulation({ tankCapacity: 100 }, undefined, rngSeed), (draft) => {
-    draft.algae.film.mass = mass;
+function withAlgae(film: number, greenWater = 0): SimulationState {
+  return produce(createSimulation({ tankCapacity: 100 }), (draft) => {
+    draft.algae.film.mass = film;
     draft.algae.greenWater.mass = greenWater;
   });
 }
 
-describe('canScrubAlgae', () => {
-  it('needs at least the minimum film', () => {
-    expect(canScrubAlgae(withAlgae(0))).toBe(false);
-    expect(canScrubAlgae(withAlgae(MIN_ALGAE_TO_SCRUB - 1))).toBe(false);
-    expect(canScrubAlgae(withAlgae(MIN_ALGAE_TO_SCRUB))).toBe(true);
-    expect(canScrubAlgae(withAlgae(100))).toBe(true);
+describe('onTheGlass', () => {
+  it('is each kind’s coverage times the walls’ share of its habitat', () => {
+    const state = withAlgae(80, 40);
+    const glass = onTheGlass(state);
+    const walls = calculateTankGlassSurface(100) - calculateFloorArea(100);
+
+    expect(glass.film).toBeCloseTo((80 * walls) / habitatSize('surfaces', state), 12);
+    expect(glass.greenWater).toBe(0);
   });
 
-  it('finds nothing to scrape in green water, however thick', () => {
-    expect(canScrubAlgae(withAlgae(0, undefined, 100))).toBe(false);
+  it('follows the hardscape: a piece on the bed leaves the walls a smaller share of the film', () => {
+    const bare = withAlgae(80);
+    const rocked = placeHardscape(bare, createHardscapeItem('rock', 'neutral_rock'));
+    expect(placeShare('surfaces', 'walls', rocked)).toBeLessThan(placeShare('surfaces', 'walls', bare));
+    expect(onTheGlass(rocked).film / rocked.algae.film.mass).toBeCloseTo(placeShare('surfaces', 'walls', rocked), 12);
   });
 });
 
 describe('scrubAlgae', () => {
-  it('leaves too little algae alone', () => {
-    const state = withAlgae(MIN_ALGAE_TO_SCRUB - 1);
-    const result = scrubAlgae(state, { type: 'scrubAlgae' });
+  it('takes the film on the glass and leaves the film on the floor and the hardscape', () => {
+    const state = withAlgae(80, 40);
+    const scrubbed = scrubAlgae(state).state;
 
-    expect(result.state.algae).toEqual(state.algae);
-    expect(result.message).toContain('too low');
+    expect(scrubbed.algae.film.mass).toBeCloseTo(80 * placeShare('surfaces', 'bed', state), 12);
+    expect(scrubbed.algae.film.condition).toBe(state.algae.film.condition);
+    expect(scrubbed.algae.film.surplus).toBe(state.algae.film.surplus);
   });
 
-  it.each([MIN_SCRUB_PERCENT, 0.2, MAX_SCRUB_PERCENT])('removes %d of the film, and leaves the green water', (randomPercent) => {
-    const result = scrubAlgae(withAlgae(80, undefined, 40), { type: 'scrubAlgae', randomPercent });
-    expect(result.state.algae.film.mass).toBeCloseTo(80 * (1 - randomPercent), 10);
-    expect(result.state.algae.greenWater.mass).toBe(40);
+  it('leaves green water in the column, however thick', () => {
+    expect(scrubAlgae(withAlgae(30, 90)).state.algae.greenWater).toEqual(withAlgae(30, 90).algae.greenWater);
   });
 
   it('leaves what it takes in the water as waste, so the tissue is kept', () => {
-    const state = withAlgae(80);
-    const scrubbed = scrubAlgae(state, { type: 'scrubAlgae', randomPercent: 0.25 }).state;
+    const state = withAlgae(80, 40);
+    const scrubbed = scrubAlgae(state).state;
     const tissue = (s: SimulationState): number =>
-      bloomTissue(s.algae.film.mass, habitatSize('surfaces', s), ALGAE.film) + s.resources.waste;
+      ALGAE_KINDS.reduce(
+        (sum, kind) => sum + bloomTissue(s.algae[kind].mass, habitatSize(ALGAE[kind].habitat, s), ALGAE[kind]),
+        s.resources.waste
+      );
 
     expect(scrubbed.resources.waste).toBeGreaterThan(state.resources.waste);
     expect(tissue(scrubbed)).toBeCloseTo(tissue(state), 12);
   });
 
+  it('takes the same share again from what is left: a second scrub clears the glass of what the first left there', () => {
+    const once = scrubAlgae(withAlgae(80)).state;
+    const twice = scrubAlgae(once).state;
+    const bed = placeShare('surfaces', 'bed', once);
+    expect(twice.algae.film.mass).toBeCloseTo(80 * bed * bed, 12);
+  });
+
   it('reports and logs what it removed and what is left', () => {
-    const state = withAlgae(100);
-    const result = scrubAlgae(state, { type: 'scrubAlgae', randomPercent: 0.2 });
+    const state = withAlgae(80);
+    const result = scrubAlgae(state);
     const log = result.state.logs.at(-1)!;
 
-    expect(result.message).toContain('20.0');
-    expect(result.message).toContain('20%');
+    expect(result.message).toContain(onTheGlass(state).film.toFixed(1));
     expect(result.state.logs).toHaveLength(state.logs.length + 1);
     expect(log).toMatchObject({ source: 'scrub', severity: 'info' });
-    expect(log.message).toContain('removed');
-    expect(log.message).toContain('80.0');
+    expect(log.message).toContain(result.state.algae.film.mass.toFixed(1));
+  });
+
+  it('draws nothing from the tank’s stream', () => {
+    const state = withAlgae(80);
+    expect(scrubAlgae(state).state.rng).toEqual(state.rng);
+  });
+
+  it('refuses a tank with nothing on the glass, and leaves it as it was', () => {
+    const clean = withAlgae(0, 50);
+    const result = scrubAlgae(clean);
+    expect(result.state).toBe(clean);
+    expect(result.message).toBe('Nothing on the glass to scrub');
   });
 
   it('does not modify the state it was given', () => {
     const state = withAlgae(100);
-    scrubAlgae(state, { type: 'scrubAlgae', randomPercent: 0.2 });
+    scrubAlgae(state);
     expect(state.algae.film.mass).toBe(100);
-  });
-
-  describe('random bite', () => {
-    it('stays within the documented band across a run of scrubs', () => {
-      let state = withAlgae(100, 4242);
-      const bites: number[] = [];
-      for (let i = 0; i < 200; i++) {
-        state = scrubAlgae(state, { type: 'scrubAlgae' }).state;
-        bites.push(1 - state.algae.film.mass / 100);
-        state = produce(state, (draft) => {
-          draft.algae.film.mass = 100;
-        });
-      }
-
-      expect(Math.min(...bites)).toBeGreaterThanOrEqual(MIN_SCRUB_PERCENT);
-      expect(Math.max(...bites)).toBeLessThanOrEqual(MAX_SCRUB_PERCENT);
-      expect(new Set(bites).size).toBeGreaterThan(1);
-    });
-
-    it('takes the same bite out of two tanks on one rng seed', () => {
-      const scrub = (rngSeed: number): number =>
-        scrubAlgae(withAlgae(100, rngSeed), { type: 'scrubAlgae' }).state.algae.film.mass;
-
-      expect(scrub(4242)).toBe(scrub(4242));
-      expect(scrub(4242)).not.toBe(scrub(99));
-    });
-
-    it('spends one draw, and only when it rolls the bite itself', () => {
-      const state = withAlgae(100, 4242);
-
-      expect(scrubAlgae(state, { type: 'scrubAlgae' }).state.rng.counter).toBe(state.rng.counter + 1);
-      expect(scrubAlgae(state, { type: 'scrubAlgae', randomPercent: 0.2 }).state.rng).toEqual(state.rng);
-      expect(scrubAlgae(withAlgae(4, 4242), { type: 'scrubAlgae' }).state.rng).toEqual(
-        withAlgae(4, 4242).rng
-      );
-    });
-  });
-
-  it('refuses a percent outside the documented bite', () => {
-    const state = withAlgae(50);
-    const result = scrubAlgae(state, { type: 'scrubAlgae', randomPercent: NaN });
-
-    expect(result.state).toBe(state);
-    expect(result.message).toBe(
-      `Scrub percent must be between ${MIN_SCRUB_PERCENT} and ${MAX_SCRUB_PERCENT}`
-    );
-    expect(scrubAlgae(state, { type: 'scrubAlgae', randomPercent: 0.9 }).state).toBe(state);
-    expect(scrubAlgae(state, { type: 'scrubAlgae', randomPercent: -1 }).state).toBe(state);
   });
 });

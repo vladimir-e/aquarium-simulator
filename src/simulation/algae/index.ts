@@ -153,8 +153,8 @@ export function resettle(blooms: Blooms, before: HabitatTank, after: HabitatTank
 export { ALGAE, ALGAE_KINDS } from './traits.js';
 export { EMPTY_BLOOM, combinedCoverage, emptyBlooms, isAlgaeKind, kindsIn, mapKinds } from './blooms.js';
 export type { AlgaeHabitat, AlgaeKind, AlgaeTraits } from './traits.js';
-export { bloomLight, columnGain, habitatGain, habitatSize } from './habitat.js';
-export type { BloomLight, HabitatTank } from './habitat.js';
+export { bloomLight, columnGain, habitatGain, habitatSize, placeShare } from './habitat.js';
+export type { BloomLight, HabitatPlace, HabitatTank } from './habitat.js';
 export {
   computeAlgaeVitality,
   buildAlgaeStressors,

@@ -19,49 +19,54 @@ export function columnGain(depthCm: number, optics: OpticsConfig): number {
   return attenuation > 0 ? Math.expm1(attenuation) / attenuation : 1;
 }
 
-/** Where a stretch of habitat sits in the light: spanning the column, or on the floor under the canopy. */
-type Exposure = 'column' | 'floor';
-
-/** One stretch of a habitat: how much of it there is, and where it sits in the light. */
-interface Stretch {
-  size: number;
-  exposure: Exposure;
-}
+/** Where a piece of habitat lies: the water column, the glass walls, or the bed — the floor and the hardscape on it. */
+export type HabitatPlace = 'column' | 'walls' | 'bed';
 
 /**
- * The stretches each habitat is made of. The column is the tank's litres. The
- * surfaces are the lit ones that do not grow: the glass walls, which span the
- * column, and the floor and hardscape under the canopy.
+ * The pieces each habitat is made of, by place. The column is the tank's
+ * litres. The surfaces are the lit ones that do not grow: the glass walls and
+ * the bed.
  */
-const HABITATS: Record<AlgaeHabitat, (tank: HabitatTank) => Stretch[]> = {
-  column: ({ tank }) => [{ size: tank.capacity, exposure: 'column' }],
+const HABITATS: Record<AlgaeHabitat, (tank: HabitatTank) => Partial<Record<HabitatPlace, number>>> = {
+  column: ({ tank }) => ({ column: tank.capacity }),
   surfaces: ({ tank, equipment }) => {
     const floor = calculateFloorArea(tank.capacity);
-    return [
-      { size: calculateTankGlassSurface(tank.capacity) - floor, exposure: 'column' },
-      { size: floor + calculateHardscapeTotalSurface(equipment.hardscape.items), exposure: 'floor' },
-    ];
+    return {
+      walls: calculateTankGlassSurface(tank.capacity) - floor,
+      bed: floor + calculateHardscapeTotalSurface(equipment.hardscape.items),
+    };
   },
 };
 
+function pieces(habitat: AlgaeHabitat, tank: HabitatTank): [HabitatPlace, number][] {
+  return Object.entries(HABITATS[habitat](tank)) as [HabitatPlace, number][];
+}
+
 /** Litres of column, or cm² of surface. */
 export function habitatSize(habitat: AlgaeHabitat, tank: HabitatTank): number {
-  return HABITATS[habitat](tank).reduce((sum, stretch) => sum + stretch.size, 0);
+  return pieces(habitat, tank).reduce((sum, [, size]) => sum + size, 0);
+}
+
+/** The share of a habitat that lies at this place, 0–1: none where the habitat has no piece there. */
+export function placeShare(habitat: AlgaeHabitat, place: HabitatPlace, tank: HabitatTank): number {
+  const size = habitatSize(habitat, tank);
+  return size > 0 ? (HABITATS[habitat](tank)[place] ?? 0) / size : 0;
 }
 
 /**
  * The mean PAR over a habitat as a multiple of the PAR at the substrate, each
- * stretch weighted by its size: the column's mean where it spans the column,
- * what the canopy leaves where it lies on the floor.
+ * piece weighted by its size: the column's mean through the column and on the
+ * walls that span it, what the canopy leaves on the bed.
  */
 export function habitatGain(habitat: AlgaeHabitat, tank: HabitatTank, optics: OpticsConfig): number {
-  const gain: Record<Exposure, number> = {
-    column: columnGain(calculateTankHeight(tank.tank.capacity), optics),
-    floor: 1 - floorShade(tank.plants, tank.tank.capacity, optics),
+  const column = columnGain(calculateTankHeight(tank.tank.capacity), optics);
+  const gain: Record<HabitatPlace, number> = {
+    column,
+    walls: column,
+    bed: 1 - floorShade(tank.plants, tank.tank.capacity, optics),
   };
-  const stretches = HABITATS[habitat](tank);
-  const size = stretches.reduce((sum, stretch) => sum + stretch.size, 0);
-  return size > 0 ? stretches.reduce((sum, stretch) => sum + stretch.size * gain[stretch.exposure], 0) / size : 0;
+  const size = habitatSize(habitat, tank);
+  return size > 0 ? pieces(habitat, tank).reduce((sum, [place, piece]) => sum + piece * gain[place], 0) / size : 0;
 }
 
 /** The light a bloom lives in: the mean over its habitat. */

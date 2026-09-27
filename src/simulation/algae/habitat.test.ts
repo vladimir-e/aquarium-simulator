@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { columnGain, habitatGain, habitatSize } from './habitat.js';
+import { columnGain, habitatGain, habitatSize, placeShare } from './habitat.js';
 import { ALGAE, ALGAE_KINDS, combinedCoverage, emptyBlooms, kindsIn, resettle } from './index.js';
 import { calculateFloorArea, calculateTankGlassSurface, calculateTankHeight, createSimulation } from '../state.js';
 import { opticsDefaults } from '../config/optics.js';
@@ -59,6 +59,23 @@ describe('the surfaces', () => {
       12
     );
     expect(habitatGain('surfaces', planted, opticsDefaults)).toBeLessThan(habitatGain('surfaces', tank, opticsDefaults));
+  });
+});
+
+describe('placeShare', () => {
+  it('shares every habitat out whole among its places, and gives none where it has no piece', () => {
+    const places = ['column', 'walls', 'bed'] as const;
+    for (const habitat of ['column', 'surfaces'] as const) {
+      for (const state of [tank, planted, rocked]) {
+        expect(places.reduce((sum, place) => sum + placeShare(habitat, place, state), 0)).toBeCloseTo(1, 12);
+      }
+    }
+    expect(placeShare('column', 'walls', tank)).toBe(0);
+    expect(placeShare('surfaces', 'column', tank)).toBe(0);
+  });
+
+  it('gives the walls less of the surfaces as hardscape joins the bed', () => {
+    expect(placeShare('surfaces', 'walls', rocked)).toBeLessThan(placeShare('surfaces', 'walls', tank));
   });
 });
 
