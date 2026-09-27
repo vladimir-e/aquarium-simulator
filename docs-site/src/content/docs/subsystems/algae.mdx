@@ -34,8 +34,8 @@ counted over the fixed surfaces alone.
 |---|---|---|
 | Condition and bank | <Badge text="settled" variant="success" /> | The shared vitality step. It heals on the plants' law, `healingDrawRate × growthRate`, integrated over the hour. |
 | Income | <Badge text="settled" variant="success" /> | The plants' three channels on `tanh(PAR/Ik) × sufficiency`, read at the mean PAR over the habitat. |
-| Growth | <Badge text="settled" variant="success" /> | Logistic, exact over the hour: the plants' draw sets its rate, every bank point buys the same e-fold, and no bank or tunable takes mass past a full habitat. Day and night. |
-| Spores | <Badge text="settled" variant="success" /> | Its offshoots: a constant rate per kind through the taper, landing at condition 100 on an empty bank and joining the bloom by mass, so an empty tank is never closed to either kind and an empty bloom is the same whatever came before. Whether they take is the condition's business. |
+| Growth | <Badge text="settled" variant="success" /> | Logistic on the plants' draw, exact over the hour, day and night. |
+| Spores | <Badge text="settled" variant="success" /> | Its offshoots, at a constant rate per kind, so an empty tank is never closed to either. |
 | Two kinds | <Badge text="settled" variant="success" /> | Two trait records on one path. Green water is the sprinter: a lit, rich day doubles it in about a day, but its ammonia and phosphate half-saturations sit well above a cycled tank's trace, so it blooms on a spike and starves on lean water. Film is the stayer: a third of the pace, so it takes a week or two to show, but efficient on lean water. |
 | Habitats | <Badge text="settled" variant="success" /> | Green water fills the column, film the fixed lit surfaces. A water change carries green water out with the water; a bare piece of hardscape thins film's coverage and keeps its tissue, a lifted piece takes its share of the film with it, and a swapped bed takes the floor's share out and arrives bare. |
 | Nutrients | <Badge text="settled" variant="success" /> | The plants' recipe, from the water alone, in one draw with every plant: no feeder is served before another. |
@@ -43,8 +43,8 @@ counted over the fixed surfaces alone.
 | Carbon and oxygen | <Badge text="settled" variant="success" /> | The plants' photosynthesis and respiration on one CO₂ stock, its tissue rated at the plants' relation and run at its growth rate. |
 | Allelopathy | <Badge text="settled" variant="success" /> | One harm rate on thriving plant leaf per litre of standing water, with no threshold, on every kind — the minor term beside the ammonia plants take. It stands in for the small effects the model leaves out, and cannot hold a fed bloom on its own. |
 | Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape — the square of the deficit — and condition 0 kills what is left, bank and all. Both return it as waste, and a die-back is logged with the kind and the coverage it took. |
-| Scrubbing | <Badge text="scaffolding" variant="caution" /> | The keeper clears the glass: every bloom loses its mass times the walls' share of its habitat, so the share follows the tank's geometry and its hardscape. What comes off is waste in the water. Coverage is one figure over the whole habitat, so what the floor and the hardscape held spreads back over the glass at once, and a second scrub takes the walls' share again out of it. |
-| Light taken | <Badge text="settled" variant="success" /> | Light, not damage: tissue takes light by Beer–Lambert per gram crossed, at one coefficient for both kinds, and the habitat decides how it is crossed ([Light](/subsystems/light/#the-blooms)). Green water shades itself, the film under it and every plant by its depth; film coats every leaf at its coverage. |
+| Scrubbing | <Badge text="scaffolding" variant="caution" /> | Coverage is one figure, so the scrubbed glass refills from the floor and the hardscape at once — see [Actions](/subsystems/actions/). |
+| Light taken | <Badge text="settled" variant="success" /> | Light, not damage — Beer–Lambert on the tissue the light crosses. |
 | Film on the leaves | <Badge text="scaffolding" variant="caution" /> | One coverage over the habitat, worn by every leaf alike: a leaf that lives for months carries no more than one that grew last week, so film costs a light-hungry plant more than a slow one. |
 | Calibration | <Badge text="scaffolding" variant="caution" /> | Traits and knobs are first-pass: believable, not fitted. |
 
@@ -89,7 +89,7 @@ so a struggling bloom is lifted by their share of it and its bank is diluted by
 the same share. A bloom that died back, or an empty one, is replaced by the
 spores that land — the same empty bloom a clean tank holds.
 
-### Light, gases, nutrients
+### Light it reads
 
 Green water lives through the whole column, so it reads the mean PAR over it —
 Beer–Lambert averaged from surface to floor, a little above the substrate
@@ -109,13 +109,13 @@ every lit surface at its coverage, leaves included, and a leaf passes
 the lamp's path, not in it. Neither kind charges a plant anything: a shaded
 plant earns less, and past its edge starves.
 
+### Gases and nutrients
+
 Its tissue is organic matter at the plants' recipe. A gram of it is the same
 rate units a gram of leaf is, run at the kind's growth rate, so a dense bloom
 strips CO₂ by day and draws oxygen down by night. Growth draws its N, P, K and
 Fe from the water in the same pooled call as the plants; shed, dead and scrubbed
 tissue goes back as waste, so a crashing bloom spikes ammonia as it rots.
-Green water a water change carries out leaves the tank with the water, and
-film leaves with a swapped bed or a lifted piece.
 
 Each kind takes its nitrogen as the plants do — ammonia first, nitrate for what
 ammonia leaves — on its own affinities. A cycled tank's trace of ammonia meets
