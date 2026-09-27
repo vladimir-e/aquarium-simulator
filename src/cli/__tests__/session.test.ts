@@ -3,7 +3,14 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { calculatePassiveResources, createSimulation, scheduledLightHistory, tick } from '../../simulation/index.js';
+import { produce } from 'immer';
+import {
+  calculatePassiveResources,
+  createSimulation,
+  scheduledLightHistory,
+  settlePassiveResources,
+  tick,
+} from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { getPresetById } from '../../simulation/presets.js';
 import { createSession, loadSession, saveSession, hasSession, SESSION_VERSION } from '../session.js';
@@ -143,7 +150,7 @@ describe('configureSession', () => {
   const fresh = createSession(createSimulation({ tankCapacity: 200 }), DEFAULT_CONFIG, 'optics');
   const attenuation = String(2 * DEFAULT_CONFIG.optics.waterAttenuationPerCm);
 
-  it('relights a tank still at hour zero under the optics it will run on', () => {
+  it('reads a tank still at hour zero, its whole day, through the optics it will run on', () => {
     const tuned = configureSession(fresh, 'optics.waterAttenuationPerCm', attenuation);
 
     expect(tuned.state.resources.lightByHour).toEqual(scheduledLightHistory(tuned.state, tuned.config.optics));
@@ -169,8 +176,20 @@ describe('configureSession', () => {
     expect(tuned.state.resources.lightByHour).toEqual(running.state.resources.lightByHour);
   });
 
-  it('leaves the tank as it stands when nothing it reads moved', () => {
-    const running = { ...fresh, state: tick(fresh.state, fresh.config) };
-    expect(configureSession(running, 'nutrients.fertilizerFormula.nitrate', '10').state).toBe(running.state);
+  it('leaves a settled tank as it stands when the leaf set is not one its readings are read under', () => {
+    const green = produce(
+      createSimulation({
+        tankCapacity: 200,
+        light: { enabled: true, par: 100, schedule: { startHour: 0, duration: 24 } },
+      }),
+      (draft) => {
+        draft.algae.greenWater.mass = 60;
+      }
+    );
+    const settled = settlePassiveResources(tick(green, DEFAULT_CONFIG), DEFAULT_CONFIG.optics);
+    expect(settled.resources.light).toBeGreaterThan(0);
+
+    const running = createSession(settled, DEFAULT_CONFIG, 'optics');
+    expect(configureSession(running, 'nutrients.fertilizerFormula.nitrate', '10').state).toBe(settled);
   });
 });

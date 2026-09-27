@@ -6,7 +6,7 @@ import { produce } from 'immer';
 import type { SimulationState } from './state.js';
 import { applyEffects, type Effect, type EffectTier } from './core/effects.js';
 import { coreSystems } from './systems/index.js';
-import { processEquipment, settlePassiveResources } from './equipment/index.js';
+import { processEquipment, writePassiveResources } from './equipment/index.js';
 import { processFlora } from './flora/index.js';
 import { processLivestock } from './livestock/index.js';
 import { processBreeding } from './livestock/breeding.js';
@@ -49,7 +49,7 @@ export function settleEnvironment(
 ): SimulationState {
   let settled = produce(state, (draft) => {
     draft.tick += 1;
-    settlePassiveResources(draft, config.optics);
+    writePassiveResources(draft, config.optics);
     draft.resources.lightByHour[draft.tick % 24] = draft.resources.light;
   });
 

@@ -1,4 +1,3 @@
-import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { settlePassiveResources } from '../equipment/index.js';
@@ -37,10 +36,7 @@ export function applyAction(
 ): ActionResult {
   const result = dispatch(state, action, config);
   if (result.state === state) return result;
-  return {
-    ...result,
-    state: produce(result.state, (draft) => settlePassiveResources(draft, config.optics)),
-  };
+  return { ...result, state: settlePassiveResources(result.state, config.optics) };
 }
 
 function dispatch(state: SimulationState, action: Action, config: TunableConfig): ActionResult {

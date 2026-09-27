@@ -39,8 +39,10 @@ applyAction(state, action, config?) → { state, message }
 Immediate, pure, and outside the tick loop entirely — an action never advances
 the clock. The passive readings — light, flow, surface, aeration — are settled
 off the tank it leaves, so a water change that carries green water out reads
-brighter at once; the day's light history keeps the hours the tick recorded.
-The message is for the host to show; a refusal is not an exception.
+brighter at once. Past hour zero the day's light history keeps the hours the
+tick recorded; at hour zero, with no day lived yet, the whole day is re-read
+through the water the verb leaves. The message is for the host to show; a
+refusal is not an exception.
 
 Two verbs draw on the tank's random stream: stocking a fish or a plant draws
 its individual variation and its id from it. The keeper's hand is therefore part of the replay — two tanks on one seed

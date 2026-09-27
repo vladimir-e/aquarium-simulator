@@ -51,7 +51,7 @@ describe('applyAction', () => {
     }
   });
 
-  describe('the light a water change leaves', () => {
+  describe('the light a water change leaves, settled under the optics of the config it is handed', () => {
     const config = produce(DEFAULT_CONFIG, (draft) => {
       draft.optics.waterAttenuationPerCm *= 2;
     });

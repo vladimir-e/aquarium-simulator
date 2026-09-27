@@ -23,7 +23,6 @@ export type {
 export {
   createSimulation,
   quietAlerts,
-  relight,
   scheduledLightHistory,
   calculateTankHeight,
   calculateFloorArea,

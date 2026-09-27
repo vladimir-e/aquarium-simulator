@@ -6,17 +6,13 @@ import { celsius, createLog, liters, measured, type LogEntry } from './core/logg
 import { createRng, type RngState } from './core/rng.js';
 import type { DailySchedule } from './core/schedule.js';
 import type { Filter } from './equipment/filter.js';
-import { DEFAULT_FILTER, getFilterSurface, getFilterFlow } from './equipment/filter.js';
+import { DEFAULT_FILTER } from './equipment/filter.js';
 import type { Powerhead } from './equipment/powerhead.js';
-import { DEFAULT_POWERHEAD, getPowerheadFlow } from './equipment/powerhead.js';
+import { DEFAULT_POWERHEAD } from './equipment/powerhead.js';
 import type { Substrate } from './equipment/substrate.js';
-import { DEFAULT_SUBSTRATE, freshSubstrate, getSubstrateSurface } from './equipment/substrate.js';
+import { DEFAULT_SUBSTRATE, freshSubstrate } from './equipment/substrate.js';
 import type { Hardscape, HardscapeItemSpec } from './equipment/hardscape.js';
-import {
-  DEFAULT_HARDSCAPE,
-  calculateHardscapeTotalSurface,
-  createHardscapeItem,
-} from './equipment/hardscape.js';
+import { DEFAULT_HARDSCAPE, createHardscapeItem } from './equipment/hardscape.js';
 import type { Light } from './equipment/light.js';
 import {
   DEFAULT_LIGHT,
@@ -25,10 +21,11 @@ import {
 } from './equipment/light.js';
 import { opticsDefaults, type OpticsConfig } from './config/optics.js';
 import type { AirPump } from './equipment/air-pump.js';
-import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
+import { DEFAULT_AIR_PUMP } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
 import { applySeed, type PresetSeed, type TankSeed } from './seed.js';
+import { writePassiveResources } from './equipment/index.js';
 import type { AlgaeKind } from './algae/traits.js';
 import { emptyBlooms, mapKinds } from './algae/blooms.js';
 import { waterExtinction } from './algae/light-loss.js';
@@ -469,12 +466,6 @@ export function scheduledLightHistory(
   );
 }
 
-/** A tank at hour zero lit under `optics`: its light, and the day it reads, as its schedule has run. */
-export function relight(state: SimulationState, optics: OpticsConfig): SimulationState {
-  const lightByHour = scheduledLightHistory(state, optics);
-  return { ...state, resources: { ...state.resources, light: lightByHour[0], lightByHour } };
-}
-
 /**
  * Calculates tank bacteria surface area in cm² from capacity.
  * Includes 4 walls + bottom (excludes top which is open).
@@ -637,24 +628,7 @@ export function createSimulation(
     measured`Simulation created: ${liters(tankCapacity)} tank, ${celsius(effectiveRoomTemp)} room, heater ${heaterStatus}`
   );
 
-  // Calculate tank glass surface from capacity (used in passive resource calculation)
-  const tankGlassSurface = calculateTankGlassSurface(tankCapacity);
-
-  // Calculate hardscape slots from capacity
-  const hardscapeSlots = calculateHardscapeSlots(tankCapacity);
-
-  // Calculate initial passive resources (surface, flow, aeration)
-  const initialPassiveResources = calculateInitialPassiveResources(
-    tankGlassSurface,
-    tankCapacity,
-    filterConfig,
-    powerheadConfig,
-    substrateConfig,
-    hardscapeConfig,
-    airPumpConfig
-  );
-
-  const tank: Tank = { capacity: tankCapacity, hardscapeSlots };
+  const tank: Tank = { capacity: tankCapacity, hardscapeSlots: calculateHardscapeSlots(tankCapacity) };
   const equipment: Equipment = {
     heater: heaterConfig,
     lid: lidConfig,
@@ -668,8 +642,6 @@ export function createSimulation(
     airPump: airPumpConfig,
     autoDoser: autoDoserConfig,
   };
-  const algae = emptyBlooms();
-  const lightByHour = scheduledLightHistory({ tank, equipment, algae }, optics ?? opticsDefaults);
 
   const state: SimulationState = {
     tick: 0,
@@ -678,12 +650,12 @@ export function createSimulation(
       // Physical
       water: tankCapacity, // Start at full capacity
       temperature: initialTemperature ?? DEFAULT_TEMPERATURE,
-      // Passive (calculated)
-      surface: initialPassiveResources.surface,
-      flow: initialPassiveResources.flow,
-      light: lightByHour[0],
-      lightByHour,
-      aeration: initialPassiveResources.aeration,
+      // Passive (settled once the tank is built)
+      surface: 0,
+      flow: 0,
+      light: 0,
+      lightByHour: [],
+      aeration: false,
       // Biological
       food: 0.0,
       waste: 0.0,
@@ -715,54 +687,13 @@ export function createSimulation(
     plants: [],
     fish: [],
     clutches: [],
-    algae,
+    algae: emptyBlooms(),
     rng: createRng(rngSeed),
     logs: [initialLog],
     alertState: quietAlerts(),
   };
 
+  writePassiveResources(state, optics ?? opticsDefaults);
   if (seed !== undefined) applySeed(state, seed);
   return state;
-}
-
-/**
- * Calculates initial passive resources from equipment configuration.
- */
-function calculateInitialPassiveResources(
-  tankGlassSurface: number,
-  tankCapacity: number,
-  filter: Filter,
-  powerhead: Powerhead,
-  substrate: Substrate,
-  hardscape: Hardscape,
-  airPump: AirPump
-): { surface: number; flow: number; aeration: boolean } {
-  // Import isFilterAirDriven inline to avoid circular dependency
-  const isFilterAirDriven = filter.type === 'sponge';
-
-  // Surface area
-  let surface = tankGlassSurface;
-  if (filter.enabled) {
-    surface += getFilterSurface(filter.type);
-  }
-  surface += getSubstrateSurface(substrate.type, tankCapacity);
-  surface += calculateHardscapeTotalSurface(hardscape.items);
-
-  // Flow rate (scaled to tank capacity)
-  let flow = 0;
-  if (filter.enabled) {
-    flow += getFilterFlow(filter.type, tankCapacity);
-  }
-  if (powerhead.enabled) {
-    flow += getPowerheadFlow(powerhead.flowRateGPH);
-  }
-  // Air pump adds small flow from bubble uplift
-  if (airPump.enabled) {
-    flow += getAirPumpFlow(tankCapacity);
-  }
-
-  // Aeration is active if air pump is on OR filter is air-driven (sponge)
-  const aeration = airPump.enabled || (filter.enabled && isFilterAirDriven);
-
-  return { surface, flow, aeration };
 }

@@ -284,17 +284,25 @@ export function calculatePassiveResources(
 }
 
 /**
- * Recompute the passive readings off the tank as it stands, at its hour. At
- * hour zero the tank has lived no day yet, so its light history is the
- * schedule it was lit to; past it, the history is the hours the tick recorded.
+ * Write the passive readings off the tank as it stands, at its hour. At hour
+ * zero the tank has lived no day yet, so its light history is the schedule it
+ * was lit to; past it, the history is the hours the tick recorded.
  */
-export function settlePassiveResources(draft: SimulationState, optics: OpticsConfig): void {
+export function writePassiveResources(draft: SimulationState, optics: OpticsConfig): void {
   const passive = calculatePassiveResources(draft, optics);
   draft.resources.surface = passive.surface;
   draft.resources.flow = passive.flow;
   draft.resources.light = passive.light;
   draft.resources.aeration = passive.aeration;
-  if (draft.tick === 0) draft.resources.lightByHour = scheduledLightHistory(draft, optics);
+  if (draft.tick !== 0) return;
+  scheduledLightHistory(draft, optics).forEach((par, hour) => {
+    draft.resources.lightByHour[hour] = par;
+  });
+}
+
+/** The tank with its passive readings settled under `optics`: the same state when none moved. */
+export function settlePassiveResources(state: SimulationState, optics: OpticsConfig): SimulationState {
+  return produce(state, (draft) => writePassiveResources(draft, optics));
 }
 
 /**

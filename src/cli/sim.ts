@@ -6,7 +6,6 @@
  * engine, persists the updated session, and prints the result.
  */
 
-import { produce } from 'immer';
 import {
   tick,
   applyAction,
@@ -102,7 +101,7 @@ function applyAndRecord(session: Session, action: Action): { session: Session; m
 export function configureSession(session: Session, path: string, rawValue: string): Session {
   const config = applyConfigSet(session.config, path, rawValue);
   const configured = { ...session, config };
-  const settled = produce(session.state, (draft) => settlePassiveResources(draft, config.optics));
+  const settled = settlePassiveResources(session.state, config.optics);
   return settled === session.state ? configured : withState(configured, settled);
 }
 
