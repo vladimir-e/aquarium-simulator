@@ -80,7 +80,6 @@ export {
 } from './waste.js';
 export {
   gutStatus,
-  countFry,
   type FishRead,
   type Gut,
   type GutBand,

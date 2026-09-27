@@ -19,7 +19,6 @@ import {
   isAirPumpUndersized,
   isScheduleActive,
   lightLoss,
-  dailyMaintenance,
   FILTER_SPECS,
   FILTER_SURFACE,
   FISH_SPECIES_DATA,
@@ -475,11 +474,10 @@ export function deviceHint(
         )} ppm.`
       );
     case 'autoFeeder': {
-      const need = dailyMaintenance(state.fish, ahead.metabolicFactor, config.livestock);
-      const ration = equipment.autoFeeder.amount;
+      const fed = equipment.autoFeeder.amount;
       return muted(
-        need > 0
-          ? `A day's ration of ${formatFeed(ration)} is ${(ration / need).toFixed(1)}× what the fish need to hold condition.`
+        ahead.ration > 0
+          ? `A day's ration of ${formatFeed(fed)} is ${(fed / ahead.ration).toFixed(1)}× what the fish need to hold condition.`
           : 'No fish to eat it — what it drops rots in the water.'
       );
     }

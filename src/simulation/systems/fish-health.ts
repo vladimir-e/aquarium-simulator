@@ -6,11 +6,11 @@
  * `health` (the fish-side name for vitality's `condition`). Income at full
  * health banks on `Fish.surplus`; the bank heals health below 100 at
  * {@link fishHealingRate}, falling with age, and a full one is what a female
- * spawns on (see `livestock/breeding.ts`).
+ * broods on (see `livestock/breeding.ts`).
  *
  * Stressors, hardened here before they reach the vitality engine:
  * - Temperature, pH, GH, hunger, water level, flow and predation are scaled
- *   by `1 − effectiveHardiness`.
+ *   by `1 − fishHardiness`.
  * - Free NH3, nitrite, nitrate and oxygen instead carry hardiness on the
  *   concentration axis: it moves where harm starts, not how steeply it grows.
  * - Wear, rising with age on a Gompertz curve, is intrinsic: no hardiness
@@ -24,17 +24,6 @@
  *
  * At default calibration and full nourishment, pH at its band centre, the
  * abiotic two sum to ≈ 0.7 %/h and the plant benefit adds up to 0.2 %/h.
- *
- * Temperature is not a separate benefit: inside the species range
- * temperature stress is zero and the other benefits cover recovery;
- * outside the range the temperature stressor takes over. The plant-
- * presence benefit gives fish shelter/cover; plant-derived oxygen and
- * ammonia uptake flow through the resource layer into the existing
- * oxygen / ammonia channels and are not double-counted here.
- *
- * The plant benefit pushes the all-good budget above the abiotic
- * ceiling on purpose — a healthy planted tank should sit at full
- * health with a positive net rate, banking surplus on `Fish.surplus`.
  */
 
 import type { Fish, Plant, Resources } from '../state.js';
@@ -86,7 +75,7 @@ export function speciesHardiness(species: FishSpecies, offset = 0): number {
   return Math.max(0.1, Math.min(0.95, FISH_SPECIES_DATA[species].hardiness + offset));
 }
 
-function effectiveHardiness(fish: Fish): number {
+export function fishHardiness(fish: Pick<Fish, 'species' | 'hardinessOffset'>): number {
   return speciesHardiness(fish.species, fish.hardinessOffset);
 }
 
@@ -189,8 +178,8 @@ export function predatorMasses(fish: readonly Pick<Fish, 'mass'>[]): number[] {
 }
 
 /** How exposed a fish of this size is to predators: whole at no size, falling smoothly to none at adult size. */
-export function fryVulnerability(size: number, config: LivestockConfig): number {
-  return Math.max(0, 1 - size / 100) ** config.fryVulnerabilityExponent;
+export function preyVulnerability(size: number, config: LivestockConfig): number {
+  return Math.max(0, 1 - size / 100) ** config.preyVulnerabilityExponent;
 }
 
 /** Damage, before hardiness, that its predator mass per litre does a fish an hour. */
@@ -201,8 +190,10 @@ export function predationStress(
   config: LivestockConfig
 ): number {
   if (waterVolume <= 0) return 0;
-  return ((config.fryPredationRate * predatorMass) / waterVolume) * fryVulnerability(fishSize(prey), config);
+  return ((config.predationRate * predatorMass) / waterVolume) * preyVulnerability(fishSize(prey), config);
 }
+
+const MAX_WEAR_DOUBLINGS = 64;
 
 /**
  * Damage a fish's age does it an hour, Gompertz: `wearAtLifespan` at its
@@ -211,9 +202,11 @@ export function predationStress(
  * wears slower in proportion, which staggers a cohort's deaths.
  */
 export function fishWear(fish: Pick<Fish, 'species' | 'age' | 'hardinessOffset'>, config: LivestockConfig): number {
+  if (config.wearAtLifespan <= 0) return 0;
   const { lifespan, hardiness } = FISH_SPECIES_DATA[fish.species];
-  const vigour = speciesHardiness(fish.species, fish.hardinessOffset) / hardiness;
-  return (config.wearAtLifespan / vigour) * 2 ** ((fish.age - lifespan) / (config.wearDoublingShare * lifespan));
+  const vigour = fishHardiness(fish) / hardiness;
+  const doublings = (fish.age - lifespan) / (config.wearDoublingShare * lifespan);
+  return (config.wearAtLifespan / vigour) * 2 ** Math.min(doublings, MAX_WEAR_DOUBLINGS);
 }
 
 /**
@@ -325,7 +318,7 @@ export function computeFishVitality(
     waterVolume,
     tankCapacity,
     config,
-    hardiness: effectiveHardiness(fish),
+    hardiness: fishHardiness(fish),
     digested,
     need: maintenance(fish, metabolicFactor, config),
     predatorMass,

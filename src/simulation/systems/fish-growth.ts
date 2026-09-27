@@ -17,6 +17,7 @@ import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { bankFull } from './vitality.js';
 import { hourlyDraw } from '../core/kinetics.js';
+import { sum } from '../core/sum.js';
 
 /** The size past which a fish reads as an adult: where its brood share passes its growth share. */
 export const ADULT_SIZE = 50;
@@ -38,6 +39,10 @@ export function frySize(species: FishSpecies): number {
 
 export function fishLifeStage(fish: Sized): FishLifeStage {
   return fishSize(fish) < ADULT_SIZE ? 'fry' : 'adult';
+}
+
+export function countFry(fish: readonly Sized[]): number {
+  return fish.filter((f) => fishLifeStage(f) === 'fry').length;
 }
 
 /** Share of the bank a fish of this size holds toward broods; the rest it spends on growth. */
@@ -103,8 +108,6 @@ export interface Brood {
   females: Fish[];
   males: Fish[];
 }
-
-const sum = (values: readonly number[]): number => values.reduce((total, n) => total + n, 0);
 
 /**
  * Whole offspring for each female: `fathered` shared in proportion to her

@@ -7,6 +7,7 @@
 
 import {
   FISH_SPECIES_DATA,
+  countFry,
   fishLifeStage,
   gutCapacity,
   hungerLine,
@@ -44,10 +45,6 @@ export function gutStatus(band: GutBand, sick: boolean): Status {
     case 'starving':
       return sick ? 'alert' : 'warn';
   }
-}
-
-export function countFry(fish: Fish[]): number {
-  return fish.reduce((n, f) => n + (fishLifeStage(f) === 'fry' ? 1 : 0), 0);
 }
 
 /** How full a gut is, where the row belongs to something that eats. */

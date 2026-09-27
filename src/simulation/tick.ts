@@ -86,7 +86,7 @@ export function tick(
 
   // Reproduction reads the surplus banks livestock just updated. It adds
   // organisms (fry, clutches) itself; only the waste of dead eggs is an effect.
-  const breedingResult = processBreeding(newState, config);
+  const breedingResult = processBreeding(newState, config, livestockResult.metabolism.metabolicFactor);
   newState = applyEffects(breedingResult.state, breedingResult.effects, config);
 
   // Then other active systems

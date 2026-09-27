@@ -8,7 +8,8 @@ import type { FishSpecies } from '../livestock/species.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
-import { speciesHardiness, waterStressors } from './fish-health.js';
+import { sum } from '../core/sum.js';
+import { waterStressors } from './fish-health.js';
 
 /** Every laid clutch, and each brood whose mother is among `fish`. */
 export function clutchesWithMothers<C extends Pick<Clutch, 'motherId'>>(
@@ -25,34 +26,35 @@ export function clutchMass(clutch: Pick<Clutch, 'species' | 'eggs'>): number {
 }
 
 /**
- * Share of a clutch the water kills an hour, as a first-order rate: the fish's
- * own water harm, `eggSensitivity` times as hard on laid eggs, and as hard as
- * on its mother on a brood she carries.
+ * Share of a clutch the water kills an hour, as a first-order rate: the water
+ * harm of a fish of this hardiness, `eggSensitivity` times as hard on laid
+ * eggs, and as hard as on its mother on a brood she carries.
  */
 export function eggHarmRate(
   clutch: Pick<Clutch, 'species' | 'motherId'>,
+  hardiness: number,
   resources: Resources,
   waterVolume: number,
   config: LivestockConfig
 ): number {
-  const { species } = clutch;
-  const damage = waterStressors(species, speciesHardiness(species), resources, waterVolume, config).reduce(
-    (sum, factor) => sum + factor.amount,
-    0
-  );
+  const damage = sum(waterStressors(clutch.species, hardiness, resources, waterVolume, config).map((f) => f.amount));
   const sensitivity = clutch.motherId === undefined ? config.eggSensitivity : 1;
   return (sensitivity * damage) / 100;
 }
 
-/** Share of a clutch the tank's fish eat an hour, as a first-order rate. */
+/**
+ * Share of a laid clutch the tank's fish eat an hour, as a first-order rate,
+ * `predatorMass` the grams by which they outweigh an egg; a carried brood is
+ * out of their reach.
+ */
 export function eggPredationRate(
-  species: FishSpecies,
+  clutch: Pick<Clutch, 'species' | 'motherId'>,
   predatorMass: number,
   waterVolume: number,
   config: LivestockConfig
 ): number {
-  if (waterVolume <= 0) return 0;
-  const { clutchExposure } = FISH_SPECIES_DATA[species].breeding;
+  if (clutch.motherId !== undefined || waterVolume <= 0) return 0;
+  const { clutchExposure } = FISH_SPECIES_DATA[clutch.species].breeding;
   return (config.eggPredationRate * clutchExposure * predatorMass) / waterVolume;
 }
 

@@ -8,7 +8,8 @@ import type { FishSpecies } from '../livestock/species.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { createLog } from '../core/logging.js';
 import { createFish, isStockableSize, STOCKED_FISH_SIZE, unstockableSizeMessage } from '../livestock/create-fish.js';
-import { fishLifeStage, massAtSize } from '../systems/fish-growth.js';
+import { countFry, fishLifeStage, massAtSize } from '../systems/fish-growth.js';
+import { sum } from '../core/sum.js';
 import { clutchesWithMothers } from '../systems/clutch.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import type { ActionResult, AddFishAction, RemoveFishAction } from './types.js';
@@ -50,7 +51,7 @@ export function getMaxFishMass(tankCapacity: number): number {
 
 /** Current total body mass (grams) of a set of fish, fry included. */
 export function totalFishMass(fish: Fish[]): number {
-  return fish.reduce((sum, f) => sum + f.mass, 0);
+  return sum(fish.map((f) => f.mass));
 }
 
 export interface FishCapacityResult {
@@ -191,7 +192,7 @@ export function removeFish(
  * consumers to price. Adults are untouched.
  */
 export function sellFry(state: SimulationState): ActionResult {
-  const fryCount = state.fish.reduce((n, f) => n + (fishLifeStage(f) === 'fry' ? 1 : 0), 0);
+  const fryCount = countFry(state.fish);
 
   if (fryCount === 0) {
     return {

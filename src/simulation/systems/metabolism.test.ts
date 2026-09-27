@@ -121,6 +121,17 @@ describe('processMetabolism', () => {
     }
   });
 
+  it('breathes on the metabolic factor, harder warm and slower cold', () => {
+    const at = (temperature: number): MetabolismResult =>
+      processMetabolism([makeFish({ mass: 2 })], water({ temperature }), livestockDefaults);
+    const { metabolicReferenceTemp: ref } = livestockDefaults;
+    for (const temperature of [ref - 10, ref, ref + 5]) {
+      const r = at(temperature);
+      expect(r.oxygenConsumedMg).toBeCloseTo(livestockDefaults.baseRespirationRate * 2 * r.metabolicFactor, 12);
+    }
+    expect(at(ref + 5).oxygenConsumedMg).toBeGreaterThan(at(ref).oxygenConsumedMg);
+  });
+
   it('consumes oxygen on mass, at half its base rate at the half-saturation constant', () => {
     const at = (oxygen: number): number =>
       processMetabolism([makeFish({ mass: 2 })], water({ oxygen }), livestockDefaults).oxygenConsumedMg;

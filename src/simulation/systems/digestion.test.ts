@@ -7,7 +7,7 @@ import {
   hungerLine,
   maintenance,
   nourishment,
-  serve,
+  shareCapped,
   swallow,
 } from './digestion.js';
 import { livestockDefaults as config } from '../config/livestock.js';
@@ -48,7 +48,9 @@ describe('appetite and serving', () => {
     expect(appetite({ mass: 2, gut: gutCapacity(fish, config) }, config)).toBe(0);
   });
 
-  it('serves every appetite in full while the food lasts', () => {
+  const serve = (appetites: number[], food: number): number[] => shareCapped(appetites, appetites, food).taken;
+
+  it('serves every appetite in full while the food lasts, weighed by its own appetite', () => {
     expect(serve([0.1, 0.2], 1)).toEqual([0.1, 0.2]);
   });
 

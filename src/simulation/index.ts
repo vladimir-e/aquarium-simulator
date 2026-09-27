@@ -451,54 +451,22 @@ export type {
 } from './plants/index.js';
 
 // Livestock
+export { processLivestock } from './livestock/index.js';
+export { processBreeding } from './livestock/breeding.js';
+export { isStockableSize, STOCKED_FISH_SIZE } from './livestock/create-fish.js';
+export { computeFishVitality, fishHealingRate, fishWear, predationStress, predatorWeight, preyVulnerability } from './systems/fish-health.js';
 export {
-  processLivestock,
-  processMetabolism,
-  processHealth,
-  computeFishVitality,
-  fishHealingRate,
-  processBreeding,
-  createFish,
-  isStockableSize,
-  STOCKED_FISH_SIZE,
-} from './livestock/index.js';
-export {
-  ADULT_SIZE,
   fishSize,
   massAtSize,
   frySize,
   fishLifeStage,
+  countFry,
   broodShare,
-  growFish,
-  eggsLaid,
-  offspringFathered,
-  brood,
   readyToBrood,
   paysTowardBrood,
-  type Brood,
 } from './systems/fish-growth.js';
-export {
-  clutchMass,
-  clutchesWithMothers,
-  eggHarmRate,
-  eggPredationRate,
-  developmentRate,
-  settleClutch,
-  type ClutchHour,
-} from './systems/clutch.js';
-export { predationStress, predatorWeight, predatorMasses, fryVulnerability, fishWear } from './systems/fish-health.js';
-export {
-  gutCapacity,
-  appetite,
-  swallow,
-  type Swallowed,
-  serve,
-  digest,
-  dailyMaintenance,
-  maintenance,
-  nourishment,
-  hungerLine,
-} from './systems/digestion.js';
+export { clutchMass, clutchesWithMothers } from './systems/clutch.js';
+export { gutCapacity, dailyMaintenance, hungerLine } from './systems/digestion.js';
 
 // Vitality
 export {

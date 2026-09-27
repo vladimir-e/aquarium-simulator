@@ -3,7 +3,7 @@ import {
   computeFishVitality,
   fishHealingRate,
   fishWear,
-  fryVulnerability,
+  preyVulnerability,
   predationStress,
   predatorMasses,
   predatorWeight,
@@ -51,6 +51,8 @@ const STRESSORS = [
   'oxygen',
   'waterLevel',
   'flow',
+  'hunted',
+  'wear',
 ];
 
 const stressorAmount = (v: VitalityResult, key: string): number =>
@@ -240,7 +242,7 @@ describe('stressors', () => {
 
   it('sums every active stressor into the total', () => {
     const v = vitality(
-      {},
+      { mass: massAtSize('neon_tetra', 20), age: FISH_SPECIES_DATA.neon_tetra.lifespan },
       {
         temperature: 18,
         ph: 8.5,
@@ -252,7 +254,7 @@ describe('stressors', () => {
         water: 30,
         flow: 600,
       },
-      { digested: 0 }
+      { digested: 0, predatorMass: 1, config: livestockDefaults }
     );
     for (const key of STRESSORS) expect(stressorAmount(v, key)).toBeGreaterThan(0);
     const handSum = STRESSORS.reduce((sum, key) => sum + stressorAmount(v, key), 0);
@@ -570,7 +572,7 @@ describe('predation', () => {
 
   it('falls smoothly with the prey’s size, from whole at none to nothing at adult size', () => {
     const sizes = [0, 5, 20, 35, 50, 75, 99, 100];
-    const exposure = sizes.map((size) => fryVulnerability(size, livestockDefaults));
+    const exposure = sizes.map((size) => preyVulnerability(size, livestockDefaults));
     expect(exposure[0]).toBe(1);
     expect(exposure.at(-1)).toBe(0);
     for (let i = 1; i < exposure.length; i++) expect(exposure[i]).toBeLessThan(exposure[i - 1]);
@@ -693,20 +695,42 @@ describe('ageing', () => {
     }
   });
 
-  it('stays a number at birth and at absurd ages', () => {
-    for (const age of [0, 1e3 * lifespan]) {
+  it('stays a number at birth and at absurd ages, and charges none when switched off', () => {
+    for (const age of [0, 1e3 * lifespan, 1e9 * lifespan]) {
       const result = vitality({ age, surplus: 50 }, {}, { config: livestockDefaults });
       expect(Number.isNaN(result.newCondition)).toBe(false);
       expect(Number.isNaN(result.surplus)).toBe(false);
       expect(Number.isNaN(healing(age))).toBe(false);
+      expect(fishWear(makeFish({ age }), AGELESS)).toBe(0);
     }
     expect(vitality({ age: 1e3 * lifespan }, {}, { config: livestockDefaults }).newCondition).toBe(0);
+    const ancient = health([makeFish({ age: 1e9 * lifespan })], {}, [], [0], livestockDefaults);
+    expect(ancient.deadFishNames).toEqual(['Neon Tetra (old age)']);
   });
 
   it('attributes a death mostly of wear to old age', () => {
     const result = health([makeFish({ age: 3 * lifespan, health: 1 })], {}, [], [0], livestockDefaults);
     expect(result.survivingFish).toHaveLength(0);
     expect(result.deadFishNames[0]).toContain('old age');
+  });
+
+  it('gives an old fish killed mostly by something else no old-age label', () => {
+    const old = makeFish({ age: lifespan, health: 0.1 });
+    const result = health([old], { oxygen: 0.5 }, [], [0], livestockDefaults);
+    expect(result.survivingFish).toHaveLength(0);
+    expect(result.vitalities[0].breakdown.stressors.find((f) => f.key === 'wear')!.amount).toBeGreaterThan(0);
+    expect(result.deadFishNames).toEqual(['Neon Tetra']);
+  });
+
+  it('names old age over eaten when wear did most of the damage to a hunted fish', () => {
+    const fry = makeFish({ id: 'fry', mass: massAtSize('neon_tetra', 60), age: 3 * lifespan, health: 0.1 });
+    const predator = makeFish({ id: 'big', species: 'angelfish', mass: 15 });
+    const result = health([fry, predator], {}, [], [0, 0], livestockDefaults);
+    const hunted = result.vitalities[0].breakdown.stressors.find((f) => f.key === 'hunted')!.amount;
+    const wear = result.vitalities[0].breakdown.stressors.find((f) => f.key === 'wear')!.amount;
+    expect(hunted).toBeGreaterThan(0);
+    expect(wear).toBeGreaterThan(hunted);
+    expect(result.deadFishNames).toEqual(['Neon Tetra (old age)']);
   });
 });
 

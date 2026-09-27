@@ -9,6 +9,7 @@
 import type { Fish } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { hourlyDraw, monodFactor } from '../core/kinetics.js';
+import { sum } from '../core/sum.js';
 
 type Sized = Pick<Fish, 'mass'>;
 
@@ -22,11 +23,20 @@ export function appetite(fish: Sized & Pick<Fish, 'gut'>, config: LivestockConfi
   return Math.max(0, gutCapacity(fish, config) - fish.gut);
 }
 
-export interface Swallowed {
-  /** Grams each eater takes. */
+export interface Shared {
+  /** Grams each takes. */
   taken: number[];
-  /** Grams no gut had room for. */
+  /** Grams no cap had room for. */
   overflow: number;
+}
+
+/** `amount` shared by weight, each share capped. */
+export function shareCapped(weights: readonly number[], caps: readonly number[], amount: number): Shared {
+  const total = sum(weights);
+  if (amount <= 0 || total <= 0) return { taken: weights.map(() => 0), overflow: Math.max(0, amount) };
+  const shares = weights.map((w) => (w > 0 ? (amount * w) / total : 0));
+  const taken = shares.map((share, i) => Math.min(caps[i], share));
+  return { taken, overflow: sum(shares.map((share, i) => share - taken[i])) };
 }
 
 /** Prey shared among its eaters by weight, each gut taking its share up to the room left in it. */
@@ -35,23 +45,12 @@ export function swallow(
   weights: readonly number[],
   grams: number,
   config: LivestockConfig
-): Swallowed {
-  if (grams <= 0) return { taken: eaters.map(() => 0), overflow: 0 };
-  const total = weights.reduce((sum, w) => sum + w, 0);
-  if (total <= 0) return { taken: eaters.map(() => 0), overflow: grams };
-  const shares = weights.map((w) => (grams * w) / total);
-  const taken = eaters.map((eater, i) => Math.min(appetite(eater, config), shares[i]));
-  return { taken, overflow: shares.reduce((sum, share, i) => sum + share - taken[i], 0) };
-}
-
-/**
- * Grams each eater takes: every appetite in full while the food lasts, and
- * the same share of every appetite once it does not.
- */
-export function serve(appetites: readonly number[], food: number): number[] {
-  const demand = appetites.reduce((sum, a) => sum + a, 0);
-  const share = demand > 0 ? Math.min(1, Math.max(0, food) / demand) : 0;
-  return appetites.map((a) => a * share);
+): Shared {
+  return shareCapped(
+    weights,
+    eaters.map((eater) => appetite(eater, config)),
+    grams
+  );
 }
 
 /** Grams a gut digests over the hour, its metabolism running at `factor`. */
@@ -61,7 +60,7 @@ export function digest(gut: number, factor: number, config: LivestockConfig): nu
 
 /** Grams a day a roster must digest to hold its condition, its metabolism running at `factor`. */
 export function dailyMaintenance(fish: readonly Sized[], factor: number, config: LivestockConfig): number {
-  return fish.reduce((sum, f) => sum + f.mass, 0) * config.maintenanceRation * factor;
+  return sum(fish.map((f) => f.mass)) * config.maintenanceRation * factor;
 }
 
 /** Grams an hour a fish must digest to hold its condition, its metabolism running at `factor`. */

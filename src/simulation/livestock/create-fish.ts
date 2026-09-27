@@ -33,8 +33,10 @@ export interface CreateFishParams {
   species: FishSpecies;
   /** % of adult mass. */
   size: number;
-  /** Age in ticks; 0 when not named. Only old age reads it. */
+  /** Age in ticks; 0 when not named. Wear and healing read it. */
   age?: number;
+  /** Grams in its gut on arrival; its {@link arrivalGut} when not named. */
+  gut?: number;
   /**
    * Sex, sampled 50/50 when absent. A player doesn't choose it at the
    * shop; a scenario author naming a breeding pair does.
@@ -45,11 +47,12 @@ export interface CreateFishParams {
   config: LivestockConfig;
 }
 
-/**
- * Build a fish with sampled individual variation. Every fish enters the tank
- * with a day's maintenance ration in its gut — a bought one from the shop, a
- * fry on its yolk.
- */
+/** A day's maintenance ration: what a fish of this mass brings in its gut from the shop. */
+export function arrivalGut(mass: number, config: LivestockConfig): number {
+  return mass * config.maintenanceRation;
+}
+
+/** Build a fish with sampled individual variation. */
 export function createFish(params: CreateFishParams): Fish {
   const { species, size, rng, config } = params;
   const data = FISH_SPECIES_DATA[species];
@@ -69,7 +72,7 @@ export function createFish(params: CreateFishParams): Fish {
     mass,
     health,
     age: params.age ?? 0,
-    gut: mass * config.maintenanceRation,
+    gut: params.gut ?? arrivalGut(mass, config),
     sex,
     hardinessOffset,
     surplus: 0,

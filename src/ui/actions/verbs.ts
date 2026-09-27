@@ -16,7 +16,6 @@ import {
   canRootTab,
   coverage,
   getPlantsToTrimCount,
-  dailyMaintenance,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
   placeShare,
@@ -343,7 +342,7 @@ function rungsFor(
 
   switch (id) {
     case 'feed': {
-      const ration = dailyMaintenance(state.fish, ahead.metabolicFactor, config.livestock);
+      const { ration } = ahead;
       return {
         values: FEED_PRESETS,
         rung: (amount) => ({
@@ -466,7 +465,7 @@ function meta(
       const mouths =
         state.fish.length === 0
           ? 'no fish to feed'
-          : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'needs' : 'need'} ${grams(dailyMaintenance(state.fish, ahead.metabolicFactor, config.livestock))} a day`;
+          : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'needs' : 'need'} ${grams(ahead.ration)} a day`;
       return state.resources.food > 0
         ? `${mouths} · ${grams(state.resources.food)} still in the water`
         : mouths;

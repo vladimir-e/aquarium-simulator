@@ -21,9 +21,11 @@ import type { HistorySnapshot } from './history.js';
  * v19 made a clutch a stock that rates drain. `Clutch` trades `eggCount` and
  *    `laidTick` for `eggs` and `development`, a carried one names its
  *    `motherId`, and `LivestockConfig` gains `eggSensitivity`,
- *    `eggPredationRate`, `fryPredationRate` and `fryVulnerabilityExponent`.
- *    A v18 session parses, and the first tick with a clutch standing drains
- *    it by keys it does not carry.
+ *    `eggPredationRate`, `predationRate` and `preyVulnerabilityExponent`. Old
+ *    age is wear: `ageStressSeverity` gives way to `wearAtLifespan`,
+ *    `wearDoublingShare` and `healingHalvingShare`. A v18 session parses, the
+ *    first tick with a clutch standing drains it by keys it does not carry,
+ *    and every fish's wear and healing read keys it does not carry.
  * v18 fed fish through a gut and let their banks buy their growth and broods.
  *    `Fish.satiation` becomes `Fish.gut` and `Fish.stage` goes — mass is a
  *    stock the bank grows; `LivestockConfig` trades its satiation knobs for

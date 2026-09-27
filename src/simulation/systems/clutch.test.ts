@@ -4,7 +4,7 @@ import { DEFAULT_CONFIG } from '../config/index.js';
 import { getMassFromPpm } from '../resources/index.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { developmentRate, eggHarmRate, eggPredationRate, settleClutch } from './clutch.js';
-import { metabolicFactor, oxygenFactor } from './metabolism.js';
+import { metabolicFactorOf } from './metabolism.js';
 import { speciesHardiness, waterStressors } from './fish-health.js';
 
 const config = DEFAULT_CONFIG.livestock;
@@ -13,10 +13,11 @@ const volume = clean.water;
 
 const withNitrite = (ppm: number): Resources => ({ ...clean, nitrite: getMassFromPpm(ppm, volume) });
 const laid = { species: 'neon_tetra' } as const;
+const neon = speciesHardiness('neon_tetra');
 
 describe('eggHarmRate', () => {
   it('is nothing in clean water', () => {
-    expect(eggHarmRate(laid, clean, volume, config)).toBe(0);
+    expect(eggHarmRate(laid, neon, clean, volume, config)).toBe(0);
   });
 
   it('is the fish water channel at the species hardiness, eggSensitivity times as hard, as a share an hour', () => {
@@ -26,56 +27,59 @@ describe('eggHarmRate', () => {
       0
     );
     expect(damage).toBeGreaterThan(0);
-    expect(eggHarmRate(laid, water, volume, config)).toBeCloseTo((config.eggSensitivity * damage) / 100, 12);
+    expect(eggHarmRate(laid, neon, water, volume, config)).toBeCloseTo((config.eggSensitivity * damage) / 100, 12);
   });
 
-  it('harms a brood its mother carries as hard as her', () => {
+  it('harms a brood its mother carries as hard as her, at her hardiness', () => {
     const water = withNitrite(8);
     const damage = waterStressors('guppy', speciesHardiness('guppy'), water, volume, config).reduce(
       (sum, f) => sum + f.amount,
       0
     );
-    expect(eggHarmRate({ species: 'guppy', motherId: 'mother' }, water, volume, config)).toBeCloseTo(damage / 100, 12);
+    expect(eggHarmRate({ species: 'guppy', motherId: 'mother' }, speciesHardiness('guppy'), water, volume, config)).toBeCloseTo(
+      damage / 100,
+      12
+    );
   });
 
   it('costs the same for every doubling of a toxin past the edge', () => {
-    const [a, b, c] = [4, 8, 16].map((ppm) => eggHarmRate(laid, withNitrite(ppm), volume, config));
+    const [a, b, c] = [4, 8, 16].map((ppm) => eggHarmRate(laid, neon, withNitrite(ppm), volume, config));
     expect(b - a).toBeGreaterThan(0);
     expect(c - b).toBeCloseTo(b - a, 10);
   });
 
   it('rises out of a species temperature band', () => {
     const cold = { ...clean, temperature: FISH_SPECIES_DATA.neon_tetra.temperatureRange[0] - 3 };
-    expect(eggHarmRate(laid, cold, volume, config)).toBeGreaterThan(0);
+    expect(eggHarmRate(laid, neon, cold, volume, config)).toBeGreaterThan(0);
   });
 });
 
 describe('eggPredationRate', () => {
   it('scales with the mass of fish per litre', () => {
-    const one = eggPredationRate('neon_tetra', 1, volume, config);
+    const one = eggPredationRate(laid, 1, volume, config);
     expect(one).toBeGreaterThan(0);
-    expect(eggPredationRate('neon_tetra', 3, volume, config)).toBeCloseTo(3 * one, 12);
-    expect(eggPredationRate('neon_tetra', 1, 2 * volume, config)).toBeCloseTo(one / 2, 12);
+    expect(eggPredationRate(laid, 3, volume, config)).toBeCloseTo(3 * one, 12);
+    expect(eggPredationRate(laid, 1, 2 * volume, config)).toBeCloseTo(one / 2, 12);
   });
 
   it('reaches a clutch in proportion to its exposure, and never a carried one', () => {
-    const open = eggPredationRate('neon_tetra', 5, volume, config);
-    expect(eggPredationRate('betta', 5, volume, config)).toBeCloseTo(
+    const open = eggPredationRate(laid, 5, volume, config);
+    expect(eggPredationRate({ species: 'betta' }, 5, volume, config)).toBeCloseTo(
       open * FISH_SPECIES_DATA.betta.breeding.clutchExposure,
       12
     );
-    expect(eggPredationRate('guppy', 5, volume, config)).toBe(0);
+    expect(eggPredationRate({ species: 'guppy', motherId: 'mother' }, 5, volume, config)).toBe(0);
   });
 
   it('is nothing without fish or water', () => {
-    expect(eggPredationRate('neon_tetra', 0, volume, config)).toBe(0);
-    expect(eggPredationRate('neon_tetra', 5, 0, config)).toBe(0);
+    expect(eggPredationRate(laid, 0, volume, config)).toBe(0);
+    expect(eggPredationRate(laid, 5, 0, config)).toBe(0);
   });
 });
 
 describe('developmentRate', () => {
   const at = (temperature: number, oxygen = clean.oxygen): number =>
-    developmentRate('corydoras', metabolicFactor(temperature, oxygenFactor(oxygen, config), config));
+    developmentRate('corydoras', metabolicFactorOf({ temperature, oxygen }, config));
 
   it('doubles every ten degrees on the metabolic Q10', () => {
     expect(at(28) / at(18)).toBeCloseTo(config.metabolicQ10, 10);

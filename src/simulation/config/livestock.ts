@@ -4,8 +4,9 @@
  * Calibration targets:
  * - Feeding: a fish eats 1–3 % of its body mass a day; a full gut clears in
  *   about a day at 25 °C, slower cold
- * - Health: per-factor benefits sum to ~1 %/h at full nourishment in ideal
- *   conditions; what a fish digests scales them all
+ * - Health: per-factor benefits sum to ≈ 0.7 %/h at full nourishment in ideal
+ *   conditions, ≈ 0.9 with a saturating planting; what a fish digests scales
+ *   them all
  * - Death: vitality-driven (no probabilistic check); wear rising on a
  *   Gompertz curve and healing falling with age carry a well-kept fish off
  *   near its species lifespan.
@@ -32,20 +33,22 @@ export interface LivestockConfig {
 
   // Metabolism
   /**
-   * Base oxygen consumption rate per gram of fish mass per hour (mg O2).
+   * Base oxygen consumption rate per gram of fish mass per hour (mg O2), at
+   * the reference temperature in unlimited oxygen; it runs on the metabolic
+   * factor.
    *
    * Intrinsic physiological rate — independent of tank volume. The
    * livestock pipeline converts the absolute mg/hr draw into a mg/L
    * concentration delta using the tank's water volume.
    *
    * Real-world freshwater teleosts at 25°C sit in 0.2–0.5 mg O2/g/hr,
-   * scaling with Q10 ≈ 2 against temperature.
+   * scaling with Q10 ≈ 2 against temperature, as `metabolicQ10` has it.
    */
   baseRespirationRate: number;
   /** Dissolved O2 (mg/L) at which a fish takes up half its base rate. */
   respirationOxygenHalfSaturation: number;
   /**
-   * Fraction of ingested food mass that is nitrogen (g N / g food).
+   * Fraction of digested food mass that is nitrogen (g N / g food).
    *
    * Typical aquarium flake/pellet food is 35–50 % protein, protein is
    * ≈16 % N by mass, giving 5.6–8 % N in food. 0.05 is a conservative
@@ -54,7 +57,7 @@ export interface LivestockConfig {
    */
   foodNitrogenFraction: number;
   /**
-   * Fraction of ingested food nitrogen excreted directly via the gills
+   * Fraction of digested food nitrogen excreted directly via the gills
    * as NH3/NH4⁺ (0–1). The remainder leaves as feces-bound N that
    * mineralizes through the waste → NH3 path.
    *
@@ -149,11 +152,11 @@ export interface LivestockConfig {
   /** Share of a clutch's eggs an hour one gram of fish per litre finds, before the clutch's exposure. */
   eggPredationRate: number;
 
-  // Fry predation
+  // Predation
   /** Damage an hour, before hardiness, that one gram per litre of predator mass does a fish at no size at all. */
-  fryPredationRate: number;
+  predationRate: number;
   /** How steeply a fish outgrows its predators: vulnerability is `(1 − size / 100)` to this power. */
-  fryVulnerabilityExponent: number;
+  preyVulnerabilityExponent: number;
 
   // Death
   /** Fraction of fish mass added as waste on death */
@@ -195,22 +198,14 @@ export const livestockDefaults: LivestockConfig = {
   respirationOxygenHalfSaturation: 1.0,
   // 5 % N in food — conservative; typical flake is 6–8 % N.
   foodNitrogenFraction: 0.05,
-  // 80 % of ingested N excreted directly through gills; 20 % via feces.
+  // 80 % of digested N excreted directly through gills; 20 % via feces.
   gillNFraction: 0.8,
   respiratoryQuotient: 0.8, // textbook mixed-diet value
 
   // Stressor severities
-  // Per °C outside the species' preferred temperatureRange, scaled by
-  // (1 - hardiness). Calibrated to scenario 04 A.1: a betta (hardiness
-  // 0.6, tempMin 24 °C) at 20 °C sustained should decline ~5 %/day,
-  // landing in the 40–65 band after 7 days and risk dying around day
-  // 21. Net per-hour damage ≈ severity × gap × (1 − hardiness) −
-  // benefit budget (≈1 %/h at all-good). At severity 0.75 / 4 °C gap
-  // / 0.4 factor = 1.2 %/hr stress − 1 %/hr recovery = 0.2 %/hr =
-  // 4.8 %/day loss. At 1 °C below (23 °C), stress = 0.3 %/hr, net
-  // +0.7 %/hr healing — matches the scenario's "sub-stress band for
-  // betta, mild decline over weeks, not cliff" expectation for the
-  // 23 °C failure mode.
+  // Per °C outside the species' temperatureRange, scaled by (1 − hardiness).
+  // A betta (hardiness 0.6) 1 °C under its range pays 0.34 %/h, inside what a
+  // fed fish earns; 4 °C under, 1.4 %/h, twice the whole benefit budget.
   temperatureStressSeverity: 0.85, // %/°C/hr before hardiness scaling
   phStressSeverity: 3.0, // 3% damage per pH unit outside range per hour
   // Hardness out of range is a chronic harm, not an acute one: a guppy
@@ -271,8 +266,8 @@ export const livestockDefaults: LivestockConfig = {
   // fifth of it hatches; ten neons leave next to none.
   eggPredationRate: 2,
 
-  fryPredationRate: 20,
-  fryVulnerabilityExponent: 4,
+  predationRate: 20,
+  preyVulnerabilityExponent: 4,
 
   // Death
   deathDecayFactor: 0.5, // Half fish mass becomes waste
@@ -385,9 +380,9 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   // Clutches
   { key: 'eggSensitivity', label: 'Egg Sensitivity', unit: '× fish', min: 0, max: 10, step: 0.5 },
   { key: 'eggPredationRate', label: 'Egg Predation Rate', unit: 'L/g/hr', min: 0, max: 20, step: 0.5 },
-  // Fry predation
-  { key: 'fryPredationRate', label: 'Fry Predation Rate', unit: '%/hr per g/L', min: 0, max: 200, step: 1 },
-  { key: 'fryVulnerabilityExponent', label: 'Fry Vulnerability Exponent', unit: '', min: 1, max: 10, step: 0.5 },
+  // Predation
+  { key: 'predationRate', label: 'Predation Rate', unit: '%/hr per g/L', min: 0, max: 200, step: 1 },
+  { key: 'preyVulnerabilityExponent', label: 'Prey Vulnerability Exponent', unit: '', min: 1, max: 10, step: 0.5 },
   // Death
   { key: 'deathDecayFactor', label: 'Death Decay Factor', unit: '', min: 0.1, max: 1.0, step: 0.1 },
 ];

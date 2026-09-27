@@ -76,6 +76,7 @@ import { purchase, sizeBought, supply } from '../systems/plant-growth.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
 import { losePlant, tissueMass } from '../systems/plant-lifecycle.js';
 import type { VitalityResult } from '../systems/vitality.js';
+import { sum } from '../core/sum.js';
 
 /** A bloom's hour in the pass. */
 export interface BloomHour {
@@ -103,8 +104,6 @@ export interface FloraProcessingResult {
   waterUptake: FormVector;
   algae: Record<AlgaeKind, BloomHour>;
 }
-
-const sum = (values: readonly number[]): number => values.reduce((total, value) => total + value, 0);
 
 const sumForms = (vectors: readonly FormVector[]): FormVector =>
   mapForms((f) => sum(vectors.map((vector) => vector[f])));

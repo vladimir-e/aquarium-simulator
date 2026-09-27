@@ -546,8 +546,8 @@ const LivestockConfigSchema = z
     healingHalvingShare: z.number().positive(),
     eggSensitivity: z.number().min(0),
     eggPredationRate: z.number().min(0),
-    fryPredationRate: z.number().min(0),
-    fryVulnerabilityExponent: z.number().positive(),
+    predationRate: z.number().min(0),
+    preyVulnerabilityExponent: z.number().positive(),
     deathDecayFactor: z.number(),
   })
   .strict();

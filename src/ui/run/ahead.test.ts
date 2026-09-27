@@ -162,8 +162,11 @@ describe('readHourAhead', () => {
         livestock.effects
           .filter((e) => e.resource === resource && e.source === source)
           .reduce((sum, e) => sum + e.delta, 0);
-      const left = processBreeding(applyEffects(livestock.state, livestock.effects, config), config)
-        .state.resources;
+      const left = processBreeding(
+        applyEffects(livestock.state, livestock.effects, config),
+        config,
+        livestock.metabolism.metabolicFactor
+      ).state.resources;
 
       expect(ahead.fishWaste).toBeCloseTo(delta('waste', 'fish-metabolism'), 12);
       expect(ahead.gillAmmonia).toBeCloseTo(delta('ammonia', 'fish-gill-excretion'), 12);

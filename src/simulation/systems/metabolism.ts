@@ -12,10 +12,10 @@
  * the food's own nitrogen and mineral fractions into the waste pool:
  *     wasteMass = digested × (1 − gillNFraction)
  *
- * Deamination rides digestion, and digestion rides the metabolic factor —
- * the metabolic Q10 times the oxygen factor respiration runs on — so a
- * hypoxic fish digests, deaminates and breathes less together, and a cold one
- * digests slower.
+ * Deamination rides digestion, and digestion and respiration both ride the
+ * metabolic factor — the metabolic Q10 times the oxygen factor — so a hypoxic
+ * fish digests, deaminates and breathes less together, a cold one slower, and
+ * a warm one faster.
  */
 
 import type { Fish, Resources } from '../state.js';
@@ -23,7 +23,8 @@ import type { LivestockConfig } from '../config/livestock.js';
 import { N_TO_NH3_MASS_RATIO, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
 import { monodFactor, q10Factor } from '../core/kinetics.js';
 import { WASTE_NUTRIENTS, nutrientsDefaults, type MineralVector } from '../config/nutrients.js';
-import { appetite, digest, serve } from './digestion.js';
+import { sum } from '../core/sum.js';
+import { appetite, digest, shareCapped } from './digestion.js';
 
 const NH3_MG_PER_G_N = N_TO_NH3_MASS_RATIO * 1000;
 
@@ -80,9 +81,12 @@ export function oxygenFactor(oxygen: number, config: LivestockConfig): number {
   return monodFactor(oxygen, config.respirationOxygenHalfSaturation);
 }
 
-/** The pace every fish digests and needs at, against reference water, breathing at `oxygen` of its full rate. */
-export function metabolicFactor(temperature: number, oxygen: number, config: LivestockConfig): number {
-  return q10Factor(temperature, config.metabolicQ10, config.metabolicReferenceTemp) * oxygen;
+/** The pace every fish digests, needs and breathes at in this water, against reference water. */
+export function metabolicFactorOf(water: Pick<Resources, 'oxygen' | 'temperature'>, config: LivestockConfig): number {
+  return (
+    q10Factor(water.temperature, config.metabolicQ10, config.metabolicReferenceTemp) *
+    oxygenFactor(water.oxygen, config)
+  );
 }
 
 /**
@@ -96,26 +100,22 @@ export function processMetabolism(
   config: LivestockConfig,
   foodMineralContent: MineralVector = nutrientsDefaults.foodMineralContent
 ): MetabolismResult {
-  const oxygen = oxygenFactor(water.oxygen, config);
-  const factor = metabolicFactor(water.temperature, oxygen, config);
+  const factor = metabolicFactorOf(water, config);
 
   const digested = fish.map((f) => digest(f.gut, factor, config));
   const digestedFish = fish.map((f, i) => ({ ...f, gut: Math.max(0, f.gut - digested[i]) }));
-  const eaten = serve(
-    digestedFish.map((f) => appetite(f, config)),
-    water.food
-  );
+  const appetites = digestedFish.map((f) => appetite(f, config));
+  const eaten = shareCapped(appetites, appetites, water.food).taken;
   const updatedFish = digestedFish.map((f, i) => ({ ...f, gut: f.gut + eaten[i], age: f.age + 1 }));
 
-  const totalDigested = digested.reduce((sum, d) => sum + d, 0);
-  const out = excretion(totalDigested, config, foodMineralContent);
-  const oxygenConsumedMg = fish.reduce((sum, f) => sum + config.baseRespirationRate * f.mass, 0) * oxygen;
+  const out = excretion(sum(digested), config, foodMineralContent);
+  const oxygenConsumedMg = config.baseRespirationRate * sum(fish.map((f) => f.mass)) * factor;
 
   return {
     updatedFish,
     digested,
     metabolicFactor: factor,
-    foodConsumed: eaten.reduce((sum, e) => sum + e, 0),
+    foodConsumed: sum(eaten),
     wasteProduced: out.waste,
     ammoniaProduced: out.ammonia,
     mineralsExcreted: out.minerals,

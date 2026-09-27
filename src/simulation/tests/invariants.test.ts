@@ -170,21 +170,69 @@ describe('nitrogen mass', () => {
     for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(end, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
   });
 
-  it('is conserved through a clutch the fish eat in the hour it hatches, the hatchlings’ guts born with them', () => {
+  it('is conserved through a clutch the fish eat in the hour it hatches, the hatchlings’ yolks out of their eggs', () => {
     const start = produce(cycledBareTank(), (draft) => {
       draft.fish = [tetra('a'), tetra('b'), tetra('c')];
       draft.clutches = [{ id: 'c', species: 'corydoras', eggs: 30, development: 0.9999 }];
     });
     const end = run(start, 1);
     const hatchlings = end.fish.filter((f) => !start.fish.some((s) => s.id === f.id));
-    const { maintenanceRation, foodNitrogenFraction } = DEFAULT_CONFIG.livestock;
-    const bornGut = massAtSize('corydoras', frySize('corydoras')) * maintenanceRation;
-    const born = hatchlings.length * (bornGut - FISH_SPECIES_DATA.corydoras.breeding.eggMass) * foodNitrogenFraction;
 
     expect(end.clutches).toHaveLength(0);
     expect(hatchlings.length).toBeGreaterThan(0);
     expect(hatchlings.length).toBeLessThan(30);
-    expect((nitrogenInPools(end) - born) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+    expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+  });
+
+  it('is conserved over a month of guppies breeding, hunting their fry, growing and wearing, net of what enters from outside', () => {
+    const { lifespan } = FISH_SPECIES_DATA.guppy;
+    const { foodNitrogenFraction: n, deathDecayFactor } = DEFAULT_CONFIG.livestock;
+    const guppy = (id: string, sex: Fish['sex'], size: number, age: number): Fish => ({
+      id,
+      species: 'guppy',
+      mass: massAtSize('guppy', size),
+      health: 100,
+      age,
+      gut: 0,
+      sex,
+      hardinessOffset: 0,
+      surplus: 0,
+    });
+    let state = produce(cycledBareTank(10), (draft) => {
+      draft.clutches = [{ id: 'brood', species: 'guppy', eggs: 10, development: 0.8, motherId: 'mother' }];
+      draft.fish = [
+        guppy('mother', 'female', 100, lifespan / 2),
+        guppy('father', 'male', 100, lifespan / 2),
+        ...[1, 2, 3, 4, 5].map((i) => guppy(`fry${i}`, i % 2 ? 'male' : 'female', frySize('guppy'), 0)),
+      ];
+    });
+    const start = nitrogenInPools(state);
+    let entered = 0;
+    let eaten = 0;
+    let born = 0;
+    for (let hour = 0; hour < 30 * 24; hour++) {
+      if (hour % 24 === 0) {
+        state = produce(state, (draft) => {
+          draft.resources.food += 0.02;
+        });
+        entered += 0.02;
+      }
+      const before = state;
+      state = tick(state, DEFAULT_CONFIG);
+      const standing = new Set(before.clutches.map((clutch) => clutch.id));
+      for (const clutch of state.clutches) {
+        if (!standing.has(clutch.id)) entered += clutch.eggs * FISH_SPECIES_DATA[clutch.species].breeding.eggMass;
+      }
+      const alive = new Set(state.fish.map((f) => f.id));
+      for (const f of before.fish) if (!alive.has(f.id)) entered += f.mass * deathDecayFactor;
+      const logs = state.logs.slice(before.logs.length);
+      eaten += logs.filter((log) => log.event === 'fish-died' && log.message.includes('(eaten)')).length;
+      born += logs.filter((log) => log.event === 'fry-born').length;
+    }
+
+    expect(born).toBeGreaterThan(0);
+    expect(eaten).toBeGreaterThan(0);
+    expect((nitrogenInPools(state) - entered * n) / start).toBeCloseTo(1, 10);
   });
 });
 
@@ -536,8 +584,8 @@ describe('a guppy stocked as a fry', () => {
         id ??= state.fish[0].id;
         const she = state.fish.find((f) => f.id === id);
         if (she) sizes.push(fishSize(she));
-        const spawned = state.logs.slice(logsRead).some((log) => log.event === 'eggs-laid');
-        if (firstBrood < 0 && spawned) firstBrood = state.tick;
+        const laid = state.logs.slice(logsRead).some((log) => log.event === 'eggs-laid');
+        if (firstBrood < 0 && laid) firstBrood = state.tick;
         logsRead = state.logs.length;
       },
     });

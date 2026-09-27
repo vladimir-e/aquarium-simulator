@@ -60,7 +60,7 @@ export interface Fish {
   /**
    * Vitality bank, in condition points. Fills with income at full health,
    * up to `LivestockConfig.surplusCap`, heals health below 100, and a full
-   * bank is what a female spawns on (see `livestock/breeding.ts`).
+   * bank is what a female broods on (see `livestock/breeding.ts`).
    */
   surplus: number;
 }
