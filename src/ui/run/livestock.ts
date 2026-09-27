@@ -1,7 +1,7 @@
 /**
  * Livestock grouping: fold the flat fish array into species rows and fry
- * batches, map how full each gut is onto the shared status vocabulary, resolve
- * what each fish's vitality is doing to it, and lay the roster out as the flat
+ * batches, resolve what each fish's vitality is doing to it — its hunger
+ * included, read off the hunger stressor — and lay the roster out as the flat
  * row list the table renders.
  */
 
@@ -12,6 +12,7 @@ import {
   type Fish,
   type FishSpecies,
   type SimulationState,
+  type VitalityBreakdown,
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
@@ -20,10 +21,11 @@ import { groupReading, vitalReading, worstReading, type Reading, type Status } f
 import { groupBy, mean, numbered } from './fold.js';
 import type { ReadingBand } from './water.js';
 
-/** Fed over the hunger line; hungry under it; starving under a quarter of it, where hunger charges most of its peak. */
+/**
+ * Off the hunger stressor: fed while it charges nothing, hungry once it does,
+ * starving once hunger alone outruns everything the fish earns.
+ */
 export type GutBand = 'fed' | 'hungry' | 'starving';
-
-const GUT_BAND_LABEL: Record<GutBand, string> = { fed: 'fed', hungry: 'hungry', starving: 'starving' };
 
 /** Share of a full gut a fish holds. */
 export function gutFullness(fish: Fish, config: LivestockConfig): number {
@@ -31,10 +33,10 @@ export function gutFullness(fish: Fish, config: LivestockConfig): number {
   return capacity > 0 ? fish.gut / capacity : 0;
 }
 
-export function bandOf(fullness: number, config: LivestockConfig): GutBand {
-  const line = hungerLine(config);
-  if (fullness >= line) return 'fed';
-  return fullness >= line / 4 ? 'hungry' : 'starving';
+export function gutBand({ stressors, benefitRate }: VitalityBreakdown): GutBand {
+  const hunger = stressors.find((stressor) => stressor.key === 'hunger')?.amount ?? 0;
+  if (hunger <= 0) return 'fed';
+  return hunger < benefitRate ? 'hungry' : 'starving';
 }
 
 export function bandStatus(band: GutBand): Status {
@@ -55,16 +57,10 @@ export interface Hunger {
 }
 
 /** Hunger across any set of fish — a species group, a fry batch, the whole tank. */
-export function hungerOf(fish: Fish[], config: LivestockConfig): Hunger | null {
-  let count = 0;
-  let starving = false;
-  for (const f of fish) {
-    const band = bandOf(gutFullness(f, config), config);
-    if (band === 'fed') continue;
-    count++;
-    if (band === 'starving') starving = true;
-  }
-  return count === 0 ? null : { count, band: starving ? 'starving' : 'hungry' };
+export function hungerOf(bands: readonly GutBand[]): Hunger | null {
+  const hungry = bands.filter((band) => band !== 'fed');
+  if (hungry.length === 0) return null;
+  return { count: hungry.length, band: hungry.includes('starving') ? 'starving' : 'hungry' };
 }
 
 export function countFry(fish: Fish[]): number {
@@ -77,25 +73,32 @@ export interface Gut extends Reading {
   band: ReadingBand;
 }
 
-/** A gut on its track, fed from the hunger line up. */
-export function fishGut(fullness: number, config: LivestockConfig): Gut {
-  const band = bandOf(fullness, config);
+/**
+ * A fish's gut on its track, fed from the hunger line up — where it digests
+ * its maintenance at the pace the water sets — in the band its vitality puts it.
+ */
+export function fishGut(
+  fish: Fish,
+  breakdown: VitalityBreakdown,
+  metabolicFactor: number,
+  config: LivestockConfig
+): Gut {
+  const band = gutBand(breakdown);
   return {
-    at: fullness,
-    band: { from: hungerLine(config), to: 1 },
+    at: gutFullness(fish, config),
+    band: { from: hungerLine(metabolicFactor, config), to: 1 },
     status: bandStatus(band),
-    word: GUT_BAND_LABEL[band],
+    word: band,
   };
 }
 
 /**
  * How one fish reads, across every channel it keeps: its vital reading, and
- * how full its gut is. One definition, so the roster row and the ledger header
- * carry one word.
+ * its gut. One definition, so the roster row and the ledger header carry one
+ * word.
  */
-export function fishReading(fish: Fish, vital: Reading, config: LivestockConfig): Reading {
-  const { status, word } = fishGut(gutFullness(fish, config), config);
-  return worstReading(vital, { status, word });
+export function fishReading(vital: Reading, gut: Gut): Reading {
+  return worstReading(vital, { status: gut.status, word: gut.word });
 }
 
 type Kin = Pick<Fish, 'id' | 'species' | 'stage'>;
@@ -126,6 +129,8 @@ export interface FishRead {
   number: number;
   condition: number;
   sick: boolean;
+  hunger: GutBand;
+  gut: Gut;
   reading: Reading;
   fish: Fish;
 }
@@ -134,13 +139,17 @@ export interface FishRead {
 export function readFish(state: SimulationState, config: TunableConfig, ahead: HourAhead): FishRead[] {
   const numbers = fishNumbers(state.fish);
   return state.fish.map((fish, i) => {
-    const { sick, reading } = vitalReading(fish.health, ahead.fish[i].vitality.newCondition);
+    const { vitality } = ahead.fish[i];
+    const { sick, reading } = vitalReading(fish.health, vitality.newCondition);
+    const gut = fishGut(fish, vitality.breakdown, ahead.metabolicFactor, config.livestock);
     return {
       id: fish.id,
       number: numbers.get(fish.id)!,
       condition: fish.health,
       sick,
-      reading: fishReading(fish, reading, config.livestock),
+      hunger: gutBand(vitality.breakdown),
+      gut,
+      reading: fishReading(reading, gut),
       fish,
     };
   });
@@ -156,9 +165,8 @@ export interface RosterFigures {
   massG: number;
   /** Whole days lived, from the engine's tick-hours. */
   ageDays: number;
-  /** Share of a full gut, averaged over a group. */
-  fullness: number;
-  band: GutBand;
+  /** How full the guts are on average, spoken for by the hungry where there are any. */
+  gut: Gut;
   /** `Fish.health` on the 0–100 vitality axis. */
   condition: number;
 }
@@ -182,40 +190,47 @@ export interface FryBatch extends RosterGroup {
   species: FishSpecies[];
 }
 
-function groupFigures(members: FishRead[], config: LivestockConfig): RosterGroup {
+function groupGut(members: FishRead[], hunger: Hunger | null): Gut {
+  const at = mean(members.map((member) => member.gut.at));
+  const { band } = members[0].gut;
+  return hunger
+    ? { at, band, status: bandStatus(hunger.band), word: `${hunger.count} hungry` }
+    : { at, band, status: bandStatus('fed'), word: 'fed' };
+}
+
+function groupFigures(members: FishRead[]): RosterGroup {
   const group = members.map((member) => member.fish);
-  const fullness = mean(group.map((f) => gutFullness(f, config)));
+  const hunger = hungerOf(members.map((member) => member.hunger));
   return {
     count: group.length,
     massG: group.reduce((sum, f) => sum + f.mass, 0),
     ageDays: Math.floor(mean(group.map((f) => f.age)) / 24),
-    fullness,
-    band: bandOf(fullness, config),
+    gut: groupGut(members, hunger),
     condition: mean(group.map((f) => f.health)),
-    hunger: hungerOf(group, config),
+    hunger,
     reading: groupReading(members),
     members,
   };
 }
 
 /** Adult fish folded into per-species rows, in first-seen order. */
-export function groupBySpecies(fish: FishRead[], config: LivestockConfig): SpeciesGroup[] {
+export function groupBySpecies(fish: FishRead[]): SpeciesGroup[] {
   const adults = fish.filter((read) => read.fish.stage === 'adult');
   return groupBy(adults, (read) => read.fish.species).map((members) => ({
     species: members[0].fish.species,
     name: FISH_SPECIES_DATA[members[0].fish.species].name,
-    ...groupFigures(members, config),
+    ...groupFigures(members),
   }));
 }
 
 /** The tank's fry as one batch, or nothing if none are growing out. */
-export function groupFry(fish: FishRead[], config: LivestockConfig): FryBatch | null {
+export function groupFry(fish: FishRead[]): FryBatch | null {
   const fry = fish.filter((read) => read.fish.stage === 'fry');
   if (fry.length === 0) return null;
 
   return {
     species: [...new Set(fry.map((read) => read.fish.species))],
-    ...groupFigures(fry, config),
+    ...groupFigures(fry),
   };
 }
 

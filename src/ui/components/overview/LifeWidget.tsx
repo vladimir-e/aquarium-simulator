@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { SimulationState } from '../../../simulation/index.js';
-import type { LivestockConfig } from '../../../simulation/config/livestock.js';
 import type { VerbId } from '../../actions';
 import type { ReadingBook, ReadingId } from '../../readings';
 import { rosterTables } from '../../run';
@@ -13,7 +12,6 @@ import { Widget } from '../ui/Widget';
 interface LifeWidgetProps {
   book: ReadingBook;
   state: SimulationState;
-  config: LivestockConfig;
   onOpenReading: (id: ReadingId) => void;
   onAct: (verb: VerbId) => void;
   actLabel: (verb: VerbId) => string;
@@ -28,7 +26,6 @@ interface LifeWidgetProps {
 export function LifeWidget({
   book,
   state,
-  config,
   onOpenReading,
   onAct,
   actLabel,
@@ -40,10 +37,9 @@ export function LifeWidget({
     () =>
       rosterTables(
         { fish: book.roster.fish, plants: book.roster.plants, fry: null, clutches: [], tick: 0 },
-        config,
         new Set()
       ),
-    [book.roster, config]
+    [book.roster]
   );
 
   const handlers: RosterHandlers = {

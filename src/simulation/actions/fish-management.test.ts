@@ -78,7 +78,8 @@ describe('addFish', () => {
         state.resources.water,
         state.tank.capacity,
         livestockDefaults,
-        0
+        0,
+        1
       ).breakdown.stressors.find((s) => s.key === 'age')?.amount ?? 0;
 
     const left = maxAge - breeding.maturityAge;

@@ -19,7 +19,7 @@ import {
   isAirPumpUndersized,
   isScheduleActive,
   lightLoss,
-  maintenance,
+  dailyMaintenance,
   FILTER_SPECS,
   FILTER_SURFACE,
   FISH_SPECIES_DATA,
@@ -307,8 +307,8 @@ function autoDoserReadings({ state }: DeviceReadingInput): DeviceReading[] {
 
 function autoFeederReadings({ state }: DeviceReadingInput): DeviceReading[] {
   const { autoFeeder } = state.equipment;
-  const at = hourLabel(autoFeeder.schedule.startHour);
-  const until = (autoFeeder.schedule.startHour - (state.tick % 24) + 24) % 24;
+  const at = hourLabel(autoFeeder.startHour);
+  const until = (autoFeeder.startHour - (state.tick % 24) + 24) % 24;
 
   return [
     {
@@ -477,7 +477,7 @@ export function deviceHint(
         )} ppm.`
       );
     case 'autoFeeder': {
-      const need = state.fish.reduce((sum, fish) => sum + 24 * maintenance(fish, config.livestock), 0);
+      const need = dailyMaintenance(state.fish, config.livestock);
       const ration = equipment.autoFeeder.amount;
       return muted(
         need > 0

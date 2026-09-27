@@ -65,7 +65,6 @@ export function OverviewSection({
             <LifeWidget
               book={book}
               state={state}
-              config={config.livestock}
               onOpenReading={setReading}
               onAct={onAct}
               actLabel={actLabel}

@@ -11,6 +11,11 @@ export function q10Factor(temperature: number, q10: number, referenceTemp: numbe
   return Math.pow(q10, (temperature - referenceTemp) / 10.0);
 }
 
+/** Share of a stock a first-order draw at `rate` per hour takes over the hour: `1 − e^−rate`. */
+export function hourlyDraw(rate: number): number {
+  return -Math.expm1(-rate);
+}
+
 /**
  * Substrate scaling for biological rates — `[S] / (K + [S])`, the Monod curve.
  *

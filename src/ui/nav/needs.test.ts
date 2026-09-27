@@ -8,7 +8,7 @@ import { readTank } from '../readings';
 import { snapshotFromState } from '../run';
 import { ALERT_IDS, activeNeeds, needySections, type Need } from './needs.js';
 import { gutAt } from '../test/gut';
-import { hungerLine } from '../../simulation/index.js';
+import { hungerLine, type Fish } from '../../simulation/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 
 const base = createSimulation({ tankCapacity: 40 });
@@ -30,13 +30,15 @@ function withAlerts(
   return { ...state, alertState: { ...state.alertState, ...flags } };
 }
 
-function stocked(fullness: number): SimulationState {
+function stocked(fullness: number, fish: Partial<Fish> = {}): SimulationState {
   let state = base;
   for (let i = 0; i < 3; i++) state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   return produce(state, (draft) => {
-    for (const fish of draft.fish) fish.gut = gutAt(fullness, fish.mass);
+    for (const f of draft.fish) Object.assign(f, { gut: gutAt(fullness, f.mass), health: 100, ...fish });
   });
 }
+
+const BANKED = { surplus: livestockDefaults.surplusCap };
 
 describe('activeNeeds', () => {
   it('says nothing about a tank with nothing latched', () => {
@@ -77,13 +79,27 @@ describe('activeNeeds', () => {
     ]);
   });
 
-  it('asks for a feeding once fish go hungry, louder once they starve', () => {
-    const [hungry] = needs(stocked(hungerLine(livestockDefaults) / 2));
-    const [starving] = needs(stocked(0));
+  it('stays quiet while their banks heal what hunger charges', () => {
+    expect(needs(stocked(hungerLine(1, livestockDefaults) / 2, BANKED))).toEqual([]);
+    expect(needs(stocked(0, BANKED))).toEqual([]);
+    expect(needs(stocked(1))).toEqual([]);
+  });
 
-    expect(hungry).toMatchObject({ text: 'Fish hungry', tone: 'warn', act: 'feed', figure: '3 of 3' });
-    expect(starving).toMatchObject({ text: 'Fish starving', tone: 'alert', act: 'feed' });
-    expect(needs(stocked(0.7))).toEqual([]);
+  it('asks for a feeding once hunger outruns what their banks heal', () => {
+    const [starving] = needs(stocked(0, { surplus: 0 }));
+
+    expect(starving).toMatchObject({ text: 'Fish starving', tone: 'alert', act: 'feed', figure: '3 of 3' });
+  });
+
+  it('does not let a starving fish hide one sick of something a feeding will not answer', () => {
+    const state = produce(stocked(1, { surplus: 0 }), (draft) => {
+      draft.fish[0].gut = 0;
+      draft.resources.ammonia = 10 * draft.resources.water;
+    });
+    const [sick] = needs(state);
+
+    expect(sick).toMatchObject({ text: 'Fish sick', verb: 'Inspect', figure: '3 of 3' });
+    expect(sick.act).toBeUndefined();
   });
 
   it('sends each need to the section that answers it, in its worst tone', () => {

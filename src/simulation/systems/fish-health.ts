@@ -97,6 +97,8 @@ interface FishFactorContext {
   hardiness: number;
   /** Grams its gut digested this hour. */
   digested: number;
+  /** Grams it had to digest this hour to hold its condition. */
+  need: number;
 }
 
 /**
@@ -170,13 +172,15 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     ageStress = config.ageStressSeverity * (fish.age - speciesData.maxAge);
   }
 
+  const hungerStress = config.hungerSeverity * shortfall(ctx.digested, ctx.need);
+
   return [
     ...hardened(
       [
         { key: 'temperature', label: 'Temperature', amount: tempStress },
         { key: 'ph', label: 'pH', amount: phStress },
         { key: 'gh', label: 'GH', amount: ghStress },
-        { key: 'hunger', label: 'Hunger', amount: config.hungerSeverity * shortfall(ctx.digested, maintenance(fish, config)) },
+        { key: 'hunger', label: 'Hunger', amount: hungerStress },
         { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
         { key: 'flow', label: 'Flow', amount: flowStress },
         { key: 'age', label: 'Age', amount: ageStress },
@@ -198,7 +202,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
 function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
   const { fish, resources, plants, config } = ctx;
   const speciesData = FISH_SPECIES_DATA[fish.species];
-  const earning = nourishment(ctx.digested, maintenance(fish, config));
+  const earning = nourishment(ctx.digested, ctx.need);
 
   return [
     {
@@ -233,7 +237,8 @@ export function fishHealingRate(fish: Fish, config: LivestockConfig): number {
 /**
  * A vitality tick for one fish, without applying it — `processHealth` applies
  * it. A caller wanting the next tick's numbers reads it on the hour that tick
- * settles, with the fish as metabolism leaves them and what its gut digested.
+ * settles, with the fish as metabolism leaves them, what its gut digested and
+ * the metabolic factor it digested at.
  */
 export function computeFishVitality(
   fish: Fish,
@@ -242,10 +247,20 @@ export function computeFishVitality(
   waterVolume: number,
   tankCapacity: number,
   config: LivestockConfig,
-  digested: number
+  digested: number,
+  metabolicFactor: number
 ): VitalityResult {
-  const hardiness = effectiveHardiness(fish);
-  const ctx: FishFactorContext = { fish, resources, plants, waterVolume, tankCapacity, config, hardiness, digested };
+  const ctx: FishFactorContext = {
+    fish,
+    resources,
+    plants,
+    waterVolume,
+    tankCapacity,
+    config,
+    hardiness: effectiveHardiness(fish),
+    digested,
+    need: maintenance(fish, metabolicFactor, config),
+  };
   return computeVitality({
     stressors: buildStressors(ctx),
     benefits: buildBenefits(ctx),
@@ -271,13 +286,14 @@ export function processHealth(
   waterVolume: number,
   tankCapacity: number,
   config: LivestockConfig,
-  digested: readonly number[]
+  digested: readonly number[],
+  metabolicFactor: number
 ): HealthResult {
   const survivingFish: Fish[] = [];
   const deadFishNames: string[] = [];
   let deathWaste = 0;
   const vitalities = fish.map((f, i) =>
-    computeFishVitality(f, resources, plants, waterVolume, tankCapacity, config, digested[i])
+    computeFishVitality(f, resources, plants, waterVolume, tankCapacity, config, digested[i], metabolicFactor)
   );
 
   fish.forEach((f, i) => {

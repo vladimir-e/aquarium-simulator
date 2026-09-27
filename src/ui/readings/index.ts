@@ -731,8 +731,8 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     waste,
     projection,
     roster: {
-      fish: groupBySpecies(fish, config.livestock),
-      fry: groupFry(fish, config.livestock),
+      fish: groupBySpecies(fish),
+      fry: groupFry(fish),
       plants: groupPlantsBySpecies(specimens),
       algae: ALGAE_KINDS.map((kind) => ({
         kind: 'population',

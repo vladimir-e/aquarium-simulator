@@ -7,5 +7,5 @@ export function gutAt(fullness: number, mass = 0.5): number {
 }
 
 export const FED = gutAt(1);
-export const HUNGRY = gutAt(hungerLine(livestockDefaults) / 2);
+export const HUNGRY = gutAt(hungerLine(1, livestockDefaults) / 2);
 export const STARVING = 0;

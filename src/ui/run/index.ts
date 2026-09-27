@@ -79,8 +79,8 @@ export {
   type WasteSourceKey,
 } from './waste.js';
 export {
-  bandOf,
   bandStatus,
+  gutBand,
   type Hunger,
   hungerOf,
   countFry,

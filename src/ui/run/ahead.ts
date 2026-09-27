@@ -65,6 +65,8 @@ export interface HourAhead {
   fishWaste: number;
   /** mg of NH₃ the fish excrete through their gills. */
   gillAmmonia: number;
+  /** The pace every fish digests and needs at over the hour, against reference water. */
+  metabolicFactor: number;
   /** Grams of waste decaying food leaves, off what the fish have not eaten. */
   foodWaste: number;
   /** mg of NH₃ the oxidised share of that food releases straight into the water. */
@@ -120,6 +122,7 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     shedding: flora.shedding,
     fishWaste: livestock.metabolism.wasteProduced,
     gillAmmonia: livestock.metabolism.ammoniaProduced,
+    metabolicFactor: livestock.metabolism.metabolicFactor,
     foodWaste: decayed * wasteShare,
     foodAmmonia: decayed * (1 - wasteShare) * ammoniaPerGramOfFood(config.livestock),
     waterUptake: flora.waterUptake,

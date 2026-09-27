@@ -78,7 +78,6 @@ import {
 } from './air-pump.js';
 import {
   autoDoserUpdate,
-  applyAutoDoserSettings,
   shouldDose,
   type AutoDoser,
   DEFAULT_AUTO_DOSER,
@@ -87,8 +86,6 @@ import {
 } from './auto-doser.js';
 import {
   autoFeederUpdate,
-  applyAutoFeederSettings,
-  shouldFeed,
   type AutoFeeder,
   DEFAULT_AUTO_FEEDER,
   FEED_AMOUNT_OPTIONS,
@@ -158,7 +155,6 @@ export {
 };
 export {
   autoDoserUpdate,
-  applyAutoDoserSettings,
   shouldDose,
   type AutoDoser,
   DEFAULT_AUTO_DOSER,
@@ -167,8 +163,6 @@ export {
 };
 export {
   autoFeederUpdate,
-  applyAutoFeederSettings,
-  shouldFeed,
   type AutoFeeder,
   DEFAULT_AUTO_FEEDER,
   FEED_AMOUNT_OPTIONS,

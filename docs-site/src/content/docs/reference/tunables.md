@@ -180,11 +180,11 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 |---|---|---|
 | `gutCapacity` | Food a full gut holds, per gram of fish | g/g |
 | `digestionRate` | First-order rate a gut digests at, at the reference temperature in unlimited oxygen | /hr |
-| `digestionQ10` · `digestionReferenceTemp` | How digestion scales with temperature, and where it reads `digestionRate` | — · °C |
-| `maintenanceRation` | Food a day, per gram of fish, digested to hold condition — income at half rate, and where hunger starts | g/g/day |
+| `digestionQ10` · `digestionReferenceTemp` | How digestion and the maintenance ration scale with temperature, and where they read their base values | — · °C |
+| `maintenanceRation` | Food a day, per gram of fish, digested to hold condition at the reference temperature in unlimited oxygen — income at half rate, and where hunger starts | g/g/day |
 | `hungerSeverity` | Damage at an empty gut, before hardiness | %/hr |
 | `baseRespirationRate` | Oxygen a fish draws per gram per hour — a Monod maximum | mg O₂/g/hr |
-| `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales digestion too | mg/L |
+| `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales digestion and the maintenance ration too | mg/L |
 | `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, or mineralized as waste | g N/g food |
 | `gillNFraction` | Share of digested nitrogen excreted straight through the gills; the rest leaves as feces | — |
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |

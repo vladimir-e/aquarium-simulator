@@ -79,10 +79,9 @@ export function LifeSection({
           clutches: state.clutches,
           tick: state.tick,
         },
-        config.livestock,
         expanded
       ),
-    [book.roster, state, config.livestock, expanded]
+    [book.roster, state, expanded]
   );
 
   const load = useMemo(() => bioload(state.fish, state.tank.capacity), [state]);

@@ -85,14 +85,14 @@ describe('processLivestock', () => {
   it('excretes the minerals of the absorbed food beside the gill NH3', () => {
     const state = makeState([makeFish({ mass: 1.0 })]);
     const result = processLivestock(state, DEFAULT_CONFIG);
-    const eaten = result.metabolism.digested[0];
+    const digested = result.metabolism.digested[0];
 
     for (const nutrient of WASTE_NUTRIENTS) {
       const excreted = result.effects.find(
         (e) => e.resource === nutrient && e.source === 'fish-gill-excretion'
       );
       expect(excreted!.delta).toBeCloseTo(
-        eaten * DEFAULT_CONFIG.livestock.gillNFraction * DEFAULT_CONFIG.nutrients.foodMineralContent[nutrient],
+        digested * DEFAULT_CONFIG.livestock.gillNFraction * DEFAULT_CONFIG.nutrients.foodMineralContent[nutrient],
         12
       );
     }

@@ -20,8 +20,8 @@ for the next spawn, so a bigger ration buys more broods.
 
 | Mechanic | Status | Why |
 |---|---|---|
-| Metabolism | <Badge text="settled" variant="success" /> | Digestion, draw and CO₂ on one Monod factor off one half-saturation constant. A depressed fish digests, and so excretes, proportionally less. |
-| The gut | <Badge text="settled" variant="success" /> | One stock for hunger. It digests first order, slower cold and short of oxygen, so a meal clears over hours to a day. |
+| Metabolism | <Badge text="settled" variant="success" /> | Digestion, draw and CO₂ on one Monod factor off one half-saturation constant. A depressed fish digests, and so excretes, proportionally less. Digestion and the ration a fish needs run on one metabolic factor, so cold slows both together. |
+| The gut | <Badge text="settled" variant="success" /> | One stock for hunger. It digests first order, slower cold and short of oxygen, so a meal clears over hours to a day; the ration that holds the fish slows with it. |
 | Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces come out of what the gut digests, at one food-nitrogen fraction, so a meal's nitrogen leaves over the hours it digests and none is lost on the way. |
 | Nourishment | <Badge text="settled" variant="success" /> | Every benefit is earned on what the fish digests, on a Monod curve half-saturated at its maintenance ration; hunger harms from that same ration down. A starving tank stops banking before it kills. |
 | Serving | <Badge text="settled" variant="success" /> | Every fish eats at once. Short food is split in proportion to appetite, so a school eats and thins together. |
@@ -73,13 +73,20 @@ Mass drives every number, and one oxygen factor scales most of them.
 
 | Flow | Per hour | Scaled by the oxygen factor |
 |---|---|---|
-| Digested | `gut × (1 − e^−k)`, `k = digestionRate × Q10 term` | yes |
+| Digested | `gut × (1 − e^−k)`, `k = digestionRate × metabolic factor` | yes |
+| Maintenance | `maintenanceRation × mass / 24 × metabolic factor` | yes |
 | Eaten | the room left in the gut, `gutCapacity × mass − gut`, or its share of short food | no |
 | Oxygen drawn | `baseRespirationRate × mass` | yes |
 | CO₂ exhaled | the oxygen drawn × `respiratoryQuotient`, through the molar mass step | yes — it derives from the draw |
 | Gill ammonia | digested × `foodNitrogenFraction` × `gillNFraction`, as NH₃ | through digestion |
 | Feces | digested × `(1 − gillNFraction)` | through digestion |
 | Minerals, beside the gill ammonia | digested × `gillNFraction` × `foodMineralContent` | through digestion |
+
+The metabolic factor is the digestion Q10 term times the oxygen factor, read
+once an hour for the whole tank. What a fish digests and what it needs both
+run on it, as a real ectotherm's maintenance falls with temperature: a cold
+fish digests slower and needs less, and a fed gut holds it in cold or warm
+water alike.
 
 A fish regulates its uptake until the water falls past its critical oxygen
 tension, so the half-saturation constant sits at 1.0 mg/L — the highest in the
@@ -118,15 +125,15 @@ share of its own appetite, so a school fills and thins together. Food the fish
 leave stays in the water and decays, which is where overfeeding costs them.
 
 The gut digests the same share of whatever it holds each hour, at
-`digestionRate` at 25 °C, doubling for every ten degrees warmer and slowing
-under oxygen the way the rest of the metabolism does. A full gut is about half
-digested in seven hours and nearly clear in thirty; a cold tank takes twice as
-long. A fish enters the tank with a day's maintenance ration in its gut — a
+`digestionRate` at 25 °C times the metabolic factor — doubling for every ten
+degrees warmer and slowing under oxygen the way the rest of the metabolism
+does. A full gut is about half digested in seven hours and nearly clear in
+thirty; a cold tank takes twice as long. A fish enters the tank with a day's maintenance ration in its gut — a
 bought fish from the shop, a fry on its yolk.
 
 What the gut digests this hour is the fish's income. Against its maintenance
-ration — `maintenanceRation × mass` a day, what holds its condition — it sets
-two rates:
+ration — `maintenanceRation × mass` a day at 25 °C in ample oxygen, scaled by
+the same metabolic factor, what holds its condition — it sets two rates:
 
 | Rate | Shape | At maintenance |
 |---|---|---|
@@ -266,8 +273,8 @@ visible decline rather than a coin flip.
 | Constant | Meaning | Value |
 |---|---|---|
 | `gutCapacity` | Food a full gut holds, per gram of fish | `0.03` g/g |
-| `digestionRate` · `digestionQ10` | First-order rate a gut digests at 25 °C, and how it scales with temperature | `0.1` /hr · `2` |
-| `maintenanceRation` | Food a day, per gram of fish, that holds condition — nourishment is half here, and hunger starts below it | `0.005` g/g/day |
+| `digestionRate` · `digestionQ10` | First-order rate a gut digests at 25 °C, and how it and the maintenance ration scale with temperature | `0.1` /hr · `2` |
+| `maintenanceRation` | Food a day, per gram of fish, that holds condition at the reference temperature in ample oxygen — nourishment is half here, and hunger starts below it | `0.005` g/g/day |
 | `hungerSeverity` | Damage at an empty gut, before hardiness | `0.6` %/hr |
 | `baseRespirationRate` | Oxygen draw per gram, a Monod maximum | `0.3` mg O₂/g/hr |
 | `respirationOxygenHalfSaturation` | O₂ at which the whole metabolism runs at half rate — digestion, draw and CO₂ alike | `1.0` mg/L |

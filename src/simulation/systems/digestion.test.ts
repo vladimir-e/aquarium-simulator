@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   appetite,
+  dailyMaintenance,
   digest,
-  digestionRate,
   gutCapacity,
   hungerLine,
   maintenance,
@@ -10,35 +10,33 @@ import {
   serve,
 } from './digestion.js';
 import { livestockDefaults as config } from '../config/livestock.js';
-import { hourlyDraw } from './vitality.js';
-
-const AMPLE_O2 = 8;
+import { hourlyDraw } from '../core/kinetics.js';
 
 describe('digestion', () => {
   it('digests first order: the same share of whatever the gut holds', () => {
-    const rate = digestionRate(25, AMPLE_O2, config);
-    expect(digest(1, rate)).toBeCloseTo(hourlyDraw(rate), 12);
-    expect(digest(2, rate)).toBeCloseTo(2 * digest(1, rate), 12);
-    expect(digest(0, rate)).toBe(0);
+    expect(digest(1, 1, config)).toBeCloseTo(hourlyDraw(config.digestionRate), 12);
+    expect(digest(2, 1, config)).toBeCloseTo(2 * digest(1, 1, config), 12);
+    expect(digest(0, 1, config)).toBe(0);
   });
 
-  it('digests slower cold, by its Q10 per ten degrees', () => {
-    const warm = digestionRate(config.digestionReferenceTemp, AMPLE_O2, config);
-    const cold = digestionRate(config.digestionReferenceTemp - 10, AMPLE_O2, config);
-    expect(warm / cold).toBeCloseTo(config.digestionQ10, 12);
-  });
-
-  it("digests on the metabolism's oxygen factor: half rate at its half-saturation, none without oxygen", () => {
-    const ample = config.digestionRate;
-    expect(digestionRate(config.digestionReferenceTemp, config.respirationOxygenHalfSaturation, config)).toBeCloseTo(
-      ample * 0.5,
-      12
-    );
-    expect(digestionRate(25, 0, config)).toBe(0);
+  it('digests nothing when its metabolism stops', () => {
+    expect(digest(1, 0, config)).toBe(0);
   });
 
   it('never digests more than the gut holds', () => {
-    expect(digest(1, 1e6)).toBeLessThanOrEqual(1);
+    expect(digest(1, 1e6, config)).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('maintenance', () => {
+  it('needs a day\'s ration by mass in reference water', () => {
+    expect(dailyMaintenance([{ mass: 1 }, { mass: 3 }], config)).toBeCloseTo(4 * config.maintenanceRation, 12);
+    expect(24 * maintenance({ mass: 2 }, 1, config)).toBeCloseTo(dailyMaintenance([{ mass: 2 }], config), 12);
+  });
+
+  it('needs less as its metabolism slows, in step with the factor', () => {
+    expect(maintenance({ mass: 1 }, 0.5, config)).toBeCloseTo(0.5 * maintenance({ mass: 1 }, 1, config), 12);
+    expect(maintenance({ mass: 1 }, 0, config)).toBe(0);
   });
 });
 
@@ -68,15 +66,18 @@ describe('appetite and serving', () => {
 
 describe('nourishment', () => {
   it('earns half its benefits on its maintenance ration, more on more, none on nothing', () => {
-    const need = maintenance({ mass: 1 }, config);
+    const need = maintenance({ mass: 1 }, 1, config);
     expect(nourishment(need, need)).toBeCloseTo(0.5, 12);
     expect(nourishment(3 * need, need)).toBeGreaterThan(nourishment(2 * need, need));
     expect(nourishment(0, need)).toBe(0);
   });
 
-  it('draws the hunger line where a gut that full digests the maintenance ration at the reference temperature', () => {
+  it('draws the hunger line where a gut that full digests its maintenance, at any metabolic factor', () => {
     const fish = { mass: 1 };
-    const gut = hungerLine(config) * gutCapacity(fish, config);
-    expect(gut * hourlyDraw(config.digestionRate)).toBeCloseTo(maintenance(fish, config), 12);
+    for (const factor of [1, 0.4]) {
+      const gut = hungerLine(factor, config) * gutCapacity(fish, config);
+      expect(digest(gut, factor, config)).toBeCloseTo(maintenance(fish, factor, config), 12);
+    }
+    expect(hungerLine(0, config)).toBe(0);
   });
 });

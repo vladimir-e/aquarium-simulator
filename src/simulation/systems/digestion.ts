@@ -1,13 +1,14 @@
 /**
  * The gut — a fish's one hunger stock. Food fills it, it digests first order
- * at a rate slowed by cold and by low oxygen, and what it digests is the
- * fish's income: its vitality earns on it and its waste comes out of it.
+ * on the fish's metabolic factor — slower cold and short of oxygen — and what
+ * it digests is the fish's income: its vitality earns on it and its waste
+ * comes out of it. The ration it must digest to hold condition runs on the
+ * same factor.
  */
 
 import type { Fish } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
-import { monodFactor, q10Factor } from '../core/kinetics.js';
-import { hourlyDraw } from './vitality.js';
+import { hourlyDraw, monodFactor } from '../core/kinetics.js';
 
 type Sized = Pick<Fish, 'mass'>;
 
@@ -31,26 +32,19 @@ export function serve(appetites: readonly number[], food: number): number[] {
   return appetites.map((a) => a * share);
 }
 
-/**
- * First-order rate a gut digests at, per hour: on its own Q10, and on the
- * oxygen factor the rest of the metabolism runs on.
- */
-export function digestionRate(temperature: number, oxygen: number, config: LivestockConfig): number {
-  return (
-    config.digestionRate *
-    q10Factor(temperature, config.digestionQ10, config.digestionReferenceTemp) *
-    monodFactor(oxygen, config.respirationOxygenHalfSaturation)
-  );
+/** Grams a gut digests over the hour, its metabolism running at `factor`. */
+export function digest(gut: number, factor: number, config: LivestockConfig): number {
+  return Math.max(0, gut) * hourlyDraw(config.digestionRate * factor);
 }
 
-/** Grams a gut digests over the hour at `rate`. */
-export function digest(gut: number, rate: number): number {
-  return Math.max(0, gut) * hourlyDraw(rate);
+/** Grams a day a roster must digest to hold its condition in reference water. */
+export function dailyMaintenance(fish: readonly Sized[], config: LivestockConfig): number {
+  return fish.reduce((sum, f) => sum + f.mass, 0) * config.maintenanceRation;
 }
 
-/** Grams an hour a fish must digest to hold its condition. */
-export function maintenance(fish: Sized, config: LivestockConfig): number {
-  return (fish.mass * config.maintenanceRation) / 24;
+/** Grams an hour a fish must digest to hold its condition, its metabolism running at `factor`. */
+export function maintenance(fish: Sized, factor: number, config: LivestockConfig): number {
+  return (dailyMaintenance([fish], config) * factor) / 24;
 }
 
 /** Share of its benefits a fish earns on what it digested: half at its maintenance ration. */
@@ -59,9 +53,10 @@ export function nourishment(digested: number, need: number): number {
 }
 
 /**
- * Share of a full gut under which a fish digests less than its maintenance —
- * at the reference temperature, oxygen aside — and hunger starts to harm it.
+ * Share of a full gut under which a fish digests less than its maintenance,
+ * its metabolism running at `factor`, and hunger starts to harm it.
  */
-export function hungerLine(config: LivestockConfig): number {
-  return config.maintenanceRation / 24 / (config.gutCapacity * hourlyDraw(config.digestionRate));
+export function hungerLine(factor: number, config: LivestockConfig): number {
+  const unit = { mass: 1 };
+  return factor > 0 ? maintenance(unit, factor, config) / digest(gutCapacity(unit, config), factor, config) : 0;
 }

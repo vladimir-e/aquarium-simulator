@@ -3,9 +3,6 @@ import {
   shouldDose,
   shouldResetDosedToday,
   autoDoserUpdate,
-  applyAutoDoserSettings,
-  MIN_DOSE_ML,
-  MAX_DOSE_ML,
   type AutoDoser,
 } from './auto-doser.js';
 import { createSimulation, type SimulationState } from '../state.js';
@@ -76,33 +73,5 @@ describe('autoDoserUpdate', () => {
   it('clears the dosed flag at midnight', () => {
     const result = autoDoserUpdate(tankAt(24, { dosedToday: true }), FORMULA);
     expect(result.state.equipment.autoDoser.dosedToday).toBe(false);
-  });
-});
-
-describe('applyAutoDoserSettings', () => {
-  it('applies the settings it is given and keeps the dosed flag', () => {
-    const state = tankAt(0, { enabled: false, dosedToday: true });
-    const result = applyAutoDoserSettings(state, {
-      enabled: true,
-      doseAmountMl: 3,
-      schedule: { startHour: 6, duration: 1 },
-    });
-
-    expect(result.equipment.autoDoser).toMatchObject({
-      enabled: true,
-      doseAmountMl: 3,
-      schedule: { startHour: 6, duration: 1 },
-      dosedToday: true,
-    });
-  });
-
-  it('clamps the dose to its range', () => {
-    const state = tankAt(0);
-    expect(applyAutoDoserSettings(state, { doseAmountMl: 0.01 }).equipment.autoDoser.doseAmountMl).toBe(
-      MIN_DOSE_ML
-    );
-    expect(applyAutoDoserSettings(state, { doseAmountMl: 500 }).equipment.autoDoser.doseAmountMl).toBe(
-      MAX_DOSE_ML
-    );
   });
 });

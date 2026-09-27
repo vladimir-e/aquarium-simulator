@@ -577,14 +577,7 @@ export function createSimulation(
     },
   };
 
-  const autoFeederConfig: AutoFeeder = {
-    ...DEFAULT_AUTO_FEEDER,
-    ...autoFeeder,
-    schedule: {
-      ...DEFAULT_AUTO_FEEDER.schedule,
-      ...autoFeeder?.schedule,
-    },
-  };
+  const autoFeederConfig: AutoFeeder = { ...DEFAULT_AUTO_FEEDER, ...autoFeeder };
 
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
   const effectiveTapWaterTemp = tapWaterTemperature ?? DEFAULT_TAP_WATER_TEMPERATURE;

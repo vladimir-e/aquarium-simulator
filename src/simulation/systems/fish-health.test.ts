@@ -104,7 +104,7 @@ function makePlant(overrides: Partial<Plant> = {}): Plant {
   });
 }
 
-const NEED = maintenance(makeFish(), livestockDefaults);
+const NEED = maintenance(makeFish(), 1, livestockDefaults);
 /** A fish digesting three times its maintenance ration, and the share of its benefits that earns. */
 const FED = 3 * NEED;
 const EARNING = nourishment(FED, NEED);
@@ -118,15 +118,26 @@ function vitality(
     capacity = 100,
     config = livestockDefaults,
     digested = FED,
+    metabolicFactor = 1,
   } = {} as {
     plants?: Plant[];
     water?: number;
     capacity?: number;
     config?: typeof livestockDefaults;
     digested?: number;
+    metabolicFactor?: number;
   }
 ): VitalityResult {
-  return computeFishVitality(makeFish(fish), makeResources(resources), plants, water, capacity, config, digested);
+  return computeFishVitality(
+    makeFish(fish),
+    makeResources(resources),
+    plants,
+    water,
+    capacity,
+    config,
+    digested,
+    metabolicFactor
+  );
 }
 
 function health(
@@ -134,7 +145,7 @@ function health(
   resources: ResourceOverrides = {},
   plants: Plant[] = []
 ): ReturnType<typeof processHealth> {
-  return processHealth(fish, makeResources(resources), plants, 100, 100, livestockDefaults, fish.map(() => FED));
+  return processHealth(fish, makeResources(resources), plants, 100, 100, livestockDefaults, fish.map(() => FED), 1);
 }
 
 interface Circulating {
@@ -410,6 +421,13 @@ describe('hunger', () => {
     expect(hunger(NEED)).toBe(0);
     expect(hunger(NEED / 2)).toBeCloseTo((livestockDefaults.hungerSeverity * hardening) / 2, 12);
     expect(hunger(0)).toBeCloseTo(livestockDefaults.hungerSeverity * hardening, 12);
+  });
+
+  it('needs less as its metabolism slows: a slowed fish digesting its slowed ration takes none', () => {
+    const slowed = (digested: number): number =>
+      stressorAmount(vitality({}, {}, { digested, metabolicFactor: 0.5 }), 'hunger');
+    expect(slowed(NEED / 2)).toBe(0);
+    expect(slowed(NEED / 4)).toBeCloseTo(hunger(NEED / 2), 12);
   });
 });
 

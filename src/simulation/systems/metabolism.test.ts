@@ -148,6 +148,16 @@ describe('processMetabolism', () => {
     expect(gasping.oxygenConsumedMg).toBeLessThan(breathing.oxygenConsumedMg);
   });
 
+  it('runs on one metabolic factor: the digestion Q10 per ten degrees, times the oxygen factor', () => {
+    const { digestionReferenceTemp: ref, digestionQ10, respirationOxygenHalfSaturation: k } = livestockDefaults;
+    const factor = (temperature: number, oxygen: number): number =>
+      processMetabolism([], water({ temperature, oxygen }), livestockDefaults).metabolicFactor;
+
+    expect(factor(ref, AMPLE_O2) / factor(ref - 10, AMPLE_O2)).toBeCloseTo(digestionQ10, 12);
+    expect(factor(ref, k)).toBeCloseTo(0.5, 12);
+    expect(factor(ref, 0)).toBe(0);
+  });
+
   it('exhales the respiratory quotient in moles, not in milligrams', () => {
     const result = processMetabolism([makeFish({ mass: 2 })], water(), livestockDefaults);
 

@@ -15,17 +15,7 @@ import {
   type PlantSpecies,
   FISH_SPECIES_DATA,
 } from '../../simulation/index.js';
-import type { LivestockConfig } from '../../simulation/config/livestock.js';
-import {
-  bandStatus,
-  fishGut,
-  fishTitle,
-  gutFullness,
-  type FryBatch,
-  type Gut,
-  type Hunger,
-  type SpeciesGroup,
-} from './livestock.js';
+import { fishTitle, type FryBatch, type Gut, type SpeciesGroup } from './livestock.js';
 import {
   familyTitle,
   sharePercent,
@@ -185,28 +175,11 @@ function familyKey(familyId: string): string {
   return `family-${familyId}`;
 }
 
-interface Grouped {
-  fullness: number;
-  hunger: Hunger | null;
-}
-
-/** The group's mean, spoken for by its hungry members where it has any. */
-function groupGut(group: Grouped, config: LivestockConfig): Gut {
-  const mean = fishGut(group.fullness, config);
-  return group.hunger
-    ? { ...mean, status: bandStatus(group.hunger.band), word: `${group.hunger.count} hungry` }
-    : mean;
-}
-
 function days(hours: number): string {
   return `${Math.floor(hours / 24)} d`;
 }
 
-function fishRows(
-  groups: SpeciesGroup[],
-  config: LivestockConfig,
-  expanded: ReadonlySet<string>
-): RosterRow[] {
+function fishRows(groups: SpeciesGroup[], expanded: ReadonlySet<string>): RosterRow[] {
   return groups.flatMap((group) => {
     const key = speciesKey(group.species);
     const open = expanded.has(key);
@@ -219,7 +192,7 @@ function fishRows(
       caption: null,
       figure: `${(group.massG / group.count).toFixed(2)} g each`,
       age: `${group.ageDays} d`,
-      gut: groupGut(group, config),
+      gut: group.gut,
       light: null,
       dots: group.members.map((member) => member.reading.status),
       dot: 'individual',
@@ -228,7 +201,7 @@ function fishRows(
       expanded: open,
     };
     const fish = group.members.map(
-      ({ id, number, condition, fish, reading }): IndividualRosterRow => ({
+      ({ id, number, condition, fish, gut, reading }): IndividualRosterRow => ({
         kind: 'individual',
         key: id,
         id,
@@ -240,7 +213,7 @@ function fishRows(
         parent: null,
         figure: `${fish.mass.toFixed(2)} g`,
         age: days(fish.age),
-        gut: fishGut(gutFullness(fish, config), config),
+        gut,
         light: null,
         bank: null,
         at: condition / 100,
@@ -339,7 +312,7 @@ function plantTable(groups: PlantSpeciesGroup[], expanded: ReadonlySet<string>):
   });
 }
 
-function fryRow(batch: FryBatch, config: LivestockConfig): FryRosterRow {
+function fryRow(batch: FryBatch): FryRosterRow {
   return {
     kind: 'fry',
     key: 'fry',
@@ -351,7 +324,7 @@ function fryRow(batch: FryBatch, config: LivestockConfig): FryRosterRow {
         : `${batch.species.length} species`,
     figure: `${(batch.massG / batch.count).toFixed(2)} g each`,
     age: `${batch.ageDays} d`,
-    gut: groupGut(batch, config),
+    gut: batch.gut,
     at: batch.condition / 100,
     ...batch.reading,
   };
@@ -386,14 +359,13 @@ export interface RosterInput {
  */
 export function rosterTables(
   input: RosterInput,
-  config: LivestockConfig,
   expanded: ReadonlySet<string>
 ): { fish: RosterRow[]; plants: RosterRow[] } {
   return {
     fish: [
-      ...fishRows(input.fish, config, expanded),
+      ...fishRows(input.fish, expanded),
       ...input.clutches.map((clutch) => clutchRow(clutch, input.tick)),
-      ...(input.fry ? [fryRow(input.fry, config)] : []),
+      ...(input.fry ? [fryRow(input.fry)] : []),
     ],
     plants: plantTable(input.plants, expanded),
   };

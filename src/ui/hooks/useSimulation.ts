@@ -116,7 +116,7 @@ interface UseSimulationReturn {
   updateAutoDoserSchedule: (schedule: DailySchedule) => void;
   updateAutoFeederEnabled: (enabled: boolean) => void;
   updateAutoFeederAmount: (grams: number) => void;
-  updateAutoFeederSchedule: (schedule: DailySchedule) => void;
+  updateAutoFeederHour: (startHour: number) => void;
   changeTankCapacity: (capacity: number) => void;
   reset: () => void;
   executeAction: (action: Action) => void;
@@ -226,7 +226,7 @@ function rebuildConfig(state: SimulationState, capacity: number): SimulationConf
     autoFeeder: {
       enabled: equipment.autoFeeder.enabled,
       amount: equipment.autoFeeder.amount,
-      schedule: equipment.autoFeeder.schedule,
+      startHour: equipment.autoFeeder.startHour,
     },
   };
 }
@@ -842,7 +842,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       produce(current, (draft) => {
         const feeder = draft.equipment.autoFeeder;
         const message = enabled
-          ? `Auto feeder enabled (${feeder.amount}g at ${feeder.schedule.startHour}:00)`
+          ? `Auto feeder enabled (${feeder.amount}g at ${feeder.startHour}:00)`
           : 'Auto feeder disabled';
         feeder.enabled = enabled;
         draft.logs.push(createLog(draft.tick, 'user', 'info', message));
@@ -861,20 +861,15 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     );
   }, []);
 
-  const updateAutoFeederSchedule = useCallback((schedule: DailySchedule) => {
+  const updateAutoFeederHour = useCallback((startHour: number) => {
     setState((current) =>
       produce(current, (draft) => {
         const feeder = draft.equipment.autoFeeder;
-        if (feeder.schedule.startHour === schedule.startHour) return;
+        if (feeder.startHour === startHour) return;
         draft.logs.push(
-          createLog(
-            draft.tick,
-            'user',
-            'info',
-            `Auto feeder time: ${feeder.schedule.startHour}:00 → ${schedule.startHour}:00`
-          )
+          createLog(draft.tick, 'user', 'info', `Auto feeder time: ${feeder.startHour}:00 → ${startHour}:00`)
         );
-        feeder.schedule = schedule;
+        feeder.startHour = startHour;
       })
     );
   }, []);
@@ -957,7 +952,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     updateAutoDoserSchedule,
     updateAutoFeederEnabled,
     updateAutoFeederAmount,
-    updateAutoFeederSchedule,
+    updateAutoFeederHour,
     changeTankCapacity,
     reset,
     executeAction,

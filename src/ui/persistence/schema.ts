@@ -214,7 +214,7 @@ const AutoFeederSchema = z
   .object({
     enabled: z.boolean(),
     amount: z.number().min(MIN_FEED_G).max(MAX_FEED_G),
-    schedule: DailyScheduleSchema,
+    startHour: z.number().int().min(0).max(23),
   })
   .strict();
 

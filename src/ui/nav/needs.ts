@@ -1,6 +1,6 @@
 /**
  * What needs the keeper now: every alert the engine latches, and the fish once
- * they go hungry or sick — the single source for the top bar's count, the
+ * they fall sick — the single source for the top bar's count, the
  * rail's dots and the Needs-you strip. A need states the figure, the sentence
  * and the tone of the reading behind it, so one condition can never be
  * reported twice in different words or in different colours.
@@ -135,40 +135,39 @@ function alertNeed(spec: AlertSpec, book: ReadingBook): Need {
 }
 
 /**
- * The fish, when any go hungry — a feeding answers that — or, fed, fall sick:
- * damage outrunning what their bank heals, which the worst one's ledger names.
+ * The fish, once any fall sick: damage outrunning what their banks heal. Where
+ * hunger charges every sick one a feeding answers it; otherwise the worst
+ * one's ledger names what is charging it.
  */
 function fishNeed(book: ReadingBook): Need | null {
   const groups = [...book.roster.fish, ...(book.roster.fry ? [book.roster.fry] : [])];
   const fish = groups.flatMap((group) => group.members);
-  if (fish.length === 0) return null;
+  const sick = fish.filter((member) => member.sick);
+  if (sick.length === 0) return null;
 
-  const hunger = groups.flatMap((group) => (group.hunger ? [group.hunger] : []));
-  if (hunger.length > 0) {
-    const starving = hunger.some((h) => h.band === 'starving');
-    const count = hunger.reduce((sum, h) => sum + h.count, 0);
+  const shared = {
+    id: 'fish',
+    section: 'life',
+    tone: needTone(sick.map((member) => member.reading.status).reduce(worstStatus)),
+    figure: `${sick.length} of ${fish.length}`,
+  } as const;
+
+  if (sick.every((member) => member.hunger !== 'fed')) {
+    const starving = sick.some((member) => member.hunger === 'starving');
     return {
-      id: 'fish',
-      section: 'life',
-      tone: starving ? 'alert' : 'warn',
+      ...shared,
       text: starving ? 'Fish starving' : 'Fish hungry',
-      figure: `${count} of ${fish.length}`,
-      sentence: 'Under the hungry line a fish takes harm, and faster once it is starving.',
+      sentence: 'Digesting short of their ration, they take more harm than their banks heal.',
       verb: verbName('feed'),
       act: 'feed',
       to: '/life',
     };
   }
 
-  const sick = fish.filter((member) => member.sick);
-  if (sick.length === 0) return null;
   const worstFish = sick.reduce((a, b) => (b.condition < a.condition ? b : a));
   return {
-    id: 'fish',
-    section: 'life',
-    tone: needTone(sick.map((member) => member.reading.status).reduce(worstStatus)),
+    ...shared,
     text: 'Fish sick',
-    figure: `${sick.length} of ${fish.length}`,
     sentence: 'Damage is outrunning what their banks heal; the ledger names what is charging it.',
     verb: 'Inspect',
     to: `/life?inspect=${worstFish.id}`,

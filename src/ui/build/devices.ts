@@ -133,7 +133,7 @@ function deviceSummary(id: DeviceId, state: SimulationState, units: UnitSystem):
     }
     case 'autoFeeder': {
       const f = equipment.autoFeeder;
-      return f.enabled ? `${formatFeed(f.amount)} · ${hourLabel(f.schedule.startHour)}` : 'off';
+      return f.enabled ? `${formatFeed(f.amount)} · ${hourLabel(f.startHour)}` : 'off';
     }
   }
 }

@@ -291,10 +291,10 @@ function DeviceFields({
           <HourField
             label="Feed hour"
             ariaLabel="Auto feeder hour"
-            startHour={feeder.schedule.startHour}
+            startHour={feeder.startHour}
             hour={hour}
             active={active}
-            onChange={(startHour) => sim.updateAutoFeederSchedule({ ...feeder.schedule, startHour })}
+            onChange={sim.updateAutoFeederHour}
           />
         </>
       );

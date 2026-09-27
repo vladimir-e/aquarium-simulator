@@ -8,9 +8,11 @@ import {
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
+import type { VitalityBreakdown } from '../../simulation/index.js';
 import {
   bandStatus,
   groupBySpecies,
+  gutBand,
   groupFry,
   hungerOf,
   readFish,
@@ -42,11 +44,11 @@ function tank(fish: Fish[], clutches: Clutch[] = [], hour = 0): SimulationState 
 }
 
 function species(state: SimulationState, config: TunableConfig = DEFAULT_CONFIG): SpeciesGroup[] {
-  return groupBySpecies(readFish(state, config, readHourAhead(state, config)), config.livestock);
+  return groupBySpecies(readFish(state, config, readHourAhead(state, config)));
 }
 
 function fry(state: SimulationState): FryBatch | null {
-  return groupFry(readFish(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG)), livestockDefaults);
+  return groupFry(readFish(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG)));
 }
 
 describe('bandStatus', () => {
@@ -57,24 +59,50 @@ describe('bandStatus', () => {
   });
 });
 
-describe('hungerOf', () => {
-  it('tallies fish under the hunger line, fry included', () => {
-    const fish = [
+describe('gutBand', () => {
+  const breakdown = (hunger: number | null, benefitRate: number): VitalityBreakdown => ({
+    stressors: hunger === null ? [] : [{ key: 'hunger', label: 'Hunger', amount: hunger }],
+    benefits: [],
+    damageRate: hunger ?? 0,
+    benefitRate,
+    net: benefitRate - (hunger ?? 0),
+    healed: 0,
+    banked: 0,
+  });
+
+  it('reads fed while hunger charges nothing', () => {
+    expect(gutBand(breakdown(0, 0.5))).toBe('fed');
+    expect(gutBand(breakdown(null, 0))).toBe('fed');
+  });
+
+  it('reads hungry once hunger charges, and starving once it alone outruns what the fish earns', () => {
+    expect(gutBand(breakdown(0.1, 0.5))).toBe('hungry');
+    expect(gutBand(breakdown(0.5, 0.5))).toBe('starving');
+    expect(gutBand(breakdown(0.1, 0))).toBe('starving');
+  });
+
+  it('reads the engine: an empty gut starves, a full one is fed, and a fish with no mass needs nothing', () => {
+    const state = tank([
       makeFish({ id: 'a', gut: FED }),
-      makeFish({ id: 'b', gut: gutAt(0.5) }),
-      makeFish({ id: 'c', gut: HUNGRY }),
-      makeFish({ id: 'd', gut: STARVING, stage: 'fry', age: 24 }),
-    ];
-    expect(hungerOf(fish, livestockDefaults)).toEqual({ count: 2, band: 'starving' });
+      makeFish({ id: 'b', gut: STARVING }),
+      makeFish({ id: 'c', gut: 0, mass: 0 }),
+    ]);
+    const bands = readFish(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG)).map((read) => read.hunger);
+    expect(bands).toEqual(['fed', 'starving', 'fed']);
+  });
+});
+
+describe('hungerOf', () => {
+  it('tallies every band short of fed', () => {
+    expect(hungerOf(['fed', 'hungry', 'starving'])).toEqual({ count: 2, band: 'starving' });
   });
 
   it('reads the worst band present, not the first one found', () => {
-    const fish = [makeFish({ id: 'a', gut: HUNGRY }), makeFish({ id: 'b', gut: HUNGRY })];
-    expect(hungerOf(fish, livestockDefaults)).toEqual({ count: 2, band: 'hungry' });
+    expect(hungerOf(['hungry', 'hungry'])).toEqual({ count: 2, band: 'hungry' });
   });
 
   it('is null when nothing is hungry', () => {
-    expect(hungerOf([makeFish({ id: 'a', gut: FED })], livestockDefaults)).toBeNull();
+    expect(hungerOf(['fed'])).toBeNull();
   });
 });
 
@@ -90,7 +118,7 @@ describe('groupBySpecies', () => {
     expect(groups.map((g) => g.species)).toEqual(['neon_tetra', 'guppy']);
     const neon = groups[0];
     expect(neon.count).toBe(2);
-    expect(neon.fullness).toBeCloseTo((0.8 + HUNGRY / gutAt(1)) / 2, 12);
+    expect(neon.gut.at).toBeCloseTo((0.8 + HUNGRY / gutAt(1)) / 2, 12);
     expect(neon.hunger).toEqual({ count: 1, band: 'hungry' });
     expect(neon.name).toBe(FISH_SPECIES_DATA.neon_tetra.name);
   });
@@ -102,8 +130,8 @@ describe('groupBySpecies', () => {
     ];
     const [neon] = species(tank(fish));
 
-    expect(neon.fullness).toBeCloseTo(0.5, 12);
-    expect(bandStatus(neon.band)).toBe('ok');
+    expect(neon.gut.at).toBeCloseTo(0.5, 12);
+    expect(neon.gut.status).toBe('alert');
     expect(neon.hunger).toEqual({ count: 1, band: 'starving' });
   });
 
@@ -154,7 +182,7 @@ describe('groupFry', () => {
     ];
     const batch = fry(tank(fish))!;
 
-    expect(batch.fullness).toBeCloseTo(0.5, 12);
+    expect(batch.gut.at).toBeCloseTo(0.5, 12);
     expect(batch.condition).toBe(70);
     expect(batch.hunger).toEqual({ count: 1, band: 'starving' });
   });

@@ -17,7 +17,7 @@ import {
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
 import { excretion } from './systems/metabolism.js';
-import { maintenance } from './systems/digestion.js';
+import { dailyMaintenance } from './systems/digestion.js';
 import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
 import { mapNutrients, nutrientsDefaults, type NutrientVector } from './config/nutrients.js';
@@ -144,7 +144,7 @@ type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
  * colony errs small and grows on from the seed.
  */
 function restingAmmoniaSupply(state: StockedTank): number {
-  const digested = state.fish.reduce((sum, fish) => sum + maintenance(fish, livestockDefaults), 0);
+  const digested = dailyMaintenance(state.fish, livestockDefaults) / 24;
   const { ammonia, waste } = excretion(digested, livestockDefaults);
   const leached = calculateSubstrateLeach(state.equipment.substrate.organicReserve, decayDefaults);
   return ammonia + (waste + leached) * ammoniaPerGramOfFood(livestockDefaults);

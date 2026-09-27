@@ -28,7 +28,7 @@ import { COVERAGE_DECIMALS } from '../utils/units.js';
 import type { HourAhead } from './ahead.js';
 import { algaeReading, lightTakenStatus, plantLabels, sharePercent, unitTitle } from './flora.js';
 import { crownBurns, lightStatus, plantLightStatus } from './light.js';
-import { fishGut, fishNumbers, fishReading, fishTitle, gutFullness, type Gut } from './livestock.js';
+import { fishGut, fishNumbers, fishReading, fishTitle, type Gut } from './livestock.js';
 import { CONDITION_BAND, type SpeciesId } from './roster.js';
 import {
   bankShare,
@@ -237,7 +237,8 @@ function fishLedger(
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
   const vital = vitalReading(fish.health, vitality.newCondition);
-  const reading = fishReading(fish, vital.reading, livestock);
+  const gut = fishGut(fish, breakdown, ahead.metabolicFactor, livestock);
+  const reading = fishReading(vital.reading, gut);
 
   return {
     target: { kind: 'fish', id },
@@ -252,7 +253,7 @@ function fishLedger(
     at: fish.health / 100,
     band: CONDITION_BAND,
     trend: vital.trend,
-    gut: fishGut(gutFullness(fish, livestock), livestock),
+    gut,
     light: null,
     lightPath: null,
     coverage: null,

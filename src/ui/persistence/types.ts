@@ -30,8 +30,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      `satiationDecayRate` and the eight satiation band knobs, and gains
  *      `gutCapacity`, `digestionRate`, `digestionQ10`,
  *      `digestionReferenceTemp`, `maintenanceRation` and `hungerSeverity`.
- *      `Equipment` gains `autoFeeder`. A v33 save carries fish with no gut and
- *      no feeder for the strict schema to accept.
+ *      `Equipment` gains `autoFeeder`.
  * v33: Algae runs on the plants' vitality model, as two kinds. `state.algae`
  *      holds a bloom per kind — `greenWater` and `film` — and `AlgaeState`
  *      gains `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`,

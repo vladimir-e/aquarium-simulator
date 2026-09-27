@@ -56,16 +56,6 @@ export const DOSE_AMOUNT_OPTIONS = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 7.5,
 
 export type DoseAmount = (typeof DOSE_AMOUNT_OPTIONS)[number];
 
-/**
- * Minimum dose amount (ml)
- */
-export const MIN_DOSE_ML = 0.5;
-
-/**
- * Maximum dose amount (ml)
- */
-export const MAX_DOSE_ML = 10.0;
-
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -182,32 +172,4 @@ export function autoDoserUpdate(
   });
 
   return { state: newState, effects, dosed: true };
-}
-
-/**
- * Apply auto doser configuration changes.
- *
- * @param state - Current simulation state
- * @param updates - Partial updates to apply
- * @returns Updated state
- */
-export function applyAutoDoserSettings(
-  state: SimulationState,
-  updates: Partial<Omit<AutoDoser, 'dosedToday'>>
-): SimulationState {
-  return produce(state, (draft) => {
-    if (updates.enabled !== undefined) {
-      draft.equipment.autoDoser.enabled = updates.enabled;
-    }
-    if (updates.doseAmountMl !== undefined) {
-      // Clamp to valid range
-      draft.equipment.autoDoser.doseAmountMl = Math.max(
-        MIN_DOSE_ML,
-        Math.min(MAX_DOSE_ML, updates.doseAmountMl)
-      );
-    }
-    if (updates.schedule !== undefined) {
-      draft.equipment.autoDoser.schedule = updates.schedule;
-    }
-  });
 }

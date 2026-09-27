@@ -119,7 +119,8 @@ export function processLivestock(
     state.resources.water,
     state.tank.capacity,
     livestockConfig,
-    metabolismResult.digested
+    metabolismResult.digested,
+    metabolismResult.metabolicFactor
   );
 
   // Add death waste effects
