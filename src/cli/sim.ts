@@ -6,8 +6,14 @@
  * engine, persists the updated session, and prints the result.
  */
 
-import { tick, applyAction, type Action, type SimulationState } from '../simulation/index.js';
-import { relight } from '../simulation/state.js';
+import { produce } from 'immer';
+import {
+  tick,
+  applyAction,
+  settlePassiveResources,
+  type Action,
+  type SimulationState,
+} from '../simulation/index.js';
 import { DEFAULT_CONFIG } from '../simulation/config/index.js';
 import {
   createPresetSimulation,
@@ -92,11 +98,12 @@ function applyAndRecord(session: Session, action: Action): { session: Session; m
   return { session: withState(session, state), message };
 }
 
-/** The session with one config leaf set; a tank still at hour zero is relit under the optics it will run on. */
+/** The session with one config leaf set, its passive readings settled under the config it will run on. */
 export function configureSession(session: Session, path: string, rawValue: string): Session {
   const config = applyConfigSet(session.config, path, rawValue);
   const configured = { ...session, config };
-  return session.state.tick === 0 ? withState(configured, relight(session.state, config.optics)) : configured;
+  const settled = produce(session.state, (draft) => settlePassiveResources(draft, config.optics));
+  return settled === session.state ? configured : withState(configured, settled);
 }
 
 function getByPath(obj: unknown, path: string[]): unknown {

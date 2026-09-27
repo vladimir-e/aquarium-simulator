@@ -3,12 +3,13 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createSimulation, scheduledLightHistory, tick } from '../../simulation/index.js';
+import { calculatePassiveResources, createSimulation, scheduledLightHistory, tick } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { getPresetById } from '../../simulation/presets.js';
 import { createSession, loadSession, saveSession, hasSession, SESSION_VERSION } from '../session.js';
 import { appendSnapshot, HISTORY_CAP, snapshot } from '../history.js';
 import { configureSession } from '../sim.js';
+import { renderObserve } from '../format.js';
 
 let dir: string;
 let path: string;
@@ -150,8 +151,26 @@ describe('configureSession', () => {
     expect(tuned.history.at(-1)).toEqual(snapshot(tuned.state));
   });
 
-  it('leaves a running tank the day it has lived', () => {
+  it('reads a running tank through the retuned water, and leaves it the day it has lived', () => {
+    const lit = createSimulation({
+      tankCapacity: 200,
+      light: { enabled: true, par: 100, schedule: { startHour: 0, duration: 24 } },
+    });
+    let state = lit;
+    for (let i = 0; i < 5; i++) state = tick(state, DEFAULT_CONFIG);
+    const running = createSession(state, DEFAULT_CONFIG, 'optics');
+
+    const tuned = configureSession(running, 'optics.waterAttenuationPerCm', attenuation);
+    const light = calculatePassiveResources(tuned.state, tuned.config.optics).light;
+
+    expect(tuned.state.resources.light).toBe(light);
+    expect(Math.round(light)).toBeLessThan(Math.round(running.state.resources.light));
+    expect(renderObserve(tuned)).toContain(`**Light** ${Math.round(light)} PAR`);
+    expect(tuned.state.resources.lightByHour).toEqual(running.state.resources.lightByHour);
+  });
+
+  it('leaves the tank as it stands when nothing it reads moved', () => {
     const running = { ...fresh, state: tick(fresh.state, fresh.config) };
-    expect(configureSession(running, 'optics.waterAttenuationPerCm', attenuation).state).toBe(running.state);
+    expect(configureSession(running, 'nutrients.fertilizerFormula.nitrate', '10').state).toBe(running.state);
   });
 });
