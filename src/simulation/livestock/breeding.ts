@@ -21,7 +21,7 @@ import { createLog } from '../core/logging.js';
 import { drawId } from '../core/rng.js';
 import { sum } from '../core/sum.js';
 import { brood, frySize, growFish, massAtSize, readyToBrood } from '../systems/fish-growth.js';
-import { swallow } from '../systems/digestion.js';
+import { shareOut, swallow } from '../systems/digestion.js';
 import { fishHardiness, predatorWeight, speciesHardiness } from '../systems/fish-health.js';
 import { developmentRate, eggHarmRate, eggPredationRate, settleClutch } from '../systems/clutch.js';
 import { arrivalGut, createFish } from './create-fish.js';
@@ -61,13 +61,15 @@ function tendClutches(draft: SimulationState, config: LivestockConfig, metabolic
 
   const { resources } = draft;
   const mothers = new Map(draft.fish.map((fish) => [fish.id, fish]));
+  const shares = draft.fish.map(() => 0);
   let waste = 0;
 
   const developing: Clutch[] = [];
   const developed: Clutch[] = [];
   for (const clutch of draft.clutches) {
     const { eggMass } = FISH_SPECIES_DATA[clutch.species].breeding;
-    const weights = draft.fish.map((fish) => predatorWeight(fish, { mass: eggMass }));
+    const weights =
+      clutch.motherId === undefined ? draft.fish.map((fish) => predatorWeight(fish, { mass: eggMass })) : [];
     const mother = clutch.motherId === undefined ? undefined : mothers.get(clutch.motherId);
     const hardiness = mother ? fishHardiness(mother) : speciesHardiness(clutch.species);
     const hour = settleClutch(
@@ -77,13 +79,14 @@ function tendClutches(draft: SimulationState, config: LivestockConfig, metabolic
       developmentRate(clutch.species, metabolicFactor)
     );
 
-    const eaten = swallow(draft.fish, weights, hour.eaten * eggMass, config);
+    const eaten = shareOut(weights, hour.eaten * eggMass);
     eaten.taken.forEach((grams, i) => {
-      draft.fish[i].gut += grams;
+      shares[i] += grams;
     });
     waste += hour.spoiled * eggMass + eaten.overflow;
     (hour.clutch.development < 1 ? developing : developed).push(hour.clutch);
   }
+  waste += swallow(draft.fish, shares, config);
 
   draft.clutches = developing;
   for (const clutch of developed) waste += hatch(draft, clutch, config);

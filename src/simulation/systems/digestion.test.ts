@@ -41,63 +41,79 @@ describe('maintenance', () => {
   });
 });
 
-describe('appetite and serving', () => {
+describe('appetite', () => {
   it('wants the room left in its gut, and nothing when full', () => {
     const fish = { mass: 2, gut: 0 };
     expect(appetite(fish, config)).toBeCloseTo(gutCapacity(fish, config), 12);
     expect(appetite({ mass: 2, gut: gutCapacity(fish, config) }, config)).toBe(0);
   });
+});
 
-  const serve = (appetites: number[], food: number): number[] => shareCapped(appetites, appetites, food).taken;
-
-  it('serves every appetite in full while the food lasts, weighed by its own appetite', () => {
-    expect(serve([0.1, 0.2], 1)).toEqual([0.1, 0.2]);
+describe('shareCapped', () => {
+  it('gives every weight its share in full while the caps have room', () => {
+    const { taken, overflow } = shareCapped([1, 2], [1, 1], 0.3);
+    expect(taken[0]).toBeCloseTo(0.1, 12);
+    expect(taken[1]).toBeCloseTo(0.2, 12);
+    expect(overflow).toBe(0);
   });
 
-  it('splits short food by appetite, every eater taking the same share of its own', () => {
-    const eaten = serve([0.1, 0.3, 0], 0.2);
-    expect(eaten[0] + eaten[1] + eaten[2]).toBeCloseTo(0.2, 12);
-    expect(eaten[1] / eaten[0]).toBeCloseTo(3, 12);
-    expect(eaten[2]).toBe(0);
+  it('splits by weight, a zero weight taking nothing', () => {
+    const { taken } = shareCapped([1, 3, 0], [1, 1, 1], 0.2);
+    expect(taken[1] / taken[0]).toBeCloseTo(3, 12);
+    expect(taken[2]).toBe(0);
   });
 
-  it('serves nothing when nobody is hungry or there is no food', () => {
-    expect(serve([0, 0], 1)).toEqual([0, 0]);
-    expect(serve([0.1], 0)).toEqual([0]);
+  it('returns one share per weight, each capped by its pair', () => {
+    const { taken } = shareCapped([1, 1, 1], [0.1, 0, 5], 3);
+    expect(taken).toHaveLength(3);
+    expect(taken).toEqual([0.1, 0, 1]);
+  });
+
+  it('overflows everything when every cap is zero', () => {
+    const { taken, overflow } = shareCapped([1, 2], [0, 0], 0.5);
+    expect(taken).toEqual([0, 0]);
+    expect(overflow).toBeCloseTo(0.5, 12);
+  });
+
+  it('overflows everything when nobody weighs in, and nothing of nothing', () => {
+    expect(shareCapped([0, 0], [1, 1], 0.2)).toEqual({ taken: [0, 0], overflow: 0.2 });
+    expect(shareCapped([1, 1], [1, 1], 0)).toEqual({ taken: [0, 0], overflow: 0 });
+  });
+
+  it('takes no NaN from an endless amount: a zero weight takes nothing, the rest their caps', () => {
+    const { taken, overflow } = shareCapped([0, 1], [1, 0.5], Infinity);
+    expect(taken).toEqual([0, 0.5]);
+    expect(overflow).toBe(Infinity);
+  });
+
+  it('accounts for every gram', () => {
+    const amount = 2;
+    const { taken, overflow } = shareCapped([3, 1, 2, 0], [0.4, 1, 0.2, 1], amount);
+    expect(taken.reduce((sum, g) => sum + g, 0) + overflow).toBeCloseTo(amount, 12);
   });
 });
 
 describe('swallow', () => {
-  const eaters = [
+  const school = (): { mass: number; gut: number }[] => [
     { mass: 10, gut: 0 },
     { mass: 30, gut: 0 },
     { mass: 20, gut: 20 * config.gutCapacity },
   ];
 
-  it('shares prey by weight while the guts have room, and changes no gut itself', () => {
-    const { taken, overflow } = swallow(eaters, [1, 3, 0], 0.01, config);
-    expect(taken[1]).toBeCloseTo(3 * taken[0], 12);
-    expect(taken[2]).toBe(0);
-    expect(overflow).toBeCloseTo(0, 12);
-    expect(eaters.map((e) => e.gut)).toEqual([0, 0, 20 * config.gutCapacity]);
+  it('fills each gut by its share while it has room', () => {
+    const eaters = school();
+    expect(swallow(eaters, [0.001, 0.003, 0], config)).toBe(0);
+    expect(eaters.map((e) => e.gut)).toEqual([0.001, 0.003, 20 * config.gutCapacity]);
   });
 
-  it('takes no more than the room left in a gut, the rest overflowing, every gram accounted for', () => {
-    const grams = 5;
-    const { taken, overflow } = swallow(eaters, [1, 1, 1], grams, config);
-    taken.forEach((g, i) => expect(g).toBeLessThanOrEqual(appetite(eaters[i], config) + 1e-15));
-    expect(taken[2]).toBe(0);
+  it('fills a gut no further than full, the rest overflowing, every gram accounted for', () => {
+    const eaters = school();
+    const before = eaters.reduce((sum, e) => sum + e.gut, 0);
+    const shares = [5, 5, 5];
+    const overflow = swallow(eaters, shares, config);
+    eaters.forEach((e) => expect(e.gut).toBeLessThanOrEqual(gutCapacity(e, config) + 1e-15));
     expect(overflow).toBeGreaterThan(0);
-    expect(taken.reduce((sum, g) => sum + g, 0) + overflow).toBeCloseTo(grams, 12);
-  });
-
-  it('overflows everything when nobody weighs in', () => {
-    expect(swallow(eaters, [0, 0, 0], 0.2, config)).toEqual({ taken: [0, 0, 0], overflow: 0.2 });
-  });
-
-  it('takes nothing of no prey', () => {
-    expect(swallow(eaters, [1, 1, 1], 0, config)).toEqual({ taken: [0, 0, 0], overflow: 0 });
-    expect(swallow(eaters, [0, 0, 0], 0, config)).toEqual({ taken: [0, 0, 0], overflow: 0 });
+    expect(eaters.reduce((sum, e) => sum + e.gut, 0) - before + overflow).toBeCloseTo(15, 12);
   });
 });
 

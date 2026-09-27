@@ -32,7 +32,7 @@ import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { getDgh, getPpm } from '../resources/index.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
-import { maintenance, nourishment, swallow } from './digestion.js';
+import { maintenance, nourishment, shareOut, swallow } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import { fishSize } from './fish-growth.js';
 import {
@@ -385,11 +385,8 @@ export function processHealth(
     const weights = survivingFish.map((survivor) => predatorWeight(survivor, f));
     const share = weights.some((w) => w > 0) ? damageShare(vitalities[i], 'hunted') : 0;
 
-    const eaten = swallow(survivingFish, weights, share * remains, config);
-    eaten.taken.forEach((grams, j) => {
-      survivingFish[j].gut += grams;
-    });
-    deathWaste += (1 - share) * remains + eaten.overflow;
+    const eaten = shareOut(weights, share * remains);
+    deathWaste += (1 - share) * remains + eaten.overflow + swallow(survivingFish, eaten.taken, config);
 
     const cause = damageShare(vitalities[i], 'wear') > 0.5 ? ' (old age)' : share > 0.5 ? ' (eaten)' : '';
     deadFishNames.push(`${speciesData.name}${cause}`);

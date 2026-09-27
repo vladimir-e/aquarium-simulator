@@ -249,6 +249,25 @@ describe('processBreeding', () => {
     expect(bigAfter.gut / smallAfter.gut).toBeCloseTo((big.mass - eggMass) / (small.mass - eggMass), 8);
   });
 
+  it('shares the eggs of every clutch in the hour alike, whichever clutch comes first', () => {
+    const small = mkFish({ id: 'small', species: 'neon_tetra', sex: 'male' });
+    const fish = [
+      mkFish({ id: 'big', species: 'angelfish', sex: 'male', gut: 0.0123 }),
+      { ...small, gut: small.mass * DEFAULT_CONFIG.livestock.gutCapacity - 1e-6 },
+    ];
+    const neon: Clutch = { id: 'n', species: 'neon_tetra', eggs: 400, development: 0 };
+    const cory: Clutch = { id: 'c', species: 'corydoras', eggs: 200, development: 0 };
+    const waste = (out: ReturnType<typeof processBreeding>): number => out.effects.reduce((sum, e) => sum + e.delta, 0);
+
+    const one = breed(withTank(fish, [neon, cory]), DEFAULT_CONFIG);
+    const other = breed(withTank(fish, [cory, neon]), DEFAULT_CONFIG);
+
+    expect(one.state.fish[0].gut).toBeGreaterThan(fish[0].gut);
+    expect(one.state.fish[1].gut).toBeCloseTo(small.mass * DEFAULT_CONFIG.livestock.gutCapacity, 15);
+    expect(other.state.fish.map((f) => f.gut)).toEqual(one.state.fish.map((f) => f.gut));
+    expect(waste(other)).toBeCloseTo(waste(one), 15);
+  });
+
   it('grows every fish on its bank', () => {
     const fry = mkFish({ mass: 0.1, surplus: 20 });
     const out = breed(withTank([fry]), DEFAULT_CONFIG);

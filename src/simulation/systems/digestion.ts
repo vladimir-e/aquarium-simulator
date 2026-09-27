@@ -30,27 +30,39 @@ export interface Shared {
   overflow: number;
 }
 
-/** `amount` shared by weight, each share capped. */
-export function shareCapped(weights: readonly number[], caps: readonly number[], amount: number): Shared {
+/** `amount` shared by weight; all of it overflows when nobody weighs in. */
+export function shareOut(weights: readonly number[], amount: number): Shared {
   const total = sum(weights);
   if (amount <= 0 || total <= 0) return { taken: weights.map(() => 0), overflow: Math.max(0, amount) };
-  const shares = weights.map((w) => (w > 0 ? (amount * w) / total : 0));
+  return { taken: weights.map((w) => (w > 0 ? (amount * w) / total : 0)), overflow: 0 };
+}
+
+function capped(shares: readonly number[], caps: readonly number[]): Shared {
   const taken = shares.map((share, i) => Math.min(caps[i], share));
   return { taken, overflow: sum(shares.map((share, i) => share - taken[i])) };
 }
 
-/** Prey shared among its eaters by weight, each gut taking its share up to the room left in it. */
+/** `amount` shared by weight, each share capped by its pair in `caps`. */
+export function shareCapped(weights: readonly number[], caps: readonly number[], amount: number): Shared {
+  const shared = shareOut(weights, amount);
+  const { taken, overflow } = capped(shared.taken, caps);
+  return { taken, overflow: shared.overflow + overflow };
+}
+
+/** Each gut swallows its share of prey up to the room left in it; returns the grams that overflowed. */
 export function swallow(
-  eaters: readonly (Sized & Pick<Fish, 'gut'>)[],
-  weights: readonly number[],
-  grams: number,
+  eaters: (Sized & Pick<Fish, 'gut'>)[],
+  shares: readonly number[],
   config: LivestockConfig
-): Shared {
-  return shareCapped(
-    weights,
-    eaters.map((eater) => appetite(eater, config)),
-    grams
+): number {
+  const { taken, overflow } = capped(
+    shares,
+    eaters.map((eater) => appetite(eater, config))
   );
+  eaters.forEach((eater, i) => {
+    eater.gut += taken[i];
+  });
+  return overflow;
 }
 
 /** Grams a gut digests over the hour, its metabolism running at `factor`. */
