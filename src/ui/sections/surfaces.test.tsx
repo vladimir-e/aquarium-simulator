@@ -56,10 +56,10 @@ describe('one roster, two surfaces', () => {
     const page = [...rosterRows(group('Fish')), ...rosterRows(group('Plants'))];
 
     expect(widget).toEqual(page);
-    expect(widget).toHaveLength(3);
+    expect(widget).toHaveLength(4);
   });
 
-  it('rides the algae at the top of the plants on both', () => {
+  it('rides the blooms at the top of the plants on both', () => {
     const run = stocked();
     const sim = stubSim(run.state, run.history);
 
@@ -71,8 +71,9 @@ describe('one roster, two surfaces', () => {
     const fish = rosterRows(group('Fish'));
     const plants = rosterRows(group('Plants'));
 
-    expect(plants[0]).toMatch(/^Algae — /);
-    expect(widget[fish.length]).toBe(plants[0]);
+    expect(plants[0]).toMatch(/^Green water — /);
+    expect(plants[1]).toMatch(/^Film algae — /);
+    expect(widget.slice(fish.length, fish.length + 2)).toEqual(plants.slice(0, 2));
   });
 });
 

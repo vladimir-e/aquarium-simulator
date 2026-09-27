@@ -26,7 +26,8 @@ describe('applyAction', () => {
         { type: 'addPlant', species: 'anubias' }
       ).state;
       return produce(planted, (draft) => {
-        draft.algae.mass = 50;
+        draft.algae.greenWater.mass = 50;
+        draft.algae.film.mass = 50;
       });
     };
 

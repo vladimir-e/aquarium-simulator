@@ -46,7 +46,8 @@ function fixture(species: FishSpecies[] = ['neon_tetra', 'corydoras', 'betta']):
   state.resources.nitrite = 0.412 * 196.4;
   state.resources.nitrate = 18.6 * 196.4;
   state.resources.food = 0.12;
-  state.algae.mass = 47;
+  state.algae.greenWater.mass = 12;
+  state.algae.film.mass = 47;
 
   for (const s of species) {
     state = applyAction(state, { type: 'addFish', species: s }).state;
@@ -188,14 +189,22 @@ describe('preview readings', () => {
     expect(detail(fixture(), 'feed').preview.map((r) => r.key)).toEqual(['food']);
   });
 
-  it('previews a scrub as the range the engine rolls', () => {
+  it('previews a scrub as the range the engine rolls, on the film alone', () => {
     const state = fixture();
     const rows = detail(state, 'scrubAlgae').preview;
-    const gentle = state.algae.mass * (1 - MIN_SCRUB_PERCENT);
-    const hard = state.algae.mass * (1 - MAX_SCRUB_PERCENT);
+    const gentle = state.algae.film.mass * (1 - MIN_SCRUB_PERCENT);
+    const hard = state.algae.film.mass * (1 - MAX_SCRUB_PERCENT);
 
-    expect(row(rows, 'algae').after).toBe(`${hard.toFixed(0)}–${gentle.toFixed(0)}`);
-    expect(rows.map((r) => r.key)).toEqual(['waste', 'algae']);
+    expect(row(rows, 'film').after).toBe(`${hard.toFixed(0)}–${gentle.toFixed(0)}`);
+    expect(rows.map((r) => r.key)).toEqual(['waste', 'film']);
+  });
+
+  it('previews a water change carrying the green water out, and leaving the film', () => {
+    const state = fixture();
+    const rows = detail(state, 'waterChange').preview;
+
+    expect(row(rows, 'greenWater').before).toBe(state.algae.greenWater.mass.toFixed(0));
+    expect(rows.map((r) => r.key)).not.toContain('film');
   });
 
   it('warns on temperature only where a stocked species minds', () => {

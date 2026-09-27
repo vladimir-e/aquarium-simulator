@@ -11,7 +11,7 @@ import type {
   Plant,
   Fish,
   Clutch,
-  AlgaeState,
+  Blooms,
   AlertState,
 } from '../../simulation/state.js';
 import type { TankSeed } from '../../simulation/seed.js';
@@ -25,13 +25,14 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
- * v33: Algae runs on the plants' vitality model. `AlgaeState` gains
- *      `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`, keeping only
- *      `allelopathySeverity` — what a bloom is lives in its traits. Plants and
- *      the bloom take nitrogen as ammonia before nitrate, so
- *      `NutrientsConfig.halfSaturation` gains `ammonia`. A v32 save carries a
- *      bloom with no condition and algae and nutrients sections the strict
- *      schema refuses.
+ * v33: Algae runs on the plants' vitality model, as two kinds. `state.algae`
+ *      holds a bloom per kind — `greenWater` and `film` — and `AlgaeState`
+ *      gains `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`,
+ *      keeping only `allelopathySeverity` — what a bloom is lives in its
+ *      kind's traits. Plants and blooms take nitrogen as ammonia before
+ *      nitrate, so `NutrientsConfig.halfSaturation` gains `ammonia`. A v32
+ *      save carries one bloom with no condition and algae and nutrients
+ *      sections the strict schema refuses.
  * v32: One plant death, at condition 0. `PlantsConfig` drops
  *      `deathSizeThreshold` and renames `wastePerSize` to `tissuePerSize`;
  *      the least a plant is planted or trimmed to is the engine's
@@ -265,7 +266,7 @@ export interface PersistedSimulation {
   plants: Plant[];
   fish: Fish[];
   clutches: Clutch[];
-  algae: AlgaeState;
+  algae: Blooms;
   rng: RngState;
   alertState: AlertState;
   seed?: TankSeed;

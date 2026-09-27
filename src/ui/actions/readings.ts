@@ -10,7 +10,7 @@
  * the commit would leave as the live one.
  */
 
-import { floorShade, type FishSpeciesData, type SimulationState } from '../../simulation/index.js';
+import { ALGAE, ALGAE_KINDS, floorShade, type FishSpeciesData, type SimulationState } from '../../simulation/index.js';
 import {
   algaeAlertLine,
   ammoniaAlertLine,
@@ -50,6 +50,7 @@ import {
   type WaterReading,
 } from '../run';
 import {
+  COVERAGE_DECIMALS,
   formatTemperature,
   getTemperatureUnit,
   toDisplayTemperature,
@@ -358,18 +359,20 @@ const READINGS: Reading[] = [
     band: none,
     note: none,
   },
-  {
-    key: 'algae',
-    label: 'Algae',
-    read: ({ state }) => state.algae.mass,
-    unit: PERCENT,
-    display: same,
-    decimals: 0,
-    status: (value, { config }) => algaeStatus(value, algaeAlertLine(config)),
-    at: (value) => onScale(DISPLAY_CEILING.algae, value),
-    band: ({ config }) => ({ from: 0, to: onScale(DISPLAY_CEILING.algae, algaeAlertLine(config)) }),
-    note: none,
-  },
+  ...ALGAE_KINDS.map(
+    (kind): Reading => ({
+      key: kind,
+      label: ALGAE[kind].name,
+      read: ({ state }) => state.algae[kind].mass,
+      unit: PERCENT,
+      display: same,
+      decimals: COVERAGE_DECIMALS,
+      status: (value, { config }) => algaeStatus(value, algaeAlertLine(config)),
+      at: (value) => onScale(DISPLAY_CEILING.algae, value),
+      band: ({ config }) => ({ from: 0, to: onScale(DISPLAY_CEILING.algae, algaeAlertLine(config)) }),
+      note: none,
+    })
+  ),
   {
     key: 'shade',
     label: 'Floor shade',

@@ -1,39 +1,49 @@
 ---
 title: Algae
-description: One bloom on the plants' vitality model without a position — it earns on the light curve, draws its tissue from the water beside the plants, fixes and respires carbon, banks into mass, and sheds or dies back into waste.
+description: Two kinds of bloom on the plants' vitality model without a position — green water in the column, film on the surfaces — each earning on the light over its habitat, drawing its tissue from the water beside the plants, banking into mass, and shedding or dying back into waste.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
 
 ## What it models
 
-The bloom is plant mechanics without a position. It has a condition, a bank
-and a mass on the [vitality](/concepts/vitality/) model, and its light curve,
+A bloom is plant mechanics without a position. It has a condition, a bank and
+a mass on the [vitality](/concepts/vitality/) model, and its light curve,
 income, harms, shedding, bank and tissue recipe are the
 [plants'](/subsystems/plants/), on the plants' constants and its own traits. It
 has no height or footprint: in their place is a habitat it fills, and its
 offshoots are spores that land in it and join it.
 
-Mass is how full that habitat is, 0–100. The habitat is the water column, so a
-full bloom's tissue scales with the tank's litres. Clear and green are not
-coded: plants beat a bloom or lose to it on the rates.
+The tank holds two kinds, each a bloom of its own on that one model, run
+through one code path. They differ by habitat and by traits, and the tank's
+conditions pick the winner — there is no split and no coded preference.
+
+| Kind | Habitat | Size of it | Light it reads | Taken out by |
+|---|---|---|---|---|
+| Green water | The water column | The tank's litres | The column's mean | A water change, by the share changed |
+| Film | The lit surfaces that do not grow: the glass walls, the floor and the hardscape | cm² of them | The walls at the column's mean, the floor and hardscape at what the canopy leaves, weighted by area | A scrub |
+
+Mass is how full the habitat is, 0–100, so a full bloom's tissue scales with
+its habitat. Film's habitat moves only with the hardscape, never with the
+planting.
 
 ## Status
 
 | Mechanic | Status | Why |
 |---|---|---|
 | Condition and bank | <Badge text="settled" variant="success" /> | The shared vitality step. It heals on the plants' law, `healingDrawRate × growthRate`, integrated over the hour. |
-| Income | <Badge text="settled" variant="success" /> | The plants' three channels on `tanh(PAR/Ik) × sufficiency`, read at the column's mean PAR. |
+| Income | <Badge text="settled" variant="success" /> | The plants' three channels on `tanh(PAR/Ik) × sufficiency`, read at the mean PAR over the habitat. |
 | Growth | <Badge text="settled" variant="success" /> | Logistic, exact over the hour: the plants' draw sets its rate, every bank point buys the same e-fold, and no bank or tunable takes mass past a full habitat. Day and night. |
-| Spores | <Badge text="settled" variant="success" /> | Its offshoots: a constant rate through the taper, landing at condition 100 on an empty bank and joining the bloom by mass, so an empty tank is never closed to a bloom and an empty bloom is the same whatever came before. Whether they take is the condition's business. |
+| Spores | <Badge text="settled" variant="success" /> | Its offshoots: a constant rate per kind through the taper, landing at condition 100 on an empty bank and joining the bloom by mass, so an empty tank is never closed to either kind and an empty bloom is the same whatever came before. Whether they take is the condition's business. |
+| Two kinds | <Badge text="settled" variant="success" /> | Two trait records on one path. Green water is the sprinter: a lit, rich day doubles it in about a day, but its ammonia and phosphate half-saturations sit well above a cycled tank's trace, so it blooms on a spike and starves on lean water. Film is the stayer: a third of the pace, so it takes a week or two to show, but efficient on lean water. |
+| Habitats | <Badge text="settled" variant="success" /> | Green water fills the column, film the fixed lit surfaces. A water change carries green water out with the water; a bare piece of hardscape thins film's coverage and keeps its tissue, and a lifted piece takes its share of the film with it. |
 | Nutrients | <Badge text="settled" variant="success" /> | The plants' recipe, from the water alone, in one draw with every plant: no feeder is served before another. |
-| Nitrogen form | <Badge text="settled" variant="success" /> | Ammonia first, as keenly as a plant, and nitrate for the rest, which it takes poorly: 15–20 ppm of nitrate alone meets a quarter to a third of its need, and ammonia past a cycled tank's trace most of it. |
+| Nitrogen form | <Badge text="settled" variant="success" /> | Ammonia first and nitrate for the rest, on each kind's affinities; both take nitrate more poorly than a plant does. |
 | Carbon and oxygen | <Badge text="settled" variant="success" /> | The plants' photosynthesis and respiration on one CO₂ stock, its tissue rated at the plants' relation and run at its growth rate. |
-| Allelopathy | <Badge text="settled" variant="success" /> | One harm rate on thriving plant leaf per litre, with no threshold — the minor term beside the ammonia plants take. It stands in for the small effects the model leaves out, and cannot hold a fed bloom on its own. |
-| Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape — the square of the deficit — and condition 0 kills what is left, bank and all. Both return it as waste, and a die-back is logged with the coverage it took. |
-| Scrubbing | <Badge text="scaffolding" variant="caution" /> | A random 10–30 % bite off the standing mass, refused below mass `5`. The bite is waste in the water. |
-| Habitats | <Badge text="missing" variant="danger" /> | One bloom in the water column. Film on glass, hardscape and leaves is not a separate kind, and a water change does not dilute it. |
-| Shading plants | <Badge text="scaffolding" variant="caution" /> | A damage rate on plants from its mass past `algaeShadingThreshold`, standing in for the light it would take from their leaves ([Plants](/subsystems/plants/#status)). |
+| Allelopathy | <Badge text="settled" variant="success" /> | One harm rate on thriving plant leaf per litre of water, with no threshold, on every kind — the minor term beside the ammonia plants take. It stands in for the small effects the model leaves out, and cannot hold a fed bloom on its own. |
+| Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape — the square of the deficit — and condition 0 kills what is left, bank and all. Both return it as waste, and a die-back is logged with the kind and the coverage it took. |
+| Scrubbing | <Badge text="scaffolding" variant="caution" /> | A random 10–30 % bite off the film, refused below mass `5`. The bite is waste in the water. A weekly bite cannot hold film at its pace: it coats a maintained tank within two months. |
+| Shading plants | <Badge text="scaffolding" variant="caution" /> | A damage rate on plants past `algaeShadingThreshold`, standing in for the light a bloom would take from their leaves ([Plants](/subsystems/plants/#status)). It reads the two kinds combined, `100·(1 − Π(1 − mass/100))`, as the high-algae alert does. |
 | Calibration | <Badge text="scaffolding" variant="caution" /> | Traits and knobs are first-pass: believable, not fitted. |
 
 ## How it works
@@ -44,12 +54,12 @@ coded: plants beat a bloom or lose to it on the rates.
 |---|---|---|
 | CO₂ | income | Monod on dissolved CO₂ at its `co2HalfSaturation` — far under any plant's, since algae take bicarbonate too |
 | Temperature · pH | income, then harm | The plants' band helpers on its own bands: comfort peaks mid-band, damage starts at the edge |
-| Light starvation | harm | The day's light over the column against its daily light edge, at respiration's Q10 and its growth rate: a bloom respires fast, so it starves fast |
+| Light starvation | harm | The day's light over its habitat against its daily light edge, at respiration's Q10 and its growth rate: a bloom respires fast, so it starves fast |
 | Nutrient deficiency | harm | Liebig sufficiency under `sufficiencyEdge`, on the light curve |
 | Allelopathy | harm | `allelopathySeverity × Σ(plant rate units × condition/100) / litres` |
 
-Every harm is hardened by the bloom's hardiness. Income runs only while the lamp
-is on; the bank carries it through the night.
+Every harm is hardened by the kind's hardiness. Income runs only while the
+lamp is on; the bank carries it through the night.
 
 ### The bank buys mass
 
@@ -66,7 +76,6 @@ and every bank point buys the same e-fold, so the bank pays
 draw through the taper would. Water that supplies only part of the tissue is
 priced the same way: the bank pays for the e-folds that arrived. A small bloom
 multiplies, a full habitat buys nothing, and an empty one buys and pays nothing.
-On a lit day's income a bloom doubles in two or three days.
 
 ### Spores
 
@@ -80,46 +89,50 @@ spores that land — the same empty bloom a clean tank holds.
 
 ### Light, gases, nutrients
 
-The bloom lives through the whole column, so it reads the mean PAR over it —
+Green water lives through the whole column, so it reads the mean PAR over it —
 Beer–Lambert averaged from surface to floor, a little above the substrate
-figure. It saturates at low light.
+figure. Film reads the light at the surfaces it coats, weighted by area: the
+walls span the column and read its mean; the floor and the hardscape lie under
+the canopy and read what it leaves of the substrate PAR.
 
 Its tissue is organic matter at the plants' recipe. A gram of it is the same
-rate units a gram of leaf is, run at the bloom's growth rate, so a dense bloom
+rate units a gram of leaf is, run at the kind's growth rate, so a dense bloom
 strips CO₂ by day and draws oxygen down by night. Growth draws its N, P, K and
 Fe from the water in the same pooled call as the plants; shed, dead and scrubbed
 tissue goes back as waste, so a crashing bloom spikes ammonia as it rots.
+Green water a water change carries out leaves the tank with the water.
 
-It takes its nitrogen as the plants do — ammonia first, nitrate for what
-ammonia leaves — on its own affinities. Ammonia it takes as keenly as a plant;
-nitrate poorly, since reducing it costs energy. A cycled tank's trace of
-ammonia meets part of its need and the nitrate some of the rest; ammonia rising
-past that trace — a new tank, an overfed one, a melt — feeds it fully.
+Each kind takes its nitrogen as the plants do — ammonia first, nitrate for what
+ammonia leaves — on its own affinities. A cycled tank's trace of ammonia meets
+most of film's need and little of green water's; ammonia rising past that trace
+— a new tank, an overfed one, a melt — feeds green water fully.
 
 ### Blackouts
 
 Starvation reads the day's light, so a scheduled night costs nothing. A dead
-fixture starves the bloom as its day empties: the bank goes in hours and the
-condition within two days, and the bloom dies back — the hobby's blackout,
-which costs a carpet its bank and a few points of condition. Relit, it grows
+fixture starves a bloom as its day empties: the bank goes in hours, green
+water dies back in about a day and film in about two — the hobby's blackout,
+which costs a carpet its bank and a few points of condition. Relit, both grow
 again from spores that land healthy. Kept dark, the spores starve in turn, and
-their dust dies back about every day and a half.
+their dust dies back over and over.
 
 ## Key tunables and traits
 
-| Name | Meaning | Value |
-|---|---|---|
-| `growthRate` | Bank-to-mass conversion, healing rate, and the pace its tissue fixes, respires and starves at, on the plants' scale | `30` |
-| `hardiness` | Scales every harm by `1 − hardiness` | `0.4` |
-| `lowLight` | PAR at the bottom of its band: its daily light edge over a care-sheet day, and `Ik` at `saturationIrradianceFactor ×` it | `6` PAR |
-| `nutrientDemand` | Its demand tier for phosphate, potassium and iron, as a plant's | low |
-| Temperature · pH bands | Where comfort peaks and harm starts | `12–34` °C · `5.5–9.5` |
-| `co2HalfSaturation` | CO₂ it fixes at half rate on | `0.3` mg/L |
-| `ammoniaHalfSaturation` | Total ammonia, as NH₃, it meets half its nitrogen need on | `0.05` ppm |
-| `nitrateHalfSaturation` | Nitrate it meets half its nitrogen need on | `40` ppm |
-| `tissuePerLitre` | Organic matter in a litre of full bloom | `0.03` g |
-| `sporeRate` | Mass that lands an hour, through the taper | `0.002` |
-| `allelopathySeverity` | Harm per rate unit of thriving plant per litre | `0.5` %/h |
+| Name | Meaning | Green water | Film |
+|---|---|---|---|
+| `habitat` | Where it lives | column | surfaces |
+| `growthRate` | Bank-to-mass conversion, healing rate, and the pace its tissue fixes, respires and starves at, on the plants' scale | `60` | `20` |
+| `hardiness` | Scales every harm by `1 − hardiness` | `0.4` | `0.4` |
+| `lowLight` | PAR at the bottom of its band: its daily light edge over a care-sheet day, and `Ik` at `saturationIrradianceFactor ×` it | `6` PAR | `6` PAR |
+| `nutrientDemand` | Its demand tier for potassium and iron, as a plant's | low | low |
+| Temperature · pH bands | Where comfort peaks and harm starts | `12–34` °C · `5.5–9.5` | `12–34` °C · `5.5–9.5` |
+| `co2HalfSaturation` | CO₂ it fixes at half rate on | `0.3` mg/L | `0.3` mg/L |
+| `ammoniaHalfSaturation` | Total ammonia, as NH₃, it meets half its nitrogen need on | `0.5` ppm | `0.02` ppm |
+| `nitrateHalfSaturation` | Nitrate it meets half its nitrogen need on | `40` ppm | `10` ppm |
+| `phosphateHalfSaturation` | Phosphate it meets half its phosphorus need on | `0.2` ppm | `0.02` ppm |
+| `tissueDensity` | Organic matter a full habitat holds | `0.03` g/L | `0.0003` g/cm² |
+| `sporeRate` | Mass that lands an hour, through the taper | `0.002` | `0.002` |
+| `allelopathySeverity` | Harm per rate unit of thriving plant per litre, on either kind | `0.5` %/h | |
 
 All but the last are traits, beside the plant species; `allelopathySeverity` is a tunable.
 
@@ -127,16 +140,17 @@ All but the last are traits, beside the plant species; `allelopathySeverity` is 
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Plants](/subsystems/plants/) | Thriving leaf per litre, as the hour starts | Its mass, read by the plants' shading stressor; a share of every pooled draw and of the CO₂ |
-| [Light](/subsystems/light/) | The column's mean PAR and the day of it | — |
+| [Plants](/subsystems/plants/) | Thriving leaf per litre, and the canopy over the floor, as the hour starts | The kinds' combined coverage, read by the plants' shading stressor; a share of every pooled draw and of the CO₂ |
+| [Light](/subsystems/light/) | The mean PAR over each habitat, and the day of it | — |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | NH₃ and NO₃, PO₄, K and Fe, as the water holds them | Tissue drawn out, its ammonia from what the colony left; shed, dead and scrubbed tissue in as waste |
 | [Water & gases](/subsystems/water-and-gases/) | CO₂, O₂, temperature, pH | CO₂ fixed and O₂ released by day, respired day and night; KH moved by the form its nitrogen comes in |
-| [Actions](/subsystems/actions/) | — | A scrub takes 10–30 % of mass into the waste |
-| [Alerts & logging](/subsystems/alerts-and-logging/) | — | Mass above `algaeShadingThreshold` raises the bloom alert once per crossing; an `algae-died` entry per die-back, stating the coverage it took |
+| [Equipment](/subsystems/equipment/) | The hardscape's surface, part of film's habitat | — |
+| [Actions](/subsystems/actions/) | — | A water change takes its share of the green water out of the tank; a scrub takes 10–30 % of the film into the waste; placing hardscape thins film's coverage over the bare surface |
+| [Alerts & logging](/subsystems/alerts-and-logging/) | — | Combined coverage above `algaeShadingThreshold` raises the bloom alert once per crossing; an `algae-died` entry per die-back, naming the kind and stating the coverage it took |
 
 ## Source
 
-`src/simulation/algae/` holds the bloom and its traits,
-`src/simulation/systems/` its vitality and the flora law it shares with the
-plants, and `src/simulation/flora/` the pass that runs it beside them;
+`src/simulation/algae/` holds the kinds, their traits and habitats,
+`src/simulation/systems/` their vitality and the flora law they share with the
+plants, and `src/simulation/flora/` the pass that runs them beside the plants;
 `src/simulation/config/` holds the tunable.

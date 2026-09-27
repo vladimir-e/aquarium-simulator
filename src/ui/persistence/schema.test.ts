@@ -280,7 +280,7 @@ describe('PersistedSimulationSchema', () => {
     plants: [],
     fish: [],
     clutches: [],
-    algae: { mass: 0, condition: 100, surplus: 0 },
+    algae: { greenWater: { mass: 0, condition: 100, surplus: 0 }, film: { mass: 0, condition: 100, surplus: 0 } },
     rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,
@@ -610,7 +610,7 @@ describe('PersistedStateSchema', () => {
     plants: [],
     fish: [],
     clutches: [],
-    algae: { mass: 0, condition: 100, surplus: 0 },
+    algae: { greenWater: { mass: 0, condition: 100, surplus: 0 }, film: { mass: 0, condition: 100, surplus: 0 } },
     rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,

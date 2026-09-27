@@ -33,7 +33,7 @@ function tank(): SimulationState {
   state.equipment.substrate.type = 'aqua_soil';
   state.resources.surface = calculateSurface(state);
   state.resources.water = 196.4;
-  state.algae.mass = 47;
+  state.algae.film.mass = 47;
   return state;
 }
 
@@ -224,13 +224,13 @@ describe('the seven verbs', () => {
     const bare = tank();
     const empty = { ...bare, resources: { ...bare.resources, water: 0 } };
     const full = { ...bare, resources: { ...bare.resources, water: bare.tank.capacity } };
-    const clean = { ...bare, algae: { ...bare.algae, mass: MIN_ALGAE_TO_SCRUB - 2 } };
+    const clean = { ...bare, algae: { ...bare.algae, film: { ...bare.algae.film, mass: MIN_ALGAE_TO_SCRUB - 2 } } };
 
     expect(row(bare, 'dose').blocked).toBe('no plants to fertilise');
     expect(row(bare, 'dose').value).toBe('2 ml');
     expect(row(empty, 'waterChange').blocked).toBe('no water to change');
     expect(row(full, 'topOff').blocked).toBe('already at capacity');
-    expect(row(clean, 'scrubAlgae').blocked).toBe(`needs ${MIN_ALGAE_TO_SCRUB} % algae, now 3 %`);
+    expect(row(clean, 'scrubAlgae').blocked).toBe(`needs ${MIN_ALGAE_TO_SCRUB} % film algae, now 3 %`);
     expect(row(planted([40]), 'trimPlants').blocked).toBe('nothing above 75 %');
     const bareBottom = { ...bare, equipment: { ...bare.equipment, substrate: { ...bare.equipment.substrate, type: 'none' as const } } };
     expect(row(bareBottom, 'rootTab').blocked).toBe('no bed to push a tab into');

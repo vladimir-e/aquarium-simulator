@@ -38,20 +38,24 @@ describe('saturationIrradiance', () => {
     const at = (saturationIrradianceFactor: number): number =>
       saturationIrradiance(plantTraits('java_fern'), { ...config, saturationIrradianceFactor });
     expect(at(3)).toBeCloseTo(2 * at(1.5), 10);
-    expect(saturationIrradiance(ALGAE, config)).toBe(config.saturationIrradianceFactor * ALGAE.lowLight);
+    for (const traits of Object.values(ALGAE)) {
+      expect(saturationIrradiance(traits, config)).toBe(config.saturationIrradianceFactor * traits.lowLight);
+    }
   });
 });
 
 describe('dailyLightEdge', () => {
   it('holds the low end of the band for a care-sheet day', () => {
-    expect(dailyLightEdge(ALGAE)).toBe(parHoursToDli(ALGAE.lowLight, CARE_SHEET_PHOTOPERIOD));
+    for (const traits of Object.values(ALGAE)) {
+      expect(dailyLightEdge(traits)).toBe(parHoursToDli(traits.lowLight, CARE_SHEET_PHOTOPERIOD));
+    }
     expect(dailyLightEdge(plantTraits('monte_carlo'))).toBeGreaterThan(dailyLightEdge(plantTraits('anubias')));
   });
 });
 
 describe('floraHealingRate', () => {
   it('heals at the rate it grows', () => {
-    for (const traits of [...ROSTER.map(plantTraits), ALGAE]) {
+    for (const traits of [...ROSTER.map(plantTraits), ...Object.values(ALGAE)]) {
       expect(floraHealingRate(traits, config)).toBe(traits.growthRate * config.healingDrawRate);
     }
   });
@@ -83,14 +87,16 @@ describe('bankDraw', () => {
 
 describe('bankConversion', () => {
   it('is the growth rate on the plants’ size per bank point', () => {
-    expect(bankConversion(ALGAE, config)).toBe(ALGAE.growthRate * config.sizePerSurplus);
+    for (const traits of Object.values(ALGAE)) {
+      expect(bankConversion(traits, config)).toBe(traits.growthRate * config.sizePerSurplus);
+    }
     expect(bankConversion(plantTraits('monte_carlo'), config)).toBe(PLANT_SPECIES_DATA.monte_carlo.growthRate * config.sizePerSurplus);
   });
 });
 
 describe('metabolicRateUnits', () => {
   it('runs the rate units its tissue is at its growth rate, a plant’s as a bloom’s', () => {
-    for (const traits of [...ROSTER.map(plantTraits), ALGAE]) {
+    for (const traits of [...ROSTER.map(plantTraits), ...Object.values(ALGAE)]) {
       expect(metabolicRateUnits(3, traits)).toBe(3 * traits.growthRate);
       expect(metabolicRateUnits(3, { ...traits, growthRate: 2 * traits.growthRate })).toBe(2 * metabolicRateUnits(3, traits));
     }
@@ -113,7 +119,7 @@ describe('the channels a plant and a bloom share', () => {
     factors.find((f) => f.key === key)!.amount;
 
   it('charges starvation at respiration’s cost, in proportion to the feeder’s growth rate', () => {
-    for (const traits of [...ROSTER.map(plantTraits), ALGAE]) {
+    for (const traits of [...ROSTER.map(plantTraits), ...Object.values(ALGAE)]) {
       expect(amount(floraStressors(hour({ traits })), 'lightStarvation')).toBeCloseTo(
         config.lightStarvationSeverity * traits.growthRate * getRespirationTemperatureFactor(25, config),
         12

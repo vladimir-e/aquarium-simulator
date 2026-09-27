@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import {
+  ALGAE_KINDS,
   applyAction,
   createSimulation,
   getPresetById,
@@ -231,19 +232,19 @@ describe('readLedger', () => {
     });
   });
 
-  it('reads the bloom as an organism: its condition trended as the next tick leaves it, its coverage by what the tick does to the mass', () => {
+  it.each(ALGAE_KINDS)('reads %s as an organism: its condition trended as the next tick leaves it, its coverage by what the tick does to the mass', (kind) => {
     const preset = getPresetById('planted')!;
     let state = produce(createSimulation(preset.config, preset.seed), (draft) => {
-      Object.assign(draft.algae, { mass: 20, condition: 70, surplus: 0 });
+      Object.assign(draft.algae[kind], { mass: 20, condition: 70, surplus: 0 });
     });
     for (let hour = 0; hour < 24; hour++) {
       const next = tick(state, DEFAULT_CONFIG);
-      const ledger = ledgerOf(state, { kind: 'algae' })!;
-      const { vitality } = readHourAhead(state, DEFAULT_CONFIG).algae;
+      const ledger = ledgerOf(state, { kind: 'algae', bloom: kind })!;
+      const { vitality } = readHourAhead(state, DEFAULT_CONFIG).algae[kind];
 
-      expect(ledger.value).toBe(Math.floor(state.algae.condition).toString());
-      expect(ledger.trend).toBe(projectedTrend(next.algae.condition - state.algae.condition));
-      expect(ledger.coverage!.note).toBe(projectedTrend(next.algae.mass - state.algae.mass));
+      expect(ledger.value).toBe(Math.floor(state.algae[kind].condition).toString());
+      expect(ledger.trend).toBe(projectedTrend(next.algae[kind].condition - state.algae[kind].condition));
+      expect(ledger.coverage!.note).toBe(projectedTrend(next.algae[kind].mass - state.algae[kind].mass));
       expect(ledger.net).toBeCloseTo(vitality.breakdown.net * 24, 10);
       expect(ledger.helps - ledger.hurts).toBeCloseTo(ledger.net, 10);
       state = next;
@@ -257,19 +258,20 @@ describe('readLedger', () => {
     expect(ledgerOf(state, { kind: 'plant', id: 'plant_a_1' })).toBeNull();
   });
 
-  it('always has the algae to open — a population needs no id', () => {
-    const algae = ledgerOf(tank([]), { kind: 'algae' })!;
+  it('always has every bloom to open — a population needs no id — each on the verb that takes it out', () => {
+    const verbs = ALGAE_KINDS.map((kind) => ledgerOf(tank([]), { kind: 'algae', bloom: kind })!);
 
-    expect(algae.species).toBe('algae');
-    expect(algae.verb).toBe('scrubAlgae');
+    expect(verbs.map((ledger) => ledger.species)).toEqual([...ALGAE_KINDS]);
+    expect(ledgerOf(tank([]), { kind: 'algae', bloom: 'greenWater' })!.verb).toBe('waterChange');
+    expect(ledgerOf(tank([]), { kind: 'algae', bloom: 'film' })!.verb).toBe('scrubAlgae');
   });
 
-  it('reads the bloom’s bank banking while lit and buying growth through the night', () => {
+  it.each(ALGAE_KINDS)('reads the %s bank banking while lit and buying growth through the night', (kind) => {
     const preset = getPresetById('planted')!;
     let state = produce(createSimulation(preset.config, preset.seed), (draft) => {
       draft.plants = [];
       draft.resources.nitrate = 100 * draft.resources.water;
-      Object.assign(draft.algae, { mass: 20, condition: 100, surplus: 10 });
+      Object.assign(draft.algae[kind], { mass: 20, condition: 100, surplus: 10 });
     });
     const notes = new Map<boolean, Set<string>>([
       [true, new Set()],
@@ -277,10 +279,10 @@ describe('readLedger', () => {
     ]);
     for (let hour = 0; hour < 24; hour++) {
       const next = tick(state, DEFAULT_CONFIG);
-      const { bank } = ledgerOf(state, { kind: 'algae' })!;
+      const { bank } = ledgerOf(state, { kind: 'algae', bloom: kind })!;
 
       notes.get(next.resources.light > 0)!.add(bank!.note);
-      expect(bank!.text).toBe(state.algae.surplus.toFixed(1));
+      expect(bank!.text).toBe(state.algae[kind].surplus.toFixed(1));
       state = next;
     }
     expect(notes.get(true)).toContain('banking');

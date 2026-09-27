@@ -6,7 +6,7 @@
  * on the Overview and another in its own inspector.
  */
 
-import { ALGAE, type SimulationState } from '../../simulation/index.js';
+import { ALGAE, ALGAE_KINDS, mapKinds, type AlgaeKind, type SimulationState } from '../../simulation/index.js';
 import {
   algaeAlertLine,
   ammoniaAlertLine,
@@ -101,7 +101,7 @@ export type ReadingId =
   | 'potassium'
   | 'iron'
   | 'bed'
-  | 'algae'
+  | AlgaeKind
   | 'dailyLight';
 
 /** One arm of a stock's balance: what it is, and how fast it moves. */
@@ -163,8 +163,8 @@ export interface Roster {
   fish: SpeciesGroup[];
   fry: FryBatch | null;
   plants: PlantSpeciesGroup[];
-  /** The bloom as the one population row both rosters carry. */
-  algae: PopulationRosterRow;
+  /** The blooms, a population row per kind, as both rosters carry them. */
+  algae: PopulationRosterRow[];
 }
 
 /** The rack, and the clock the scheduled devices keep. */
@@ -236,7 +236,7 @@ function tapeOf(state: SimulationState, history: RunSnapshot[], units: UnitSyste
       level: (s) => s.waterPct,
       oxygen: (s) => s.oxygen,
       co2: (s) => s.co2,
-      algae: (s) => s.algaeMass,
+      ...mapKinds((kind): Series => (s) => s.algae[kind]),
     },
   };
 }
@@ -259,7 +259,7 @@ export const DECIMALS: Record<ReadingId, number> = {
   potassium: 1,
   iron: 2,
   bed: TAB_DECIMALS,
-  algae: COVERAGE_DECIMALS,
+  ...mapKinds(() => COVERAGE_DECIMALS),
   dailyLight: DAILY_LIGHT_DECIMALS,
 };
 
@@ -457,6 +457,35 @@ function bedView(bed: BedReading): NeedView {
   };
 }
 
+/** What each kind's coverage is, in words, and what takes it out of the tank. */
+const BLOOM_SENTENCE: Record<AlgaeKind, (line: string) => string> = {
+  greenWater: (line) =>
+    `How green the water is: cells suspended in the column, which a water change carries out with it. Past ${line} % together with the film it shades the plants, and the engine alerts.`,
+  film: (line) =>
+    `How coated the glass, the floor and the hardscape are — a scrub takes it off. Past ${line} % together with the green water it shades the plants, and the engine alerts.`,
+};
+
+/** A bloom's coverage, on its kind's ladder and the line the tank alerts over. */
+function bloomView(kind: AlgaeKind, state: SimulationState, ahead: HourAhead, line: number, tape: Tape): ReadingView {
+  const mass = state.algae[kind].mass;
+  const at = scale(DISPLAY_CEILING.algae);
+  return {
+    id: kind,
+    name: ALGAE[kind].name,
+    value: mass.toFixed(DECIMALS[kind]),
+    unit: '%',
+    at: at(mass),
+    band: { from: 0, to: at(line) },
+    tone: toneOf(algaeStatus(mass, line)),
+    trend: projectedDrift(ahead.algae[kind].mass - mass),
+    sentence: BLOOM_SENTENCE[kind](said(kind, line)),
+    net: null,
+    fills: [],
+    drains: [],
+    series: tape.series[kind] ?? null,
+  };
+}
+
 /**
  * Read the whole tank once. Everything the console draws comes out of this
  * call, so the expensive derivations — the hour the next tick settles, the
@@ -487,15 +516,12 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const tempBand = stockedBand(state, (data) => data.temperatureRange);
   const phBand = stockedBand(state, (data) => data.phRange);
   const ghBand = stockedBand(state, (data) => data.ghRange);
-  const algae = state.algae.mass;
   const algaeLine = algaeAlertLine(config);
   const levelLine = waterLevelAlertLine(config);
-  const algaeAt = scale(DISPLAY_CEILING.algae);
   const wasteAt = scale(DISPLAY_CEILING.waste);
   const oxygenAt = scale(DISPLAY_CEILING.oxygen);
   const co2At = scale(DISPLAY_CEILING.co2);
   const lightAt = scale(DISPLAY_CEILING.dailyLight);
-  const algaeDrift = projectedDrift(ahead.algae.mass - algae);
 
   const nitrateFills: ReadingFlow[] = [
     { label: 'NOB clearing NO₂', rate: ratePerHour(rates.nitriteToNitrate, 'ppm') },
@@ -638,21 +664,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     potassium: nutrientView('potassium', nutrient('potassium'), tape),
     iron: nutrientView('iron', nutrient('iron'), tape),
     bed: bedView(bed),
-    algae: {
-      id: 'algae',
-      name: 'Algae',
-      value: algae.toFixed(DECIMALS.algae),
-      unit: '%',
-      at: algaeAt(algae),
-      band: { from: 0, to: algaeAt(algaeLine) },
-      tone: toneOf(algaeStatus(algae, algaeLine)),
-      trend: algaeDrift,
-      sentence: `Coverage the plants are competing with; over ${said('algae', algaeLine)} % it shades them, and the engine alerts.`,
-      net: null,
-      fills: [],
-      drains: [],
-      series: tape.series.algae ?? null,
-    },
+    ...mapKinds((kind) => bloomView(kind, state, ahead, algaeLine, tape)),
     dailyLight: {
       id: 'dailyLight',
       name: 'Daily light',
@@ -693,17 +705,17 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       fish: groupBySpecies(fish, config.livestock),
       fry: groupFry(fish, config.livestock),
       plants: groupPlantsBySpecies(specimens),
-      algae: {
+      algae: ALGAE_KINDS.map((kind) => ({
         kind: 'population',
-        key: 'algae',
-        name: ALGAE.name,
-        figure: `${byId.algae.value} %`,
+        key: kind,
+        name: byId[kind].name,
+        figure: `${byId[kind].value} %`,
         caption: 'coverage',
-        trend: algaeDrift,
-        at: byId.algae.at,
-        band: byId.algae.band,
-        ...algaeReading(algae, algaeLine),
-      },
+        trend: projectedDrift(ahead.algae[kind].mass - state.algae[kind].mass),
+        at: byId[kind].at,
+        band: byId[kind].band,
+        ...algaeReading(kind, state.algae[kind].mass, algaeLine),
+      })),
     },
     rack: {
       devices: equipmentRows(state, bacteria, units),

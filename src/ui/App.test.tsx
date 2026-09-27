@@ -121,8 +121,8 @@ function dialogs(): (string | null)[] {
 describe('one drawer on the stage', () => {
   it('hands the stage from a module inspector to the picker that displaces it', () => {
     renderApp('/life');
-    fireEvent.click(screen.getByRole('button', { name: /^Algae — / }));
-    expect(dialogs()).toEqual(['Algae']);
+    fireEvent.click(screen.getByRole('button', { name: /^Film algae — / }));
+    expect(dialogs()).toEqual(['Film algae']);
 
     const header = screen.getByRole('heading', { level: 1, name: 'Life' }).parentElement!;
     fireEvent.click(within(header).getByRole('button', { name: '+ Add' }));

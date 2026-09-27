@@ -8,12 +8,14 @@
  */
 
 import {
+  ALGAE,
   applyAction,
   canDose,
   canRootTab,
   canScrubAlgae,
   coverage,
   getPlantsToTrimCount,
+  kindsIn,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
   MAX_SCRUB_PERCENT,
@@ -247,8 +249,15 @@ function blockedReason(
     case 'scrubAlgae':
       return canScrubAlgae(state)
         ? null
-        : `needs ${MIN_ALGAE_TO_SCRUB} % algae, now ${Math.floor(state.algae.mass)} %`;
+        : `needs ${MIN_ALGAE_TO_SCRUB} % ${onSurfaces(state, (mass) => `, now ${Math.floor(mass)} %`)}`;
   }
+}
+
+/** Each kind a scrub reaches, named and followed by its coverage as `read` states it. */
+function onSurfaces(state: SimulationState, read: (mass: number) => string): string {
+  return kindsIn('surfaces')
+    .map((kind) => `${ALGAE[kind].name.toLowerCase()}${read(state.algae[kind].mass)}`)
+    .join(' · ');
 }
 
 /** The number the verb acts on — its setting when it has one, its reading when it does not. */
@@ -272,7 +281,9 @@ function rowValue(
     case 'trimPlants':
       return `to ${settings.trimPlants} %`;
     case 'scrubAlgae':
-      return logQuantityIn(units)(coverage(state.algae.mass));
+      return kindsIn('surfaces')
+        .map((kind) => logQuantityIn(units)(coverage(state.algae[kind].mass)))
+        .join(' · ');
   }
 }
 
@@ -504,7 +515,7 @@ function meta(
         : line;
     }
     case 'scrubAlgae':
-      return `algae ${logQuantityIn(units)(coverage(state.algae.mass))}`;
+      return onSurfaces(state, (mass) => ` ${logQuantityIn(units)(coverage(mass))}`);
   }
 }
 
@@ -515,7 +526,7 @@ function meta(
 const BARE_NOTE: Partial<Record<VerbId, string>> = {
   topOff:
     'No amount to set — top-off refills to capacity at the tank’s own temperature. The tap’s KH and GH come with it, everything else dissolved is diluted, and pH follows the CO₂ and KH that leaves.',
-  scrubAlgae: `No amount to set — a scrub takes a random ${Math.round(MIN_SCRUB_PERCENT * 100)}–${Math.round(MAX_SCRUB_PERCENT * 100)} % of standing algae. What comes off is loose in the water as waste: it rots there, and a gravel vac takes it once it settles.`,
+  scrubAlgae: `No amount to set — a scrub takes a random ${Math.round(MIN_SCRUB_PERCENT * 100)}–${Math.round(MAX_SCRUB_PERCENT * 100)} % of the film on the glass, the floor and the hardscape; green water floats free of it, and leaves with a water change. What comes off is loose in the water as waste: it rots there, and a gravel vac takes it once it settles.`,
 };
 
 function commitLabel(

@@ -54,20 +54,22 @@ describe('LifeSection', () => {
     expect(screen.getAllByRole('button', { name: /^Remove Neon Tetra/ })).toHaveLength(6);
   });
 
-  it('reads the algae as one population row, with nobody in it to count', () => {
+  it('reads each kind of bloom as one population row, with nobody in it to count', () => {
     renderLife();
     const plants = within(group('Plants'));
 
-    expect(plants.getByRole('button', { name: /^Algae — / })).toBeTruthy();
-    expect(plants.queryByRole('img', { name: /Algae/ })).toBeNull();
+    for (const name of ['Green water', 'Film algae']) {
+      expect(plants.getByRole('button', { name: new RegExp(`^${name} — `) })).toBeTruthy();
+      expect(plants.queryByRole('img', { name: new RegExp(name) })).toBeNull();
+    }
     expect(plants.getByRole('img', { name: /Anubias by family/ }).children).toHaveLength(2);
   });
 
-  it('opens the algae’s ledger on the organism: its condition, coverage, light and bank', () => {
+  it.each(['Green water', 'Film algae'])('opens the %s ledger on the organism: its condition, coverage, light and bank', (name) => {
     renderLife();
-    fireEvent.click(within(group('Plants')).getByRole('button', { name: /^Algae — / }));
+    fireEvent.click(within(group('Plants')).getByRole('button', { name: new RegExp(`^${name} — `) }));
 
-    const drawer = within(screen.getByRole('dialog'));
+    const drawer = within(screen.getByRole('dialog', { name }));
     expect(drawer.getByText('% condition')).toBeTruthy();
     expect(drawer.getByText('Coverage')).toBeTruthy();
     expect(drawer.getByText('% of need')).toBeTruthy();

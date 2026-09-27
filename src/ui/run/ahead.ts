@@ -1,8 +1,8 @@
 /**
  * The hour the next tick runs, settled in the tick's own order: the
- * environment, the flora pass — plants and the bloom — with its effects
+ * environment, the flora pass — plants and the blooms — with its effects
  * applied, the livestock, then breeding. Every readout that says what the next
- * tick will do reads it here, so a plant, a fish and the bloom are read on the
+ * tick will do reads it here, so a plant, a fish and a bloom are read on the
  * same hour.
  */
 
@@ -10,9 +10,11 @@ import {
   applyEffects,
   calculateDecay,
   dailyLightIntegral,
+  mapKinds,
   processBreeding,
   processFlora,
   processLivestock,
+  type AlgaeKind,
   type BloomLight,
   type PlantLight,
   type SimulationState,
@@ -54,7 +56,7 @@ export interface HourAhead {
   plants: PlantAhead[];
   /** In `state.fish` order. */
   fish: OrganismAhead[];
-  algae: BloomAhead;
+  algae: Record<AlgaeKind, BloomAhead>;
   /** The substrate's day of light the tick reads, mol/m²/d. */
   dailyLight: number;
   /** Grams of waste the plants shed — their steady rate, apart from a death's one-off lump. */
@@ -98,7 +100,6 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
   const budded = new Set(
     planted.plants.filter((plant) => !standing.has(plant.id)).map((plant) => plant.parentId)
   );
-  const bloom = planted.algae;
   const food = bred.resources;
   const decayed = calculateDecay(food.food, food.temperature, food.oxygen, config.decay);
   const wasteShare = config.decay.wasteConversionRatio;
@@ -114,16 +115,7 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
       vitality: livestock.vitalities[i],
       spent: fishSpent(fish.id, livestock.vitalities[i]),
     })),
-    algae: {
-      vitality: flora.algae.vitality,
-      spent: flora.algae.spent,
-      light: flora.algae.light,
-      condition: bloom.condition,
-      mass: bloom.mass,
-      surplus: bloom.surplus,
-      shedding: flora.algae.shedding,
-      waterUptake: flora.algae.waterUptake,
-    },
+    algae: mapKinds((kind) => ({ ...flora.algae[kind], ...planted.algae[kind] })),
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),
     shedding: flora.shedding,
     fishWaste: livestock.metabolism.wasteProduced,

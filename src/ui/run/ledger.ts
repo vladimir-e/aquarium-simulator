@@ -8,6 +8,7 @@
 import {
   ALGAE,
   PLANT_SPECIES_DATA,
+  type AlgaeKind,
   type SimulationState,
   type VitalityFactor,
 } from '../../simulation/index.js';
@@ -31,11 +32,11 @@ import {
 } from './status.js';
 import type { ReadingBand } from './water.js';
 
-/** What the ledger is open on. Algae is a population, so it carries no id. */
+/** What the ledger is open on. A bloom is a population, so it carries its kind rather than an id. */
 export type LedgerTarget =
   | { kind: 'fish'; id: string }
   | { kind: 'plant'; id: string }
-  | { kind: 'algae' };
+  | { kind: 'algae'; bloom: AlgaeKind };
 
 /** One line of the ledger: a factor, at the rate the reader's day is measured in. */
 export interface LedgerFactor {
@@ -55,7 +56,7 @@ export interface LedgerBank {
   note: string;
 }
 
-/** A reading beside the hero figure: an organism's day of light, or the bloom's coverage. */
+/** A reading beside the hero figure: an organism's day of light, or a bloom's coverage. */
 export interface LedgerRow {
   text: string;
   at: number;
@@ -69,7 +70,7 @@ const LIGHT_SCALE = 2;
 
 export interface Ledger {
   target: LedgerTarget;
-  species: SpeciesId | 'algae';
+  species: SpeciesId | AlgaeKind;
   title: string;
   /** Which individual this is, when the group chose it. */
   subtitle: string;
@@ -88,7 +89,7 @@ export interface Ledger {
   satiation: Satiation | null;
   /** The day's light against what the organism starves under, % of that need. */
   light: LedgerRow | null;
-  /** How full of algae the water is, %. */
+  /** How much of its habitat a bloom fills, %. */
   coverage: LedgerRow | null;
   helping: LedgerFactor[];
   hurting: LedgerFactor[];
@@ -96,10 +97,10 @@ export interface Ledger {
   hurts: number;
   net: number;
   bank: LedgerBank | null;
-  /** What the species asks of the tank; plants and the bloom. */
+  /** What the species asks of the tank; plants and blooms. */
   demand: string | null;
   /** The verb that moves this organism — an id the stage opens the sheet on. */
-  verb: Extract<VerbId, 'feed' | 'trimPlants' | 'scrubAlgae'>;
+  verb: Extract<VerbId, 'feed' | 'trimPlants' | 'scrubAlgae' | 'waterChange'>;
   /** What the verb is held to: a plant's own family. */
   scope: VerbScope | null;
 }
@@ -295,25 +296,39 @@ function plantLedger(
   };
 }
 
+/** The verb that takes each kind out of the tank: a water change carries green water off, a scrub takes the film. */
+export const BLOOM_VERB: Record<AlgaeKind, Extract<VerbId, 'scrubAlgae' | 'waterChange'>> = {
+  greenWater: 'waterChange',
+  film: 'scrubAlgae',
+};
+
+/** Where each kind lives, in the ledger's words: the line under its name, and where its light is read. */
+const BLOOM_PLACE: Record<AlgaeKind, { subtitle: string; lit: string }> = {
+  greenWater: { subtitle: 'suspended in the water column', lit: 'through the water column' },
+  film: { subtitle: 'on the glass, the floor and the hardscape', lit: 'on the glass and under the canopy' },
+};
+
 /**
- * The bloom as the organism it is — condition, what feeds it and what harms it,
- * the bank buying it mass — headed by the keeper's word for how much of it
- * there is.
+ * A bloom as the organism it is — condition, what feeds it and what harms it,
+ * the bank buying it mass — headed by its kind's word for how much of it there
+ * is.
  */
-function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourAhead): Ledger {
-  const { mass, condition, surplus } = state.algae;
-  const { vitality, spent, light } = ahead.algae;
-  const { breakdown } = vitality;
+function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourAhead, kind: AlgaeKind): Ledger {
+  const { mass, condition, surplus } = state.algae[kind];
+  const next = ahead.algae[kind];
+  const { breakdown } = next.vitality;
+  const traits = ALGAE[kind];
+  const place = BLOOM_PLACE[kind];
   const cap = config.plants.surplusCap;
   const line = algaeAlertLine(config);
-  const coverage = algaeReading(mass, line);
-  const { value, trend } = vitalReading(condition, ahead.algae.condition);
+  const coverage = algaeReading(kind, mass, line);
+  const { value, trend } = vitalReading(condition, next.condition);
 
   return {
-    target: { kind: 'algae' },
-    species: 'algae',
-    title: ALGAE.name,
-    subtitle: 'the tank’s one uninvited population',
+    target: { kind: 'algae', bloom: kind },
+    species: kind,
+    title: traits.name,
+    subtitle: place.subtitle,
     ...coverage,
     value,
     valueStatus: conditionStatus(condition),
@@ -322,13 +337,13 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     band: CONDITION_BAND,
     trend,
     satiation: null,
-    light: lightRow(light.needShare, lightStatus(light.needShare), 'through the water column'),
+    light: lightRow(next.light.needShare, lightStatus(next.light.needShare), place.lit),
     coverage: {
       text: mass.toFixed(COVERAGE_DECIMALS),
       at: mass / 100,
       band: { from: 0, to: line / 100 },
       status: coverage.status,
-      note: projectedTrend(ahead.algae.mass - mass),
+      note: projectedTrend(next.mass - mass),
     },
     helping: factors(breakdown.benefits),
     hurting: factors(breakdown.stressors),
@@ -338,13 +353,10 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     bank: {
       text: surplus.toFixed(BANK_DECIMALS),
       unit: `of ${cap}`,
-      ...bankOf(
-        { now: surplus, next: ahead.algae.surplus, cap, covered: breakdown.healed, spent },
-        'buying growth'
-      ),
+      ...bankOf({ now: surplus, next: next.surplus, cap, covered: breakdown.healed, spent: next.spent }, 'buying growth'),
     },
-    demand: `${ALGAE.nutrientDemand} demand · light from ${ALGAE.lowLight} PAR · CO₂ at half rate on ${ALGAE.co2HalfSaturation} mg/L`,
-    verb: 'scrubAlgae',
+    demand: `half-fed at ${traits.ammoniaHalfSaturation} ppm NH₃, ${traits.nitrateHalfSaturation} NO₃, ${traits.phosphateHalfSaturation} PO₄ · light from ${traits.lowLight} PAR`,
+    verb: BLOOM_VERB[kind],
     scope: null,
   };
 }
@@ -367,6 +379,6 @@ export function readLedger(
     case 'plant':
       return plantLedger(state, config, ahead, target.id, subtitle);
     case 'algae':
-      return algaeLedger(state, config, ahead);
+      return algaeLedger(state, config, ahead, target.bloom);
   }
 }

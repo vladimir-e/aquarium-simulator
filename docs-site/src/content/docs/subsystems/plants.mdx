@@ -39,7 +39,7 @@ family. Low condition sheds tissue.
 | Root feeding | <Badge text="settled" variant="success" /> | A fixed root share by growth form: a sword draws most of its need from the bed, a carpet half, an epiphyte none. No species is refused a bed — a rooted plant in untabbed gravel declines until it is tabbed. |
 | Carbon limitation | <Badge text="settled" variant="success" /> | Monod on dissolved CO₂, half rate at the species' carbon-need half-saturation. It scales photosynthesis and the CO₂ income channel, and never damages: a carbon-short plant earns and grows less. |
 | Tolerance bands | <Badge text="settled" variant="success" /> | Temperature and pH earn most at the band's centre and nothing at its edge, where damage starts from zero: net is continuous across every edge. |
-| Algae shading | <Badge text="scaffolding" variant="caution" /> | A damage rate on bloom mass past `algaeShadingThreshold`, not light: a bloom never dims the PAR a plant reads, so it costs condition without costing photosynthesis. |
+| Algae shading | <Badge text="scaffolding" variant="caution" /> | A damage rate on the blooms' combined coverage past `algaeShadingThreshold`, not light: a bloom never dims the PAR a plant reads, so it costs condition without costing photosynthesis. |
 | Plant nutrient loop | <Badge text="settled" variant="success" /> | Tissue is the organic matter it rots into: growth draws food's recipe from the water and the bed, and shedding and death return it as waste. N, P, K and Fe are conserved by construction. |
 | Tissue recipe | <Badge text="scaffolding" variant="caution" /> | Food's: N:P ≈ 7 by mass is Redfield and fits, but 0.8 % K sits under the 2–4 % macrophyte tissue carries. |
 | General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small draw beside the nitrate that tissue never returns — waste carries no calcium. Calcium never enters sufficiency, so soft water stresses a plant but never starves it. |
@@ -302,7 +302,7 @@ earned  = channel × tanh(PAR_i / Ik) × sufficiency_i × (1 + vigour)
 | Temperature · pH · GH | outside the species band | °C · pH unit · dGH |
 | Nutrient deficiency | sufficiency short of `sufficiencyEdge`, on the light term | share of the edge |
 | Nitrate | past the plant's own edge | e-fold over |
-| Algae shading | bloom mass over `algaeShadingThreshold`, not light ([Status](#status)) | mass point |
+| Algae shading | the blooms' combined coverage over `algaeShadingThreshold`, not light ([Status](#status)) | coverage point |
 
 A Monod sufficiency never reaches 1, so deficiency starts under an edge rather
 than under full: `sufficiencyEdge`, where a plant has 90 % of its need met. The
@@ -495,7 +495,7 @@ The canopy's own constant, `leafAttenuationPerLai`, is under [Light](/subsystems
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia` and `nitrate`, and the `phosphate`, `potassium` and `iron` mineralized beside the ammonia | `ammonia` first and `nitrate` for the rest, with the other three, drawn as tissue grows — the ammonia from what the colony left; `waste` from shedding and death |
 | [Environment](/subsystems/environment/) | `temperature` for the Q10 on respiration and starvation, `water` for every ppm, the box's depth and floor | — |
 | [Equipment](/subsystems/equipment/) | `substrate.nutrients` — the bed's store, for root feeders | The same store, drawn down as root feeders grow |
-| [Algae](/subsystems/algae/) | `algae.mass` — the shading stressor, as the hour starts; the bloom's share of the pooled tissue draw and of the CO₂ | Plant power per litre, the bloom's allelopathy |
+| [Algae](/subsystems/algae/) | The kinds' combined coverage — the shading stressor, as the hour starts; each bloom's share of the pooled tissue draw and of the CO₂ | Plant power per litre, the blooms' allelopathy; the canopy over the floor, film's light there |
 | [Livestock](/subsystems/livestock/) | `foodNitrogenFraction` and `foodMineralContent`, the recipe tissue shares with food | Plant power again, saturating the fish shelter benefit |
 | [Actions](/subsystems/actions/) | — | Planting against the floor, removal and trimming write the array and `size` directly; dosing fills the four nutrient pools in the water, root tabs the bed's |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | A `plant-died` entry per plant lost, a `plant-propagated` entry per offshoot |

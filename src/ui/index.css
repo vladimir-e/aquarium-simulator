@@ -64,6 +64,7 @@
   --chart-2: #8fa8e8;
   --chart-3: #d9b15e;
   --chart-4: #c98bb9;
+  --chart-5: #a5c46e;
 
   --shadow-drawer: none;
 }
@@ -90,6 +91,7 @@
   --chart-2: #4a63b8;
   --chart-3: #a8781c;
   --chart-4: #9a5a8c;
+  --chart-5: #5d7a26;
 
   --shadow-drawer: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
@@ -116,6 +118,7 @@
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
 }
 
 /* Theme the root element too, so the overscroll canvas (outside app content)

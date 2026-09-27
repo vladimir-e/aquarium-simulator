@@ -1,10 +1,10 @@
 /**
- * The bloom — plant mechanics without a position. `mass` is the share of its
- * habitat it fills, so its tissue scales with the litres it lives in, and its
- * bank buys mass in proportion to the mass standing.
+ * A bloom — plant mechanics without a position. `mass` is the share of its
+ * habitat it fills, so its tissue scales with the habitat, and its bank buys
+ * mass in proportion to the mass standing.
  */
 
-import type { AlgaeState } from '../state.js';
+import type { AlgaeState, Blooms } from '../state.js';
 import type { NutrientsConfig, PlantsConfig } from '../config/index.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
 import { formHalfSaturations, type Feeder } from '../systems/nutrients.js';
@@ -19,26 +19,28 @@ import {
   tissuePerRateUnit,
   type FloraLoss,
 } from '../systems/flora.js';
-import type { BloomLight } from './light.js';
-import type { AlgaeTraits } from './traits.js';
+import { habitatSize, type BloomLight, type HabitatTank } from './habitat.js';
+import { ALGAE, type AlgaeTraits } from './traits.js';
+import { EMPTY_BLOOM, mapKinds } from './blooms.js';
 
-/** Grams of organic matter in this much bloom, in a habitat of these litres. */
-export function bloomTissue(mass: number, litres: number, traits: AlgaeTraits): number {
-  return (mass / 100) * traits.tissuePerLitre * litres;
+/** Grams of organic matter in this much bloom, in a habitat of this size. */
+export function bloomTissue(mass: number, habitat: number, traits: AlgaeTraits): number {
+  return (mass / 100) * traits.tissueDensity * habitat;
 }
 
 /** Rate units a bloom's metabolism runs at: its tissue's, on the plants' own relation, at its growth rate. */
-export function bloomRateUnits(mass: number, litres: number, traits: AlgaeTraits, config: PlantsConfig): number {
-  return metabolicRateUnits(bloomTissue(mass, litres, traits) / tissuePerRateUnit(config), traits);
+export function bloomRateUnits(mass: number, habitat: number, traits: AlgaeTraits, config: PlantsConfig): number {
+  return metabolicRateUnits(bloomTissue(mass, habitat, traits) / tissuePerRateUnit(config), traits);
 }
 
-/** A bloom feeds from the water alone, on its own nitrogen affinities and its demand tier for the rest. */
+/** A bloom feeds from the water alone, on its own nitrogen and phosphorus affinities and its demand tier for the rest. */
 export function bloomFeeder(traits: AlgaeTraits, config: NutrientsConfig): Feeder {
   return {
     halfSaturation: {
       ...formHalfSaturations(config.demand[traits.nutrientDemand], config),
       ammonia: traits.ammoniaHalfSaturation,
       nitrate: traits.nitrateHalfSaturation,
+      phosphate: traits.phosphateHalfSaturation,
     },
     rootShare: 0,
   };
@@ -46,14 +48,14 @@ export function bloomFeeder(traits: AlgaeTraits, config: NutrientsConfig): Feede
 
 export function bloomFixer(
   bloom: AlgaeState,
-  litres: number,
+  habitat: number,
   light: BloomLight,
   sufficiency: number,
   traits: AlgaeTraits,
   config: PlantsConfig
 ): CarbonFixer {
   return {
-    metabolicRateUnits: bloomRateUnits(bloom.mass, litres, traits, config),
+    metabolicRateUnits: bloomRateUnits(bloom.mass, habitat, traits, config),
     lightResponse: lightSaturationFactor(light.par, saturationIrradiance(traits, config)),
     sufficiency,
     co2HalfSaturation: traits.co2HalfSaturation,
@@ -116,11 +118,11 @@ export function supplyBloom(
 
 export function loseBloom(
   bloom: AlgaeState,
-  litres: number,
+  habitat: number,
   traits: AlgaeTraits,
   config: PlantsConfig
 ): FloraLoss<AlgaeState> {
-  return loseFlora(bloom, 'mass', (mass) => bloomTissue(mass, litres, traits), config);
+  return loseFlora(bloom, 'mass', (mass) => bloomTissue(mass, habitat, traits), config);
 }
 
 /**
@@ -129,16 +131,30 @@ export function loseBloom(
  * a bloom that died back, or on an empty one, what stands is only what landed.
  */
 export function landSpores(bloom: AlgaeState | null, spores: number): AlgaeState {
-  const standing = bloom ?? { mass: 0, condition: 100, surplus: 0 };
+  const standing = bloom ?? EMPTY_BLOOM;
   const mass = standing.mass + spores;
   const kept = mass > 0 ? standing.mass / mass : 0;
   return { mass, condition: 100 - (100 - standing.condition) * kept, surplus: standing.surplus * kept };
 }
 
-export { ALGAE } from './traits.js';
-export type { AlgaeTraits } from './traits.js';
-export { bloomLight, columnGain } from './light.js';
-export type { BloomLight } from './light.js';
+/**
+ * Each bloom on a habitat that changed size, its tissue kept: new habitat
+ * comes in bare and dilutes the coverage, and habitat taken out takes its
+ * share of the bloom with it, the coverage left as it was.
+ */
+export function resettle(blooms: Blooms, before: HabitatTank, after: HabitatTank): Blooms {
+  return mapKinds((kind) => {
+    const { habitat } = ALGAE[kind];
+    const grown = habitatSize(habitat, after) / habitatSize(habitat, before);
+    return grown > 1 ? { ...blooms[kind], mass: blooms[kind].mass / grown } : blooms[kind];
+  });
+}
+
+export { ALGAE, ALGAE_KINDS } from './traits.js';
+export { EMPTY_BLOOM, combinedCoverage, emptyBlooms, isAlgaeKind, kindsIn, mapKinds } from './blooms.js';
+export type { AlgaeHabitat, AlgaeKind, AlgaeTraits } from './traits.js';
+export { bloomLight, columnGain, habitatGain, habitatSize } from './habitat.js';
+export type { BloomLight, HabitatTank } from './habitat.js';
 export {
   computeAlgaeVitality,
   buildAlgaeStressors,

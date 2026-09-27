@@ -146,7 +146,7 @@ inside it reads the full attenuated rating.
 | Plant nutrient deficiency | Scaled by the same term |
 | Plant starvation | The day's light at its mean leaf, against the species' edge |
 | Plant light-high stressor | PAR at its crown top over the species band, while the lamp is on |
-| Algae | The mean PAR over the water column — `(e^{kD} − 1) / kD` times the substrate figure — on the plants' curve at its own `Ik`, and the day of it against its own edge |
+| Algae | The mean PAR over its habitat, on the plants' curve at its own `Ik`, and the day of it against its own edge: green water the column's mean — `(e^{kD} − 1) / kD` times the substrate figure — and film the walls at that mean and the floor and hardscape at what the canopy leaves, weighted by area |
 
 ### Stocks and rates
 
@@ -175,7 +175,7 @@ construction refuses it. The plant constants that read this light —
 | [Equipment](/subsystems/equipment/) | The fixture's rating, its enabled flag and its photoperiod | — |
 | [Environment](/subsystems/environment/) | Depth, from the box capacity implies | — |
 | [Plants](/subsystems/plants/) | Every unit's size and growth form, which build the canopy | Light at each plant's own height: at the mean leaf, the saturation multiplier on the whole benefit budget and the nutrient-deficiency stressor, the photosynthesis rate, and the day's light they starve on; at the crown top, the light-high stressor |
-| [Algae](/subsystems/algae/) | — | The column's mean PAR: the light curve on its income and the day it starves on |
+| [Algae](/subsystems/algae/) | — | The mean PAR over each kind's habitat: the light curve on its income and the day it starves on |
 | [Water & gases](/subsystems/water-and-gases/) | — | Indirectly: the photoperiod is what makes oxygen and CO₂ swing across a day |
 
 ## Source

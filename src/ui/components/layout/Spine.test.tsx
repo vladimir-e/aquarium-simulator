@@ -26,7 +26,7 @@ const history: RunSnapshot[] = Array.from({ length: TICKS + 1 }, (_, tick) =>
     waterPct: 99,
     fishCount: 4,
     plantCount: 3,
-    algaeMass: 12,
+    algae: { greenWater: 12, film: 20 },
     lightOn: tick % 24 >= 8 && tick % 24 < 16,
   })
 );

@@ -199,12 +199,20 @@ const DEFINITIONS = [
     band: { green: [70, 100], amber: [40, 100], why: 'fish in a maintained tank look healthy' },
   },
   {
-    id: 'algae',
-    label: 'algae',
+    id: 'green_water',
+    label: 'green water',
     unit: '/100',
     digits: 0,
-    read: (s): number => s.algae.mass,
-    band: { green: [0, 30], amber: [0, 60], why: 'a trace of algae is normal; the water going green is not' },
+    read: (s): number => s.algae.greenWater.mass,
+    band: { green: [0, 30], amber: [0, 60], why: 'a trace in the water is normal; the water going green is not' },
+  },
+  {
+    id: 'film',
+    label: 'film',
+    unit: '/100',
+    digits: 0,
+    read: (s): number => s.algae.film.mass,
+    band: { green: [0, 30], amber: [0, 60], why: 'a kept tank shows some film on its glass; a coated one is not kept' },
   },
 ] as const satisfies readonly Reading[];
 

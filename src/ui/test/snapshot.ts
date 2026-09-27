@@ -17,7 +17,7 @@ export function snapshot(tick: number, reading: Partial<RunSnapshot> = {}): RunS
     fishCount: 0,
     fryCount: 0,
     plantCount: 0,
-    algaeMass: 0,
+    algae: { greenWater: 0, film: 0 },
     food: 0,
     lightOn: false,
     ...reading,

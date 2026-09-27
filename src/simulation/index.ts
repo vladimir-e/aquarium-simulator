@@ -18,6 +18,7 @@ export type {
   Fish,
   Clutch,
   AlgaeState,
+  Blooms,
 } from './state.js';
 export {
   createSimulation,
@@ -344,8 +345,18 @@ export type { FloraTraits, FloraLoss } from './systems/flora.js';
 // Algae
 export {
   ALGAE,
+  ALGAE_KINDS,
+  EMPTY_BLOOM,
+  emptyBlooms,
+  isAlgaeKind,
+  mapKinds,
+  kindsIn,
+  combinedCoverage,
+  resettle,
   bloomLight,
   columnGain,
+  habitatSize,
+  habitatGain,
   bloomTissue,
   bloomRateUnits,
   bloomFeeder,
@@ -361,8 +372,11 @@ export {
   thrivingPlantDensity,
 } from './algae/index.js';
 export type {
+  AlgaeKind,
+  AlgaeHabitat,
   AlgaeTraits,
   BloomLight,
+  HabitatTank,
   BloomPurchase,
   AlgaeVitalityContext,
 } from './algae/index.js';

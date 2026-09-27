@@ -50,7 +50,7 @@ the transition into trouble.
 | High nitrate | above 80 ppm | the same |
 | Low oxygen | below 4 mg/L | the same, below the line |
 | High CO₂ | above 40 mg/L, the level keepers treat as too much | nowhere — nothing reads it |
-| High algae | mass above `algaeShadingThreshold` | at the line: plants are shaded above it |
+| High algae | the kinds' combined coverage, `100·(1 − Π(1 − mass/100))`, above `algaeShadingThreshold` | at the line: plants are shaded above it |
 
 The four water-quality alerts fire before any fish takes damage; water level and
 algae fire exactly where theirs starts; CO₂ has no harm behind it at all.
@@ -147,10 +147,10 @@ rate can. The four water-quality lines are the fish tolerance edges, defined wit
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, converted from mass to ppm against standing water | — |
 | [Environment](/subsystems/environment/) | `water` against `tank.capacity` | — |
 | [Livestock](/subsystems/livestock/) | `waterLevelStressThreshold`, the level's line | — |
-| [Algae](/subsystems/algae/) | `algae.mass` directly — algae is an organism, not a resource | — |
+| [Algae](/subsystems/algae/) | Every kind's mass directly, combined — algae is an organism, not a resource | — |
 | [Plants](/subsystems/plants/) | `algaeShadingThreshold`, the bloom's line | — |
 | [Plants](/subsystems/plants/) | — | Receives a `plant-died` entry per plant lost and a `plant-propagated` entry per offshoot |
-| [Algae](/subsystems/algae/) | — | Receives an `algae-died` entry per die-back, stating the coverage it took |
+| [Algae](/subsystems/algae/) | — | Receives an `algae-died` entry per die-back, naming the kind and stating the coverage it took |
 | [Livestock](/subsystems/livestock/) | — | Receives death, spawn, laying and hatch entries |
 | [Actions](/subsystems/actions/) | — | Receives one entry per applied action |
 | [State & persistence](/subsystems/state-and-persistence/) | — | `alertState` is persisted; `logs` are not |

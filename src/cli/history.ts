@@ -6,7 +6,7 @@
  * and a hard cap keeps the session file size predictable.
  */
 
-import type { AlgaeState, SimulationState } from '../simulation/index.js';
+import { mapKinds, type Blooms, type SimulationState } from '../simulation/index.js';
 
 export const HISTORY_CAP = 720; // 30 days of hourly samples
 
@@ -36,7 +36,7 @@ export interface HistorySnapshot {
   };
   fish: { count: number; avgHealth: number };
   plants: { count: number; avgCondition: number };
-  algae: AlgaeState;
+  algae: Blooms;
 }
 
 function avg(values: number[]): number {
@@ -78,7 +78,7 @@ export function snapshot(state: SimulationState): HistorySnapshot {
       count: state.plants.length,
       avgCondition: avg(state.plants.map((p) => p.condition)),
     },
-    algae: { ...state.algae },
+    algae: mapKinds((kind) => ({ ...state.algae[kind] })),
   };
 }
 

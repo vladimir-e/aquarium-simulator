@@ -32,11 +32,7 @@ export interface PlantVitalityContext {
   plantsConfig: PlantsConfig;
   /** Liebig sufficiency for this plant (0–1), computed once a tick by the flora pass. */
   nutrientSufficiency: number;
-  /**
-   * Current algae biomass / coverage 0–100 (from `state.algae.mass`).
-   * Drives the `algae_shading` stressor when above the configured
-   * threshold.
-   */
+  /** The blooms' combined coverage, 0–100: what the shading stressor reads past its threshold. */
   algaeMass: number;
   /** The light at this plant's height, from the tick's one canopy pass. */
   light: PlantLight;

@@ -149,7 +149,8 @@ describe('rosterTables', () => {
       target: { kind: 'fish', id: 'fish_a_1' },
       subtitle: '',
     });
-    expect(inspection('algae', input(state, DEFAULT_CONFIG))!.target).toEqual({ kind: 'algae' });
+    expect(inspection('film', input(state, DEFAULT_CONFIG))!.target).toEqual({ kind: 'algae', bloom: 'film' });
+    expect(inspection('greenWater', input(state, DEFAULT_CONFIG))!.target).toEqual({ kind: 'algae', bloom: 'greenWater' });
     expect(inspection('fish_gone', input(state, DEFAULT_CONFIG))).toBeNull();
   });
 

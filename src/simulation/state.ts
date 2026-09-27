@@ -29,6 +29,8 @@ import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
 import { applySeed, type PresetSeed, type TankSeed } from './seed.js';
+import type { AlgaeKind } from './algae/traits.js';
+import { emptyBlooms } from './algae/blooms.js';
 import { isPlantableSize, MIN_PLANTABLE_SIZE } from './plants/create-plant.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
@@ -77,10 +79,10 @@ export interface Fish {
 }
 
 /**
- * The tank's bloom: a population run on the plants' vitality model, without
- * a position. `mass` is how full its habitat is, 0–100 — the share of what the
- * water column holds at a full bloom — so its tissue scales with the tank's
- * litres. Condition and bank are the bloom's as a whole: the bank buys mass in
+ * One kind of bloom: a population run on the plants' vitality model, without
+ * a position. `mass` is how full its habitat is, 0–100 — the share of what its
+ * habitat holds at a full bloom — so its tissue scales with the habitat.
+ * Condition and bank are the bloom's as a whole: the bank buys mass in
  * proportion to the mass already there.
  */
 export interface AlgaeState {
@@ -90,6 +92,9 @@ export interface AlgaeState {
   /** Vitality bank, in condition points, up to `PlantsConfig.surplusCap`. */
   surplus: number;
 }
+
+/** Every kind's bloom, by kind: the kinds are a fixed set every tank holds, so each is read by name and none goes missing. */
+export type Blooms = Record<AlgaeKind, AlgaeState>;
 
 /**
  * A batch of eggs waiting to hatch.
@@ -296,7 +301,7 @@ export interface Equipment {
 export interface AlertState {
   /** Water is below `waterLevelAlertLine` % of capacity */
   waterLevelCritical: boolean;
-  /** Algae mass is above `algaeAlertLine` */
+  /** The kinds' combined coverage is above `algaeAlertLine` */
   highAlgae: boolean;
   /** Free NH₃ is above `FREE_AMMONIA_EDGE` */
   highAmmonia: boolean;
@@ -327,8 +332,8 @@ export interface SimulationState {
   fish: Fish[];
   /** Unhatched egg clutches from egg-laying species */
   clutches: Clutch[];
-  /** The tank's bloom */
-  algae: AlgaeState;
+  /** The tank's blooms, one of each kind */
+  algae: Blooms;
   /** Seed and stream position every draw in this tank comes off. */
   rng: RngState;
   /** In-memory log storage */
@@ -692,7 +697,7 @@ export function createSimulation(
     plants: [],
     fish: [],
     clutches: [],
-    algae: { mass: 0, condition: 100, surplus: 0 },
+    algae: emptyBlooms(),
     rng: createRng(rngSeed),
     logs: [initialLog],
     alertState: {

@@ -109,10 +109,11 @@ density you can look up rather than a score.
 
 ## Algae
 
-The bloom runs on the plants' constants, and what a kind of bloom is — its
-carbon, its nitrogen, its tissue, its spores — sits in its traits, beside the plant species
+Both kinds of bloom run on the plants' constants, and what a kind is — its
+habitat, its pace, its carbon, nitrogen and phosphorus affinities, its tissue,
+its spores — sits in its traits, beside the plant species
 ([Algae](/subsystems/algae/#key-tunables-and-traits)). What is left here holds
-for any bloom.
+for every kind.
 
 | Tunable | Meaning | Unit |
 |---|---|---|
@@ -155,7 +156,7 @@ for any bloom.
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
 | `nutrientDeficiencySeverity` · `sufficiencyEdge` | Damage at a Liebig sufficiency of 0 under saturating light, falling linearly to nothing at the edge; and the sufficiency a plant counts as fed, since a Monod share never reaches 1 | %/hr · — |
 | `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the plant's own edge, and where a hardiness-0 plant's edge sits | %/e-fold/hr · ppm |
-| `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of bloom past the threshold, and the mass above which algae shades plants | %/algae/hr · — |
+| `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of the blooms' combined coverage past the threshold, and the coverage above which algae shades plants | %/algae/hr · — |
 | `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on the light term times the Liebig sufficiency | %/hr |
 | `maxSheddingRate` | Share of itself a plant sheds per hour at condition 0, falling with the square of the deficit | /hr |
 

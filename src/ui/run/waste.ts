@@ -7,6 +7,7 @@
  */
 
 import {
+  ALGAE_KINDS,
   calculateSubstrateLeach,
   decayFraction,
   wasteSettlingShare,
@@ -66,7 +67,7 @@ export function wasteInflow(
     food: ahead.foodWaste,
     fish: ahead.fishWaste,
     plants: ahead.shedding,
-    algae: ahead.algae.shedding,
+    algae: ALGAE_KINDS.reduce((sum, kind) => sum + ahead.algae[kind].shedding, 0),
     substrate: calculateSubstrateLeach(state.equipment.substrate.organicReserve, config.decay),
   };
 
@@ -93,7 +94,7 @@ function beforeCycleInflow(inflow: WasteInflowReadout): number {
 /**
  * The waste mineralisation works on this hour. The substrate trades with the
  * pool in the immediate tier — a share settles out, the leach comes in — and
- * fish, plants and the bloom shed in the active tier, so the passive nitrogen cycle
+ * fish, plants and the blooms shed in the active tier, so the passive nitrogen cycle
  * already sees all of it; food decay is collected in the same passive pass and
  * only arrives next hour.
  */

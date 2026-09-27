@@ -17,6 +17,7 @@ import {
   nobCapacity,
 } from '../../simulation/systems/index.js';
 import {
+  ALGAE_KINDS,
   calculateSubstrateLeach,
   dailyLightIntegral,
   scheduledLightHistory,
@@ -120,7 +121,7 @@ export interface ConversionRates {
   foodToAmmonia: number;
   /** NH₃ ppm the plants' new tissue takes up from the water this hour. */
   plantAmmoniaUptake: number;
-  /** NH₃ ppm the bloom's new tissue takes up from the water this hour. */
+  /** NH₃ ppm the blooms' new tissue takes up from the water this hour. */
   algaeAmmoniaUptake: number;
   /** NH₃ ppm the AOB colony takes out of the water this hour. */
   ammoniaOxidised: number;
@@ -213,7 +214,8 @@ export function bacteriaReadout(
   // so the colony meets it next hour.
   const gills = ahead.gillAmmonia;
   const food = ahead.foodAmmonia;
-  const flora = ahead.waterUptake.ammonia + ahead.algae.waterUptake.ammonia;
+  const algae = ALGAE_KINDS.reduce((sum, kind) => sum + ahead.algae[kind].waterUptake.ammonia, 0);
+  const flora = ahead.waterUptake.ammonia + algae;
   const { ammoniaProduced } = calculateWasteToAmmonia(
     mineralisationBase(state, config, wasteInflow(state, config, ahead)),
     config
@@ -242,7 +244,7 @@ export function bacteriaReadout(
     gillsToAmmonia: getPpm(gills, water),
     foodToAmmonia: getPpm(food, water),
     plantAmmoniaUptake: getPpm(ahead.waterUptake.ammonia, water),
-    algaeAmmoniaUptake: getPpm(ahead.algae.waterUptake.ammonia, water),
+    algaeAmmoniaUptake: getPpm(algae, water),
     ammoniaOxidised: getPpm(ammoniaConsumed, water),
     netAmmonia: getPpm(gills + ammoniaProduced + food - flora - ammoniaConsumed, water),
     ammoniaToNitrite: getPpm(nitriteProduced, water),
@@ -279,12 +281,12 @@ export interface CycleProjection {
   feeders: ('plants' | 'algae')[];
 }
 
-/** Plants, and a bloom the lamp can light or its bank can grow in the dark. */
+/** Plants, and blooms the lamp can light or whose bank can grow them in the dark. */
 function ammoniaFeeders(state: SimulationState, config: TunableConfig): CycleProjection['feeders'] {
   const lit = dailyLightIntegral(scheduledLightHistory(state, config.optics)) > 0;
   const feeders: CycleProjection['feeders'] = [];
   if (state.plants.length > 0) feeders.push('plants');
-  if (lit || state.algae.surplus > 0) feeders.push('algae');
+  if (lit || ALGAE_KINDS.some((kind) => state.algae[kind].surplus > 0)) feeders.push('algae');
   return feeders;
 }
 

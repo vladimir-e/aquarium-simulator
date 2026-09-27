@@ -46,7 +46,8 @@ describe('snapshotFromState', () => {
       d.resources.co2 = 18;
       d.resources.temperature = 24.5;
       d.resources.food = 0.3;
-      d.algae.mass = 4;
+      d.algae.greenWater.mass = 4;
+      d.algae.film.mass = 9;
     });
 
     const snap = snapshotFromState(state);
@@ -60,7 +61,7 @@ describe('snapshotFromState', () => {
       co2: 18,
       temperature: 24.5,
       food: 0.3,
-      algaeMass: 4,
+      algae: { greenWater: 4, film: 9 },
     });
   });
 

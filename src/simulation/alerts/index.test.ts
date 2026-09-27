@@ -25,6 +25,7 @@ import { lightAtHeight } from '../plants/canopy.js';
 import { FREE_AMMONIA_EDGE, NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../livestock/tolerance.js';
 import { createSimulation, type AlertState, type SimulationState } from '../state.js';
 import { getPh } from '../core/carbonate.js';
+import { combinedCoverage } from '../algae/index.js';
 
 const CAPACITY = 100;
 const config = DEFAULT_CONFIG;
@@ -68,7 +69,7 @@ const CASES: Case[] = [
     flag: 'highAlgae',
     source: 'algae',
     set: (draft, mass): void => {
-      draft.algae.mass = mass;
+      draft.algae.film.mass = mass;
     },
     firing: ALGAE_LINE + 5,
     quiet: ALGAE_LINE / 2,
@@ -235,6 +236,16 @@ describe('highAlgaeAlert', () => {
         expect(highAlgaeAlert.check(state, at).log !== null).toBe(shading.amount > 0);
       }
     }
+  });
+
+  it('reads the kinds together: two blooms each under the line fire it when their combined coverage is over', () => {
+    const line = algaeAlertLine(config);
+    const both = produce(createSimulation({ tankCapacity: CAPACITY }), (draft) => {
+      draft.algae.greenWater.mass = 0.8 * line;
+      draft.algae.film.mass = 0.8 * line;
+    });
+    expect(combinedCoverage(both.algae)).toBeGreaterThan(line);
+    expect(highAlgaeAlert.check(both, config).log).not.toBeNull();
   });
 });
 

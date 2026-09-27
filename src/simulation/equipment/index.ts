@@ -13,6 +13,7 @@ import {
   calculateHeatingRate,
   HEATER_WATTAGE_OPTIONS,
 } from './heater.js';
+import { resettle } from '../algae/index.js';
 import { atoUpdate } from './ato.js';
 import { getFilterSurface, getFilterFlow, isFilterAirDriven, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_TYPES, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN } from './filter.js';
 import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH, POWERHEAD_FLOW_RATES } from './powerhead.js';
@@ -340,7 +341,11 @@ export function disturbBed(draft: SimulationState, share: number): void {
   draft.resources.nob *= kept;
 }
 
-/** Set a piece on the bed. It arrives sterile, and a tank with no slot left refuses it. */
+/**
+ * Set a piece on the bed. It arrives sterile and bare, so a bloom on the
+ * surfaces keeps its tissue over more of them, and a tank with no slot left
+ * refuses it.
+ */
 export function placeHardscape(state: SimulationState, item: HardscapeItem): SimulationState {
   if (!checkHardscapeCapacity(state.equipment.hardscape.items, state.tank.hardscapeSlots).ok) {
     return state;
@@ -348,12 +353,13 @@ export function placeHardscape(state: SimulationState, item: HardscapeItem): Sim
   return produce(state, (draft) => {
     draft.equipment.hardscape.items.push(item);
     draft.resources.surface = calculateSurface(draft);
+    draft.algae = resettle(state.algae, state, draft);
   });
 }
 
 /**
- * Lift pieces out: the biofilm on them leaves with them, and the patches of
- * bed they sat on — one slot's share each — are disturbed together.
+ * Lift pieces out: the biofilm and the film on them leave with them, and the
+ * patches of bed they sat on — one slot's share each — are disturbed together.
  *
  * Returns the same state when no piece has any of those ids.
  */
@@ -387,5 +393,6 @@ export function resetHardscape(state: SimulationState): SimulationState {
   return produce(lifted, (draft) => {
     draft.equipment.hardscape.items = items.map((i) => createHardscapeItem(i.id, i.type));
     draft.resources.surface = calculateSurface(draft);
+    draft.algae = resettle(lifted.algae, lifted, draft);
   });
 }

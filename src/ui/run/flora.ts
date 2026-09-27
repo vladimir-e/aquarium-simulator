@@ -1,7 +1,7 @@
 /**
  * Flora derivations: what each plant is doing on the hour the next tick
  * settles, how the planting folds into species and families and how the reader
- * counts them, how the bloom reads off its coverage, and the tank's nutrient
+ * counts them, how each bloom reads off its coverage, and the tank's nutrient
  * readings, the bed's among them. Nothing here invents a band — a nutrient or
  * the bed reads short when the engine's own sufficiency would rise if it were
  * topped up, and high past a line the engine itself charges or alerts from, so
@@ -23,6 +23,7 @@ import {
   plantFeeder,
   plantNitrateEdge,
   tankPools,
+  type AlgaeKind,
   type LogEntry,
   type NutrientPool,
   type Plant,
@@ -76,23 +77,33 @@ function bloomShows(mass: number): boolean {
   return !printsAsZero(mass, COVERAGE_DECIMALS);
 }
 
-const CLEAR: Reading = { status: 'ok', word: 'clear' };
-
 /**
- * The bloom's ladder above clear, each rung a multiple of the line it alerts
+ * A bloom's ladder above none, each rung a multiple of the line the tank alerts
  * over, so its word and its tone move together. Low algae is good for the
  * player, so the tones run green → coral as it climbs.
  */
-const ALGAE_LADDER: readonly { upTo: number; reading: Reading }[] = [
-  { upTo: 0.5, reading: { status: 'ok', word: 'sparse' } },
-  { upTo: 1, reading: { status: 'ok', word: 'active' } },
-  { upTo: 2, reading: { status: 'warn', word: 'spreading' } },
-  { upTo: Infinity, reading: { status: 'alert', word: 'booming' } },
+const ALGAE_LADDER: readonly { upTo: number; status: Status }[] = [
+  { upTo: 0.5, status: 'ok' },
+  { upTo: 1, status: 'ok' },
+  { upTo: 2, status: 'warn' },
+  { upTo: Infinity, status: 'alert' },
 ];
 
-/** How the bloom reads off its coverage, against the line it alerts over: clear while there is none to see. */
-export function algaeReading(mass: number, line: number): Reading {
-  return bloomShows(mass) ? ALGAE_LADDER.find((rung) => mass <= rung.upTo * line)!.reading : CLEAR;
+/**
+ * Each kind's words for its coverage, none first and then up the ladder: green
+ * water reads as the water's clarity, film as how coated the glass is.
+ */
+const ALGAE_WORDS: Record<AlgaeKind, readonly [none: string, ...rungs: string[]]> = {
+  greenWater: ['clear', 'hazy', 'cloudy', 'green', 'pea soup'],
+  film: ['clean', 'dusted', 'filmed', 'coated', 'smothered'],
+};
+
+/** How a bloom reads off its coverage, against the line the tank alerts over: its kind's word for none while there is none to see. */
+export function algaeReading(kind: AlgaeKind, mass: number, line: number): Reading {
+  const words = ALGAE_WORDS[kind];
+  if (!bloomShows(mass)) return { status: 'ok', word: words[0] };
+  const rung = ALGAE_LADDER.findIndex((step) => mass <= step.upTo * line);
+  return { status: ALGAE_LADDER[rung].status, word: words[rung + 1] };
 }
 
 /**
@@ -108,7 +119,7 @@ export function isReported(log: LogEntry): boolean {
 }
 
 export function algaeStatus(mass: number, line: number): Status {
-  return algaeReading(mass, line).status;
+  return bloomShows(mass) ? ALGAE_LADDER.find((step) => mass <= step.upTo * line)!.status : 'ok';
 }
 
 /** Where a plant stands among its kin, numbered the way a reader counts. */

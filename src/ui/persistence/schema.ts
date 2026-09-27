@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { MAX_DOSE_ML, MAX_LIGHT_PAR, MAX_ROOT_TABS, VIGOUR_SPAN } from '../../simulation/index.js';
+import { MAX_DOSE_ML, MAX_LIGHT_PAR, MAX_ROOT_TABS, VIGOUR_SPAN, mapKinds } from '../../simulation/index.js';
 import {
   MAX_LEAF_ATTENUATION_PER_LAI,
   MAX_SIZE_PER_SURPLUS,
@@ -90,6 +90,8 @@ const AlgaeStateSchema = z
     surplus: z.number().min(0),
   })
   .strict();
+
+const BloomsSchema = z.object(mapKinds(() => AlgaeStateSchema)).strict();
 
 // ============================================================================
 // Environment Schema
@@ -338,7 +340,7 @@ export const PersistedSimulationSchema = z
     plants: z.array(PlantSchema),
     fish: z.array(FishSchema),
     clutches: z.array(ClutchSchema),
-    algae: AlgaeStateSchema,
+    algae: BloomsSchema,
     rng: RngStateSchema,
     alertState: AlertStateSchema,
     seed: TankSeedSchema.optional(),

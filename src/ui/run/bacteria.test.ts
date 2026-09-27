@@ -17,8 +17,11 @@ import {
 } from '../../simulation/core/chemistry.js';
 import {
   ALGAE,
+  ALGAE_KINDS,
   applyAction,
   bloomTissue,
+  habitatSize,
+  mapKinds,
   createSimulation,
   organicNutrients,
   tick,
@@ -222,7 +225,7 @@ describe('bacteriaReadout', () => {
       bacteriaReadout(state, config, {
         ...ahead,
         waterUptake: { ...ahead.waterUptake, ammonia: share * arriving },
-        algae: { ...ahead.algae, waterUptake: { ...ahead.algae.waterUptake, ammonia: 0 } },
+        algae: mapKinds((kind) => ({ ...ahead.algae[kind], waterUptake: { ...ahead.algae[kind].waterUptake, ammonia: 0 } })),
       });
 
     expect(withFlora(0).cycled).toBe(false);
@@ -265,9 +268,9 @@ describe('bacteriaReadout', () => {
     expect(rates.netAmmonia).toBeCloseTo(moved, 4);
   });
 
-  it('nets ammonia and reads the bloom’s uptake the way the next tick moves them while it feeds', () => {
+  it('nets ammonia and reads the blooms’ uptake the way the next tick moves them while they feed', () => {
     const blooming = produce(tank(), (draft) => {
-      draft.algae = { mass: 40, condition: 100, surplus: 20 };
+      for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 40, condition: 100, surplus: 20 };
       draft.resources.ammonia = getMassFromPpm(0.3, draft.resources.water);
       draft.resources.nitrate = 0;
       draft.resources.phosphate = getMassFromPpm(1, draft.resources.water);
@@ -277,7 +280,11 @@ describe('bacteriaReadout', () => {
     const { rates } = readBiofilter(blooming);
     const next = tick(blooming, config);
     const water = blooming.resources.water;
-    const tissue = (state: SimulationState): number => bloomTissue(state.algae.mass, state.tank.capacity, ALGAE);
+    const tissue = (state: SimulationState): number =>
+      ALGAE_KINDS.reduce(
+        (sum, kind) => sum + bloomTissue(state.algae[kind].mass, habitatSize(ALGAE[kind].habitat, state), ALGAE[kind]),
+        0
+      );
     const ammoniaTaken =
       (tissue(next) - tissue(blooming)) *
       organicNutrients(config.livestock, config.nutrients).nitrate *
@@ -340,17 +347,19 @@ describe('projectNitritePeak', () => {
   });
 
   it('counts a bloom in the dark as a feeder while its bank buys tissue', () => {
-    const banked = produce(soilTank({ lit: false }), (draft) => {
-      draft.algae = { mass: 40, condition: 100, surplus: 20 };
-      draft.resources.ammonia = getMassFromPpm(0.5, draft.resources.water);
-    });
-    const spent = produce(banked, (draft) => {
-      draft.algae.surplus = 0;
-    });
+    for (const kind of ALGAE_KINDS) {
+      const banked = produce(soilTank({ lit: false }), (draft) => {
+        draft.algae[kind] = { mass: 40, condition: 100, surplus: 20 };
+        draft.resources.ammonia = getMassFromPpm(0.5, draft.resources.water);
+      });
+      const spent = produce(banked, (draft) => {
+        draft.algae[kind].surplus = 0;
+      });
 
-    expect(readHourAhead(banked, config).algae.waterUptake.ammonia).toBeGreaterThan(0);
-    expect(projectPeak(banked)!.feeders).toEqual(['algae']);
-    expect(projectPeak(spent)!.feeders).toEqual([]);
+      expect(readHourAhead(banked, config).algae[kind].waterUptake.ammonia).toBeGreaterThan(0);
+      expect(projectPeak(banked)!.feeders).toEqual(['algae']);
+      expect(projectPeak(spent)!.feeders).toEqual([]);
+    }
   });
 
   it('finds a lower peak once an ATO is holding the volume up', () => {

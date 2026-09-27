@@ -7,6 +7,8 @@
  */
 
 import {
+  isAlgaeKind,
+  type AlgaeKind,
   type Clutch,
   type FishSex,
   type FishSpecies,
@@ -140,12 +142,12 @@ export interface FryRosterRow extends Vital {
 }
 
 /**
- * The algae: a population, not a roster of individuals — coverage in place of
- * a count, and no dots, because there is nobody in there to count.
+ * A bloom: a population, not a roster of individuals — coverage in place of a
+ * count, and no dots, because there is nobody in there to count.
  */
 export interface PopulationRosterRow extends Vital {
   kind: 'population';
-  key: 'algae';
+  key: AlgaeKind;
   name: string;
   /** Coverage, as the reading book states it. */
   figure: string;
@@ -404,14 +406,14 @@ export interface Inspection {
 
 /**
  * The ledger a row key opens, resolved afresh on every read: an individual by
- * its id, the bloom, or a group as its worst member at this hour — so a group's
+ * its id, a bloom by its kind, or a group as its worst member at this hour — so a group's
  * ledger follows its worst and counts the group as it stands.
  */
 export function inspection(
   key: string,
   roster: Pick<RosterInput, 'fish' | 'plants'>
 ): Inspection | null {
-  if (key === 'algae') return { target: { kind: 'algae' }, subtitle: '' };
+  if (isAlgaeKind(key)) return { target: { kind: 'algae', bloom: key }, subtitle: '' };
   for (const group of roster.fish) {
     if (speciesKey(group.species) === key) {
       return {

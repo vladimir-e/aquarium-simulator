@@ -6,10 +6,10 @@
  * reported twice in different words or in different colours.
  */
 
-import type { AlertState, SimulationState } from '../../simulation/index.js';
+import { ALGAE_KINDS, type AlertState, type AlgaeKind, type SimulationState } from '../../simulation/index.js';
 import { verbName, type VerbId } from '../actions';
 import type { ReadingBook, ReadingId } from '../readings';
-import { STATUS_SEVERITY, worstStatus } from '../run';
+import { BLOOM_VERB, STATUS_SEVERITY, worstStatus } from '../run';
 import type { SectionId } from './sections.js';
 
 /** The two tones that ask for the keeper: past a line fish take harm at, and short of it. */
@@ -32,6 +32,9 @@ export interface Need {
   to: string;
 }
 
+/** A field fixed for the alert, or read off the tank it fired in. */
+type OnTank<T> = T | ((state: SimulationState) => T);
+
 /**
  * An engine alert as it is written down: the reading it speaks for, and the
  * verb that answers it — a husbandry verb names itself, and only the two
@@ -41,9 +44,18 @@ type AlertSpec = {
   id: keyof AlertState;
   section: SectionId;
   text: string;
-  reading: ReadingId;
+  reading: OnTank<ReadingId>;
   to: string;
-} & ({ act: VerbId; verb?: never } | { act?: never; verb: string });
+} & ({ act: OnTank<VerbId>; verb?: never } | { act?: never; verb: string });
+
+function onTank<T>(field: OnTank<T>, state: SimulationState): T {
+  return typeof field === 'function' ? (field as (state: SimulationState) => T)(state) : field;
+}
+
+/** The kind the bloom alert speaks for: the one covering more of its habitat. */
+function largerBloom(state: SimulationState): AlgaeKind {
+  return ALGAE_KINDS.reduce((larger, kind) => (state.algae[kind].mass > state.algae[larger].mass ? kind : larger));
+}
 
 /** What poisons fish before what merely looks bad. */
 const ALERTS: readonly AlertSpec[] = [
@@ -99,8 +111,8 @@ const ALERTS: readonly AlertSpec[] = [
     id: 'highAlgae',
     section: 'life',
     text: 'Algae bloom',
-    reading: 'algae',
-    act: 'scrubAlgae',
+    reading: largerBloom,
+    act: (state) => BLOOM_VERB[largerBloom(state)],
     to: '/life',
   },
 ];
@@ -113,8 +125,15 @@ function needTone(tone: string): NeedTone {
   return tone === 'alert' ? 'alert' : 'warn';
 }
 
-function alertNeed(spec: AlertSpec, book: ReadingBook): Need {
-  const reading = book.byId[spec.reading];
+/** The verb that answers an alert on this tank, and the husbandry verb the strip opens where it has one. */
+function answer(spec: AlertSpec, state: SimulationState): Pick<Need, 'verb' | 'act'> {
+  if (spec.act === undefined) return { verb: spec.verb };
+  const act = onTank(spec.act, state);
+  return { verb: verbName(act), act };
+}
+
+function alertNeed(spec: AlertSpec, state: SimulationState, book: ReadingBook): Need {
+  const reading = book.byId[onTank(spec.reading, state)];
   return {
     id: spec.id,
     section: spec.section,
@@ -122,8 +141,7 @@ function alertNeed(spec: AlertSpec, book: ReadingBook): Need {
     text: spec.text,
     figure: `${reading.value} ${reading.unit}`.trim(),
     sentence: reading.sentence,
-    verb: spec.act === undefined ? spec.verb : verbName(spec.act),
-    act: spec.act,
+    ...answer(spec, state),
     to: spec.to,
   };
 }
@@ -176,7 +194,7 @@ function fishNeed(book: ReadingBook): Need | null {
 export function activeNeeds(state: SimulationState, book: ReadingBook): Need[] {
   const latched = (section: SectionId): Need[] =>
     ALERTS.filter((spec) => spec.section === section && state.alertState[spec.id]).map((spec) =>
-      alertNeed(spec, book)
+      alertNeed(spec, state, book)
     );
   const fish = fishNeed(book);
   return [...latched('water'), ...(fish ? [fish] : []), ...latched('life')].sort(

@@ -2,7 +2,16 @@
  * Output formatters for `sim observe` (markdown) and `sim trace` (CSV).
  */
 
-import { getDgh, getDkh, getPh, type SimulationState } from '../simulation/index.js';
+import {
+  ALGAE,
+  ALGAE_KINDS,
+  getDgh,
+  getDkh,
+  getPh,
+  type AlgaeKind,
+  type AlgaeState,
+  type SimulationState,
+} from '../simulation/index.js';
 import { ammoniaAlertLine } from '../simulation/alerts/index.js';
 import {
   bacteriaReadout,
@@ -96,10 +105,10 @@ export function renderObserve(session: Session): string {
       toPpm(r.iron, r.water),
       3
     )} ppm`,
-    `**Other** waste ${round(r.waste, 2)}g · algae ${round(state.algae.mass, 1)} (condition ${round(
-      state.algae.condition,
-      0
-    )}%) · food ${round(r.food, 2)}g`,
+    `**Other** waste ${round(r.waste, 2)}g · ${ALGAE_KINDS.map(
+      (kind) =>
+        `${ALGAE[kind].name.toLowerCase()} ${round(state.algae[kind].mass, 1)} (condition ${round(state.algae[kind].condition, 0)}%)`
+    ).join(' · ')} · food ${round(r.food, 2)}g`,
     '',
     `**Fish (${state.fish.length})** ${
       state.fish.length ? `avg health ${avgFishHealth}%` : '—'
@@ -145,9 +154,6 @@ const DERIVED_FIELDS = [
   'fish_avg_health',
   'plant_count',
   'plant_avg_condition',
-  'algae_mass',
-  'algae_condition',
-  'algae_surplus',
   'nh3_ppm',
   'no2_ppm',
   'no3_ppm',
@@ -157,13 +163,28 @@ const DERIVED_FIELDS = [
   'dgh',
 ] as const;
 
+const BLOOM_KEYS = ['mass', 'condition', 'surplus'] as const satisfies readonly (keyof AlgaeState)[];
+
+/** Each kind's bloom, a column per figure: `green_water_mass`, `film_condition`… */
+const BLOOM_FIELDS = new Map<string, [AlgaeKind, keyof AlgaeState]>(
+  ALGAE_KINDS.flatMap((kind) =>
+    BLOOM_KEYS.map((key): [string, [AlgaeKind, keyof AlgaeState]] => [
+      `${kind.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)}_${key}`,
+      [kind, key],
+    ])
+  )
+);
+
 export const TRACE_FIELDS: readonly string[] = [
   ...DERIVED_FIELDS,
+  ...BLOOM_FIELDS.keys(),
   ...Object.keys(RESOURCE_FIELDS),
 ];
 
 function getFieldValue(entry: HistorySnapshot, field: string): string {
   const r = entry.resources;
+  const bloom = BLOOM_FIELDS.get(field);
+  if (bloom) return String(round(entry.algae[bloom[0]][bloom[1]], 2));
   switch (field) {
     case 'tick':
       return String(entry.tick);
@@ -175,12 +196,6 @@ function getFieldValue(entry: HistorySnapshot, field: string): string {
       return String(entry.plants.count);
     case 'plant_avg_condition':
       return String(round(entry.plants.avgCondition, 2));
-    case 'algae_mass':
-      return String(round(entry.algae.mass, 2));
-    case 'algae_condition':
-      return String(round(entry.algae.condition, 2));
-    case 'algae_surplus':
-      return String(round(entry.algae.surplus, 2));
     case 'nh3_ppm':
       return String(round(toPpm(r.ammonia, r.water), 4));
     case 'no2_ppm':

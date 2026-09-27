@@ -39,8 +39,8 @@ const PICKERS: PickerKind[] = ['fish', 'plant'];
 const BIOLOAD_SCALE = 2;
 
 /**
- * Who lives here: two tables read the same way, the algae riding along at the
- * top of the plants as the population it competes with them as. A fish species
+ * Who lives here: two tables read the same way, the blooms riding along at the
+ * top of the plants as the populations they compete with them as. A fish species
  * opens to its fish, a plant species to its families and a family to its
  * units; any row opens the vitality ledger beside it.
  */
@@ -129,7 +129,11 @@ export function LifeSection({
     <>
       <ModulePage
         title="Life"
-        meta={`${state.fish.length} fish · ${plural(state.plants.length, 'plant')} · algae ${algae.figure}`}
+        meta={[
+          `${state.fish.length} fish`,
+          plural(state.plants.length, 'plant'),
+          ...algae.map((row) => `${row.name.toLowerCase()} ${row.figure}`),
+        ].join(' · ')}
         actions={
           <>
             <VerbButton label={actLabel('feed')} onClick={() => onAct('feed')} />
@@ -162,7 +166,7 @@ export function LifeSection({
           </ModuleGroup>
 
           <ModuleGroup title="Plants" meta={floorPlanted(state)}>
-            <Roster layout="plants" rows={[algae, ...tables.plants]} handlers={handlers('plant')} />
+            <Roster layout="plants" rows={[...algae, ...tables.plants]} handlers={handlers('plant')} />
             {tables.plants.length === 0 && (
               <RosterEmpty
                 species="anubias"

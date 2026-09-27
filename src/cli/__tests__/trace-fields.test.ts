@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createSimulation } from '../../simulation/index.js';
+import { ALGAE_KINDS, createSimulation } from '../../simulation/index.js';
 import { getPresetById } from '../../simulation/presets.js';
 import { renderTrace, TRACE_FIELDS } from '../format.js';
 import { snapshot } from '../history.js';
@@ -20,13 +20,13 @@ describe('trace fields', () => {
   it('publishes every field the snapshot carries', () => {
     const entry = history[0]!;
     const groups = [
-      ['resources', ''],
-      ['fish', 'fish_'],
-      ['plants', 'plant_'],
-      ['algae', 'algae_'],
+      [entry.resources, ''],
+      [entry.fish, 'fish_'],
+      [entry.plants, 'plant_'],
+      ...ALGAE_KINDS.map((kind) => [entry.algae[kind], `${snakeCase(kind)}_`] as const),
     ] as const;
     for (const [group, prefix] of groups) {
-      for (const key of Object.keys(entry[group])) {
+      for (const key of Object.keys(group)) {
         expect(TRACE_FIELDS).toContain(`${prefix}${snakeCase(key)}`);
       }
     }
@@ -46,9 +46,12 @@ describe('trace fields', () => {
     expect(() => renderTrace([], { fields: ['nonsense'] })).toThrow(/Unknown trace field/);
   });
 
-  it('traces the algae the snapshot records', () => {
-    const bloom = snapshot({ ...state, algae: { ...state.algae, mass: 12.5, surplus: 3.25 } });
-    const csv = renderTrace([bloom], { fields: ['algae_mass', 'algae_surplus'] });
-    expect(csv).toBe(`tick,algae_mass,algae_surplus\n${bloom.tick},12.5,3.25`);
+  it('traces each kind of bloom the snapshot records, a column per figure', () => {
+    const bloom = snapshot({
+      ...state,
+      algae: { greenWater: { mass: 12.5, condition: 90, surplus: 3.25 }, film: { mass: 40, condition: 100, surplus: 1 } },
+    });
+    const csv = renderTrace([bloom], { fields: ['green_water_mass', 'green_water_surplus', 'film_mass'] });
+    expect(csv).toBe(`tick,green_water_mass,green_water_surplus,film_mass\n${bloom.tick},12.5,3.25,40`);
   });
 });

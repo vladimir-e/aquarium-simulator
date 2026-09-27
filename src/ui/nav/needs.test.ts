@@ -64,7 +64,7 @@ describe('activeNeeds', () => {
     const state = withAlerts(
       { highNitrite: true, highAlgae: true },
       produce(base, (draft) => {
-        draft.algae.mass = 95;
+        draft.algae.film.mass = 95;
       })
     );
 

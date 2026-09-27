@@ -25,7 +25,7 @@ month-long run becomes something you can watch, scrub back through, and explain.
 |---|---|---|
 | Overview | `/` | The tank as widgets, each a window onto its module: the nitrogen cycle as a chain of stocks, life, water, gear and nutrients. A phone stacks them; a tablet runs the chain, the life roster and the rack full width with water and nutrients side by side; a desk-wide stage gives life and nutrients a column of their own beside the chain, water and gear. Whatever needs the keeper is named above them, one line each, with the verb that answers it |
 | Water | `/water` | The tank as a lab sheet, two columns of headed reading rows. Left: water (temperature, pH, KH, GH, level), the dissolved gases, and the four nutrients and the bed against what the plants ask for. Right: the nitrogen compounds on their alert lines, then the biofilter — each guild against its ceiling, what it converts an hour, whether the tank reads as cycled and where the nitrite peak falls — and the waste pool feeding it. Any row opens its reading in the drawer |
-| Life | `/life` | Two tables on one row shape: the fish, and the plants with the algae riding along at their top as a population row — the roster, below. Bioload sits under the fish against the stocking guideline, and the plants' header reads how much of the floor the planting claims, saying so once it has outgrown it. Under the fish rows sit the clutches counting down to hatch and one row for every fry in the tank, which is the unit the sell-all-fry verb takes. Any row opens the vitality ledger in the drawer, addressed by the URL (`/life?inspect=…`) so the Overview opens one too — helping against hurting, each factor at its rate per day, and the bank between them, named by which way the next tick moves it: banking, healing, or buying growth, an offshoot or a brood — and the module's "+" stocks a species through the same drawer |
+| Life | `/life` | Two tables on one row shape: the fish, and the plants with the two blooms — green water and film — riding along at their top as population rows — the roster, below. Bioload sits under the fish against the stocking guideline, and the plants' header reads how much of the floor the planting claims, saying so once it has outgrown it. Under the fish rows sit the clutches counting down to hatch and one row for every fry in the tank, which is the unit the sell-all-fry verb takes. Any row opens the vitality ledger in the drawer, addressed by the URL (`/life?inspect=…`) so the Overview opens one too — helping against hurting, each factor at its rate per day, and the bank between them, named by which way the next tick moves it: banking, healing, or buying growth, an offshoot or a brood — and the module's "+" stocks a species through the same drawer |
 | Gear | `/gear` | A rack of eight device rows: a power switch, a silhouette, the name, and what it is set to — or, for the three that keep a clock, that day as a 24 h ribbon against the hour the tank is on. A row opens the device's inspector in the drawer, addressed by the URL, so each inspector is a link and back walks between devices; closing one lands on the rack. Under the rack the scape — the substrate, and each piece of hardscape with the surface it adds — and under that what the fittings add up to, which is what the tick reads. The day's light sits among them against what the worst-lit plant starves under at its own height, and opens its reading |
 | History | `/history` | The spine at full height: the four tracks stacked over one axis on the left, and on the right what the run cost — deaths, births, alerts, water changed — over the event log. A window switch scopes both. Dragging a track or the axis, or tapping a log line, parks the same playhead the spine writes |
 | Setup | `/setup` | What the tank *is*, rather than how it is doing: the preset it came from and whether the tank still matches it, the capacity, the lid, the room and the tap water, each row carrying what it does to the tank. Beside them the display choices — units and theme — what the run has cost so far and the reset that ends it, and what this simulation claims to be. Capacity is read-only — resizing is a separate row, because a new size builds a new tank at hour zero; past a month's run both it and the reset confirm first |
@@ -72,12 +72,15 @@ species tolerates, red at none; a group reads its worst-lit unit's figure at
 its worst unit's tone. Its bank is the share of an offshoot's price it holds —
 at 100 % the next tick buys one. The unit's ledger reads the same two.
 
-The algae row reads the bloom's coverage and where the next tick takes it,
-under a word off the line it alerts over — clear while the coverage prints as
-none, then sparse, active, spreading and booming. Its ledger reads the bloom as
-the organism it is — its condition, what feeds it and what harms it, its bank
-buying growth — beside its coverage and its day of light through the water
-column, under the coverage word the row wears.
+Each bloom row reads its kind's coverage and where the next tick takes it,
+under a word off the line the tank alerts over, in the kind's own terms. Green
+water reads as the water's clarity — clear while the coverage prints as none,
+then hazy, cloudy, green and pea soup; film as how coated the glass is — clean,
+then dusted, filmed, coated and smothered. Its ledger reads the bloom as the
+organism it is — its condition, what feeds it and what harms it, its bank
+buying growth — beside its coverage and its day of light over its habitat,
+under the coverage word the row wears, with the verb that takes it out: a
+water change for green water, a scrub for film.
 
 A family row carries its own trim, which opens the Trim sheet held to that
 family — the same rungs, counted over the family alone; the preview reads what
@@ -141,7 +144,7 @@ Short of the plants' need it is amber, past the close it is red.
 A trend is what the reading did over the last whole day of the snapshot buffer
 the keeper left alone — a part-day is a slice of the tank's daily swing, and an
 action is a step the tank did not take — so a reading shows none until the
-buffer holds such a day. The algae's trend, and a vitality trend, is what the
+buffer holds such a day. A bloom's trend, and a vitality trend, is what the
 next tick does instead, per day.
 
 Tapping a reading anywhere — the Overview, the Water module, the day's light on
@@ -193,7 +196,7 @@ axis alone; the handle expands it onto four tracks sharing that axis.
 | Nitrogen | NH₃, NO₂, NO₃ |
 | pH, KH, GH & CO₂ | pH, KH, GH, CO₂ |
 | O₂, temp & level | oxygen, temperature, water level |
-| Populations | fish, fry, plants, algae |
+| Populations | fish, fry, plants, green water, film |
 
 Each line is normalised to its own extent, so a compound at 0.1 ppm and one at
 40 ppm share a band without sharing a scale. That extent is never narrower than
@@ -219,7 +222,7 @@ you** strip carries the same verb beside the condition that calls for it.
 
 | Needs you | Verb |
 |---|---|
-| Every alert the engine latches | The verb or the fitting that answers it — a water change, a top-off, a scrub, the air pump or the CO₂ injector |
+| Every alert the engine latches | The verb or the fitting that answers it — a water change, a top-off, a scrub, the air pump or the CO₂ injector. The bloom alert reads the two kinds together and speaks for the one covering more: a scrub for film, a water change for green water |
 | Fish hungry or starving | Feed |
 | Fish sick — damage outrunning their healing | The worst one's ledger |
 
@@ -263,12 +266,12 @@ band or a different word depending on which surface is showing it.
 |---|---|
 | Reading values and status | Current resources, against the thresholds the engine alerts on |
 | Reading bands | An engine threshold where there is one, the stocked species' tolerance or the plants' demand where there is not |
-| The cycle chain | The engine's own mineralisation, oxidation and clearance rates and the ammonia plants and the bloom take, read for the hour ahead |
+| The cycle chain | The engine's own mineralisation, oxidation and clearance rates and the ammonia plants and the blooms take, read for the hour ahead |
 | The nitrite peak | The engine's own chain run forward from the hour ahead, without the flora, so it reads as the cycle's alone. Where plants stand, the lamp lights a bloom or a bloom's bank grows it in the dark, it names them as what will shift it — either way, since they draw ammonia and shed tissue that rots back into it |
-| Vitality breakdowns | The engine's own per-factor stressor and benefit lists, per organism, read on the hour the next tick settles — plants and the bloom in their one pass, then fish — so a trend is the change that tick makes, the algae's coverage alike on its row, its reading and its ledger. An organism reads sick while that change shows as a fall at the trend's precision |
+| Vitality breakdowns | The engine's own per-factor stressor and benefit lists, per organism, read on the hour the next tick settles — plants and the blooms in their one pass, then fish — so a trend is the change that tick makes, a bloom's coverage alike on its row, its reading and its ledger. An organism reads sick while that change shows as a fall at the trend's precision |
 | Tracks | The snapshot buffer, each series normalised to its own extent |
-| Trends | The snapshot buffer's last whole day since the keeper last acted; the algae's and a vitality trend off the hour ahead |
-| Event log | The log entries the tick appends, filtered by category, exportable as text. A die-back shows only where it took a bloom that read above clear: spores dying back in a dark tank are the engine's to log, not the keeper's to read |
+| Trends | The snapshot buffer's last whole day since the keeper last acted; a bloom's and a vitality trend off the hour ahead |
+| Event log | The log entries the tick appends, filtered by category, exportable as text. A die-back shows only where it took a bloom that read above none: spores dying back in a dark tank are the engine's to log, not the keeper's to read |
 | Alert markers | Log entries of alert severity, placed on the timeline axis at the tick they fired |
 | Run tallies | Folded from the event log's lines — deaths and births, fish and plant units and blooms alike, alerts, water changed |
 
@@ -314,7 +317,7 @@ rather than a temperature.
 
 | Kept | Dropped |
 |---|---|
-| The tank: clock, resources, environment, equipment, plants, fish, clutches, algae, random stream, alert state | The event log, which starts fresh each session |
+| The tank: clock, resources, environment, equipment, plants, fish, clutches, the blooms, random stream, alert state | The event log, which starts fresh each session |
 | The preset the tank came from | Play state |
 | Tuned constants, the amounts the verbs are standing on, and the transport speed | The History view — it lives in the URL instead |
 | Units, the theme, and whether the tunables drawer and the spine's tracks were open | |

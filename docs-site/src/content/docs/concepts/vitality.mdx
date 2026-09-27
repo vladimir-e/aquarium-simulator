@@ -56,7 +56,7 @@ and it ends when the rates turn round.
 |---|---|---|
 | Fish | `healingDrawRate × adultMass^−¼`, the way mass-specific metabolism scales | 0.06 /h for a neon, 0.025 /h for an angelfish |
 | Plant | `healingDrawRate × growthRate` — a plant repairs at the rate it grows | 0.09 /h for monte carlo, 0.015 /h for anubias |
-| Algae | The plants' law, at the bloom's growth rate | 1.5 /h — 78 % of its bank in an hour |
+| Algae | The plants' law, at its kind's growth rate | 3 /h for green water — 95 % of its bank in an hour — and 1 /h for film, 63 % |
 
 ## What the bank buys
 
@@ -70,7 +70,7 @@ and it ends when the rates turn round.
 
 | Mechanic | Status | Why |
 |---|---|---|
-| The balance | <Badge text="settled" variant="success" /> | One step for fish, plants and the bloom. Each organism hardens its own charges, so a channel can move its edge instead of scaling its charge |
+| The balance | <Badge text="settled" variant="success" /> | One step for fish, plants and the blooms. Each organism hardens its own charges, so a channel can move its edge instead of scaling its charge |
 | Banking at full condition | <Badge text="settled" variant="success" /> | Income heals first and banks only at 100; damage never reaches the bank |
 | First-order healing | <Badge text="settled" variant="success" /> | The bank heals at a species rate, integrated over the hour, with no floor, switch or clamp |
 | Sickness | <Badge text="settled" variant="success" /> | A reading of the rates, not a state: condition falling is the whole of it |
@@ -80,6 +80,6 @@ and it ends when the rates turn round.
 ## Source
 
 `src/simulation/systems/` holds the shared step, the flora law plants and the
-bloom both run on, and each organism's factor builders; `src/simulation/plants/`, `src/simulation/algae/` and
+blooms all run on, and each organism's factor builders; `src/simulation/plants/`, `src/simulation/algae/` and
 `src/simulation/livestock/` decide what their bank buys, and
-`src/simulation/flora/` runs plants and the bloom through one pass.
+`src/simulation/flora/` runs plants and the blooms through one pass.

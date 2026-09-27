@@ -74,7 +74,7 @@ export function LedgerDrawer({
   onClose: () => void;
   onAct: (verb: VerbId, at?: number, scope?: VerbScope) => void;
   actLabel: (verb: VerbId) => string;
-  /** Absent for the algae, which is scrubbed rather than removed. */
+  /** Absent for a bloom, which is scrubbed or changed out rather than removed. */
   onRemove: (() => void) | null;
 }): React.JSX.Element | null {
   if (!ledger) return null;

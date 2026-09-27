@@ -15,7 +15,7 @@ import {
   type Plant,
   type Resources,
 } from '../state.js';
-import { ALGAE, bloomTissue } from '../algae/index.js';
+import { ALGAE, ALGAE_KINDS, bloomTissue, habitatGain, habitatSize, type AlgaeKind } from '../algae/index.js';
 import { dailyLightIntegral } from '../equipment/light.js';
 import { produce } from 'immer';
 import { carbonateKh } from '../core/carbonate.js';
@@ -53,12 +53,12 @@ const LIT_DAY = Array.from({ length: 24 }, (_, hour) =>
 
 const LITRES = 100;
 
-type TankFields = { plants: Plant[]; algae: Partial<AlgaeState> } & Pick<
+type TankFields = { plants: Plant[]; algae: Partial<Record<AlgaeKind, Partial<AlgaeState>>> } & Pick<
   Resources,
   'light' | 'lightByHour' | 'co2' | 'nitrate' | 'phosphate' | 'potassium' | 'iron' | 'oxygen' | 'temperature' | 'water' | 'waste'
 >;
 
-/** A tank on rich water with this planting and bloom — none of either unless it says so. */
+/** A tank on rich water with this planting and these blooms — none of either unless it says so. */
 function tank({ plants = [], algae = {}, ...resources }: Partial<TankFields> = {}): SimulationState {
   return produce(createSimulation({ tankCapacity: LITRES }), (draft) => {
     const water = resources.water ?? draft.resources.water;
@@ -67,10 +67,17 @@ function tank({ plants = [], algae = {}, ...resources }: Partial<TankFields> = {
     }
     draft.resources.nitrate = RICH_NITRATE_PPM * water;
     Object.assign(draft.resources, resources);
-    Object.assign(draft.algae, algae);
+    for (const kind of ALGAE_KINDS) Object.assign(draft.algae[kind], algae[kind]);
     draft.plants = plants;
   });
 }
+
+/** Grams of tissue every kind of bloom holds. */
+const bloomsTissue = (state: SimulationState): number =>
+  ALGAE_KINDS.reduce(
+    (sum, kind) => sum + bloomTissue(state.algae[kind].mass, habitatSize(ALGAE[kind].habitat, state), ALGAE[kind]),
+    0
+  );
 
 const total = (effects: readonly Effect[], resource: string, source?: string): number =>
   effects
@@ -86,9 +93,11 @@ describe('processFlora — plants', () => {
       const result = processFlora(tank({ plants: [] }), DEFAULT_CONFIG);
 
       expect(result.state.plants).toEqual([]);
-      expect(result.state.algae.mass).toBeGreaterThan(0);
-      expect(result.state.algae.mass).toBeLessThanOrEqual(ALGAE.sporeRate);
-      expect(result.state.algae.condition).toBe(100);
+      for (const kind of ALGAE_KINDS) {
+        expect(result.state.algae[kind].mass).toBeGreaterThan(0);
+        expect(result.state.algae[kind].mass).toBeLessThanOrEqual(ALGAE[kind].sporeRate);
+        expect(result.state.algae[kind].condition).toBe(100);
+      }
       expect(result.effects.every((e) => e.source === 'growth')).toBe(true);
     });
   });
@@ -322,7 +331,7 @@ describe('processFlora — plants', () => {
       after.plants.reduce((sum, plant) => {
         const start = before.plants.find((p) => p.id === plant.id);
         return sum + tissueMass(plant.species, plant.size - (start?.size ?? 0));
-      }, bloomTissue(after.algae.mass - before.algae.mass, before.tank.capacity, ALGAE));
+      }, bloomsTissue(after) - bloomsTissue(before));
     /** A night after a good day over a charged bed: nothing earned or lost, so only the bank moves size. */
     const night = (plants: Plant[], water: Partial<Resources> = {}): SimulationState =>
       produce(tank({ plants, light: 0, lightByHour: LIT_DAY, water: 100, ...water }), (draft) => {
@@ -356,7 +365,10 @@ describe('processFlora — plants', () => {
       const nitrogen = nutrientsIn({ ...ZERO_FORMS, ammonia, nitrate: fromWater(result, 'nitrate') }).nitrate;
 
       expect(ammonia).toBeGreaterThan(0);
-      expect(ammonia).toBeCloseTo(result.waterUptake.ammonia + result.algae.waterUptake.ammonia, 12);
+      expect(ammonia).toBeCloseTo(
+        ALGAE_KINDS.reduce((sum, kind) => sum + result.algae[kind].waterUptake.ammonia, result.waterUptake.ammonia),
+        12
+      );
       expect(nitrogen + fromBed(state, result, 'nitrate')).toBeCloseTo(tissueAdded(state, result.state) * recipe.nitrate, 10);
     });
 
@@ -380,7 +392,7 @@ describe('processFlora — plants', () => {
         const state = night([plant], rich);
         const result = processFlora(state, DEFAULT_CONFIG);
         const bed = fromBed(state, result, 'phosphate');
-        const spores = bloomTissue(result.state.algae.mass - state.algae.mass, state.tank.capacity, ALGAE) * recipe.phosphate;
+        const spores = (bloomsTissue(result.state) - bloomsTissue(state)) * recipe.phosphate;
         return bed / (bed + fromWater(result, 'phosphate') - spores);
       };
       const [sword, fern, carpet] = growers();
@@ -766,15 +778,16 @@ describe('processFlora — plants', () => {
   });
 });
 
-describe('processFlora — the bloom', () => {
+describe.each(ALGAE_KINDS)('processFlora — %s', (kind) => {
+  const traits = ALGAE[kind];
   const BLOOM = { mass: 20, condition: 100, surplus: 10 };
   /** The lamps off after a lit day: its bank buys, and nothing starves it. */
   const NIGHT = { light: 0, lightByHour: LIT_DAY };
   const DARK = { light: 0, lightByHour: new Array(24).fill(0) };
 
   it('photosynthesises by day and respires day and night, alone in the tank', () => {
-    const day = processFlora(tank({ algae: BLOOM, light: 60, lightByHour: LIT_DAY }), DEFAULT_CONFIG).effects;
-    const night = processFlora(tank({ algae: BLOOM, ...NIGHT }), DEFAULT_CONFIG).effects;
+    const day = processFlora(tank({ algae: { [kind]: BLOOM }, light: 60, lightByHour: LIT_DAY }), DEFAULT_CONFIG).effects;
+    const night = processFlora(tank({ algae: { [kind]: BLOOM }, ...NIGHT }), DEFAULT_CONFIG).effects;
 
     expect(total(day, 'oxygen', 'photosynthesis')).toBeGreaterThan(0);
     expect(total(day, 'co2', 'photosynthesis')).toBeLessThan(0);
@@ -783,20 +796,33 @@ describe('processFlora — the bloom', () => {
     expect(total(night, 'oxygen', 'respiration')).toBeCloseTo(total(day, 'oxygen', 'respiration'), 12);
   });
 
+  it('reads the light over its own habitat, and holds its tissue in proportion to that habitat', () => {
+    const planted = tank({
+      algae: { [kind]: BLOOM },
+      plants: [plantRecord({ id: 'sword', species: 'amazon_sword', size: 100, condition: 100, surplus: 0 })],
+      light: 60,
+      lightByHour: LIT_DAY,
+    });
+    const { light } = processFlora(planted, DEFAULT_CONFIG).algae[kind];
+
+    expect(light.par).toBeCloseTo(60 * habitatGain(traits.habitat, planted, DEFAULT_CONFIG.optics), 12);
+    expect(bloomsTissue(planted)).toBeCloseTo(bloomTissue(BLOOM.mass, habitatSize(traits.habitat, planted), traits), 12);
+  });
+
   it('respires in proportion to its mass', () => {
     const respired = (mass: number): number =>
-      total(processFlora(tank({ algae: { ...BLOOM, mass }, ...NIGHT }), DEFAULT_CONFIG).effects, 'oxygen', 'respiration');
+      total(processFlora(tank({ algae: { [kind]: { ...BLOOM, mass } }, ...NIGHT }), DEFAULT_CONFIG).effects, 'oxygen', 'respiration');
     expect(respired(40)).toBeCloseTo(2 * respired(20), 10);
   });
 
   it('grows on its bank at night too, drawing its tissue from the water and never the bed', () => {
-    const start = produce(tank({ algae: BLOOM, ...NIGHT }), (draft) => {
+    const start = produce(tank({ algae: { [kind]: BLOOM }, ...NIGHT }), (draft) => {
       draft.equipment.substrate.nutrients = getSubstrateNutrients('aqua_soil', LITRES);
     });
     const { state, effects } = processFlora(start, DEFAULT_CONFIG);
 
-    expect(state.algae.mass).toBeGreaterThan(start.algae.mass);
-    expect(state.algae.surplus).toBeLessThan(start.algae.surplus);
+    expect(state.algae[kind].mass).toBeGreaterThan(start.algae[kind].mass);
+    expect(state.algae[kind].surplus).toBeLessThan(start.algae[kind].surplus);
     for (const n of NUTRIENTS) {
       expect(total(effects, n, 'growth')).toBeLessThan(0);
       expect(state.equipment.substrate.nutrients[n]).toBe(start.equipment.substrate.nutrients[n]);
@@ -804,9 +830,9 @@ describe('processFlora — the bloom', () => {
   });
 
   it('draws exactly the recipe of the tissue it grew', () => {
-    const start = tank({ algae: BLOOM, ...NIGHT });
+    const start = tank({ algae: { [kind]: BLOOM }, ...NIGHT });
     const { state, effects } = processFlora(start, DEFAULT_CONFIG);
-    const grown = bloomTissue(state.algae.mass - start.algae.mass, LITRES, ALGAE);
+    const grown = bloomsTissue(state) - bloomsTissue(start);
     const recipe = { nitrate: -total(effects, 'nitrate', 'growth') / grown, phosphate: -total(effects, 'phosphate', 'growth') / grown };
 
     expect(recipe.phosphate).toBeCloseTo(nutrientsDefaults.foodMineralContent.phosphate, 8);
@@ -814,36 +840,38 @@ describe('processFlora — the bloom', () => {
   });
 
   it('dies back at condition 0 into waste, every gram of it, and logs the coverage it took', () => {
-    const starved = tank({ algae: { ...BLOOM, condition: 0.001, surplus: 0 }, ...DARK });
+    const starved = tank({ algae: { [kind]: { ...BLOOM, condition: 0.001, surplus: 0 } }, ...DARK });
     const { state, effects, algae } = processFlora(starved, DEFAULT_CONFIG);
+    const dieBacks = state.logs.filter((log) => log.event === 'algae-died');
 
     expect(total(effects, 'waste', 'algae-shedding') + total(effects, 'waste', 'algae-death')).toBeCloseTo(
-      bloomTissue(starved.algae.mass, LITRES, ALGAE),
+      bloomsTissue(starved),
       12
     );
-    expect(state.logs.filter((log) => log.event === 'algae-died').map((log) => log.quantities)).toEqual([
-      [coverage(starved.algae.mass)],
-    ]);
-    expect(algae.spent).toBe(0);
+    expect(dieBacks.map((log) => log.quantities)).toEqual([[coverage(starved.algae[kind].mass)]]);
+    expect(dieBacks[0].message).toContain(traits.name);
+    expect(algae[kind].spent).toBe(0);
   });
 
   it('comes back from a die-back as the spores that landed: healthy, with no bank', () => {
-    const { algae } = processFlora(tank({ algae: { ...BLOOM, condition: 0.001, surplus: 5 }, ...DARK }), DEFAULT_CONFIG).state;
+    const bloom = processFlora(tank({ algae: { [kind]: { ...BLOOM, condition: 0.001, surplus: 5 } }, ...DARK }), DEFAULT_CONFIG)
+      .state.algae[kind];
 
-    expect(algae.mass).toBeGreaterThan(0);
-    expect(algae.mass).toBeLessThanOrEqual(ALGAE.sporeRate);
-    expect(algae.condition).toBe(100);
-    expect(algae.surplus).toBe(0);
+    expect(bloom.mass).toBeGreaterThan(0);
+    expect(bloom.mass).toBeLessThanOrEqual(traits.sporeRate);
+    expect(bloom.condition).toBe(100);
+    expect(bloom.surplus).toBe(0);
   });
 
   it('lands its spores at full condition on an empty bank, diluting its deficit and its bank by one share', () => {
-    const start = tank({ algae: { mass: 0.004, condition: 40, surplus: 2 }, ...NIGHT });
+    const start = tank({ algae: { [kind]: { mass: 0.004, condition: 40, surplus: 2 } }, ...NIGHT });
     const { state, algae } = processFlora(start, DEFAULT_CONFIG);
-    const kept = (100 - state.algae.condition) / (100 - algae.vitality.newCondition);
+    const hour = algae[kind];
+    const kept = (100 - state.algae[kind].condition) / (100 - hour.vitality.newCondition);
 
     expect(kept).toBeGreaterThan(0);
     expect(kept).toBeLessThan(1);
-    expect(state.algae.surplus).toBeCloseTo((algae.vitality.surplus - algae.spent) * kept, 12);
+    expect(state.algae[kind].surplus).toBeCloseTo((hour.vitality.surplus - hour.spent) * kept, 12);
   });
 
   it('is harmed by thriving plants, and the more of them the more', () => {
@@ -851,18 +879,18 @@ describe('processFlora — the bloom', () => {
       const plants = Array.from({ length: count }, (_, i) =>
         plantRecord({ id: `s${i}`, species: 'amazon_sword', size: 100, condition: 100, surplus: 0 })
       );
-      return processFlora(tank({ algae: BLOOM, plants, light: 60, lightByHour: LIT_DAY }), DEFAULT_CONFIG).algae.vitality.breakdown.stressors.find(
-        (s) => s.key === 'allelopathy'
-      )!.amount;
+      return processFlora(tank({ algae: { [kind]: BLOOM }, plants, light: 60, lightByHour: LIT_DAY }), DEFAULT_CONFIG).algae[
+        kind
+      ].vitality.breakdown.stressors.find((s) => s.key === 'allelopathy')!.amount;
     };
     expect(harm(0)).toBe(0);
     expect(harm(2)).toBeCloseTo(2 * harm(1), 12);
   });
 
   it('shares one pool with the plants: a bloom beside them leaves each plant a smaller share of lean water', () => {
-    const lean = (algae: Partial<AlgaeState>): SimulationState =>
+    const lean = (bloom: Partial<AlgaeState>): SimulationState =>
       produce(
-        tank({ algae, plants: [plantRecord({ id: 'fern', species: 'java_fern', size: 50, condition: 100, surplus: 20 })], ...NIGHT }),
+        tank({ algae: { [kind]: bloom }, plants: [plantRecord({ id: 'fern', species: 'java_fern', size: 50, condition: 100, surplus: 20 })], ...NIGHT }),
         (draft) => {
           for (const n of NUTRIENTS) draft.resources[n] = 0.05 * nutrientsDefaults.halfSaturation[n] * draft.resources.water;
         }
