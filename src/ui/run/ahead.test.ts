@@ -199,7 +199,7 @@ describe('readHourAhead', () => {
     }
   });
 
-  it('reads a livebearer broods in the hour she gives birth', () => {
+  it('reads a livebearer as brooding in the hour she gives birth', () => {
     const cap = config.livestock.surplusCap;
     const stocked = createSimulation({ tankCapacity: 100 }, { fish: [{ species: 'guppy', count: 2 }] });
     const due = produce(stocked, (draft) => {

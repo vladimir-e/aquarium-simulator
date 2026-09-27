@@ -145,6 +145,8 @@ describe('processBreeding', () => {
       return out.effects.find((e) => e.source === 'fish-death')!.delta;
     };
     expect(deathWaste(dying([brood])) - deathWaste(dying([]))).toBeCloseTo(12 * FISH_SPECIES_DATA.guppy.breeding.eggMass, 12);
+    const second: Clutch = { ...brood, id: 'd', eggs: 5 };
+    expect(deathWaste(dying([brood, second])) - deathWaste(dying([]))).toBeCloseTo(17 * FISH_SPECIES_DATA.guppy.breeding.eggMass, 12);
   });
 
   it('a gestating female broods again only once she has given birth', () => {

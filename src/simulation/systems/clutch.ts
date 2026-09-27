@@ -3,12 +3,21 @@
  * so a bad hour thins a clutch and never empties it.
  */
 
-import type { Clutch, Resources } from '../state.js';
+import type { Clutch, Fish, Resources } from '../state.js';
 import type { FishSpecies } from '../livestock/species.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { speciesHardiness, waterStressors } from './fish-health.js';
+
+/** Every laid clutch, and each brood whose mother is among `fish`. */
+export function clutchesWithMothers<C extends Pick<Clutch, 'motherId'>>(
+  clutches: readonly C[],
+  fish: readonly Pick<Fish, 'id'>[]
+): C[] {
+  const mothers = new Set(fish.map((f) => f.id));
+  return clutches.filter((clutch) => clutch.motherId === undefined || mothers.has(clutch.motherId));
+}
 
 /** Grams a clutch's eggs weigh. */
 export function clutchMass(clutch: Pick<Clutch, 'species' | 'eggs'>): number {

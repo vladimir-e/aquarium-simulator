@@ -479,6 +479,7 @@ export {
 } from './systems/fish-growth.js';
 export {
   clutchMass,
+  clutchesWithMothers,
   eggHarmRate,
   eggPredationRate,
   developmentRate,
@@ -490,6 +491,7 @@ export {
   gutCapacity,
   appetite,
   swallow,
+  type Swallowed,
   serve,
   digest,
   dailyMaintenance,

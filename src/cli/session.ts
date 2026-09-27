@@ -8,7 +8,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import type { SimulationState } from '../simulation/index.js';
+import { clutchesWithMothers, type SimulationState } from '../simulation/index.js';
 import { type TunableConfig, DEFAULT_CONFIG } from '../simulation/config/index.js';
 import type { HistorySnapshot } from './history.js';
 
@@ -192,7 +192,10 @@ export function loadSession(options: LoadOptions = {}): Session {
       `Unsupported session version ${parsed.version} (expected ${SESSION_VERSION}).`
     );
   }
-  return parsed;
+  return {
+    ...parsed,
+    state: { ...parsed.state, clutches: clutchesWithMothers(parsed.state.clutches, parsed.state.fish) },
+  };
 }
 
 export function saveSession(session: Session, options: LoadOptions = {}): void {

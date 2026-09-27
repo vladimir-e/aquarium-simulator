@@ -231,6 +231,16 @@ describe('sellFry', () => {
     expect(result.message).toBe('Sold 2 fry');
   });
 
+  it('takes out a sold mother’s brood with her, and leaves the adults’', () => {
+    const state = produce(makeStateWithMixedStages(), (draft) => {
+      draft.clutches = [
+        { id: 'fry-mother', species: 'guppy', eggs: 4, development: 0.3, motherId: 'fry_1' },
+        { id: 'adult-mother', species: 'guppy', eggs: 12, development: 0.3, motherId: 'adult_1' },
+      ];
+    });
+    expect(sellFry(state).state.clutches.map((c) => c.id)).toEqual(['adult-mother']);
+  });
+
   it('logs a fry-sold event from the user', () => {
     const state = makeStateWithMixedStages();
     const result = sellFry(state);

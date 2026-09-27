@@ -22,27 +22,26 @@ export function appetite(fish: Sized & Pick<Fish, 'gut'>, config: LivestockConfi
   return Math.max(0, gutCapacity(fish, config) - fish.gut);
 }
 
-/**
- * Prey shared among its eaters by weight, each gut taking its share up to the
- * room left in it. Returns the grams no gut had room for.
- */
+export interface Swallowed {
+  /** Grams each eater takes. */
+  taken: number[];
+  /** Grams no gut had room for. */
+  overflow: number;
+}
+
+/** Prey shared among its eaters by weight, each gut taking its share up to the room left in it. */
 export function swallow(
   eaters: readonly (Sized & Pick<Fish, 'gut'>)[],
   weights: readonly number[],
   grams: number,
   config: LivestockConfig
-): number {
+): Swallowed {
+  if (grams <= 0) return { taken: eaters.map(() => 0), overflow: 0 };
   const total = weights.reduce((sum, w) => sum + w, 0);
-  if (grams <= 0) return 0;
-  if (total <= 0) return grams;
-  let overflow = 0;
-  eaters.forEach((eater, i) => {
-    const share = (grams * weights[i]) / total;
-    const taken = Math.min(appetite(eater, config), share);
-    eater.gut += taken;
-    overflow += share - taken;
-  });
-  return overflow;
+  if (total <= 0) return { taken: eaters.map(() => 0), overflow: grams };
+  const shares = weights.map((w) => (grams * w) / total);
+  const taken = eaters.map((eater, i) => Math.min(appetite(eater, config), shares[i]));
+  return { taken, overflow: shares.reduce((sum, share, i) => sum + share - taken[i], 0) };
 }
 
 /**

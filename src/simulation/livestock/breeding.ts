@@ -91,7 +91,11 @@ function tendClutches(draft: SimulationState, config: LivestockConfig): number {
     }
   }
 
-  waste += swallow(draft.fish, draft.fish.map((fish) => fish.mass), eaten, config);
+  const swallowed = swallow(draft.fish, draft.fish.map((fish) => fish.mass), eaten, config);
+  swallowed.taken.forEach((grams, i) => {
+    draft.fish[i].gut += grams;
+  });
+  waste += swallowed.overflow;
   draft.clutches = developing;
   for (const clutch of developed) hatch(draft, clutch, config);
   return waste;

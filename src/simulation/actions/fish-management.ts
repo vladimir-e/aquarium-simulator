@@ -9,6 +9,7 @@ import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { createLog } from '../core/logging.js';
 import { createFish, isStockableSize, STOCKED_FISH_SIZE, unstockableSizeMessage } from '../livestock/create-fish.js';
 import { fishLifeStage, massAtSize } from '../systems/fish-growth.js';
+import { clutchesWithMothers } from '../systems/clutch.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import type { ActionResult, AddFishAction, RemoveFishAction } from './types.js';
 
@@ -164,7 +165,7 @@ export function removeFish(
 
   const newState = produce(state, (draft) => {
     draft.fish.splice(fishIndex, 1);
-    draft.clutches = draft.clutches.filter((clutch) => clutch.motherId !== fishId);
+    draft.clutches = clutchesWithMothers(draft.clutches, draft.fish);
 
     draft.logs.push(
       createLog(
@@ -201,8 +202,7 @@ export function sellFry(state: SimulationState): ActionResult {
 
   const newState = produce(state, (draft) => {
     draft.fish = draft.fish.filter((f) => fishLifeStage(f) !== 'fry');
-    const kept = new Set(draft.fish.map((f) => f.id));
-    draft.clutches = draft.clutches.filter((clutch) => clutch.motherId === undefined || kept.has(clutch.motherId));
+    draft.clutches = clutchesWithMothers(draft.clutches, draft.fish);
 
     draft.logs.push(
       createLog(

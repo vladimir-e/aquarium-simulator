@@ -386,7 +386,11 @@ export function processHealth(
     const weights = survivingFish.map((survivor) => predatorWeight(survivor, f));
     const share = weights.some((w) => w > 0) ? huntedShare(vitalities[i]) : 0;
 
-    deathWaste += (1 - share) * remains + swallow(survivingFish, weights, share * remains, config);
+    const eaten = swallow(survivingFish, weights, share * remains, config);
+    eaten.taken.forEach((grams, j) => {
+      survivingFish[j].gut += grams;
+    });
+    deathWaste += (1 - share) * remains + eaten.overflow;
 
     // Past maxAge the age stressor is on, so "got old" reads apart from
     // "the water went bad"; a fish mostly eaten reads as eaten.

@@ -11,6 +11,7 @@ import {
   MAX_ROOT_TABS,
   MIN_FEED_G,
   VIGOUR_SPAN,
+  clutchesWithMothers,
   mapKinds,
 } from '../../simulation/index.js';
 import {
@@ -365,7 +366,8 @@ export const PersistedSimulationSchema = z
     seed: TankSeedSchema.optional(),
     currentPreset: z.string(),
   })
-  .strict();
+  .strict()
+  .transform((simulation) => ({ ...simulation, clutches: clutchesWithMothers(simulation.clutches, simulation.fish) }));
 
 // ============================================================================
 // Tunable Config Schemas

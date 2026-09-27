@@ -333,7 +333,7 @@ export const SETUPS: Setup[] = [
   breedingPair('neon-pair', 'neon_tetra', {
     green: [1, 20],
     amber: [0.5, 50],
-    why: 'neons scatter eggs the adults eat; a pair in a community tank adds a few fry at most',
+    why: 'a neon pair left to breed scatters eggs the adults mostly eat, adding a few fry at most',
   }),
 ];
 

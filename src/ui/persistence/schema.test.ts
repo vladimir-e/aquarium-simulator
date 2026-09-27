@@ -331,6 +331,30 @@ describe('PersistedSimulationSchema', () => {
     expect(PersistedSimulationSchema.safeParse(water).success).toBe(false);
   });
 
+  it('drops a brood whose mother is not in the tank, and keeps laid clutches and mothered broods', () => {
+    const mother = {
+      id: 'mother',
+      species: 'guppy',
+      mass: 0.2,
+      health: 100,
+      age: 0,
+      gut: 0,
+      sex: 'female',
+      hardinessOffset: 0,
+      surplus: 0,
+    };
+    const loaded = PersistedSimulationSchema.parse({
+      ...validSimulation,
+      fish: [mother],
+      clutches: [
+        { id: 'laid', species: 'neon_tetra', eggs: 20, development: 0.2 },
+        { id: 'hers', species: 'guppy', eggs: 8, development: 0.5, motherId: 'mother' },
+        { id: 'orphan', species: 'guppy', eggs: 8, development: 0.5, motherId: 'gone' },
+      ],
+    });
+    expect(loaded.clutches.map((c) => c.id)).toEqual(['laid', 'hers']);
+  });
+
   it('validates simulation with plants', () => {
     const withPlants = {
       ...validSimulation,

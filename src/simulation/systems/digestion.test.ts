@@ -8,6 +8,7 @@ import {
   maintenance,
   nourishment,
   serve,
+  swallow,
 } from './digestion.js';
 import { livestockDefaults as config } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
@@ -61,6 +62,40 @@ describe('appetite and serving', () => {
   it('serves nothing when nobody is hungry or there is no food', () => {
     expect(serve([0, 0], 1)).toEqual([0, 0]);
     expect(serve([0.1], 0)).toEqual([0]);
+  });
+});
+
+describe('swallow', () => {
+  const eaters = [
+    { mass: 10, gut: 0 },
+    { mass: 30, gut: 0 },
+    { mass: 20, gut: 20 * config.gutCapacity },
+  ];
+
+  it('shares prey by weight while the guts have room, and changes no gut itself', () => {
+    const { taken, overflow } = swallow(eaters, [1, 3, 0], 0.01, config);
+    expect(taken[1]).toBeCloseTo(3 * taken[0], 12);
+    expect(taken[2]).toBe(0);
+    expect(overflow).toBeCloseTo(0, 12);
+    expect(eaters.map((e) => e.gut)).toEqual([0, 0, 20 * config.gutCapacity]);
+  });
+
+  it('takes no more than the room left in a gut, the rest overflowing, every gram accounted for', () => {
+    const grams = 5;
+    const { taken, overflow } = swallow(eaters, [1, 1, 1], grams, config);
+    taken.forEach((g, i) => expect(g).toBeLessThanOrEqual(appetite(eaters[i], config) + 1e-15));
+    expect(taken[2]).toBe(0);
+    expect(overflow).toBeGreaterThan(0);
+    expect(taken.reduce((sum, g) => sum + g, 0) + overflow).toBeCloseTo(grams, 12);
+  });
+
+  it('overflows everything when nobody weighs in', () => {
+    expect(swallow(eaters, [0, 0, 0], 0.2, config)).toEqual({ taken: [0, 0, 0], overflow: 0.2 });
+  });
+
+  it('takes nothing of no prey', () => {
+    expect(swallow(eaters, [1, 1, 1], 0, config)).toEqual({ taken: [0, 0, 0], overflow: 0 });
+    expect(swallow(eaters, [0, 0, 0], 0, config)).toEqual({ taken: [0, 0, 0], overflow: 0 });
   });
 });
 
