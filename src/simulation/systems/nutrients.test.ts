@@ -9,7 +9,8 @@ import {
   nutrientShare,
   nutrientShares,
   organicNutrients,
-  plantShares,
+  feederShares,
+  plantFeeder,
   poolDraws,
   speciesDemand,
   speciesHalfSaturation,
@@ -161,9 +162,9 @@ describe('where a plant feeds', () => {
     const pools = poolsAt(1, 5);
     for (const species of ['amazon_sword', 'monte_carlo', 'java_fern'] as const) {
       const roots = growthFormOf(species).rootShare;
-      const water = nutrientShares(pools[0], species);
-      const bed = nutrientShares(pools[1], species);
-      const shares = plantShares(poolDraws(pools, species));
+      const water = nutrientShares(pools[0], speciesDemand(species));
+      const bed = nutrientShares(pools[1], speciesDemand(species));
+      const shares = feederShares(poolDraws(pools, plantFeeder(species)));
       for (const n of NUTRIENTS) expect(shares[n]).toBeCloseTo(roots * bed[n] + (1 - roots) * water[n], 12);
     }
     expect(growthFormOf('amazon_sword').rootShare).toBeGreaterThan(0);
@@ -190,9 +191,10 @@ describe('where a plant feeds', () => {
   it('reads the bed against its own volume, as the water is read against its own', () => {
     const [water] = poolsAt(2, 0);
     const bed = { stock: water.stock, volume: WATER };
-    expect(nutrientShares(bed, 'amazon_sword')).toEqual(nutrientShares(water, 'amazon_sword'));
-    expect(nutrientShares({ ...bed, volume: 2 * WATER }, 'amazon_sword').nitrate).toBeLessThan(
-      nutrientShares(bed, 'amazon_sword').nitrate
+    const sword = speciesDemand('amazon_sword');
+    expect(nutrientShares(bed, sword)).toEqual(nutrientShares(water, sword));
+    expect(nutrientShares({ ...bed, volume: 2 * WATER }, sword).nitrate).toBeLessThan(
+      nutrientShares(bed, sword).nitrate
     );
   });
 });
@@ -220,9 +222,9 @@ describe('drawTissue', () => {
   };
   const need = (species: PlantSpecies, pools: TankPools, grams = anHour(species)): TissueNeed => ({
     grams,
-    draws: poolDraws(pools, species),
+    draws: poolDraws(pools, plantFeeder(species)),
   });
-  const shares = ({ draws }: TissueNeed): NutrientVector => plantShares(draws);
+  const shares = ({ draws }: TissueNeed): NutrientVector => feederShares(draws);
   const total = (drawn: readonly NutrientVector[], n: (typeof NUTRIENTS)[number]): number =>
     drawn.reduce((sum, pool) => sum + pool[n], 0);
 
@@ -250,6 +252,14 @@ describe('drawTissue', () => {
     const needs = [need('monte_carlo', pools), need('amazon_sword', pools), need('anubias', pools)];
     const { supplied } = drawTissue(needs, pools, recipe);
     needs.forEach((n, i) => expect(supplied[i]).toBeCloseTo(liebig(shares(n)), 3));
+  });
+
+  it('serves no feeder before another: the order of the needs only orders the supply', () => {
+    const pools = poolsAt(0.3, 0.2);
+    const needs = [need('monte_carlo', pools, 1), need('amazon_sword', pools, 1), need('anubias', pools, 0.5)];
+    const forward = drawTissue(needs, pools, recipe).supplied;
+    const backward = drawTissue([...needs].reverse(), pools, recipe).supplied.reverse();
+    forward.forEach((share, i) => expect(backward[i]).toBeCloseTo(share, 12));
   });
 
   it('meets two plants short of the same nutrient at the same fraction of their shares', () => {

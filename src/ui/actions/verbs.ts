@@ -514,7 +514,7 @@ function meta(
 const BARE_NOTE: Partial<Record<VerbId, string>> = {
   topOff:
     'No amount to set — top-off refills to capacity at the tank’s own temperature. The tap’s KH and GH come with it, everything else dissolved is diluted, and pH follows the CO₂ and KH that leaves.',
-  scrubAlgae: `No amount to set — a scrub takes a random ${Math.round(MIN_SCRUB_PERCENT * 100)}–${Math.round(MAX_SCRUB_PERCENT * 100)} % of standing algae. What comes off leaves the system; it does not become waste.`,
+  scrubAlgae: `No amount to set — a scrub takes a random ${Math.round(MIN_SCRUB_PERCENT * 100)}–${Math.round(MAX_SCRUB_PERCENT * 100)} % of standing algae. What comes off is loose in the water as waste: siphon it out or it rots.`,
 };
 
 function commitLabel(

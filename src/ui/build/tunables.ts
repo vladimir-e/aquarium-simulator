@@ -7,7 +7,7 @@
 
 import {
   DEFAULT_CONFIG,
-  algaeVitalityConfigMeta,
+  algaeConfigMeta,
   configRange,
   decayConfigMeta,
   evaporationConfigMeta,
@@ -75,7 +75,7 @@ const SECTIONS: readonly SectionSpec[] = [
   { key: 'gasExchange', label: 'Gas exchange', meta: gasExchangeConfigMeta },
   { key: 'temperature', label: 'Temperature', meta: temperatureConfigMeta },
   { key: 'evaporation', label: 'Evaporation', meta: evaporationConfigMeta },
-  { key: 'algae', label: 'Algae', meta: algaeVitalityConfigMeta },
+  { key: 'algae', label: 'Algae', meta: algaeConfigMeta },
   { key: 'optics', label: 'Water optics', meta: opticsConfigMeta },
   { key: 'waterChemistry', label: 'Water chemistry', meta: waterChemistryConfigMeta },
   { key: 'plants', label: 'Plants', meta: plantsConfigMeta },

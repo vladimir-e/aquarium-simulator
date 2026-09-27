@@ -204,7 +204,7 @@ const DEFINITIONS = [
     unit: '/100',
     digits: 0,
     read: (s): number => s.algae.mass,
-    band: { green: [0, 30], amber: [0, 60], why: 'some film is normal between scrapes; glass going green is not' },
+    band: { green: [0, 30], amber: [0, 60], why: 'a trace of algae is normal; the water going green is not' },
   },
 ] as const satisfies readonly Reading[];
 

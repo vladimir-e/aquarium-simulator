@@ -18,6 +18,10 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v17 put algae on the plants' vitality model. `AlgaeState` gains
+ *    `condition`, and the `algae` config section is rebuilt as
+ *    `AlgaeConfig`. A v16 session parses, and the first tick reads a bloom's
+ *    condition and its CO₂ half-saturation off keys it does not carry.
  * v16 made the bed a nutrient store and plants of their nutrients, and let a
  *    plant die only at condition 0. `Substrate` gains `nutrients`;
  *    `NutrientsConfig` drops `uptakePerRateUnit` and gains `rootTab` and
@@ -130,7 +134,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 16;
+export const SESSION_VERSION = 17;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

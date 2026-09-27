@@ -42,7 +42,7 @@ it was handed, so the state a tick began with is still readable when it ends.
 | `environment` | Room temperature, tap temperature, tap KH and GH — what the tank sits in |
 | `equipment` | Eleven fixtures, each with its own settings and schedule |
 | `plants` · `fish` · `clutches` | The organisms, as arrays of individuals. A plant carries its lineage — `parentId`, `familyId` — its `age` and its `vigour` beside its size, condition and bank ([Plants](/subsystems/plants/#lineage-family-age-and-vigour)) |
-| `algae` | One population, mass and bank — not an array |
+| `algae` | The bloom: its mass, as the share of its habitat it fills, its condition and its bank — one population, not an array |
 | `rng` | The seed and the stream position every draw comes off |
 | `logs` | The event stream |
 | `alertState` | One latched flag per warning condition |

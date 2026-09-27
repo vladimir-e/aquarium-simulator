@@ -96,10 +96,10 @@ export function renderObserve(session: Session): string {
       toPpm(r.iron, r.water),
       3
     )} ppm`,
-    `**Other** waste ${round(r.waste, 2)}g · algae ${round(state.algae.mass, 1)} · food ${round(
-      r.food,
-      2
-    )}g`,
+    `**Other** waste ${round(r.waste, 2)}g · algae ${round(state.algae.mass, 1)} (condition ${round(
+      state.algae.condition,
+      0
+    )}%) · food ${round(r.food, 2)}g`,
     '',
     `**Fish (${state.fish.length})** ${
       state.fish.length ? `avg health ${avgFishHealth}%` : '—'
@@ -146,6 +146,7 @@ const DERIVED_FIELDS = [
   'plant_count',
   'plant_avg_condition',
   'algae_mass',
+  'algae_condition',
   'algae_surplus',
   'nh3_ppm',
   'no2_ppm',
@@ -176,6 +177,8 @@ function getFieldValue(entry: HistorySnapshot, field: string): string {
       return String(round(entry.plants.avgCondition, 2));
     case 'algae_mass':
       return String(round(entry.algae.mass, 2));
+    case 'algae_condition':
+      return String(round(entry.algae.condition, 2));
     case 'algae_surplus':
       return String(round(entry.algae.surplus, 2));
     case 'nh3_ppm':

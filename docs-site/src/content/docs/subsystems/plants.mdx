@@ -237,8 +237,10 @@ would request, at the tick's start, what the planting requests. In an ordinary
 hour a pool meets every request and a plant grows at its sufficiency; an
 offshoot's lump on thin water is met in part, and no pool goes below zero. A
 lean species holds on where a hungry one starves, and two plants short of the
-same nutrient are met at the same fraction of their shares. What a plant takes
-splits between the pools as they met it. The bank pays only for what arrived.
+same nutrient are met at the same fraction of their shares. The bloom requests
+beside the plants in the same call ([Algae](/subsystems/algae/)), so nothing is
+served before anything else. What a plant takes splits between the pools as
+they met it. The bank pays only for what arrived.
 
 Shedding and death hand the same grams back as waste, which mineralizes beside
 its ammonia ([Nitrogen cycle](/subsystems/nitrogen-cycle/)) — into the water,
@@ -468,7 +470,7 @@ The canopy's own constant, `leafAttenuationPerLai`, is under [Light](/subsystems
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `nitrate`, and the `phosphate`, `potassium` and `iron` mineralized beside the ammonia | All four drawn as tissue grows; `waste` from shedding and death |
 | [Environment](/subsystems/environment/) | `temperature` for the Q10 on respiration and starvation, `water` for every ppm, the box's depth and floor | — |
 | [Equipment](/subsystems/equipment/) | `substrate.nutrients` — the bed's store, for root feeders | The same store, drawn down as root feeders grow |
-| [Algae](/subsystems/algae/) | `algae.mass` — the shading stressor, one tick behind | Plant power, which drives algae's suppression stressor and its low-plant-power benefit |
+| [Algae](/subsystems/algae/) | `algae.mass` — the shading stressor, as the hour starts; the bloom's share of the pooled tissue draw and of the CO₂ | Plant power per litre, the bloom's allelopathy |
 | [Livestock](/subsystems/livestock/) | `foodNitrogenFraction` and `foodMineralContent`, the recipe tissue shares with food | Plant power again, saturating the fish shelter benefit |
 | [Actions](/subsystems/actions/) | — | Planting against the floor, removal and trimming write the array and `size` directly; dosing fills the four nutrient pools in the water, root tabs the bed's |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | A `plant-died` entry per plant lost, a `plant-propagated` entry per offshoot |

@@ -41,7 +41,7 @@ export function applyAction(
     case 'feed':
       return feed(state, action);
     case 'scrubAlgae':
-      return scrubAlgae(state, action);
+      return scrubAlgae(state, action, config.algae);
     case 'waterChange':
       return waterChange(state, action);
     case 'trimPlants':

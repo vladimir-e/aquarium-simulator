@@ -24,7 +24,7 @@ declared minimum of `0.1`.
 | Gas exchange | `gasExchange.` | O₂ and CO₂ across the surface, and what aeration does to both |
 | Temperature | `temperature.` | Drift toward the room, scaled by tank size |
 | Evaporation | `evaporation.` | Water lost per day, and how warmth accelerates it |
-| Algae | `algae.` | The bloom's stressors, benefits and mass dynamics |
+| Algae | `algae.` | What only the bloom has — its carbon, its tissue, its spores and what plants do to it; the rest of it runs on `plants.` |
 | Optics | `optics.` | What the water column and the leaves above take out of the light on the way down |
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, respiration, vitality, growth and offshoots, lifecycle |
@@ -109,21 +109,16 @@ density you can look up rather than a score.
 
 ## Algae
 
+The bloom runs on the plants' constants; its traits sit beside the plant
+species ([Algae](/subsystems/algae/#key-tunables-and-traits)). These are what
+only it has.
+
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `hardiness` | Tolerance factor, every stressor scaled by `1 − hardiness` | — |
-| `suppressionThreshold` | Plant power above which established plants push the bloom back | power |
-| `plantSuppressionSeverity` | Damage per unit of plant power above that threshold | %/power/hr |
-| `weaknessThreshold` | Plant power below which a weak planting becomes a benefit to algae | power |
-| `lightExcessThreshold` | Substrate PAR above which light stops being what plants use and starts feeding algae | PAR |
-| `excessLightPeak` · `excessLightSeverity` | The excess-light benefit: its ceiling, and its rate per PAR over the threshold | %/hr · %/PAR/hr |
-| `excessNutrientPeak` · `excessNutrientSeverity` | The excess-nutrient benefit, against the larger of the NO₃ and PO₄ ratios over the reference | %/hr · %/ratio/hr |
-| `referenceNitratePpm` · `referencePhosphatePpm` | The NO₃ and PO₄ both nutrient channels read their ratio against | ppm |
-| `nutrientDeficiencyPeak` · `nutrientDeficiencySeverity` | The starved-plants benefit — deliberately small, a canary rather than a lever | %/hr · %/(1−ratio)/hr |
-| `lowPlantPowerPeak` · `lowPlantPowerSeverity` | The weak-planting benefit, per unit of power below `weaknessThreshold` | %/hr · %/power/hr |
-| `algaeGrowthPerTickCap` | Ceiling on the bank spent turning into mass in one tick | pts |
-| `massPerSurplus` | Mass gained per bank point drained | %/pt |
-| `surplusCap` | Saturation cap on the bloom's reserve bank | pts |
+| `co2HalfSaturation` | Dissolved CO₂ the bloom photosynthesises at half rate on | mg/L |
+| `tissuePerLitre` | Organic matter in a litre of habitat at a full bloom | g/L |
+| `sporeRate` | Mass that lands every hour, through the taper | /hr |
+| `allelopathySeverity` | Damage per rate unit of thriving plant per litre | %/(unit/L)/hr |
 
 ## Optics
 

@@ -1,169 +1,138 @@
 /**
- * Algae processing — the tank-wide bloom as a pure population.
+ * The bloom — plant mechanics without a position. Its vitality, shedding,
+ * bank, light curve, tissue recipe and nutrient draw are the plants'; what it
+ * has instead of a height and footprint is a habitat it fills.
  *
- * Pipeline:
- * 1. Compute net rate via `computeAlgaePopulation` (sum benefits −
- *    sum hardened stressors).
- * 2. Fold the net rate into the surplus reserve bank via `bankSurplus`:
- *    positive net accrues (capped, photoperiod-gated), negative net drains
- *    the bank before it touches mass. Surplus is photoperiod-gated
- *    photosynthate; the bloom's positive net overnight is discarded.
- * 3. Shrink mass by the drain *overflow* — the damage the bank couldn't
- *    cover. Runs 24/7 — a hostile-environment bloom burns reserves then
- *    dies back, at night too. A well-stocked bloom shrugs off a bad tick.
- * 4. Spend surplus on mass growth via `spendAlgaeSurplus`. Drains up
- *    to `algaeGrowthPerTickCap` per tick, converted to mass through
- *    the asymptotic factor `max(0, 1 - mass/100)` — same shape as
- *    plant growth, self-limits at MASS_MAX. Photoperiod-gated.
+ * `mass` is the share of the habitat's capacity the bloom fills, so its tissue
+ * scales with the litres it lives in. The bank buys mass as a population does:
+ * in proportion to the mass already there, through the plants' taper
+ * `1 − mass/100` as the habitat fills, day and night. Spores land at a constant
+ * rate through the same taper, so an empty tank is never closed to a bloom;
+ * whether they establish is the condition's business. Shed and dead tissue
+ * return to the water as waste.
  *
- * No condition state. Conditions favouring algae grow it; conditions
- * hostile to it shrink it. The shape mirrors the future colony
- * organisms (snails, shrimps) — populations responding to net
- * environmental pressure.
- *
- * Sequenced **after plants** in `tick.ts` so the suppression and
- * weakness factors read freshly-updated plant condition. If algae
- * ran first, plant power would be one tick stale and stressors
- * would lag behaviour by ~1 hour.
- *
- * No effect emission. Algae mass changes happen in-place on
- * `state.algae`; nothing else in the engine reads algae as a
- * resource (the plant-side `algae_shading` stressor reads
- * `state.algae.mass` directly).
+ * The flora pass (`flora/`) runs the bloom beside the plants, so the two fix
+ * carbon from one CO₂ stock and draw their tissue from one pool in one call.
  */
 
-import { produce } from 'immer';
-import type { SimulationState, AlgaeState } from '../state.js';
-import type { TunableConfig } from '../config/index.js';
-import { computeAlgaePopulation, type AlgaePopulationResult } from '../systems/algae-vitality.js';
-import type { AlgaeVitalityConfig } from '../config/algae-vitality.js';
+import type { AlgaeState } from '../state.js';
+import type { AlgaeConfig, NutrientsConfig, TunableConfig } from '../config/index.js';
+import { lightSaturationFactor } from '../core/kinetics.js';
+import type { Feeder } from '../systems/nutrients.js';
+import type { CarbonFixer } from '../systems/photosynthesis.js';
+import { growthTaper } from '../systems/plant-growth.js';
+import { shedShare, tissuePerRateUnit } from '../systems/plant-lifecycle.js';
+import type { BloomLight } from './light.js';
+import { algaeSaturationIrradiance, type AlgaeTraits } from './traits.js';
 
-export interface AlgaeProcessingResult {
-  /** Updated state with algae mass / surplus written. */
-  state: SimulationState;
-  /** The net rate this tick and the factors behind it. */
-  population: AlgaePopulationResult;
-  /** That net folded into the bank, before the bank spends on mass. */
-  bank: SurplusBankTick;
-}
-
-const MASS_MAX = 100;
-
-/** Outcome of folding one tick's net rate into the bloom's bank. */
-export interface SurplusBankTick {
-  /** Bank after this tick, within `[0, cap]`. */
-  surplus: number;
-  /** Reserve drained to absorb damage (≥ 0). */
-  drained: number;
-  /** Damage that outran the bank and reaches mass (≥ 0). */
-  overflowDamage: number;
+/** Grams of organic matter in this much bloom, in a habitat of these litres. */
+export function bloomTissue(mass: number, litres: number, config: AlgaeConfig): number {
+  return (mass / 100) * config.tissuePerLitre * litres;
 }
 
 /**
- * Fold one tick's net rate into the bloom's saturating bank. Damage drains
- * the bank first and only what it couldn't cover reaches mass; benefit
- * accrues up to `cap` when `accrue` is set, discarding the rest. The bank is
- * clamped into `[0, cap]` on entry, with a negative cap read as 0.
- *
- * The bloom's own path, not the vitality model: algae keeps no condition.
+ * Rate units a bloom's metabolism runs at: its tissue's, on the plants' own
+ * tissue-to-rate-unit relation, at its growth rate — a gram of algae fixes and
+ * respires as much faster than a gram of leaf as it grows.
  */
-export function bankSurplus(
-  bank: number,
-  net: number,
-  cap: number,
-  accrue: boolean
-): SurplusBankTick {
-  const safeCap = Math.max(0, cap);
-  const start = Math.min(safeCap, Math.max(0, bank));
-  if (net < 0) {
-    const drained = Math.min(start, -net);
-    return { surplus: start - drained, drained, overflowDamage: -net - drained };
-  }
-  if (net > 0 && accrue) {
-    return { surplus: Math.min(safeCap, start + net), drained: 0, overflowDamage: 0 };
-  }
-  return { surplus: start, drained: 0, overflowDamage: 0 };
+export function bloomRateUnits(
+  mass: number,
+  litres: number,
+  traits: AlgaeTraits,
+  config: TunableConfig
+): number {
+  return (bloomTissue(mass, litres, config.algae) / tissuePerRateUnit(config.plants)) * traits.growthRate;
 }
 
-/**
- * Drain up to `algaeGrowthPerTickCap` from the surplus bank and
- * convert to mass via the asymptotic factor `max(0, 1 - mass / 100)`.
- *
- * The asymptotic factor self-limits the bloom at `MASS_MAX`: it keeps
- * drawing surplus at full rate but gets less mass per unit drawn as it
- * approaches saturation. Returns the post-spend `AlgaeState`.
- *
- * Unlike a plant, which withdraws only what converts, the bloom burns
- * what it draws, so `AlgaeState.surplus` reads near zero.
- */
-export function spendAlgaeSurplus(
-  algae: AlgaeState,
-  config: AlgaeVitalityConfig
-): AlgaeState {
-  if (algae.surplus <= 0) return algae;
-  const drained = Math.min(algae.surplus, config.algaeGrowthPerTickCap);
-  const factor = Math.max(0, 1 - algae.mass / MASS_MAX);
-  const massIncrease = drained * factor * config.massPerSurplus;
+/** A bloom feeds from the water alone. */
+export function bloomFeeder(traits: AlgaeTraits, config: NutrientsConfig): Feeder {
+  return { demand: config.demand[traits.nutrientDemand], rootShare: 0 };
+}
+
+export function bloomFixer(
+  bloom: AlgaeState,
+  litres: number,
+  light: BloomLight,
+  sufficiency: number,
+  traits: AlgaeTraits,
+  config: TunableConfig
+): CarbonFixer {
   return {
-    ...algae,
-    mass: Math.min(MASS_MAX, algae.mass + massIncrease),
-    surplus: algae.surplus - drained,
+    rateUnits: bloomRateUnits(bloom.mass, litres, traits, config),
+    lightResponse: lightSaturationFactor(light.par, algaeSaturationIrradiance(traits, config.plants)),
+    sufficiency,
+    co2HalfSaturation: config.algae.co2HalfSaturation,
   };
 }
 
-/**
- * Process algae for one tick. See module docstring for the
- * pipeline shape.
- *
- * @param state - Current simulation state (plants must already be
- *   updated this tick; tick.ts enforces ordering).
- * @param config - Tunable configuration.
- */
-export function processAlgae(
-  state: SimulationState,
-  config: TunableConfig
-): AlgaeProcessingResult {
-  const algaeConfig = config.algae;
-
-  const population = computeAlgaePopulation({
-    plants: state.plants,
-    resources: state.resources,
-    algaeConfig,
-  });
-
-  const photoperiodActive = state.resources.light > 0;
-
-  const bank = bankSurplus(
-    state.algae.surplus,
-    population.net,
-    algaeConfig.surplusCap,
-    photoperiodActive
-  );
-  let next: AlgaeState = { ...state.algae, surplus: bank.surplus };
-
-  if (bank.overflowDamage > 0) {
-    next = { ...next, mass: Math.max(0, next.mass - bank.overflowDamage) };
-  }
-
-  if (photoperiodActive) {
-    next = spendAlgaeSurplus(next, algaeConfig);
-  }
-
-  const newState = produce(state, (draft) => {
-    draft.algae = next;
-  });
-
-  return { state: newState, population, bank };
+/** An hour's purchase at full supply: the bank's growth and the spores that land. */
+export interface BloomPurchase {
+  before: AlgaeState;
+  after: AlgaeState;
 }
 
-// Re-export the population math for tests and UI introspection.
+/**
+ * What the bank buys this hour, before the water supplies it. The draw is the
+ * plants': `growthDrawRate` of the bank through the taper. Each point drawn
+ * buys `growthRate × sizePerSurplus` percent of the mass standing, so a bloom
+ * grows logistically toward a full habitat.
+ */
+export function purchaseBloom(bloom: AlgaeState, traits: AlgaeTraits, config: TunableConfig): BloomPurchase {
+  const taper = growthTaper(bloom.mass);
+  const drawn = Math.max(0, bloom.surplus) * Math.min(1, config.plants.growthDrawRate) * taper;
+  const grown = (bloom.mass * drawn * traits.growthRate * config.plants.sizePerSurplus) / 100;
+  const spores = config.algae.sporeRate * taper;
+  return {
+    before: bloom,
+    after: { ...bloom, mass: bloom.mass + grown + spores, surplus: bloom.surplus - drawn },
+  };
+}
+
+/** Mass a purchase asks the water to build. */
+export function massBought({ before, after }: BloomPurchase): number {
+  return after.mass - before.mass;
+}
+
+/** The purchase at the share of it the water supplied. */
+export function supplyBloom({ before, after }: BloomPurchase, share: number): AlgaeState {
+  return {
+    ...after,
+    mass: before.mass + share * (after.mass - before.mass),
+    surplus: before.surplus + share * (after.surplus - before.surplus),
+  };
+}
+
+/** The bloom after the hour's losses, and the grams of waste each loss left. */
+export interface BloomLoss {
+  bloom: AlgaeState;
+  shed: number;
+  died: number;
+}
+
+/**
+ * Low condition sheds a bloom with the plants' shape — the square of the
+ * deficit — and condition 0 kills what is left, bank and all.
+ */
+export function loseBloom(bloom: AlgaeState, litres: number, config: TunableConfig): BloomLoss {
+  const lost = shedShare(bloom.condition, config.plants) * bloom.mass;
+  const shed = bloomTissue(lost, litres, config.algae);
+  if (bloom.condition > 0) return { bloom: { ...bloom, mass: bloom.mass - lost }, shed, died: 0 };
+  return {
+    bloom: { mass: 0, condition: 0, surplus: 0 },
+    shed,
+    died: bloomTissue(bloom.mass - lost, litres, config.algae),
+  };
+}
+
+export { ALGAE, algaeDailyLightEdge, algaeSaturationIrradiance } from './traits.js';
+export type { AlgaeTraits } from './traits.js';
+export { bloomLight, columnGain } from './light.js';
+export type { BloomLight } from './light.js';
 export {
-  computeAlgaePopulation,
+  computeAlgaeVitality,
   buildAlgaeStressors,
   buildAlgaeBenefits,
+  algaeHealingRate,
+  thrivingPlantDensity,
 } from '../systems/algae-vitality.js';
-export type {
-  AlgaeVitalityContext,
-  AlgaePopulationResult,
-  AlgaePopulationBreakdown,
-} from '../systems/algae-vitality.js';
+export type { AlgaeVitalityContext } from '../systems/algae-vitality.js';

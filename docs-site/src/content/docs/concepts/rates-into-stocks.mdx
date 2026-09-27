@@ -3,8 +3,6 @@ title: Rates into stocks
 description: The engine's governing shape — subsystems compute rates, the resource layer integrates them into stocks, and a mechanic that needs a switch is a mechanic that isn't finished.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
-
 ## The rule
 
 **Subsystems compute rates; the resource layer integrates those rates into
@@ -90,13 +88,7 @@ it rather than inventing one again.
 
 ## Where switches still live
 
-<Badge text="scaffolding" variant="caution" /> — this discontinuity is still live
-in the organism layer, and it is not intent.
-
-| Switch | What it does | Consequence |
-|---|---|---|
-| Algae banking and growth gate on light | No photoperiod, no bank and no new mass for the bloom | Its bank switches with the lamp instead of following a rate |
-
+None in the organism layer: every organism earns, is harmed and grows on rates.
 Two things look like switches and are not. A band edge where a rate *starts from
 zero* is a rate — nothing jumps, the slope merely stops being zero. And death at
 condition 0 is a real discontinuity, because an organism past it is genuinely a

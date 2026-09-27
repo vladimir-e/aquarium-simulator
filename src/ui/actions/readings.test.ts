@@ -139,6 +139,7 @@ describe('preview readings', () => {
     oxygen: 'oxygen',
     co2: 'co2',
     food: 'food',
+    waste: 'waste',
   };
 
   function movedResources(before: SimulationState, after: SimulationState): (keyof Resources)[] {
@@ -194,7 +195,7 @@ describe('preview readings', () => {
     const hard = state.algae.mass * (1 - MAX_SCRUB_PERCENT);
 
     expect(row(rows, 'algae').after).toBe(`${hard.toFixed(0)}–${gentle.toFixed(0)}`);
-    expect(rows).toHaveLength(1);
+    expect(rows.map((r) => r.key)).toEqual(['waste', 'algae']);
   });
 
   it('warns on temperature only where a stocked species minds', () => {

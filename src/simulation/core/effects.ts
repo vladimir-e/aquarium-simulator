@@ -3,11 +3,6 @@
  *
  * Effects modify resources during tick processing. Bounds are fetched from
  * ResourceRegistry for consistency. Water has dynamic bounds (0 to tank.capacity).
- *
- * Algae is no longer routed through this effect system — it lives on
- * `state.algae.mass` and is updated directly by the algae orchestrator
- * (see `simulation/algae/index.ts`). Mass changes go through the
- * vitality / surplus / mass-decay path, not as resource deltas.
  */
 
 import { produce } from 'immer';

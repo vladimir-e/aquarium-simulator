@@ -1,19 +1,19 @@
 /**
  * The hour the next tick runs, settled in the tick's own order: the
- * environment, the plant pass with its effects applied, the algae, the
- * livestock, then breeding. Every readout that says what the next tick will do
- * reads it here, so a plant, a fish and the bloom are read on the same hour.
+ * environment, the flora pass — plants and the bloom — with its effects
+ * applied, the livestock, then breeding. Every readout that says what the next
+ * tick will do reads it here, so a plant, a fish and the bloom are read on the
+ * same hour.
  */
 
 import {
   applyEffects,
   calculateDecay,
   dailyLightIntegral,
-  processAlgae,
   processBreeding,
+  processFlora,
   processLivestock,
-  processPlants,
-  type AlgaePopulationResult,
+  type BloomLight,
   type PlantLight,
   type SimulationState,
   type VitalityResult,
@@ -35,14 +35,12 @@ export interface PlantAhead extends OrganismAhead {
   buds: boolean;
 }
 
-/** The bloom's bank over the hour. */
-export interface BloomBankAhead {
-  /** Drawn down to cover damage. */
-  drained: number;
-  /** Spent on coverage. */
-  spent: number;
-  /** As the tick leaves it. */
-  next: number;
+export interface BloomAhead extends OrganismAhead {
+  light: BloomLight;
+  /** Coverage as the tick leaves the bloom. */
+  mass: number;
+  /** Grams of waste it sheds — its steady rate, apart from a die-back's lump. */
+  shedding: number;
 }
 
 export interface HourAhead {
@@ -50,10 +48,7 @@ export interface HourAhead {
   plants: PlantAhead[];
   /** In `state.fish` order. */
   fish: OrganismAhead[];
-  algae: AlgaePopulationResult;
-  /** Coverage as the tick leaves the bloom. */
-  algaeMass: number;
-  algaeBank: BloomBankAhead;
+  algae: BloomAhead;
   /** The substrate's day of light the tick reads, mol/m²/d. */
   dailyLight: number;
   /** Grams of waste the plants shed — their steady rate, apart from a death's one-off lump. */
@@ -85,10 +80,9 @@ function spentBy(
 
 export function readHourAhead(state: SimulationState, config: TunableConfig): HourAhead {
   const settled = settleEnvironment(state, config);
-  const plantPass = processPlants(settled, config);
-  const planted = applyEffects(plantPass.state, plantPass.effects, config);
-  const algaePass = processAlgae(planted, config);
-  const livestock = processLivestock(algaePass.state, config);
+  const flora = processFlora(settled, config);
+  const planted = applyEffects(flora.state, flora.effects, config);
+  const livestock = processLivestock(planted, config);
   const bred = processBreeding(applyEffects(livestock.state, livestock.effects, config), config).state;
   const plantSpent = spentBy(planted.plants);
   const fishSpent = spentBy(bred.fish);
@@ -96,31 +90,31 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
   const budded = new Set(
     planted.plants.filter((plant) => !standing.has(plant.id)).map((plant) => plant.parentId)
   );
-  const bloom = algaePass.state.algae.surplus;
+  const bloom = planted.algae;
   const food = bred.resources;
   const decayed = calculateDecay(food.food, food.temperature, food.oxygen, config.decay);
   const wasteShare = config.decay.wasteConversionRatio;
 
   return {
     plants: state.plants.map((plant, i) => ({
-      vitality: plantPass.vitalities[i],
-      spent: plantSpent(plant.id, plantPass.vitalities[i]),
-      light: plantPass.light[i],
+      vitality: flora.vitalities[i],
+      spent: plantSpent(plant.id, flora.vitalities[i]),
+      light: flora.light[i],
       buds: budded.has(plant.id),
     })),
     fish: state.fish.map((fish, i) => ({
       vitality: livestock.vitalities[i],
       spent: fishSpent(fish.id, livestock.vitalities[i]),
     })),
-    algae: algaePass.population,
-    algaeMass: algaePass.state.algae.mass,
-    algaeBank: {
-      drained: algaePass.bank.drained,
-      spent: algaePass.bank.surplus - bloom,
-      next: bloom,
+    algae: {
+      vitality: flora.algae.vitality,
+      spent: bloom.condition > 0 ? flora.algae.vitality.surplus - bloom.surplus : 0,
+      light: flora.algae.light,
+      mass: bloom.mass,
+      shedding: flora.algae.shedding,
     },
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),
-    shedding: plantPass.shedding,
+    shedding: flora.shedding,
     fishWaste: livestock.metabolism.wasteProduced,
     gillAmmonia: livestock.metabolism.ammoniaProduced,
     foodWaste: decayed * wasteShare,

@@ -77,24 +77,17 @@ export interface Fish {
 }
 
 /**
- * Algae as a pure population — coverage and a surplus bank.
- *
- * `mass` is aggregate biomass / coverage on a 0–100 scale. When the net rate from stressors and benefits is
- * positive, the surplus tank fills (photoperiod-gated); when it's
- * negative, the reserve buffer drains first and mass shrinks only by
- * the shortfall. No intermediate `condition` — conditions favouring
- * algae grow it; conditions hostile to it shrink it. `surplus` is the
- * banked reserve: it buffers hostile ticks and drains into mass each
- * daylight tick.
- *
- * One organism, not an array. The shape — coverage plus surplus —
- * is the prototype for future colonies (snails, shrimps): they're
- * populations too, and they don't need condition either.
+ * The tank's bloom: a population run on the plants' vitality model, without
+ * a position. `mass` is how full its habitat is, 0–100 — the share of what the
+ * water column holds at a full bloom — so its tissue scales with the tank's
+ * litres. Condition and bank are the bloom's as a whole: the bank buys mass in
+ * proportion to the mass already there.
  */
 export interface AlgaeState {
-  /** Aggregate biomass / coverage, 0–100 (same scale as the old field). */
   mass: number;
-  /** Banked surplus from positive net rate; drained into mass while lights are on. */
+  /** 0–100; the bloom dies back at 0. */
+  condition: number;
+  /** Vitality bank, in condition points, up to `PlantsConfig.surplusCap`. */
   surplus: number;
 }
 
@@ -334,7 +327,7 @@ export interface SimulationState {
   fish: Fish[];
   /** Unhatched egg clutches from egg-laying species */
   clutches: Clutch[];
-  /** Tank-wide algae as a single mass-based organism */
+  /** The tank's bloom */
   algae: AlgaeState;
   /** Seed and stream position every draw in this tank comes off. */
   rng: RngState;
@@ -699,9 +692,7 @@ export function createSimulation(
     plants: [],
     fish: [],
     clutches: [],
-    // Algae starts at zero biomass and zero surplus. With no
-    // condition state, the empty case is naturally inert.
-    algae: { mass: 0, surplus: 0 },
+    algae: { mass: 0, condition: 100, surplus: 0 },
     rng: createRng(rngSeed),
     logs: [initialLog],
     alertState: {

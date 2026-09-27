@@ -119,6 +119,18 @@ export function LedgerDrawer({
           />
         )}
 
+        {ledger.coverage && (
+          <ReadingRow
+            name="Coverage"
+            value={ledger.coverage.text}
+            unit="%"
+            at={ledger.coverage.at}
+            band={ledger.coverage.band}
+            tone={toneOf(ledger.coverage.status)}
+            note={ledger.coverage.note}
+          />
+        )}
+
         {ledger.light && (
           <ReadingRow
             name="Light"

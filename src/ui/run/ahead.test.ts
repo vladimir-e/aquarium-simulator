@@ -6,15 +6,13 @@ import {
   createSimulation,
   dailyLightIntegral,
   getPresetById,
-  processAlgae,
   processBreeding,
+  processFlora,
   processLivestock,
-  processPlants,
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
 import { settleEnvironment } from '../../simulation/tick.js';
-import { bankSurplus, spendAlgaeSurplus } from '../../simulation/algae/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
 
@@ -135,6 +133,7 @@ describe('readHourAhead', () => {
       draft.resources.ammonia = 500 * draft.resources.water;
       Object.assign(draft.plants[1], { condition: 0.001, surplus: 1 });
       for (const fish of draft.fish) Object.assign(fish, { health: 0.5, surplus: 1 });
+      Object.assign(draft.algae, { condition: 0.001, surplus: 1 });
     });
     const ahead = readHourAhead(dying, config);
     const next = tick(dying, config);
@@ -145,6 +144,8 @@ describe('readHourAhead', () => {
     expect(gone(dying.plants, next.plants)).toContain(true);
     gone(dying.fish, next.fish).forEach((died, i) => died && expect(ahead.fish[i].spent).toBe(0));
     gone(dying.plants, next.plants).forEach((died, i) => died && expect(ahead.plants[i].spent).toBe(0));
+    expect(next.algae.mass).toBe(0);
+    expect(ahead.algae.spent).toBe(0);
   });
 
   it('reads the waste the fish pass, the ammonia they breathe out and the food they leave to rot off the hour the plants and bloom leave them', () => {
@@ -154,9 +155,8 @@ describe('readHourAhead', () => {
     for (const { state } of hours) {
       const ahead = readHourAhead(state, config);
       const settled = settleEnvironment(state, config);
-      const plantPass = processPlants(settled, config);
-      const bloom = processAlgae(applyEffects(plantPass.state, plantPass.effects, config), config).state;
-      const livestock = processLivestock(bloom, config);
+      const flora = processFlora(settled, config);
+      const livestock = processLivestock(applyEffects(flora.state, flora.effects, config), config);
       const delta = (resource: string, source: string): number =>
         livestock.effects
           .filter((e) => e.resource === resource && e.source === source)
@@ -173,26 +173,13 @@ describe('readHourAhead', () => {
     }
   });
 
-  it('reads the bloom exactly as the next tick banks and grows it, at every hour of the day', () => {
-    const { algae } = config;
+  it('reads the bloom exactly as the next tick runs it, at every hour of the day', () => {
     for (const { state, next } of hours) {
       const ahead = readHourAhead(state, config);
-      const lit = next.resources.light > 0;
-      const bank = bankSurplus(state.algae.surplus, ahead.algae.net, algae.surplusCap, lit);
-      const shrunk = {
-        ...state.algae,
-        surplus: bank.surplus,
-        mass: Math.max(0, state.algae.mass - bank.overflowDamage),
-      };
-      const grown = lit ? spendAlgaeSurplus(shrunk, algae) : shrunk;
 
-      expect(grown).toEqual(next.algae);
-      expect(ahead.algaeMass).toBe(next.algae.mass);
-      expect(ahead.algaeBank).toEqual({
-        drained: bank.drained,
-        spent: bank.surplus - next.algae.surplus,
-        next: next.algae.surplus,
-      });
+      expect(ahead.algae.vitality.newCondition).toBe(next.algae.condition);
+      expect(ahead.algae.vitality.surplus - ahead.algae.spent).toBeCloseTo(next.algae.surplus, 12);
+      expect(ahead.algae.mass).toBe(next.algae.mass);
     }
   });
 });

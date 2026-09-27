@@ -60,12 +60,12 @@ describe('useConfig', () => {
 
     act(() => {
       result.current.setTunable('decay.wasteConversionRatio', 0.7);
-      result.current.setTunable('algae.hardiness', 0.5);
+      result.current.setTunable('algae.sporeRate', 0.005);
     });
     act(() => result.current.resetSection('decay'));
 
     expect(result.current.config.decay).toEqual(DEFAULT_CONFIG.decay);
-    expect(result.current.config.algae.hardiness).toBe(0.5);
+    expect(result.current.config.algae.sporeRate).toBe(0.005);
   });
 
   it('resets the whole config at once', () => {

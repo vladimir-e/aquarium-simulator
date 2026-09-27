@@ -63,6 +63,18 @@ describe('LifeSection', () => {
     expect(plants.getByRole('img', { name: /Anubias by family/ }).children).toHaveLength(2);
   });
 
+  it('opens the algae’s ledger on the organism: its condition, coverage, light and bank', () => {
+    renderLife();
+    fireEvent.click(within(group('Plants')).getByRole('button', { name: /^Algae — / }));
+
+    const drawer = within(screen.getByRole('dialog'));
+    expect(drawer.getByText('% condition')).toBeTruthy();
+    expect(drawer.getByText('Coverage')).toBeTruthy();
+    expect(drawer.getByText('% of need')).toBeTruthy();
+    expect(drawer.getByText('Bank')).toBeTruthy();
+    expect(drawer.queryByRole('button', { name: 'Remove' })).toBeNull();
+  });
+
   describe('plant families', () => {
     /** The stocked tank, its first anubias having budded once. */
     function propagated(): { run: Run; founder: string; label: string } {

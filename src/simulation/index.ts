@@ -330,34 +330,56 @@ export {
 } from './actions/index.js';
 export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 
+// Flora — plants and the bloom in one pass
+export { processFlora } from './flora/index.js';
+export type { FloraProcessingResult, BloomHour } from './flora/index.js';
+
 // Algae
 export {
-  processAlgae,
-  spendAlgaeSurplus,
-  computeAlgaePopulation,
+  ALGAE,
+  algaeDailyLightEdge,
+  algaeSaturationIrradiance,
+  bloomLight,
+  columnGain,
+  bloomTissue,
+  bloomRateUnits,
+  bloomFeeder,
+  bloomFixer,
+  purchaseBloom,
+  massBought,
+  supplyBloom,
+  loseBloom,
+  computeAlgaeVitality,
   buildAlgaeStressors,
   buildAlgaeBenefits,
+  algaeHealingRate,
+  thrivingPlantDensity,
 } from './algae/index.js';
 export type {
+  AlgaeTraits,
+  BloomLight,
+  BloomPurchase,
+  BloomLoss,
   AlgaeVitalityContext,
-  AlgaePopulationResult,
-  AlgaePopulationBreakdown,
 } from './algae/index.js';
 
 // Plants
 export {
-  processPlants,
   calculatePhotosynthesis,
+  plantFixer,
   calculateNutrientSufficiency,
   speciesDemand,
   speciesHalfSaturation,
   nutrientShare,
   nutrientShares,
   tankPools,
+  plantFeeder,
   poolDraws,
-  plantShares,
+  feederShares,
   organicNutrients,
   tissueMass,
+  tissuePerRateUnit,
+  shedShare,
   calculateCo2Factor,
   calculateRespiration,
   getRespirationTemperatureFactor,
@@ -387,6 +409,8 @@ export type {
   PlantLight,
   CanopyLight,
   Propagation,
+  CarbonFixer,
+  Feeder,
   NutrientPool,
   TankPools,
   PoolDraw,

@@ -231,25 +231,23 @@ describe('readLedger', () => {
     });
   });
 
-  it('trends the algae by what the next tick does to its coverage, by day and by night, beside the bloom’s own balance', () => {
+  it('reads the bloom as an organism: its condition trended as the next tick leaves it, its coverage by what the tick does to the mass', () => {
     const preset = getPresetById('planted')!;
     let state = produce(createSimulation(preset.config, preset.seed), (draft) => {
-      draft.algae.mass = 20;
-      draft.algae.surplus = 10;
+      Object.assign(draft.algae, { mass: 20, condition: 70, surplus: 0 });
     });
-    const trends = new Set<string>();
     for (let hour = 0; hour < 24; hour++) {
       const next = tick(state, DEFAULT_CONFIG);
-      const { trend, helps, hurts, net } = ledgerOf(state, { kind: 'algae' })!;
+      const ledger = ledgerOf(state, { kind: 'algae' })!;
+      const { vitality } = readHourAhead(state, DEFAULT_CONFIG).algae;
 
-      expect(trend).toBe(projectedTrend(next.algae.mass - state.algae.mass));
-      expect(net).toBeCloseTo(readHourAhead(state, DEFAULT_CONFIG).algae.net * 24, 10);
-      expect(helps - hurts).toBeCloseTo(net, 10);
-      trends.add(trend);
+      expect(ledger.value).toBe(Math.floor(state.algae.condition).toString());
+      expect(ledger.trend).toBe(projectedTrend(next.algae.condition - state.algae.condition));
+      expect(ledger.coverage!.note).toBe(projectedTrend(next.algae.mass - state.algae.mass));
+      expect(ledger.net).toBeCloseTo(vitality.breakdown.net * 24, 10);
+      expect(ledger.helps - ledger.hurts).toBeCloseTo(ledger.net, 10);
       state = next;
     }
-    expect(trends).toContain('steady');
-    expect([...trends].some((trend) => trend.startsWith('↗'))).toBe(true);
   });
 
   it('has nothing to open for a fish the tank no longer holds', () => {
@@ -266,11 +264,11 @@ describe('readLedger', () => {
     expect(algae.verb).toBe('scrubAlgae');
   });
 
-  it('reads the bloom’s bank buying coverage while lit, and held while dark', () => {
+  it('reads the bloom’s bank banking while lit and buying growth through the night', () => {
     const preset = getPresetById('planted')!;
     let state = produce(createSimulation(preset.config, preset.seed), (draft) => {
-      draft.algae.mass = 20;
-      draft.algae.surplus = 10;
+      draft.plants = [];
+      Object.assign(draft.algae, { mass: 20, condition: 100, surplus: 10 });
     });
     const notes = new Map<boolean, Set<string>>([
       [true, new Set()],
@@ -284,8 +282,7 @@ describe('readLedger', () => {
       expect(bank!.text).toBe(state.algae.surplus.toFixed(1));
       state = next;
     }
-    expect(notes.get(true)).toContain('buying coverage');
-    expect([...notes.get(false)!].every((note) => note !== 'buying coverage')).toBe(true);
-    expect(notes.get(false)).toContain('held while dark');
+    expect(notes.get(true)).toContain('banking');
+    expect(notes.get(false)).toContain('buying growth');
   });
 });

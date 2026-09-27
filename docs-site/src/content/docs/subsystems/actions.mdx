@@ -54,7 +54,7 @@ diverge the moment their keepers act differently.
 | Water change | a fraction in `(0, 1]`, optionally a vacuum share in `[0, 1]` | see below | either non-finite or outside its range, or the tank is empty |
 | Dose | millilitres | the four nutrient pools, by the fertilizer ratio | non-finite, below the minimum or above the maximum |
 | Root tab | a whole number of tabs | the bed's nutrient store, by `rootTab` per tab | not a whole number from 1 to `MAX_ROOT_TABS`, or no bed |
-| Scrub algae | an optional explicit share | `algae.mass` down 10–30 % | mass under `5`, or a named share outside the band |
+| Scrub algae | an optional explicit share | `algae.mass` down 10–30 %, its tissue into `waste` | mass under `5`, or a named share outside the band |
 | Trim plants | a target size, optionally one plant id or one family id | every plant above the target down to it — of that family, or just the named plant | target outside `[MIN_PLANTABLE_SIZE, 100]`, nothing above the target, plant not found |
 | Add plant | species, optional size | a unit founding its own family, at condition 100 with an empty bank | unknown species, size outside `[MIN_PLANTABLE_SIZE, 100]`, not enough floor for its footprint |
 | Remove plant | plant id | the plant leaves the array; a rooted one disturbs its footprint's share of the bed | not found |
@@ -62,8 +62,9 @@ diverge the moment their keepers act differently.
 | Remove fish | fish id | the fish leaves the array | not found |
 | Sell fry | — | every fish carrying `stage: 'fry'` | no fry in the tank |
 
-Trimmed tissue and scrubbed algae leave the system outright. Neither becomes
-waste — the convention is that the keeper carried it out of the room.
+Trimmed tissue leaves the system outright — the convention is that the keeper
+carried it out of the room. Scrubbed algae does not: it comes off the glass
+into the water as waste, to be siphoned out or left to rot.
 
 A refused planting names the floor it lacks — "Not enough floor: 180 cm² free,
 Amazon Sword needs 700" — against the
@@ -151,7 +152,7 @@ the ceiling and simply lock further stocking out.
 | [Environment](/subsystems/environment/) | `tapWaterTemperature` and `tapKh` as the thing being blended toward; `water` and `tank.capacity` for every refill | `water` and `temperature` |
 | [Plants](/subsystems/plants/) | `plants` for the floor budget, and the trim target and family | The array, and `size` directly |
 | [Livestock](/subsystems/livestock/) | `fish` for the mass ceiling and the fry count | The array; `food` for the fish to eat next tick |
-| [Algae](/subsystems/algae/) | `algae.mass`, against `MIN_ALGAE_TO_SCRUB` | `algae.mass`, down by a drawn share |
+| [Algae](/subsystems/algae/) | `algae.mass`, against `MIN_ALGAE_TO_SCRUB` | `algae.mass`, down by a drawn share; its tissue into `waste` |
 | [Equipment](/subsystems/equipment/) | `substrate.type` — whether there is a bed to tab | `substrate.nutrients`, raised by a root tab; settings are written by the host |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Every applied action appends a `user` entry; a scrub files itself under `scrub`. A refusal logs nothing |
 | [State & persistence](/subsystems/state-and-persistence/) | The draw stream, for a scrub's bite and every new organism's id | The advanced stream position |

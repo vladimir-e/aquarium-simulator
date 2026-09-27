@@ -1,5 +1,5 @@
 /**
- * Plant respiration calculations.
+ * Respiration — plants and algae alike, by the rate units they respire at.
  *
  * Respiration occurs 24/7 (day and night):
  * - Consumes oxygen
@@ -34,9 +34,9 @@ export function getRespirationTemperatureFactor(
 }
 
 /**
- * Calculate plant respiration rate and the gas masses it moves.
+ * Calculate respiration rate and the gas masses it moves.
  *
- * @param rateUnits - The planting's rate units (`plants/canopy.ts`)
+ * @param rateUnits - Rate units respiring: the planting's and the bloom's
  * @param temperature - Current water temperature (C)
  * @param oxygen - Dissolved oxygen (mg/L), which the rate saturates against
  * @param config - Plants configuration

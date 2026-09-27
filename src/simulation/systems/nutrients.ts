@@ -1,17 +1,18 @@
 /**
- * Plant nutrition — how much of each nutrient a species needs, how much of
- * that need the tank's pools meet, and what new tissue takes out of them.
+ * Nutrition — how much of each nutrient a feeder needs, how much of that need
+ * the tank's pools meet, and what new tissue takes out of them. Plants and
+ * algae feed the same way.
  *
- * A plant feeds on two pools: the water column and, through its roots, the
- * bed. Its growth form fixes the share it draws through its roots; every
- * nutrient saturates on its own Monod curve in each pool, at a half-saturation
- * scaled by the species' demand for it, and the plant's share of a nutrient is
- * the two pools' shares weighted by where it feeds. Sufficiency is the scarcest
- * of them (Liebig).
+ * A feeder draws on two pools: the water column and, through roots, the bed. A
+ * plant's growth form fixes the share it draws through its roots, and algae
+ * has none; every nutrient saturates on its own Monod curve in each pool, at a
+ * half-saturation scaled by the feeder's demand for it, and its share of a
+ * nutrient is the two pools' shares weighted by where it feeds. Sufficiency is
+ * the scarcest of them (Liebig).
  *
  * Tissue is the organic matter it rots into, at food's recipe: growing draws
  * that recipe out of the pools, and shedding and death hand it back as waste,
- * so a plant holds its N, P, K and Fe and never makes or loses any.
+ * so a plant or a bloom holds its N, P, K and Fe and never makes or loses any.
  */
 
 import type { Resources, SimulationState } from '../state.js';
@@ -47,13 +48,18 @@ export function speciesDemand(
   return config.demand[PLANT_SPECIES_DATA[species].nutrientDemand];
 }
 
+/** ppm at which a feeder of this demand runs at half on the nutrient. */
+function halfSaturationAt(demand: NutrientVector, nutrient: Nutrient, config: NutrientsConfig): number {
+  return demand[nutrient] * config.halfSaturation[nutrient];
+}
+
 /** ppm at which this species runs at half on the nutrient. */
 export function speciesHalfSaturation(
   species: PlantSpecies,
   nutrient: Nutrient,
   config: NutrientsConfig = nutrientsDefaults
 ): number {
-  return speciesDemand(species, config)[nutrient] * config.halfSaturation[nutrient];
+  return halfSaturationAt(speciesDemand(species, config), nutrient, config);
 }
 
 /** Share of the species' need for one nutrient that this ppm meets, 0–1. */
@@ -66,7 +72,7 @@ export function nutrientShare(
   return monodFactor(ppm, speciesHalfSaturation(species, nutrient, config));
 }
 
-/** A stock plants feed on: mg of each nutrient, and the litres it reads against. */
+/** A stock feeders draw on: mg of each nutrient, and the litres it reads against. */
 export interface NutrientPool {
   stock: NutrientVector;
   volume: number;
@@ -89,37 +95,48 @@ export function tankPools(state: Pick<SimulationState, 'resources' | 'equipment'
   ];
 }
 
-/** Share of the species' need for each nutrient that one pool meets, 0–1. */
-export function nutrientShares(
-  pool: NutrientPool,
-  species: PlantSpecies,
-  config: NutrientsConfig = nutrientsDefaults
-): NutrientVector {
-  return mapNutrients((n) => nutrientShare(getPpm(pool.stock[n], pool.volume), species, n, config));
+/** What feeds on the pools: its demand for each nutrient, and the share of its feeding done through roots. */
+export interface Feeder {
+  demand: NutrientVector;
+  rootShare: number;
 }
 
-/** A plant's draw on one pool: the share of its feeding done there, and the share of its need for each nutrient the pool meets. */
+export function plantFeeder(species: PlantSpecies, config: NutrientsConfig = nutrientsDefaults): Feeder {
+  return { demand: speciesDemand(species, config), rootShare: growthFormOf(species).rootShare };
+}
+
+/** Share of a feeder's need for each nutrient that one pool meets, 0–1. */
+export function nutrientShares(
+  pool: NutrientPool,
+  demand: NutrientVector,
+  config: NutrientsConfig = nutrientsDefaults
+): NutrientVector {
+  return mapNutrients((n) =>
+    monodFactor(getPpm(pool.stock[n], pool.volume), halfSaturationAt(demand, n, config))
+  );
+}
+
+/** A feeder's draw on one pool: the share of its feeding done there, and the share of its need for each nutrient the pool meets. */
 export interface PoolDraw {
   weight: number;
   shares: NutrientVector;
 }
 
-/** Where a species feeds: its roots' share from the bed, the rest from the water. A dry tank feeds nothing. */
+/** Where a feeder feeds: its roots' share from the bed, the rest from the water. A dry tank feeds nothing. */
 export function poolDraws(
   [water, bed]: TankPools,
-  species: PlantSpecies,
+  feeder: Feeder,
   config: NutrientsConfig = nutrientsDefaults
 ): PerPool<TankPools, PoolDraw> {
-  const roots = growthFormOf(species).rootShare;
   const wet = water.volume > 0 ? 1 : 0;
   return [
-    { weight: wet * (1 - roots), shares: nutrientShares(water, species, config) },
-    { weight: wet * roots, shares: nutrientShares(bed, species, config) },
+    { weight: wet * (1 - feeder.rootShare), shares: nutrientShares(water, feeder.demand, config) },
+    { weight: wet * feeder.rootShare, shares: nutrientShares(bed, feeder.demand, config) },
   ];
 }
 
-/** Share of a plant's need for each nutrient its pools meet together, 0–1. */
-export function plantShares(draws: readonly PoolDraw[]): NutrientVector {
+/** Share of a feeder's need for each nutrient its pools meet together, 0–1. */
+export function feederShares(draws: readonly PoolDraw[]): NutrientVector {
   return mapNutrients((n) => draws.reduce((sum, { weight, shares }) => sum + weight * shares[n], 0));
 }
 
@@ -133,10 +150,10 @@ export function calculateNutrientSufficiency(
   species: PlantSpecies,
   config: NutrientsConfig = nutrientsDefaults
 ): number {
-  return liebig(plantShares(poolDraws(pools, species, config)));
+  return liebig(feederShares(poolDraws(pools, plantFeeder(species, config), config)));
 }
 
-/** mg of each nutrient in a gram of organic matter — food, its waste and plant tissue alike. */
+/** mg of each nutrient in a gram of organic matter — food, its waste, plant and algae tissue alike. */
 export function organicNutrients(livestock: LivestockConfig, nutrients: NutrientsConfig): NutrientVector {
   return { nitrate: nitratePerGramOfFood(livestock), ...nutrients.foodMineralContent };
 }
@@ -147,16 +164,17 @@ export interface TissueNeed<P extends readonly NutrientPool[] = TankPools> {
 }
 
 export interface TissueDraw<P extends readonly NutrientPool[] = TankPools> {
-  /** Share of each plant's tissue the pools supplied, 0–1, in the order of the needs. */
+  /** Share of each feeder's tissue the pools supplied, 0–1, in the order of the needs. */
   supplied: number[];
   /** mg of each nutrient drawn from each pool. */
   drawn: PerPool<P, NutrientVector>;
 }
 
 /**
- * The share of each plant's new tissue its pools supply, and what that tissue
+ * The share of each feeder's new tissue its pools supply, and what that tissue
  * takes out of each pool at the recipe. Each pool meets every request on it at
- * one fraction, through `monodUptake`, so no pool is ever overdrawn.
+ * one fraction, through `monodUptake`, so no pool is ever overdrawn and no
+ * feeder is served before another.
  */
 export function drawTissue<P extends readonly NutrientPool[]>(
   needs: readonly TissueNeed<P>[],
@@ -173,7 +191,7 @@ export function drawTissue<P extends readonly NutrientPool[]>(
   const reached = needs.map(({ draws }) =>
     draws.map(({ weight, shares }, p) => ({ weight, shares: mapNutrients((n) => shares[n] * met[p][n]) }))
   );
-  const supply = reached.map(plantShares);
+  const supply = reached.map(feederShares);
   const supplied = supply.map((share) => Math.min(...NUTRIENTS.map((n) => (recipe[n] > 0 ? share[n] : 1))));
 
   const drawn = pools.map((_, p) =>

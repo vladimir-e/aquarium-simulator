@@ -52,11 +52,12 @@ function stocked(): SimulationState {
 }
 
 describe('wasteInflow', () => {
-  it('always names all four sources, in a fixed order', () => {
+  it('always names all five sources, in a fixed order', () => {
     expect(inflowOf(tank()).sources.map((s) => s.key)).toEqual([
       'food',
       'fish',
       'plants',
+      'algae',
       'substrate',
     ]);
   });
@@ -101,6 +102,16 @@ describe('wasteInflow', () => {
     expect(dark.plants[0].condition).toBe(100);
     expect(shed(planted)).toBe(0);
     expect(shed(dark)).toBeGreaterThan(0);
+  });
+
+  it('counts what the bloom sheds on the hour ahead', () => {
+    const fading = produce(soilTank(), (draft) => {
+      draft.algae = { mass: 40, condition: 50, surplus: 0 };
+    });
+    const shed = inflowOf(fading).sources.find((s) => s.key === 'algae')!.gramsPerHour;
+
+    expect(shed).toBeGreaterThan(0);
+    expect(shed).toBe(readHourAhead(fading, config).algae.shedding);
   });
 
   it('counts a plant dying on the next tick at the rate it sheds, not the lump it leaves', () => {

@@ -55,6 +55,7 @@ and it ends when the rates turn round.
 |---|---|---|
 | Fish | `healingDrawRate × adultMass^−¼`, the way mass-specific metabolism scales | 6 %/h for a neon, 2.5 %/h for an angelfish |
 | Plant | `healingDrawRate × growthRate` — a plant repairs at the pace it grows | 9 %/h for monte carlo, 1.5 %/h for anubias |
+| Algae | The plants' law, at the bloom's growth rate | its whole bank in an hour |
 
 ## What the bank buys
 
@@ -62,27 +63,22 @@ and it ends when the rates turn round.
 |---|---|---|
 | Fish | Dies at 0 | A brood: a full bank buys a spawn, and the spawn empties it — see [Breeding](/subsystems/livestock/#breeding) |
 | Plant | Sheds tissue, with the square of the deficit; dies at 0 | Its growth and its offshoots: growth draws on the bank through a taper that closes as the unit fills, and a full bank buys a new unit of the family — see [Offshoots](/subsystems/plants/#offshoots) |
-
-## Algae runs its own bank
-
-Algae keeps no condition. A bloom is a population, not an individual, so its net
-rate folds straight into a bank of its own: damage drains the bank before it
-touches mass, and the bank buys mass. See [Algae](/subsystems/algae/).
+| Algae | Sheds mass as a plant sheds tissue; dies back at 0 | Mass, in proportion to the mass standing, through the plants' taper as its habitat fills — see [Algae](/subsystems/algae/#the-bank-buys-mass) |
 
 ## Status
 
 | Mechanic | Status | Why |
 |---|---|---|
-| The balance | <Badge text="settled" variant="success" /> | One step for fish and plants. Each organism hardens its own charges, so a channel can move its edge instead of scaling its charge |
+| The balance | <Badge text="settled" variant="success" /> | One step for fish, plants and the bloom. Each organism hardens its own charges, so a channel can move its edge instead of scaling its charge |
 | Banking at full condition | <Badge text="settled" variant="success" /> | Income heals first and banks only at 100; damage never reaches the bank |
 | First-order healing | <Badge text="settled" variant="success" /> | The bank heals at a species share, with no floor and no switch — the same law growth draws on |
 | Sickness | <Badge text="settled" variant="success" /> | A reading of the rates, not a state: condition falling is the whole of it |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at each edge, and the matching damage starts from zero at or past it, so net never jumps as a reading leaves its band |
 | Brood and offshoot | <Badge text="settled" variant="success" /> | Each is an event a full bank buys: the bank is its price and refilling it is the cooldown, with no timers |
-| Algae's bank | <Badge text="scaffolding" variant="caution" /> | It banks and grows only while the lamp is on — a switch on light, not a rate |
 
 ## Source
 
 `src/simulation/systems/` holds the shared step and each organism's factor
 builders; `src/simulation/plants/`, `src/simulation/algae/` and
-`src/simulation/livestock/` decide what their bank buys.
+`src/simulation/livestock/` decide what their bank buys, and
+`src/simulation/flora/` runs plants and the bloom through one pass.

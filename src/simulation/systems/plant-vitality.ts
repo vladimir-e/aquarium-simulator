@@ -136,9 +136,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   // Algae shading — only kicks in once algae density is meaningful.
   // Reads `state.algae.mass` (threaded through the context); a heavy
   // bloom (mass > threshold) shades plants and drags their condition
-  // down. With plant decline, algae's `plant_suppression` stressor
-  // weakens → algae's net rate climbs → more mass growth — the
-  // intended death-spiral mechanic.
+  // down, and a failing planting harms the bloom less in turn.
   let algaeAmount = 0;
   if (algaeMass > plantsConfig.algaeShadingThreshold) {
     algaeAmount =

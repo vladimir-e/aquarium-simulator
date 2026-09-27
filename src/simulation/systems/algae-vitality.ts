@@ -1,187 +1,145 @@
 /**
- * Algae population dynamics — runs the tank-wide algae through the
- * shared stressor / benefit machinery, but as a pure population, not
- * an organism with a condition state.
+ * Algae vitality — the bloom through the plants' vitality model, on the
+ * plants' constants and the bloom's own traits.
  *
- * Algae is a population whose coverage rises when conditions favour
- * it and falls when conditions are hostile. There is no intermediate
- * `condition` — net rate (benefit − damage, post-hardiness) drives
- * mass. The orchestrator folds a positive net into the surplus bank
- * (photoperiod-gated); a negative net drains that reserve buffer first
- * and only shrinks mass by the shortfall the bank can't cover.
+ * Income is a plant's: CO₂, temperature and pH comfort, all on the drive
+ * `tanh(PAR / Ik) × sufficiency`, with the light read as the mean over the
+ * water column. Harm is a plant's where a bloom has the channel — starvation
+ * against its daily light edge, temperature and pH out of band, nutrient
+ * deficiency on the light curve — plus what thriving plants do to it.
  *
- * Stressors:
- * - `plant_suppression` — plant power above `suppressionThreshold`
- *   damages algae growth.
- *
- * Benefits:
- * - `excess_light` — substrate PAR above `lightExcessThreshold`
- *   (capped peak).
- * - `excess_nutrients` — NO3 / PO4 ratio above algae's reference ppm
- *   (capped peak; dominant nutrient lever).
- * - `nutrient_deficiency` — small benefit when nutrients fall below
- *   that reference (the canary signal that plants are starving).
- * - `low_plant_power` — plant power below `weaknessThreshold`
- *   (capped peak; mirrors plant_suppression).
- *
- * `low_plant_power` and `plant_suppression` are mirror-image factors
- * with a deadband between `weaknessThreshold` and
- * `suppressionThreshold` — neither fires inside the band, giving
- * the system a quiet zone.
- *
- * No direct CO2 / temperature / pH / oxygen channels. CO2 affects
- * algae indirectly via plant condition (CO2-fed plants thrive →
- * high plant power → algae suppressed). Same for ammonia, light,
- * and any other plant-side input. Plant condition is the meta-signal.
+ * Starvation's cost is respiration's, and a bloom respires at its growth rate
+ * (see `bloomRateUnits`), so it starves at that rate too: a few days of dark
+ * take a bloom's bank and then the bloom.
  */
 
-import type { Plant, Resources } from '../state.js';
-import type { AlgaeVitalityConfig } from '../config/algae-vitality.js';
-import { getPpm } from '../resources/index.js';
+import type { AlgaeState, Plant, Resources } from '../state.js';
+import type { AlgaeConfig } from '../config/algae.js';
+import type { PlantsConfig } from '../config/plants.js';
+import {
+  algaeDailyLightEdge,
+  algaeSaturationIrradiance,
+  type AlgaeTraits,
+} from '../algae/traits.js';
+import type { BloomLight } from '../algae/light.js';
+import { getPh } from '../core/carbonate.js';
+import { lightSaturationFactor, monodFactor } from '../core/kinetics.js';
 import { getPlantPower } from './plant-power.js';
-import { hardened, type VitalityFactor } from './vitality.js';
+import { getRespirationTemperatureFactor } from './respiration.js';
+import {
+  bandComfort,
+  computeVitality,
+  hardened,
+  outsideBand,
+  shortfall,
+  type VitalityFactor,
+  type VitalityResult,
+} from './vitality.js';
 
 export interface AlgaeVitalityContext {
-  plants: readonly Plant[];
+  bloom: AlgaeState;
+  traits: AlgaeTraits;
   resources: Resources;
-  algaeConfig: AlgaeVitalityConfig;
+  /** The planting as the hour starts: its thriving leaf is what harms the bloom. */
+  plants: readonly Plant[];
+  /** Litres of the bloom's habitat. */
+  litres: number;
+  plantsConfig: PlantsConfig;
+  algaeConfig: AlgaeConfig;
+  /** Liebig sufficiency on the water column, 0–1. */
+  nutrientSufficiency: number;
+  light: BloomLight;
 }
 
-/**
- * Per-factor and aggregate breakdown for the algae population. Mirrors
- * the shape of `VitalityBreakdown` so the UI renderer that consumes
- * vitality breakdowns can read this directly.
- */
-export interface AlgaePopulationBreakdown {
-  /** Stressor factors with hardiness already applied to `amount`. */
-  stressors: VitalityFactor[];
-  /** Benefit factors (unchanged from the builder). */
-  benefits: VitalityFactor[];
-  /** Total damage rate (%/h), post-hardiness. */
-  damageRate: number;
-  /** Total benefit rate (%/h). */
-  benefitRate: number;
-  /** Net rate (benefit − damage). Positive = growing. */
-  net: number;
+function lightSaturation({ traits, plantsConfig, light }: AlgaeVitalityContext): number {
+  return lightSaturationFactor(light.par, algaeSaturationIrradiance(traits, plantsConfig));
 }
 
-/** Result of one tick of algae population computation. */
-export interface AlgaePopulationResult {
-  /** Net rate (benefit − damage), post-hardiness. Drives mass directly. */
-  net: number;
-  /** Per-factor and aggregate breakdown for UI / telemetry. */
-  breakdown: AlgaePopulationBreakdown;
+/** Rate units of thriving plant per litre of habitat. */
+export function thrivingPlantDensity(plants: readonly Plant[], litres: number): number {
+  return litres > 0 ? getPlantPower(plants) / litres : 0;
 }
 
-/**
- * Capped severity helper: `min(peak, severity × deviation)` clamped
- * to non-negative. Pulls the cap-and-floor pattern out of every
- * benefit factor so the builder reads cleanly.
- */
-function cappedAmount(deviation: number, severity: number, peak: number): number {
-  if (deviation <= 0) return 0;
-  return Math.min(peak, severity * deviation);
-}
-
-/**
- * Build the stressor list for algae, pre-hardiness.
- *
- * Inactive stressors are emitted with `amount: 0` so the breakdown
- * shape stays stable for UI / tests that look up by key.
- */
 export function buildAlgaeStressors(ctx: AlgaeVitalityContext): VitalityFactor[] {
-  const { plants, algaeConfig } = ctx;
-  const power = getPlantPower(plants);
+  const { traits, resources, plants, litres, plantsConfig, algaeConfig, nutrientSufficiency, light } = ctx;
 
-  let plantSuppression = 0;
-  if (power > algaeConfig.suppressionThreshold) {
-    plantSuppression =
-      algaeConfig.plantSuppressionSeverity *
-      (power - algaeConfig.suppressionThreshold);
-  }
-
-  return [
-    { key: 'plant_suppression', label: 'Plant suppression', amount: plantSuppression },
-  ];
+  return hardened(
+    [
+      {
+        key: 'lightStarvation',
+        label: 'Light starvation',
+        amount:
+          plantsConfig.lightStarvationSeverity *
+          traits.growthRate *
+          shortfall(light.dailyLight, algaeDailyLightEdge(traits)) *
+          getRespirationTemperatureFactor(resources.temperature, plantsConfig),
+      },
+      {
+        key: 'temperature',
+        label: 'Temperature',
+        amount:
+          plantsConfig.temperatureStressSeverity * outsideBand(resources.temperature, traits.tolerableTemp),
+      },
+      {
+        key: 'ph',
+        label: 'pH',
+        amount: plantsConfig.phStressSeverity * outsideBand(getPh(resources), traits.tolerablePH),
+      },
+      {
+        key: 'nutrients',
+        label: 'Nutrient deficiency',
+        amount:
+          lightSaturation(ctx) *
+          plantsConfig.nutrientDeficiencySeverity *
+          shortfall(nutrientSufficiency, plantsConfig.sufficiencyEdge),
+      },
+      {
+        key: 'allelopathy',
+        label: 'Plants',
+        amount: algaeConfig.allelopathySeverity * thrivingPlantDensity(plants, litres),
+      },
+    ],
+    traits.hardiness
+  );
 }
 
-/**
- * Build the benefit list for algae. All four benefit channels are
- * emitted every tick (zero-amount when inactive) so the UI breakdown
- * has a stable shape.
- */
 export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] {
-  const { plants, resources, algaeConfig } = ctx;
-
-  // Excess light — substrate PAR above the threshold. Photoperiod-gated by
-  // `resources.light` itself, which is already 0 at night.
-  const excessLight = cappedAmount(
-    resources.light - algaeConfig.lightExcessThreshold,
-    algaeConfig.excessLightSeverity,
-    algaeConfig.excessLightPeak
-  );
-
-  // Nutrient excess / deficiency — relative to algae's reference ppm.
-  // Take the max across NO3/PO4 so a single overdose / starvation signal
-  // lights up the channel.
-  const no3Ratio = getPpm(resources.nitrate, resources.water) / algaeConfig.referenceNitratePpm;
-  const po4Ratio =
-    getPpm(resources.phosphate, resources.water) / algaeConfig.referencePhosphatePpm;
-
-  const excessNutrients = cappedAmount(
-    Math.max(no3Ratio, po4Ratio) - 1,
-    algaeConfig.excessNutrientSeverity,
-    algaeConfig.excessNutrientPeak
-  );
-
-  const nutrientDeficiency = cappedAmount(
-    1 - Math.min(no3Ratio, po4Ratio),
-    algaeConfig.nutrientDeficiencySeverity,
-    algaeConfig.nutrientDeficiencyPeak
-  );
-
-  // Low plant power — mirror-image of suppression on the benefit
-  // side. Algae moves in when plants can't hold the line.
-  const power = getPlantPower(plants);
-  const lowPlantPower = cappedAmount(
-    algaeConfig.weaknessThreshold - power,
-    algaeConfig.lowPlantPowerSeverity,
-    algaeConfig.lowPlantPowerPeak
-  );
+  const { traits, resources, plantsConfig, algaeConfig, nutrientSufficiency } = ctx;
+  const earning = lightSaturation(ctx) * nutrientSufficiency;
 
   return [
-    { key: 'excess_light', label: 'Excess light', amount: excessLight },
-    { key: 'excess_nutrients', label: 'Excess nutrients', amount: excessNutrients },
-    { key: 'nutrient_deficiency', label: 'Nutrient deficiency', amount: nutrientDeficiency },
-    { key: 'low_plant_power', label: 'Low plant power', amount: lowPlantPower },
+    {
+      key: 'co2',
+      label: 'CO₂',
+      amount:
+        earning * plantsConfig.co2BenefitPeak * monodFactor(resources.co2, algaeConfig.co2HalfSaturation),
+    },
+    {
+      key: 'temperature',
+      label: 'Temperature',
+      amount:
+        earning * plantsConfig.temperatureBenefitPeak * bandComfort(resources.temperature, traits.tolerableTemp),
+    },
+    {
+      key: 'ph',
+      label: 'pH',
+      amount: earning * plantsConfig.phBenefitPeak * bandComfort(getPh(resources), traits.tolerablePH),
+    },
   ];
 }
 
-/**
- * Compute one tick of population dynamics for algae. Stateless — UI
- * and tests call this directly; the orchestrator calls it as part of
- * the full tick pipeline.
- *
- * Hardens the stressors, sums both arrays, and returns the net rate plus the bundled breakdown.
- * Net is the rate at which mass changes (positive → growth via
- * surplus, negative → direct shrinkage).
- */
-export function computeAlgaePopulation(ctx: AlgaeVitalityContext): AlgaePopulationResult {
-  const stressors = hardened(buildAlgaeStressors(ctx), ctx.algaeConfig.hardiness);
-  const benefits = buildAlgaeBenefits(ctx);
+/** Share of its bank a bloom heals from per hour, on the plants' law: it repairs at the pace it grows. */
+export function algaeHealingRate(traits: AlgaeTraits, plantsConfig: PlantsConfig): number {
+  return traits.growthRate * plantsConfig.healingDrawRate;
+}
 
-  const damageRate = stressors.reduce((sum, s) => sum + s.amount, 0);
-  const benefitRate = benefits.reduce((sum, b) => sum + b.amount, 0);
-  const net = benefitRate - damageRate;
-
-  return {
-    net,
-    breakdown: {
-      stressors,
-      benefits,
-      damageRate,
-      benefitRate,
-      net,
-    },
-  };
+export function computeAlgaeVitality(ctx: AlgaeVitalityContext): VitalityResult {
+  return computeVitality({
+    stressors: buildAlgaeStressors(ctx),
+    benefits: buildAlgaeBenefits(ctx),
+    condition: ctx.bloom.condition,
+    surplus: ctx.bloom.surplus,
+    surplusCap: ctx.plantsConfig.surplusCap,
+    healingRate: algaeHealingRate(ctx.traits, ctx.plantsConfig),
+  });
 }

@@ -492,7 +492,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const oxygenAt = scale(DISPLAY_CEILING.oxygen);
   const co2At = scale(DISPLAY_CEILING.co2);
   const lightAt = scale(DISPLAY_CEILING.dailyLight);
-  const algaeDrift = projectedDrift(ahead.algaeMass - algae);
+  const algaeDrift = projectedDrift(ahead.algae.mass - algae);
 
   const nitrateFills: ReadingFlow[] = [
     { label: 'NOB clearing NO₂', rate: ratePerHour(rates.nitriteToNitrate, 'ppm') },

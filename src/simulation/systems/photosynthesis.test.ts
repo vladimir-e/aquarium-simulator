@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateCo2Factor,
   calculatePhotosynthesis,
+  plantFixer,
   type PhotosynthesisResult,
 } from './photosynthesis.js';
 import { calculateNutrientSufficiency } from './nutrients.js';
@@ -105,12 +106,11 @@ describe('calculatePhotosynthesis', () => {
       config?: PlantsConfig;
     } = {}
   ): PhotosynthesisResult {
+    const sufficiency = sufficiencyOf(plants, resources, volume);
     return calculatePhotosynthesis(
-      plants,
-      plants.map(() => lightPar),
+      plants.map((p, i) => plantFixer(p, lightPar, sufficiency[i], config)),
       co2,
       volume,
-      sufficiencyOf(plants, resources, volume),
       config
     );
   }
@@ -373,12 +373,11 @@ describe('calculatePhotosynthesis', () => {
       const lit = plant(100, 'java_fern');
       const shaded = { ...plant(100, 'java_fern'), id: 'shaded' };
       const resources = buildResources(waterVolume);
+      const sufficiency = sufficiencyOf([lit, shaded], resources, waterVolume);
       const both = calculatePhotosynthesis(
-        [lit, shaded],
-        [light, 0],
+        [plantFixer(lit, light, sufficiency[0]), plantFixer(shaded, 0, sufficiency[1])],
         PLENTIFUL_CO2,
-        waterVolume,
-        sufficiencyOf([lit, shaded], resources, waterVolume)
+        waterVolume
       );
 
       expect(both).toEqual(photosynthesis([lit], { co2: PLENTIFUL_CO2 }));

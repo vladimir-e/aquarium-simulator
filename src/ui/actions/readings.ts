@@ -26,6 +26,7 @@ import {
   OxygenResource,
   PhosphateResource,
   PotassiumResource,
+  WasteResource,
 } from '../../simulation/resources/index.js';
 import type { StripBand } from '../components/ui/strip.js';
 import { DISPLAY_CEILING, onScale } from '../readings';
@@ -215,7 +216,7 @@ function nutrient(key: Nutrient, label: string, decimals: number): Reading {
 
 /**
  * Canonical order: the nitrogen cycle, then the physical readings, then the
- * dissolved gases, then plant food and the bed, then the two organic stocks,
+ * dissolved gases, then plant food and the bed, then the organic stocks,
  * then the planting's shade and its largest unit. A verb's rows come out in
  * this order however many of them move.
  */
@@ -342,6 +343,18 @@ const READINGS: Reading[] = [
     decimals: FoodResource.precision,
     status: quiet,
     at: (value) => onScale(DISPLAY_CEILING.food, value),
+    band: none,
+    note: none,
+  },
+  {
+    key: 'waste',
+    label: 'Waste',
+    read: ({ state }) => state.resources.waste,
+    unit: () => 'g',
+    display: same,
+    decimals: WasteResource.precision,
+    status: quiet,
+    at: (value) => onScale(DISPLAY_CEILING.waste, value),
     band: none,
     note: none,
   },

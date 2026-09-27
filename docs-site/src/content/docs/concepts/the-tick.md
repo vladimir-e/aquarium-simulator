@@ -19,17 +19,18 @@ and a month of cycling are all read off the same integer.
 |---|---|---|
 | Environment | The clock advances, the passive readings are recomputed — light, flow, surface, aeration — and the hour's light is written into the day's history; then room-driven drift and evaporation apply | The hour has to exist before anything can read it |
 | Equipment | Substrate, hardscape, heater, top-off, CO₂ and doser act on the water they have just met | Equipment answers conditions, so it cannot run ahead of them |
-| Biology | Plants, then algae, then livestock, then breeding on the banks livestock just settled | Each reads the one before it |
+| Biology | Plants and the bloom in one pass, then livestock, then breeding on the banks livestock just settled | Each reads the one before it; plants and the bloom draw on the water as one |
 | Resources | Decay, nitrification and gas exchange move what the living just produced | The chemistry closes the hour's books on everything emitted above |
 | Alerts | Thresholds are compared against the settled hour, and each crossing is logged once | An alert on a mid-tick number describes a state the tank was never in |
 
 ## Order is a read graph, not a preference
 
 The sequence exists so that every reader sees a value that has already settled
-this hour. Plants read the equipment's hour, algae read the plant conditions
-plants have just written, livestock read a tank the flora has already been
-through. Reversing any pair would not break anything visibly — it would quietly
-make one of them an hour stale.
+this hour. Plants and the bloom read the equipment's hour, livestock read a tank
+the flora has already been through. Reversing any pair would not break anything
+visibly — it would quietly make one of them an hour stale. Plants and the bloom
+share one pass because they share the water: they draw their tissue in one
+call, so neither gets first pick, and each reads the other as the hour starts.
 
 Inside a stage the opposite rule holds. Systems in the same tier all read the
 same state and their results are applied together, so two of them drawing on one
@@ -60,4 +61,4 @@ changes a tank, and the next tick meets the tank they left behind.
 
 `src/simulation/` — the tick and the system registry at its root, the core
 systems under `systems/`, the devices under `equipment/`, and the per-organism
-orchestrators under `plants/`, `algae/` and `livestock/`.
+orchestrators under `flora/` — plants and the bloom — and `livestock/`.

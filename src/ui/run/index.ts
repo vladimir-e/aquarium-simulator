@@ -33,7 +33,7 @@ export {
   worstStatus,
 } from './status.js';
 export {
-  type BloomBankAhead,
+  type BloomAhead,
   type HourAhead,
   type OrganismAhead,
   type PlantAhead,
@@ -117,7 +117,7 @@ export {
   type Ledger,
   type LedgerFactor,
   type LedgerBank,
-  type LedgerLight,
+  type LedgerRow,
   type LedgerTarget,
   LEDGER_DECIMALS,
   readLedger,

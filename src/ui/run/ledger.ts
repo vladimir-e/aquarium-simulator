@@ -6,6 +6,7 @@
  */
 
 import {
+  ALGAE,
   PLANT_SPECIES_DATA,
   type SimulationState,
   type VitalityFactor,
@@ -16,7 +17,7 @@ import type { VerbId, VerbScope } from '../actions/verbs.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 import type { HourAhead } from './ahead.js';
 import { algaeReading, plantLabels, sharePercent, unitTitle } from './flora.js';
-import { crownBurns, plantLightStatus } from './light.js';
+import { crownBurns, lightStatus, plantLightStatus } from './light.js';
 import { fishNumbers, fishReading, fishSatiation, fishTitle, type Satiation } from './livestock.js';
 import { CONDITION_BAND, type SpeciesId } from './roster.js';
 import {
@@ -53,18 +54,16 @@ export interface LedgerBank {
   note: string;
 }
 
-/** A plant's day of light at its own height, against what its species starves under. */
-export interface LedgerLight {
-  /** % of that need. */
+/** A reading beside the hero figure: an organism's day of light, or the bloom's coverage. */
+export interface LedgerRow {
   text: string;
   at: number;
   band: ReadingBand;
   status: Status;
-  /** How tall it stands — the height the light is read at. */
+  /** Where it is read, or which way it is going. */
   note: string;
 }
 
-/** The light track runs to twice the need, so the need sits mid-track. */
 const LIGHT_SCALE = 2;
 
 export interface Ledger {
@@ -76,7 +75,7 @@ export interface Ledger {
   /** The worst channel: what the header word says. */
   status: Status;
   word: string;
-  /** The hero figure: condition for an organism, coverage for the algae. */
+  /** The hero figure: condition. */
   value: string;
   /** How the hero figure itself reads — a fed-up fish at full condition is ink. */
   valueStatus: Status;
@@ -86,14 +85,17 @@ export interface Ledger {
   /** What the next tick does to the hero figure, per day. */
   trend: string;
   satiation: Satiation | null;
-  light: LedgerLight | null;
+  /** The day's light against what the organism starves under, % of that need. */
+  light: LedgerRow | null;
+  /** How full of algae the water is, %. */
+  coverage: LedgerRow | null;
   helping: LedgerFactor[];
   hurting: LedgerFactor[];
   helps: number;
   hurts: number;
   net: number;
   bank: LedgerBank | null;
-  /** What the species asks of the two devices set for it; plants only. */
+  /** What the species asks of the tank; plants and the bloom. */
   demand: string | null;
   /** The verb that moves this organism — an id the stage opens the sheet on. */
   verb: Extract<VerbId, 'feed' | 'trimPlants' | 'scrubAlgae'>;
@@ -132,38 +134,40 @@ interface BankHour {
   now: number;
   next: number;
   cap: number;
-  /** Drawn to make good harm: condition healed, or damage the bloom's bank absorbs. */
+  /** Condition healed from it. */
   covered: number;
   /** What the bank buys — nothing the hour a death takes it. */
   spent: number;
 }
-
-/** What a bank is doing, in its owner's words. */
-interface BankWords {
-  covering: string;
-  buying: string;
-  holding: string;
-}
-
-const HEALING = { covering: 'healing from reserve', holding: 'held against a bad day' };
 
 /**
  * What the bank does over the hour, named by which way it moves: in, out and on
  * what, or neither. A bank held to a lowered cap drops with nothing drawn, and
  * reads as the full bank it is.
  */
-function bankNote({ now, next, cap, covered, spent }: BankHour, words: BankWords): string {
+function bankNote({ now, next, cap, covered, spent }: BankHour, buying: string): string {
   const change = (next - now) * TICKS_PER_DAY;
   if (shows(change, BANK_DECIMALS)) return 'banking';
   if (!shows(now, BANK_DECIMALS)) return 'empty';
   if (shows(-change, BANK_DECIMALS) && covered + spent > 0) {
-    return covered >= spent ? words.covering : words.buying;
+    return covered >= spent ? 'healing from reserve' : buying;
   }
-  return now >= cap ? 'full' : words.holding;
+  return now >= cap ? 'full' : 'held against a bad day';
 }
 
-function bankOf(hour: BankHour, words: BankWords): Pick<LedgerBank, 'at' | 'note'> {
-  return { at: bankShare(hour.now, hour.cap), note: bankNote(hour, words) };
+function bankOf(hour: BankHour, buying: string): Pick<LedgerBank, 'at' | 'note'> {
+  return { at: bankShare(hour.now, hour.cap), note: bankNote(hour, buying) };
+}
+
+/** The track runs to twice the need, so the need sits mid-track. */
+function lightRow(needShare: number, status: Status, note: string): LedgerRow {
+  return {
+    text: String(sharePercent(needShare)),
+    at: Math.min(1, needShare / LIGHT_SCALE),
+    band: { from: 1 / LIGHT_SCALE, to: 1 },
+    status,
+    note,
+  };
 }
 
 function fishLedger(
@@ -201,6 +205,7 @@ function fishLedger(
     trend: vital.trend,
     satiation: fishSatiation(fish.satiation, livestock),
     light: null,
+    coverage: null,
     helping,
     hurting,
     helps: total(breakdown.benefits),
@@ -217,7 +222,7 @@ function fishLedger(
           covered: breakdown.healed,
           spent,
         },
-        { ...HEALING, buying: 'buying a brood' }
+        'buying a brood'
       ),
     },
     demand: null,
@@ -261,15 +266,14 @@ function plantLedger(
     band: CONDITION_BAND,
     trend,
     satiation: null,
-    light: {
-      text: String(sharePercent(light.needShare)),
-      at: Math.min(1, light.needShare / LIGHT_SCALE),
-      band: { from: 1 / LIGHT_SCALE, to: 1 },
-      status: plantLightStatus(light, plant.species),
-      note: crownBurns(light, plant.species)
+    light: lightRow(
+      light.needShare,
+      plantLightStatus(light, plant.species),
+      crownBurns(light, plant.species)
         ? `${Math.round(light.heightCm)} cm tall · crown past ${lightHigh} PAR`
-        : `${Math.round(light.heightCm)} cm tall`,
-    },
+        : `${Math.round(light.heightCm)} cm tall`
+    ),
+    coverage: null,
     helping,
     hurting,
     helps: total(breakdown.benefits),
@@ -280,7 +284,7 @@ function plantLedger(
       unit: '% to offshoot',
       ...bankOf(
         { now: plant.surplus, next: vitality.surplus - spent, cap, covered: breakdown.healed, spent },
-        { ...HEALING, buying: buds ? 'buying an offshoot' : 'buying growth' }
+        buds ? 'buying an offshoot' : 'buying growth'
       ),
     },
     demand:
@@ -290,42 +294,55 @@ function plantLedger(
   };
 }
 
+/**
+ * The bloom as the organism it is — condition, what feeds it and what harms it,
+ * the bank buying it mass — headed by the keeper's word for how much of it
+ * there is.
+ */
 function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourAhead): Ledger {
-  const { breakdown, net } = ahead.algae;
-  const { mass, surplus } = state.algae;
-  const { drained, spent, next } = ahead.algaeBank;
-  const cap = config.algae.surplusCap;
+  const { mass, condition, surplus } = state.algae;
+  const { vitality, spent, light } = ahead.algae;
+  const { breakdown } = vitality;
+  const cap = config.plants.surplusCap;
   const line = algaeAlertLine(config);
-  const reading = algaeReading(mass, line);
+  const coverage = algaeReading(mass, line);
+  const { value, trend } = vitalReading(condition, vitality);
 
   return {
     target: { kind: 'algae' },
     species: 'algae',
-    title: 'Algae',
+    title: ALGAE.name,
     subtitle: 'the tank’s one uninvited population',
-    ...reading,
-    value: Math.round(mass).toString(),
-    valueStatus: reading.status,
-    unit: '% coverage',
-    at: mass / 100,
-    band: { from: 0, to: line / 100 },
-    trend: projectedTrend(ahead.algaeMass - mass),
+    ...coverage,
+    value,
+    valueStatus: conditionStatus(condition),
+    unit: '% condition',
+    at: condition / 100,
+    band: CONDITION_BAND,
+    trend,
     satiation: null,
-    light: null,
+    light: lightRow(light.needShare, lightStatus(light.needShare), 'through the water column'),
+    coverage: {
+      text: String(Math.round(mass)),
+      at: mass / 100,
+      band: { from: 0, to: line / 100 },
+      status: coverage.status,
+      note: projectedTrend(ahead.algae.mass - mass),
+    },
     helping: factors(breakdown.benefits),
     hurting: factors(breakdown.stressors),
     helps: total(breakdown.benefits),
     hurts: total(breakdown.stressors),
-    net: net * TICKS_PER_DAY,
+    net: breakdown.net * TICKS_PER_DAY,
     bank: {
       text: surplus.toFixed(BANK_DECIMALS),
       unit: `of ${cap}`,
       ...bankOf(
-        { now: surplus, next, cap, covered: drained, spent },
-        { covering: 'covering damage', buying: 'buying coverage', holding: 'held while dark' }
+        { now: surplus, next: vitality.surplus - spent, cap, covered: breakdown.healed, spent },
+        'buying growth'
       ),
     },
-    demand: null,
+    demand: `${ALGAE.nutrientDemand} demand · light from ${ALGAE.lowLight} PAR · little CO₂`,
     verb: 'scrubAlgae',
     scope: null,
   };

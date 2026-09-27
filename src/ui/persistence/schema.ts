@@ -83,6 +83,7 @@ const ResourcesSchema = z
 const AlgaeStateSchema = z
   .object({
     mass: z.number().min(0).max(100),
+    condition: z.number().min(0).max(100),
     surplus: z.number().min(0),
   })
   .strict();
@@ -412,24 +413,10 @@ const EvaporationConfigSchema = z
 
 const AlgaeConfigSchema = z
   .object({
-    hardiness: z.number(),
-    suppressionThreshold: z.number(),
-    plantSuppressionSeverity: z.number(),
-    lightExcessThreshold: z.number(),
-    excessLightPeak: z.number(),
-    excessLightSeverity: z.number(),
-    excessNutrientPeak: z.number(),
-    excessNutrientSeverity: z.number(),
-    referenceNitratePpm: z.number(),
-    referencePhosphatePpm: z.number(),
-    nutrientDeficiencyPeak: z.number(),
-    nutrientDeficiencySeverity: z.number(),
-    weaknessThreshold: z.number(),
-    lowPlantPowerPeak: z.number(),
-    lowPlantPowerSeverity: z.number(),
-    algaeGrowthPerTickCap: z.number(),
-    massPerSurplus: z.number(),
-    surplusCap: z.number().min(0),
+    co2HalfSaturation: z.number(),
+    tissuePerLitre: z.number(),
+    sporeRate: z.number(),
+    allelopathySeverity: z.number(),
   })
   .strict();
 

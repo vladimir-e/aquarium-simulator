@@ -7,6 +7,7 @@ import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { NUTRIENTS, WASTE_NUTRIENTS, type WasteNutrient } from '../config/nutrients.js';
 import { MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
 import { tissueMass } from '../systems/plant-lifecycle.js';
+import { bloomTissue } from '../algae/index.js';
 import { purchase } from '../systems/plant-growth.js';
 import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
 import { freshSubstrate } from '../equipment/substrate.js';
@@ -16,16 +17,20 @@ import { plantRecord } from './plant.js';
 import { SETUPS, type Setup } from '../../cli/scenarios/setups.js';
 import { keepTank } from '../../cli/scenarios/run.js';
 
-function run(state: SimulationState, hours: number): SimulationState {
+function run(state: SimulationState, hours: number, config = DEFAULT_CONFIG): SimulationState {
   let running = state;
-  for (let hour = 0; hour < hours; hour++) running = tick(running);
+  for (let hour = 0; hour < hours; hour++) running = tick(running, config);
   return running;
 }
 
-/** Grams of organic matter in the tank: food, waste, the bed's reserve and plant tissue. */
-function organics({ resources, equipment, plants }: SimulationState): number {
+/** No spores land, so a tank that starts without algae never grows any. */
+const SPORELESS = { ...DEFAULT_CONFIG, algae: { ...DEFAULT_CONFIG.algae, sporeRate: 0 } };
+
+/** Grams of organic matter in the tank: food, waste, the bed's reserve, plant tissue and the bloom's. */
+function organics({ resources, equipment, plants, algae, tank }: SimulationState): number {
   const tissue = plants.reduce((sum, plant) => sum + tissueMass(plant.species, plant.size), 0);
-  return resources.food + resources.waste + equipment.substrate.organicReserve + tissue;
+  const bloom = bloomTissue(algae.mass, tank.capacity, DEFAULT_CONFIG.algae);
+  return resources.food + resources.waste + equipment.substrate.organicReserve + tissue + bloom;
 }
 
 function nitrogenInPools(state: SimulationState): number {
@@ -182,12 +187,13 @@ describe('a planting over a charged bed', () => {
       draft.resources.potassium = 10 * draft.resources.water;
       draft.resources.iron = 0.2 * draft.resources.water;
     });
-    grown = run(start, LIT_DAYS * 24);
+    grown = run(start, LIT_DAYS * 24, SPORELESS);
     dark = run(
       produce(grown, (draft) => {
         draft.equipment.light.enabled = false;
       }),
-      BLACKOUT_DAYS * 24
+      BLACKOUT_DAYS * 24,
+      SPORELESS
     );
   });
 
@@ -220,6 +226,46 @@ describe('a planting over a charged bed', () => {
         expect(state.equipment.substrate.nutrients[n]).toBeGreaterThanOrEqual(0);
       }
       expect(nonFinitePaths(state)).toEqual([]);
+    }
+  });
+});
+
+describe('a bloom and its crash', () => {
+  const LIT_DAYS = 10;
+  const BLACKOUT_DAYS = 5;
+  let start: SimulationState;
+  let bloomed: SimulationState;
+  let crashed: SimulationState;
+  let peakAmmonia = 0;
+  beforeAll(() => {
+    start = produce(cycledBareTank(), (draft) => {
+      draft.algae = { mass: 5, condition: 100, surplus: 0 };
+      draft.resources.nitrate = 10 * draft.resources.water;
+      draft.resources.phosphate = 1 * draft.resources.water;
+      draft.resources.potassium = 10 * draft.resources.water;
+      draft.resources.iron = 0.2 * draft.resources.water;
+    });
+    bloomed = run(start, LIT_DAYS * 24);
+    crashed = produce(bloomed, (draft) => {
+      draft.equipment.light.enabled = false;
+    });
+    for (let hour = 0; hour < BLACKOUT_DAYS * 24; hour++) {
+      crashed = tick(crashed);
+      peakAmmonia = Math.max(peakAmmonia, crashed.resources.ammonia);
+    }
+  });
+
+  it('grows on the water and dies back in the dark, its tissue fouling the water', () => {
+    expect(bloomed.algae.mass).toBeGreaterThan(start.algae.mass);
+    expect(bloomed.resources.nitrate).toBeLessThan(start.resources.nitrate);
+    expect(crashed.algae.mass).toBeLessThan(bloomed.algae.mass / 100);
+    expect(peakAmmonia).toBeGreaterThan(bloomed.resources.ammonia);
+  });
+
+  it('conserves nitrogen and every mineral through the bloom and the crash', () => {
+    for (const state of [bloomed, crashed]) {
+      expect(nitrogenInPools(state) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+      for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(state, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
     }
   });
 });

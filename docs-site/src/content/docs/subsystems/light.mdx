@@ -26,7 +26,6 @@ starve on.
 | The day's light | <Badge text="settled" variant="success" /> | A 24-slot history, one slot rewritten each tick. Plants starve on its integral — the day, not the hour. |
 | The day at height | <Badge text="scaffolding" variant="caution" /> | A plant's day is the substrate's day read through the canopy as it stands now, so after a trim, a removal or an offshoot the whole window is re-read through the new canopy at once rather than an hour at a time. |
 | Photoperiod shape | <Badge text="scaffolding" variant="caution" /> | A rectangular window: rated PAR or zero, with no ramp at either edge. |
-| What rides on that edge | <Badge text="scaffolding" variant="caution" /> | The algae's two `light > 0` gates, on banking and on growth. The bloom's bank switches on and off with the lamp rather than following a rate. |
 | Depth tracks standing water | <Badge text="scaffolding" variant="caution" /> | Attenuation runs over the height the *capacity* implies. A half-drained tank lights its substrate as if it were full. |
 | Crown placement | <Badge text="missing" variant="danger" /> | Crowns have no positions. Each falls at random over the floor and takes at most its floor share, so a tall crown shades what grows beneath it softer than in a real tank, and units a keeper spaces side by side, which would not overlap, shade each other. |
 | Spectrum | <Badge text="missing" variant="danger" /> | A fixture is one PAR number. No colour, no Kelvin, no spectral fit to a species. |
@@ -147,7 +146,7 @@ inside it reads the full attenuated rating.
 | Plant nutrient deficiency | Scaled by the same term |
 | Plant starvation | The day's light at its mean leaf, against the species' edge |
 | Plant light-high stressor | PAR at its crown top over the species band, while the lamp is on |
-| Algae | The substrate figure: a capped benefit ramp above `70` PAR, and a `light > 0` gate on its banking and growth |
+| Algae | The mean PAR over the water column — `(e^{kD} − 1) / kD` times the substrate figure — on the plants' curve at its own `Ik`, and the day of it against its own edge |
 
 ### Stocks and rates
 
@@ -162,7 +161,6 @@ it is derived from the planting every hour.
 |---|---|---|
 | `waterAttenuationPerCm` | Beer–Lambert coefficient of the water column | `0.010` /cm |
 | `leafAttenuationPerLai` | Beer–Lambert extinction per unit of leaf area index — what a canopy takes from the light beneath it; broad-leaved canopies run 0.6–0.8 | `0.7` /LAI |
-| `lightExcessThreshold` | Substrate PAR above which algae starts earning from light | `70` PAR |
 | `MAX_LIGHT_PAR` | Ceiling on a fixture rating — full noon sun at the surface | `2000` µmol/m²/s |
 
 A rating past `MAX_LIGHT_PAR` is a typo rather than a lighting choice, and tank
@@ -177,7 +175,7 @@ construction refuses it. The plant constants that read this light —
 | [Equipment](/subsystems/equipment/) | The fixture's rating, its enabled flag and its photoperiod | — |
 | [Environment](/subsystems/environment/) | Depth, from the box capacity implies | — |
 | [Plants](/subsystems/plants/) | Every unit's size and growth form, which build the canopy | Light at each plant's own height: at the mean leaf, the saturation multiplier on the whole benefit budget and the nutrient-deficiency stressor, the photosynthesis rate, and the day's light they starve on; at the crown top, the light-high stressor |
-| [Algae](/subsystems/algae/) | — | A capped benefit above `70` PAR, and the gate on banking and growth |
+| [Algae](/subsystems/algae/) | — | The column's mean PAR: the light curve on its income and the day it starves on |
 | [Water & gases](/subsystems/water-and-gases/) | — | Indirectly: the photoperiod is what makes oxygen and CO₂ swing across a day |
 
 ## Source

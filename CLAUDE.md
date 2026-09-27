@@ -28,9 +28,9 @@ This project follows documentation-driven development:
 
 ## One abstraction
 
-Every organism with a condition runs one vitality model. Condition is the buffer between dying and thriving, normal at 100: benefit rates raise it, damage rates lower it, so nothing dies or heals instantly. Income banks only at 100; the bank heals condition at a species rate and buys what the organism makes — a plant's growth and offshoots, a fish's brood. Any organism dies at 0; a plant below 100 sheds tissue. An organism is sick while its damage outruns its healing.
+Every organism runs one vitality model. Condition is the buffer between dying and thriving, normal at 100: benefit rates raise it, damage rates lower it, so nothing dies or heals instantly. Income banks only at 100; the bank heals condition at a species rate and buys what the organism makes — a plant's growth and offshoots, a bloom's mass, a fish's brood. Any organism dies at 0; a plant or a bloom below 100 sheds tissue. An organism is sick while its damage outruns its healing.
 
-Designing a mechanic is choosing rates of benefit and harm. A new stock, clock or special path for one organism leaves the model — stop and raise it instead of building it. A threshold that switches a mechanism on or off, or a clamp standing in for kinetics, is a defect; a rate that starts at a tolerance edge is not. Algae keeps no condition and runs its own bank.
+Designing a mechanic is choosing rates of benefit and harm. A new stock, clock or special path for one organism leaves the model — stop and raise it instead of building it. A threshold that switches a mechanism on or off, or a clamp standing in for kinetics, is a defect; a rate that starts at a tolerance edge is not. Algae is a plant without a position: the plants' rates and constants on its own traits, a habitat it fills in place of a size, and a bank that buys mass in proportion to the mass standing. A second kind of bloom is a second entry of that model, not a second path.
 
 ## Build first, tune last
 
@@ -71,7 +71,8 @@ Task briefs are provided by the maintainer or orchestrator per task — there's 
 ## Gotchas
 
 - **A plant's offshoot runs before its growth** — `purchase` lets a full bank buy the offshoot before the hour's growth draw; drawn first, the bank sits a hair under the cap and a growing plant never buds.
-- **The canopy is one O(N²) pass a tick** — `processPlants` builds `canopyLight` once, off the start-of-tick planting; photosynthesis, vitality and the light it returns all read it, so `readHourAhead` takes them from the pass and only `readPlantLight`, outside any tick, builds its own. Never build it per plant.
+- **The canopy is one O(N²) pass a tick** — `processFlora` builds `canopyLight` once through `readPlantLight`, off the start-of-tick planting; photosynthesis, vitality and the light it returns all read it, so `readHourAhead` takes them from the pass. Never build it per plant.
+- **Plants and the bloom share one pass** — `processFlora` runs both because they draw their tissue in one `drawTissue` call and fix carbon from one CO₂ stock; split them and whichever runs second gets second pick of the water. A test that isolates plants runs a config with `algae.sporeRate` 0, so an empty bloom stays empty.
 - **Ids are tank-unique, not process-unique** — two tanks emit the same id sequence, so UI state keyed by organism id must reset when the tank is replaced (`useExpandedRows` is the pattern). A tank's UI identity is `tankId`; seeds are nameable and two tanks can share one.
 - **Config bounds live in the `*ConfigMeta`, not the save schema** — CLI `applyConfigSet` and the tunables drawer both validate against `configRange(path)`; the persistence schema bounds only a handful of leaves (the surplus caps, the two attenuations, the sufficiency edge, the water-chemistry rate floors, the nutrient demand floors), each equal to or looser than meta, so there is no second set to keep in step.
 - **A range is enforced only where it's declared** — every tunable declares a min/max except the nitrogen cycle's, where only the four half-saturation constants do; the rest come off doubling times and were never bounded, so `config set` and the drawer have nothing to hold them to. A test walks every leaf and pins exactly that split — deriving a bound turns it red on purpose.

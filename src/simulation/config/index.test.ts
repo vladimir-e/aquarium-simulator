@@ -14,7 +14,7 @@ import {
   gasExchangeDefaults,
   temperatureDefaults,
   evaporationDefaults,
-  algaeVitalityDefaults,
+  algaeDefaults,
   opticsDefaults,
   waterChemistryDefaults,
   plantsDefaults,
@@ -31,7 +31,7 @@ describe('DEFAULT_CONFIG', () => {
     expect(DEFAULT_CONFIG.gasExchange).toEqual(gasExchangeDefaults);
     expect(DEFAULT_CONFIG.temperature).toEqual(temperatureDefaults);
     expect(DEFAULT_CONFIG.evaporation).toEqual(evaporationDefaults);
-    expect(DEFAULT_CONFIG.algae).toEqual(algaeVitalityDefaults);
+    expect(DEFAULT_CONFIG.algae).toEqual(algaeDefaults);
     expect(DEFAULT_CONFIG.optics).toEqual(opticsDefaults);
     expect(DEFAULT_CONFIG.waterChemistry).toEqual(waterChemistryDefaults);
     expect(DEFAULT_CONFIG.plants).toEqual(plantsDefaults);
