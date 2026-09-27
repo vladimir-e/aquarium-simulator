@@ -180,10 +180,10 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 |---|---|---|
 | `gutCapacity` | Food a full gut holds, per gram of fish | g/g |
 | `digestionRate` | First-order rate a gut digests at, at the reference temperature in unlimited oxygen | /hr |
-| `metabolicQ10` · `metabolicReferenceTemp` | How the metabolism — digestion and the maintenance ration — scales with temperature, and where it reads their base values | — · °C |
+| `metabolicQ10` · `metabolicReferenceTemp` | How the metabolism — digestion, respiration and the maintenance ration — scales with temperature, and where it reads their base values | — · °C |
 | `maintenanceRation` | Food a day, per gram of fish, digested to hold condition at the reference temperature in unlimited oxygen — income at half rate, and where hunger starts | g/g/day |
 | `hungerSeverity` | Damage at an empty gut, before hardiness | %/hr |
-| `baseRespirationRate` | Oxygen a fish draws per gram per hour — a Monod maximum | mg O₂/g/hr |
+| `baseRespirationRate` | Oxygen a fish draws per gram per hour at the reference temperature — a Monod maximum | mg O₂/g/hr |
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales digestion and the maintenance ration too | mg/L |
 | `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, or mineralized as waste | g N/g food |
 | `gillNFraction` | Share of digested nitrogen excreted straight through the gills; the rest leaves as feces | — |
@@ -195,17 +195,17 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor at its best, at full nourishment | %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which the planted-tank benefit stops growing | power |
 | `surplusCap` | Ceiling on the fish's bank; a female broods on a full one | pts |
-| `healingDrawRate` | First-order rate a young 1 g fish's bank heals it at, scaled by adult mass to the −¼ | /hr at 1 g |
+| `healingDrawRate` | First-order rate a young 1 g fish's bank heals it at, scaled by adult mass to the −¼ and halving with age | /hr at 1 g |
 | `growthDrawRate` | First-order rate the bank draws toward growth at, before the growth share `1 − size / 100` | /hr |
 | `sizePerSurplus` | Size, in % of adult mass, a bank point buys at species growth rate 1 | %/pt |
 | `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his species' share | pts per body mass |
 | `wearAtLifespan` | Wear at the species lifespan, for a fish of its species' hardiness | %/hr |
-| `wearDoublingShare` | Span wear doubles over, as a share of the species lifespan | — |
-| `healingHalvingShare` | Age healing halves over, as a share of the species lifespan | — |
+| `wearDoublingShare` | Span wear doubles over, as a share of the species lifespan | × lifespan |
+| `healingHalvingShare` | Age healing halves over, as a share of the species lifespan | × lifespan |
 | `eggSensitivity` | How many times harder the water harms a laid egg than a fish, as a share of the clutch an hour; a carried brood takes its mother's harm | × |
-| `eggPredationRate` | Share of a clutch an hour one gram of fish per litre eats, before the clutch's exposure | L/g/hr |
-| `fryPredationRate` | Damage an hour, before hardiness, one gram per litre of predator mass — the grams each larger fish outweighs the prey — does a fish at no size | %/hr per g/L |
-| `fryVulnerabilityExponent` | How steeply a growing fish outgrows its predators: exposure is `(1 − size / 100)` to this power | — |
+| `eggPredationRate` | Share of a laid clutch an hour one gram of predator mass per litre — the grams each fish outweighs an egg — eats, before the clutch's exposure | L/g/hr |
+| `predationRate` | Damage an hour, before hardiness, one gram per litre of predator mass — the grams each larger fish outweighs the prey — does a fish at no size | %/hr per g/L |
+| `preyVulnerabilityExponent` | How steeply a growing fish outgrows its predators: exposure is `(1 − size / 100)` to this power | — |
 | `deathDecayFactor` | Share of a dead fish's mass that becomes waste | — |
 
 ## Fixed tables

@@ -1,6 +1,6 @@
 ---
 title: Livestock
-description: Fish as individuals — a gut whose digestion is the fish's income, one oxygen factor over the whole metabolism, a bank that heals a fish and buys its growth and broods, clutches the water and the fish thin, and fry the larger fish hunt.
+description: Fish as individuals — a gut whose digestion is the fish's income, one metabolic factor over the whole metabolism, a bank that heals a fish and buys its growth and broods, clutches the water and the fish thin, and young fish the larger ones hunt.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -11,25 +11,26 @@ Every fish is an individual with a mass, a health, a gut and a bank. Food fills
 the gut and the gut digests, and what it digests is the fish's income — the way
 nutrient sufficiency is a plant's: every benefit is earned on it, and hunger
 harms a fish digesting less than it needs. Its whole metabolism — digestion, the
-oxygen it draws, the carbon it exhales — rides on one oxygen factor, so a
-suffocating fish loads the water less and suffers more. Health is the vitality
+oxygen it draws, the carbon it exhales — rides on one metabolic factor,
+temperature's Q10 times an oxygen factor, so a warm fish breathes harder and a
+suffocating one loads the water less and suffers more. Health is the vitality
 model: income at full health banks, the bank heals the fish, and the bank buys
 its growth and its broods, so a bigger ration grows a fish sooner and buys more
 broods. A brood is a clutch — a count of eggs that the water and the tank's
-fish thin as it develops — and the tank's larger fish hunt the fry that hatch.
+fish thin as it develops — and the tank's larger fish hunt the young that hatch.
 
 ## Status
 
 | Mechanic | Status | Why |
 |---|---|---|
-| Metabolism | <Badge text="settled" variant="success" /> | Digestion, draw and CO₂ on one Monod factor off one half-saturation constant. A depressed fish digests, and so excretes, proportionally less. |
+| Metabolism | <Badge text="settled" variant="success" /> | Digestion, draw and CO₂ on one metabolic factor — a Q10 on temperature times a Monod on oxygen. A cold or suffocating fish digests, excretes and breathes proportionally less. |
 | The gut | <Badge text="settled" variant="success" /> | One stock for hunger. It digests first order, slower cold and short of oxygen, so a meal clears over hours to a day. |
 | Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces come out of what the gut digests, at one food-nitrogen fraction, so a meal's nitrogen leaves over the hours it digests and none is lost on the way. |
 | Nourishment | <Badge text="settled" variant="success" /> | Every benefit is earned on what the fish digests, on a Monod curve half-saturated at its maintenance ration; hunger harms from that same ration down. A starving tank stops banking before it kills. |
 | Serving | <Badge text="settled" variant="success" /> | Every fish eats at once. Short food is split in proportion to appetite, so a school eats and thins together. |
 | Water quality | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen harm on log dose from each fish's own edge, which hardiness moves out from the alert's. Chloride, which blunts nitrite, is not modelled. |
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits — as `1 − hardiness` for most, and on the concentration axis for water quality. A hardy fish tolerates bad water but isn't more energised by good. |
-| Old age | <Badge text="settled" variant="success" /> | Wear, a damage rate rising on a Gompertz curve that no care or hardiness stops, and healing that falls with age. Lifespans spread around the species figure: a stressed fish goes first, a well-kept one outlives it. |
+| Old age | <Badge text="settled" variant="success" /> | Wear, a damage rate rising on a Gompertz curve that no care or hardiness stops, and healing that falls with age. The ±15 % hardiness offset staggers a cohort's deaths over a few months, and a stressed fish goes first. |
 | Growth | <Badge text="settled" variant="success" /> | Mass is a stock the bank buys, slowing as the fish nears adult size. Fry and adult are words for its size, not states. |
 | Healing | <Badge text="settled" variant="success" /> | The bank heals health at a rate that falls with adult mass to the −¼, as mass-specific metabolism does, and with age, integrated over the hour. A fish is sick while its damage outruns its healing. |
 | Broods | <Badge text="settled" variant="success" /> | A female broods on a full bank, laying the eggs her brood share buys, and the males pay their share from theirs. No husbandry re-tests — the husbandry is already priced into how the banks filled. |
@@ -37,7 +38,7 @@ fish thin as it develops — and the tank's larger fish hunt the fry that hatch.
 | Low health | <Badge text="settled" variant="success" /> | Only death reads it: health is the buffer between harm and death, so a fish at 5 % eats, breathes and excretes as one at 100 does ([Vitality](/concepts/vitality/)). |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge, and damage starts from zero at or past it. pH earns most at the band's centre; oxygen rises from the alert edge to comfort. |
 | Clutches | <Badge text="settled" variant="success" /> | A stock of eggs two rates thin — the fish's own water harm, and predation by the fish per litre — developing on the metabolic factor until it hatches. |
-| Fry predation | <Badge text="settled" variant="success" /> | A damage rate: the grams the larger fish outweigh the prey by, per litre, falling smoothly with the prey's size. A fed fry's bank rides out a light hunt and a starving one's doesn't; what they kill they eat. |
+| Predation | <Badge text="settled" variant="success" /> | A damage rate on any fish short of adult size: the grams the larger fish outweigh it by, per litre, falling smoothly as it grows. A fed fry's bank rides out a light hunt and a starving one's doesn't; what they kill they eat. |
 | Colonies | <Badge text="missing" variant="danger" /> | Snails and shrimp do not exist. Fish are the only animals, and food they leave behind decays rather than feeding anything. |
 | General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only band per species: no benefit inside it, and one pooled GH rather than calcium and magnesium apart. |
 | Dissolved CO₂ | <Badge text="missing" variant="danger" /> | Fish carry no carbon stressor. A tank can sit at any CO₂ the injector reaches without a fish noticing. |
@@ -72,24 +73,24 @@ so a canister lands on `8` ×/h in both.
 
 ### Metabolism
 
-Mass drives every number, and one oxygen factor scales most of them.
+Mass drives every number, and one metabolic factor scales most of them.
 
-| Flow | Per hour | Scaled by the oxygen factor |
+| Flow | Per hour | Scaled by the metabolic factor |
 |---|---|---|
 | Digested | `gut × (1 − e^−k)`, `k = digestionRate × metabolic factor` | yes |
 | Maintenance | `maintenanceRation × mass / 24 × metabolic factor` | yes |
 | Eaten | the room left in the gut, `gutCapacity × mass − gut`, or its share of short food | no |
-| Oxygen drawn | `baseRespirationRate × mass` | yes |
+| Oxygen drawn | `baseRespirationRate × mass × metabolic factor` | yes |
 | CO₂ exhaled | the oxygen drawn × `respiratoryQuotient`, through the molar mass step | yes — it derives from the draw |
 | Gill ammonia | digested × `foodNitrogenFraction` × `gillNFraction`, as NH₃ | through digestion |
 | Feces | digested × `(1 − gillNFraction)` | through digestion |
 | Minerals, beside the gill ammonia | digested × `gillNFraction` × `foodMineralContent` | through digestion |
 
 The metabolic factor is the metabolic Q10 term times the oxygen factor, read
-once an hour for the whole tank. What a fish digests and what it needs both
-run on it, as a real ectotherm's maintenance falls with temperature: a cold
-fish digests slower and needs less, and a fed gut holds it in cold or warm
-water alike.
+once an hour for the whole tank. What a fish digests, what it needs and what it
+breathes all run on it, as a real ectotherm's metabolism falls with
+temperature: a cold fish digests slower, needs less and draws less oxygen, and a
+fed gut holds it in cold or warm water alike.
 
 A fish regulates its uptake until the water falls past its critical oxygen
 tension, so the half-saturation constant sits at 1.0 mg/L — the highest in the
@@ -99,7 +100,9 @@ Every nitrogen and mineral flow starts from what the gut digests, so a meal
 comes out over the hours after it is eaten and a fish with an empty gut
 releases nothing. Food in the gut still carries its nitrogen and minerals, so
 every milligram fed returns to the water — digested, through the gills or the
-feces; uneaten, as it decays; in a fish that dies, with its body.
+feces; uneaten, as it decays; in a fish that dies, from its gut. A body is
+outside that ledger: the bank buys it, and a death returns only
+`deathDecayFactor` of it.
 
 Damage is a separate reading. The oxygen stressor still charges a fish for the
 water it is in, so a suffocating fish draws less *and* suffers more.
@@ -109,14 +112,14 @@ water it is in, so a suffocating fish draws less *and* suffers more.
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
 | `health` | Benefits; healing from the bank | Stressors | %, normal at 100 |
-| `gut` | Eating, up to `gutCapacity × mass`; eggs and fry it eats | Digestion, first order | g |
+| `gut` | Eating, up to `gutCapacity × mass`; eggs and fry it eats; a hatchling's yolk | Digestion, first order | g |
 | `surplus` | Income at full health | Healing; growth; a brood | condition points, capped at `surplusCap` |
 | clutch `eggs` | A brood | Water harm and predation, first order; hatching | eggs |
 | clutch `development` | The metabolic factor over the species' development time | Hatching, at 1 | share of the way to hatching |
 | `age` | One tick per hour, always | — | ticks |
 | `mass` | Growth, out of the bank | — | g |
 | `food` | Feeding and the feeder, elsewhere | Fish eating, a share of their appetite each | g |
-| `waste` | Feces; half the body mass of a fish that dies, and its gut, less what the fish eat of it; dead eggs | Mineralization, elsewhere | g |
+| `waste` | Feces; `deathDecayFactor` of a dead fish's body, its gut and the brood it carried, less what the fish eat of it; dead eggs, and what a hatching clutch leaves past its yolks | Mineralization, elsewhere | g |
 | `ammonia` | Gill excretion | Nitrification, elsewhere | mg |
 | `kh` | Gill excretion, an equivalent per mole of ammonia | Nitrification, elsewhere | mg CaCO₃ |
 | `oxygen` | Gas exchange, elsewhere | Respiration, itself throttled by the oxygen already standing | mg/L |
@@ -133,8 +136,9 @@ The gut digests the same share of whatever it holds each hour, at
 `digestionRate` at 25 °C times the metabolic factor — doubling for every ten
 degrees warmer and slowing under oxygen the way the rest of the metabolism
 does. A full gut is about half digested in seven hours and nearly clear in
-thirty; a cold tank takes twice as long. A fish enters the tank with a day's
-maintenance ration in its gut — a bought fish from the shop, a fry on its yolk.
+thirty; a cold tank takes twice as long. A stocked fish brings a day's
+maintenance ration in its gut from the shop; a hatchling's yolk is the same
+ration, out of its egg.
 
 What the gut digests this hour is the fish's income. Against its maintenance
 ration — `maintenanceRation × mass` a day at 25 °C in ample oxygen, scaled by
@@ -170,7 +174,7 @@ outruns its healing, so its health falls.
 | Water level | below `waterLevelStressThreshold` of capacity | % under |
 | Flow | above the species `maxTurnover` | tank volumes/h over |
 | Hunger | digesting under its maintenance ration | share short of it |
-| Wear | always, doubling every `wearDoublingShare` of the species lifespan | hour of age |
+| Wear | always, doubling every `wearDoublingShare` of the species lifespan | `wearAtLifespan` at `L` |
 | Hunted | larger fish in the tank, on any fish short of adult size | g of them per litre |
 
 Every benefit is its peak times the fish's nourishment.
@@ -215,11 +219,13 @@ chloride, which in real tap water raises its tolerance.
 
 Every fish larger than a fish hunts it, weighing in by the grams it outweighs
 it, so fish of a size leave each other alone and a grown fish bears down on a
-newborn with nearly its whole mass:
+newborn with nearly its whole mass. Vulnerability reads the prey's size against
+its own species' adult mass, so predation reaches only the young — a grown
+guppy among angelfish is not hunted:
 
 ```
 predator mass = Σ over every fish of max(0, its mass − prey mass)
-hunted        = fryPredationRate × predator mass / water × (1 − size / 100)^fryVulnerabilityExponent
+hunted        = predationRate × predator mass / water × (1 − size / 100)^preyVulnerabilityExponent
 ```
 
 hardened by `1 − hardiness` as the body's stressors are. It is one more
@@ -232,22 +238,15 @@ adult size a fish is a fifth as exposed as a newborn.
 
 #### Ageing
 
-Age harms a fish two ways, both smooth in its age against its species
-lifespan `L`:
-
 ```
 wear    = wearAtLifespan × 2^((age − L) / (wearDoublingShare × L)) × species hardiness / its own
 healing = healingDrawRate × adultMass^−¼ × 2^(−age / (healingHalvingShare × L))
 ```
 
-Wear is Gompertz, the shape of real mortality: 2⁻⁸ of its figure at birth, it
-doubles every eighth of the lifespan and passes a fed fish's income a little
-before `L`, then eats through the bank and health over the months after. No
-species hardiness shields it — only an individual's offset does, in proportion —
-so even a pristine tank loses its old fish. Healing halves over a lifespan, so an
-old fish recovers slower from every harm. A well-kept fish dies near `L`; one
-under chronic stress already spends part of its income, so wear overtakes it
-sooner.
+for a species lifespan `L`. Wear is Gompertz — 2⁻⁸ of its figure at birth,
+doubling every eighth of the lifespan — and no species hardiness shields it,
+only an individual's offset, in proportion. Healing halves over a lifespan, so
+an old fish recovers slower from every harm.
 
 ### Individual variation
 
@@ -314,16 +313,17 @@ clutch and never empties it.
 
 | Rate | Per hour |
 |---|---|
-| Harm | `eggSensitivity × Σ water stressors / 100` — the fish's own water channel at the species' hardiness, as a share of the eggs, since an egg has no bank |
-| Predation | `eggPredationRate × exposure × fish mass / water` — every fish hunts, by its mass per litre |
+| Harm | `eggSensitivity × Σ water stressors / 100` — the fish's own water channel at the species' hardiness, as a share of the eggs, since an egg has no bank; a carried brood's at its mother's hardiness, without `eggSensitivity` |
+| Predation | `eggPredationRate × exposure × predator mass / water` — every fish by the grams it outweighs an egg, per litre; none on a carried brood |
 | Development | `metabolic factor / developmentTime` — the fish's Q10 and oxygen factor, so a warm clutch hatches sooner |
 
 When development reaches 1 the whole eggs left hatch as fry at the species' fry
-size and the part egg goes to waste. Birth creates the fry's mass: the eggs
-leave the tank and the fry arrive at fry mass, paid for in the bank points that
-bought the brood, as growth is. Eggs the water kills go to waste; eggs the fish
-eat go into their guts, shared by mass as far as each has room, and digest as
-food, the rest to waste. A crowded tank eats its own eggs: predation grows with
+size, each with its yolk — a day's maintenance ration — out of its egg's mass;
+the rest of the clutch, the part egg included, goes to waste. Birth creates the
+fry's body, paid for in the bank points that bought the brood, as growth is.
+Eggs the water kills go to waste; eggs the fish eat go into their guts, shared
+by the grams each outweighs an egg as far as each has room, and digest as food,
+the rest to waste. A crowded tank eats its own eggs: predation grows with
 the fish per litre, so every fish added thins the next clutch, and water that
 only strains the adults kills the eggs.
 
@@ -338,10 +338,10 @@ only strains the adults kills the eggs.
 Hatch times are read in air-saturated water. The male share is the father's
 investment: a bubble-nesting betta builds and guards the nest, an angelfish
 pair fans its eggs together, a guppy or a neon only mates. Exposure is how
-much of the tank's predation reaches the clutch — a guarded nest loses less,
-and a livebearer's clutch is the brood its mother carries through gestation,
-out of reach, until she gives birth. Her body shields it, so the water harms
-it only as hard as it harms her, without `eggSensitivity`. She carries one
+much of the tank's predation reaches a laid clutch — a guarded nest loses less.
+A livebearer's clutch is the brood its mother carries through gestation, out of
+reach, until she gives birth. Her body shields it, so the water harms it only as
+hard as it harms her, at her own hardiness, without `eggSensitivity`. She carries one
 brood at a time — a gestating female doesn't brood — and it dies with her,
 eaten or rotting as her body does; taken out of the tank, she takes it with her.
 
@@ -352,19 +352,20 @@ fish. Its remains — `deathDecayFactor` of its body mass, its gut and the brood
 it carried — rot to waste, less the share its predators eat: the share of its
 dying hour's damage they did, into the guts of the larger fish by their weight
 on it and as far as each gut has room, so an eaten fry feeds the tank rather
-than fouling it. Old age arrives through the same channel — wear outruns the
-benefit budget and drains the bank, which gives the keeper a visible decline
-rather than a coin flip.
+than fouling it. Old age arrives through the same channel — wear passes a fed
+fish's income a little before `L`, then drains its bank and health over the
+months after, a visible decline rather than a coin flip. A fish under chronic
+stress already spends part of its income, so wear overtakes it sooner.
 
 ## Key tunables
 
 | Constant | Meaning | Value |
 |---|---|---|
 | `gutCapacity` | Food a full gut holds, per gram of fish | `0.03` g/g |
-| `digestionRate` · `metabolicQ10` | First-order rate a gut digests at 25 °C, and how the metabolism — digestion and the maintenance ration — scales with temperature | `0.1` /hr · `2` |
+| `digestionRate` · `metabolicQ10` | First-order rate a gut digests at 25 °C, and how the metabolism — digestion, respiration and the maintenance ration — scales with temperature | `0.1` /hr · `2` |
 | `maintenanceRation` | Food a day, per gram of fish, that holds condition at the reference temperature in ample oxygen — nourishment is half here, and hunger starts below it | `0.005` g/g/day |
 | `hungerSeverity` | Damage at an empty gut, before hardiness | `0.6` %/hr |
-| `baseRespirationRate` | Oxygen draw per gram, a Monod maximum | `0.3` mg O₂/g/hr |
+| `baseRespirationRate` | Oxygen draw per gram at 25 °C, a Monod maximum | `0.3` mg O₂/g/hr |
 | `respirationOxygenHalfSaturation` | O₂ at which the whole metabolism runs at half rate — digestion, draw and CO₂ alike | `1.0` mg/L |
 | `foodNitrogenFraction` | Nitrogen in food, and in the waste it becomes | `0.05` g N/g |
 | `gillNFraction` | Share of digested nitrogen leaving through the gills; the rest is feces | `0.8` |
@@ -375,17 +376,17 @@ rather than a coin flip.
 | `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | The three benefit channels, at full nourishment | `0.4` · `0.3` · `0.2` %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which shelter tops out — three full healthy java fern clumps, or a little over one sword | `3.0` |
 | `surplusCap` | Ceiling on the bank; a female broods on a full one | `50` condition points |
-| `healingDrawRate` | First-order rate a 1 g fish's bank heals it at, scaled by adult mass to the −¼ | `0.05` /hr |
+| `healingDrawRate` | First-order rate a young 1 g fish's bank heals it at, scaled by adult mass to the −¼ and halving with age | `0.05` /hr |
 | `growthDrawRate` | First-order rate the bank draws toward growth at, before the growth share | `0.02` /hr |
 | `sizePerSurplus` | Size, in % of adult mass, a bank point buys at growth rate 1 — a fed guppy grows out in about two and a half months, a neon in about five | `0.15` %/pt |
-| `wearAtLifespan` | Wear at the species lifespan, for a fish of its species' hardiness — about a keeper-fed fish's income | `0.6` %/hr |
-| `wearDoublingShare` | Span wear doubles over, as a share of the species lifespan | `0.125` |
-| `healingHalvingShare` | Age healing halves over, as a share of the species lifespan | `1` |
+| `wearAtLifespan` | Wear at the species lifespan, for a fish of its species' hardiness | `0.6` %/hr |
+| `wearDoublingShare` | Span wear doubles over, as a share of the species lifespan | `0.125` × lifespan |
+| `healingHalvingShare` | Age healing halves over, as a share of the species lifespan | `1` × lifespan |
 | `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his share | `50` pts |
 | `eggSensitivity` | How many times harder the water harms a laid egg than a fish | `3` × |
-| `eggPredationRate` | Share of a clutch an hour one gram of fish per litre eats, before its exposure | `2` L/g/hr |
-| `fryPredationRate` | Damage an hour, before hardiness, one gram per litre of predator mass does a fish at no size | `20` %/hr per g/L |
-| `fryVulnerabilityExponent` | How steeply a growing fish outgrows its predators | `4` |
+| `eggPredationRate` | Share of a laid clutch an hour one gram of predator mass per litre eats, before its exposure | `2` L/g/hr |
+| `predationRate` | Damage an hour, before hardiness, one gram per litre of predator mass does a fish at no size | `20` %/hr per g/L |
+| `preyVulnerabilityExponent` | How steeply a growing fish outgrows its predators | `4` |
 | `deathDecayFactor` | Share of body mass that becomes waste on death | `0.5` |
 
 ## Seams
@@ -394,7 +395,7 @@ rather than a coin flip.
 |---|---|---|
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, each past its tolerance edge, for fish and clutches | `ammonia`, `phosphate`, `potassium` and `iron` through the gills; `waste` as feces, death mass and dead eggs |
 | [Water & gases](/subsystems/water-and-gases/) | `oxygen` twice — as the Monod factor on the whole metabolism, and as a stressor under the fish's own edge and a benefit rising above the alert's; pH, derived from `co2` and `kh`, and `gh`, each as a tolerance band | `oxygen` drawn, `co2` exhaled, `kh` returned on the gill ammonia |
-| [Environment](/subsystems/environment/) | `temperature` as a tolerance band; `water` for every ppm and for the water-level stressor | — |
+| [Environment](/subsystems/environment/) | `temperature` as a tolerance band and through the metabolic Q10; `water` for every ppm and for the water-level stressor | — |
 | [Equipment](/subsystems/equipment/) | `flow`, divided by standing water into a turnover; `food` the feeder drops | — |
 | [Plants](/subsystems/plants/) | Plant power — the shelter benefit, saturating | — |
 | [Actions](/subsystems/actions/) | `food` put in the tank by feeding | Stocking, removal and selling fry write the array directly |

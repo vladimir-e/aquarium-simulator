@@ -11,11 +11,11 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Old age is wear** - a Gompertz damage rate no hardiness shields, and healing that falls with age, spread lifespans around the species figure; breaking: `FishSpeciesData.lifespan` replaces `maxAge`, `ageStressSeverity` goes (v34).
-- **Fry predation** - larger fish hunt small ones by mass per litre and eat what they kill; breaking: `computeFishVitality`, `readyToBrood` args (v34).
-- **Eggs are a stock** - water and the tank's fish thin a clutch as it develops; livebearers carry theirs; breaking: `Clutch` holds `eggs`, `development` (v34).
-- **Fish grow on their banks** - mass toward adult size, broods sized by the female, the male paying his share; stocking names a size; breaking: `Fish.stage` goes (v34).
-- **Feeding through a gut** - fish digest over hours, slower cold and short of O₂; what they digest earns every benefit; short food splits by appetite; breaking: `Fish.gut` replaces `satiation` (v34).
+- **Old age is wear** - fish age by a rising damage rate and heal slower, so lifespans spread around the species figure; breaking: `lifespan` replaces `maxAge` (v34).
+- **Predation** - larger fish hunt the young by the grams they outweigh them and eat what they kill; breaking: `computeFishVitality`, `readyToBrood` args (v34).
+- **Eggs are a stock** - water and fish thin a clutch as it develops, livebearers carry theirs; breaking: `Clutch` holds `eggs`, `development` (v34).
+- **Fish grow on their banks** - mass and broods are bought by the bank, both parents pay, stocking names a size; breaking: `Fish.stage` goes (v34).
+- **Feeding through a gut** - fish digest over hours, slower cold, and earn on what they digest; breaking: `Fish.gut` replaces `satiation` (v34).
 - **Auto feeder** - drops a set ration once a day at its hour (v34).
 - **Auto doser keeps an hour** - breaking: `AutoDoser.startHour` replaces `schedule` (v34).
 - **Actions settle the passive readings** (#73) - a verb re-reads light, flow, surface and aeration off the tank it leaves, and hosts settle after writing equipment or optics; breaking: `settlePassiveResources` replaces `relight`.
