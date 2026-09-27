@@ -21,10 +21,13 @@ import type { HistorySnapshot } from './history.js';
  * v17 put algae on the plants' vitality model as two kinds and fed every
  *    flora ammonia before nitrate. `state.algae` holds a bloom per kind,
  *    `AlgaeState` gains `condition`, the `algae` config section is rebuilt as
- *    `AlgaeConfig`, and `NutrientsConfig.halfSaturation` gains `ammonia`. A v16
- *    session parses, and the first tick reads each kind's bloom, its
- *    allelopathy severity and every ammonia half-saturation off keys it does
- *    not carry.
+ *    `AlgaeConfig`, and `NutrientsConfig.halfSaturation` gains `ammonia`. The
+ *    blooms shade through light: `OpticsConfig` gains
+ *    `algaeAttenuationPerGram`, `PlantsConfig` drops the `algaeShading*` pair,
+ *    and `AlertState` trades `highAlgae` for a flag per kind. A v16 session
+ *    parses, and the first tick reads each kind's bloom, its allelopathy
+ *    severity, every ammonia half-saturation and the blooms' attenuation off
+ *    keys it does not carry.
  * v16 made the bed a nutrient store and plants of their nutrients, and let a
  *    plant die only at condition 0. `Substrate` gains `nutrients`;
  *    `NutrientsConfig` drops `uptakePerRateUnit` and gains `rootTab` and

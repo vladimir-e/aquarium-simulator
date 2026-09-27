@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { produce } from 'immer';
 import {
   createSimulation,
+  quietAlerts,
   tick as simulationTick,
   applyAction,
   calculatePassiveResources,
@@ -485,16 +486,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         // (Fish age is relative, so livestock is left in place.)
         draft.clutches = [];
 
-        // Reset alert state
-        draft.alertState = {
-          waterLevelCritical: false,
-          highAlgae: false,
-          highAmmonia: false,
-          highNitrite: false,
-          highNitrate: false,
-          lowOxygen: false,
-          highCo2: false,
-        };
+        draft.alertState = quietAlerts();
 
         // Clear logs and add reset message
         draft.logs = [createLog(0, 'simulation', 'info', 'Simulation reset')];

@@ -30,9 +30,13 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      gains `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`,
  *      keeping only `allelopathySeverity` — what a bloom is lives in its
  *      kind's traits. Plants and blooms take nitrogen as ammonia before
- *      nitrate, so `NutrientsConfig.halfSaturation` gains `ammonia`. A v32
- *      save carries one bloom with no condition and algae and nutrients
- *      sections the strict schema refuses.
+ *      nitrate, so `NutrientsConfig.halfSaturation` gains `ammonia`. The
+ *      blooms shade through light: `OpticsConfig` gains
+ *      `algaeAttenuationPerGram`, `PlantsConfig` drops `algaeShadingSeverity`
+ *      and `algaeShadingThreshold`, and `AlertState` trades `highAlgae` for a
+ *      flag per kind. A v32 save carries one bloom with no condition and
+ *      algae, nutrients, optics and plants sections the strict schema
+ *      refuses.
  * v32: One plant death, at condition 0. `PlantsConfig` drops
  *      `deathSizeThreshold` and renames `wastePerSize` to `tissuePerSize`;
  *      the least a plant is planted or trimmed to is the engine's

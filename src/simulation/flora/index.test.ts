@@ -536,7 +536,7 @@ describe('processFlora — plants', () => {
 
     it('reads PAR and the day at the mean leaf, and PAR at the crown top, off one canopy', () => {
       const state = tank({ plants: planting, light: 70, lightByHour: LIT_DAY });
-      const canopy = canopyLight(planting, state.tank.capacity, DEFAULT_CONFIG.optics);
+      const canopy = canopyLight(planting, state.tank.capacity, DEFAULT_CONFIG.optics, state.algae);
       const substrateDay = dailyLightIntegral(LIT_DAY);
 
       const light = readPlantLight(state, DEFAULT_CONFIG);
@@ -557,7 +557,7 @@ describe('processFlora — plants', () => {
       const { plants: plantsConfig, nutrients } = DEFAULT_CONFIG;
       const { effects } = processFlora(state, DEFAULT_CONFIG);
 
-      const canopy = canopyLight(planting, state.tank.capacity, DEFAULT_CONFIG.optics);
+      const canopy = canopyLight(planting, state.tank.capacity, DEFAULT_CONFIG.optics, state.algae);
       const fixers = planting.map((p, i) =>
         plantFixer(
           p,

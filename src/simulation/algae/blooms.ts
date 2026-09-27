@@ -20,13 +20,3 @@ export function isAlgaeKind(key: string): key is AlgaeKind {
 export function mapKinds<T>(fn: (kind: AlgaeKind, index: number) => T): Record<AlgaeKind, T> {
   return Object.fromEntries(ALGAE_KINDS.map((kind, index) => [kind, fn(kind, index)])) as Record<AlgaeKind, T>;
 }
-
-/**
- * Every kind's coverage as one figure, 0–100: `100·(1 − Π(1 − mass/100))`,
- * folded a kind at a time so one kind alone is its own coverage exactly. It
- * stands in for the light the blooms take from the plants until light shading
- * lands.
- */
-export function combinedCoverage(blooms: Blooms): number {
-  return ALGAE_KINDS.reduce((taken, kind) => taken + blooms[kind].mass * (1 - taken / 100), 0);
-}

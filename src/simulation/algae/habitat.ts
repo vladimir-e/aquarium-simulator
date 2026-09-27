@@ -6,16 +6,18 @@ import { dailyLightIntegral } from '../equipment/light.js';
 import { floorShade } from '../plants/canopy.js';
 import { dailyLightEdge } from '../systems/flora.js';
 import type { AlgaeHabitat, AlgaeTraits } from './traits.js';
+import { waterExtinction } from './shade.js';
 
-/** What a habitat is read off: the tank's geometry, its hardscape and the canopy over its floor. */
-export type HabitatTank = Pick<SimulationState, 'tank' | 'equipment' | 'plants'>;
+/** What a habitat is read off: the tank's geometry, its hardscape, the canopy over its floor and the water over both. */
+export type HabitatTank = Pick<SimulationState, 'tank' | 'equipment' | 'plants' | 'algae'>;
 
 /**
- * The mean PAR over a water column of this depth, as a multiple of the PAR at
- * its floor: Beer–Lambert averaged from the surface down, `(e^{kD} − 1) / kD`.
+ * The mean PAR over a water column of this depth and extinction, as a multiple
+ * of the PAR at its floor: Beer–Lambert averaged from the surface down,
+ * `(e^{kD} − 1) / kD`.
  */
-export function columnGain(depthCm: number, optics: OpticsConfig): number {
-  const attenuation = optics.waterAttenuationPerCm * depthCm;
+export function columnGain(depthCm: number, extinction: number): number {
+  const attenuation = extinction * depthCm;
   return attenuation > 0 ? Math.expm1(attenuation) / attenuation : 1;
 }
 
@@ -78,9 +80,11 @@ export function placeShare(habitat: AlgaeHabitat, place: HabitatPlace, tank: Hab
  * The mean PAR over a habitat as a multiple of the PAR at the substrate, each
  * piece weighted by its size: the column's mean through the column and on the
  * walls that span it, what the canopy leaves on the floor and the hardscape.
+ * The column's mean is read through the water as it stands, so a bloom in it
+ * shades itself and the walls.
  */
 export function habitatGain(habitat: AlgaeHabitat, tank: HabitatTank, optics: OpticsConfig): number {
-  const column = columnGain(calculateTankHeight(tank.tank.capacity), optics);
+  const column = columnGain(calculateTankHeight(tank.tank.capacity), waterExtinction(tank.algae, optics));
   const underCanopy = 1 - floorShade(tank.plants, tank.tank.capacity, optics);
   const gain: Record<HabitatPlace, number> = {
     column,

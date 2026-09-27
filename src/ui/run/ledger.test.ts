@@ -5,6 +5,7 @@ import {
   applyAction,
   createSimulation,
   getPresetById,
+  plantLightTaken,
   tick,
   type Fish,
   type SimulationState,
@@ -223,6 +224,20 @@ describe('readLedger', () => {
       expect(burns).toContain(false);
     });
 
+    it('carries the lamp to its leaf, naming each taker that moved the light', () => {
+      const green = produce(planted(10), (draft) => {
+        draft.algae.greenWater.mass = 40;
+        draft.algae.film.mass = 40;
+      });
+      const { lightPath } = plantLedger(green);
+      const { light } = readHourAhead(green, DEFAULT_CONFIG).plants[0];
+      const lamp = green.equipment.light.par;
+
+      expect(lightPath!.steps.map((step) => step.key)).toEqual(expect.arrayContaining(['water', 'greenWater', 'film']));
+      expect(lightPath!.steps.every((step) => step.key === 'canopy' || step.change < 0)).toBe(true);
+      expect(lightPath!.heading).toBe(`${Math.round(light.par)} of the lamp's ${lamp} PAR reach its leaf`);
+    });
+
     it('trends by the condition the next tick leaves it at', () => {
       const dawn = planted(7);
       const state = { ...dawn, plants: dawn.plants.map((plant) => ({ ...plant, condition: 70 })) };
@@ -249,6 +264,17 @@ describe('readLedger', () => {
       expect(ledger.helps - ledger.hurts).toBeCloseTo(ledger.net, 10);
       state = next;
     }
+  });
+
+  it('reads a bloom’s shade as the share of the plants’ light it takes, and none with nothing planted', () => {
+    const carpeted = applyAction(tank([]), { type: 'addPlant', species: 'monte_carlo' }).state;
+    const green = produce(carpeted, (draft) => {
+      draft.algae.greenWater.mass = 40;
+    });
+    const { shade } = ledgerOf(green, { kind: 'algae', bloom: 'greenWater' })!;
+
+    expect(Number(shade!.text)).toBe(Math.round(plantLightTaken(green, DEFAULT_CONFIG.optics).greenWater * 100));
+    expect(ledgerOf(tank([]), { kind: 'algae', bloom: 'greenWater' })!.shade).toBeNull();
   });
 
   it('has nothing to open for a fish the tank no longer holds', () => {

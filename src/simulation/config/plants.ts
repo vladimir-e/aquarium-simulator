@@ -109,10 +109,6 @@ export interface PlantsConfig {
    * carries it out by `toleranceFactor`, as it does a fish's.
    */
   nitrateEdge: number;
-  /** Damage per algae unit above the shading threshold. */
-  algaeShadingSeverity: number;
-  /** Algae level (0–100) above which shading stress kicks in. */
-  algaeShadingThreshold: number;
 
   // Vitality benefit peaks (%/h), each at the best its factor gets. Every one
   // of them is realised through photosynthesis, so all three run on its drive:
@@ -215,12 +211,6 @@ export const plantsDefaults: PlantsConfig = {
   // costs a fish.
   nitrateStressSeverity: 1.0,
   nitrateEdge: 100,
-  // Algae shading kicks in past 30 % bloom mass — that threshold makes
-  // the player feel the bloom on their plants. Severity 0.05 % / h per
-  // mass-point means a 60 % bloom delivers ~1.5 %/h pre-hardiness damage
-  // (calibration-grade — task 42 first-pass; recalibration follows).
-  algaeShadingSeverity: 0.05,
-  algaeShadingThreshold: 30,
 
   // Vitality benefit peaks. The light term and sufficiency take the whole
   // budget down together: a monte carlo at 30 PAR earns 0.46 of it, and every
@@ -324,8 +314,6 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'sufficiencyEdge', label: 'Sufficiency Edge', unit: '', min: 0.1, max: MAX_SUFFICIENCY_EDGE, step: 0.05 },
   { key: 'nitrateStressSeverity', label: 'Plant Nitrate Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
   { key: 'nitrateEdge', label: 'Plant Nitrate Edge', unit: 'ppm', min: 50, max: 300, step: 10 },
-  { key: 'algaeShadingSeverity', label: 'Algae Shading Severity', unit: '%/algae/hr', min: 0.001, max: 0.1, step: 0.005 },
-  { key: 'algaeShadingThreshold', label: 'Algae Shading Threshold', unit: '', min: 20, max: 80, step: 5 },
 
   // Vitality benefit peaks
   { key: 'co2BenefitPeak', label: 'CO2 Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },

@@ -13,7 +13,7 @@ import {
   calculateHeatingRate,
   HEATER_WATTAGE_OPTIONS,
 } from './heater.js';
-import { clearPlace, resettle } from '../algae/index.js';
+import { clearPlace, resettle, waterExtinction } from '../algae/index.js';
 import { atoUpdate } from './ato.js';
 import { getFilterSurface, getFilterFlow, isFilterAirDriven, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_TYPES, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN } from './filter.js';
 import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH, POWERHEAD_FLOW_RATES } from './powerhead.js';
@@ -241,7 +241,8 @@ export function calculateSurface(state: SimulationState): number {
  *
  * Light sources:
  * - Light fixture (when enabled and schedule active), rated at the water
- *   surface and attenuated down the column to the substrate
+ *   surface and attenuated down the column to the substrate by the water and
+ *   the blooms suspended in it
  *
  * Aeration sources:
  * - Air pump (when enabled)
@@ -272,7 +273,7 @@ export function calculatePassiveResources(
   const light = calculateParAtDepth(
     getLightOutput(equipment.light, hourOfDay),
     calculateTankHeight(tank.capacity),
-    optics
+    waterExtinction(state.algae, optics)
   );
 
   // Aeration: active if air pump is on OR filter is air-driven (sponge)

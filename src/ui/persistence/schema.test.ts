@@ -8,6 +8,7 @@ import {
 import { PERSISTENCE_VERSION } from './types.js';
 import {
   DEFAULT_CONFIG,
+  MAX_ALGAE_ATTENUATION_PER_GRAM,
   MAX_LEAF_ATTENUATION_PER_LAI,
   MAX_SIZE_PER_SURPLUS,
   MAX_SUFFICIENCY_EDGE,
@@ -162,6 +163,18 @@ describe('TunableConfigSchema', () => {
     expect(leaves(MAX_LEAF_ATTENUATION_PER_LAI + 1)).toBe(false);
   });
 
+  it('takes blooms that shade nothing, and refuses blooms that make light or take past the ceiling', () => {
+    const blooms = (algaeAttenuationPerGram: number): boolean =>
+      TunableConfigSchema.safeParse({
+        ...DEFAULT_CONFIG,
+        optics: { ...DEFAULT_CONFIG.optics, algaeAttenuationPerGram },
+      }).success;
+    expect(blooms(0)).toBe(true);
+    expect(blooms(MAX_ALGAE_ATTENUATION_PER_GRAM)).toBe(true);
+    expect(blooms(-1)).toBe(false);
+    expect(blooms(MAX_ALGAE_ATTENUATION_PER_GRAM + 1)).toBe(false);
+  });
+
   it('takes a sufficiency edge up to its ceiling, and refuses the 1 a Monod share never reaches', () => {
     const edge = (sufficiencyEdge: number): boolean =>
       TunableConfigSchema.safeParse({
@@ -284,7 +297,8 @@ describe('PersistedSimulationSchema', () => {
     rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,
-      highAlgae: false,
+      greenWater: false,
+      film: false,
       highAmmonia: false,
       highNitrite: false,
       highNitrate: false,
@@ -614,7 +628,8 @@ describe('PersistedStateSchema', () => {
     rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,
-      highAlgae: false,
+      greenWater: false,
+      film: false,
       highAmmonia: false,
       highNitrite: false,
       highNitrate: false,

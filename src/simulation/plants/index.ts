@@ -13,7 +13,7 @@ import { canopyLight, lightAtHeight, type PlantLight } from './canopy.js';
  */
 export function readPlantLight(state: SimulationState, config: TunableConfig): PlantLight[] {
   const depth = calculateTankHeight(state.tank.capacity);
-  return canopyLight(state.plants, state.tank.capacity, config.optics).map((canopy, i) =>
+  return canopyLight(state.plants, state.tank.capacity, config.optics, state.algae).map((canopy, i) =>
     lightAtHeight(state.plants[i], canopy, state.resources, depth)
   );
 }
@@ -32,9 +32,11 @@ export {
   canopyLight,
   floorCover,
   floorShade,
+  floorLight,
+  plantLightTaken,
   isOvergrown,
 } from './canopy.js';
-export type { CanopyLight, PlantLight } from './canopy.js';
+export type { CanopyLight, LightPath, PlantLight } from './canopy.js';
 export {
   calculateRespiration,
   getRespirationTemperatureFactor,

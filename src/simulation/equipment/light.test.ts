@@ -103,16 +103,18 @@ describe('light equipment', () => {
   });
 
   describe('calculateParAtDepth', () => {
+    const K = opticsDefaults.waterAttenuationPerCm;
+
     it('leaves the surface reading untouched at zero depth', () => {
-      expect(calculateParAtDepth(90, 0, opticsDefaults)).toBe(90);
+      expect(calculateParAtDepth(90, 0, K)).toBe(90);
     });
 
     it('returns nothing when the fixture is off, at any depth', () => {
-      expect(calculateParAtDepth(0, 42, opticsDefaults)).toBe(0);
+      expect(calculateParAtDepth(0, 42, K)).toBe(0);
     });
 
     it('falls off monotonically with depth', () => {
-      const readings = [0, 10, 20, 40, 80].map((cm) => calculateParAtDepth(100, cm, opticsDefaults));
+      const readings = [0, 10, 20, 40, 80].map((cm) => calculateParAtDepth(100, cm, K));
       for (let i = 1; i < readings.length; i++) {
         expect(readings[i]).toBeLessThan(readings[i - 1]);
       }
@@ -120,26 +122,26 @@ describe('light equipment', () => {
 
     it('scales linearly in the fixture — doubling the fixture doubles the substrate', () => {
       const depth = calculateTankHeight(150);
-      expect(calculateParAtDepth(100, depth, opticsDefaults)).toBeCloseTo(
-        2 * calculateParAtDepth(50, depth, opticsDefaults),
+      expect(calculateParAtDepth(100, depth, K)).toBeCloseTo(
+        2 * calculateParAtDepth(50, depth, K),
         10
       );
     });
 
     it('is Beer–Lambert: stacking two depths equals attenuating through their sum', () => {
-      const once = calculateParAtDepth(calculateParAtDepth(100, 20, opticsDefaults), 30, opticsDefaults);
-      expect(once).toBeCloseTo(calculateParAtDepth(100, 50, opticsDefaults), 10);
+      const once = calculateParAtDepth(calculateParAtDepth(100, 20, K), 30, K);
+      expect(once).toBeCloseTo(calculateParAtDepth(100, 50, K), 10);
     });
 
     it('a deeper tank lands less of the same fixture on its substrate', () => {
-      const shallow = calculateParAtDepth(90, calculateTankHeight(20), opticsDefaults);
-      const deep = calculateParAtDepth(90, calculateTankHeight(300), opticsDefaults);
+      const shallow = calculateParAtDepth(90, calculateTankHeight(20), K);
+      const deep = calculateParAtDepth(90, calculateTankHeight(300), K);
       expect(deep).toBeLessThan(shallow);
     });
 
     it('attenuates harder as the coefficient rises', () => {
-      const clear = calculateParAtDepth(100, 40, { ...opticsDefaults, waterAttenuationPerCm: 0.005 });
-      const murky = calculateParAtDepth(100, 40, { ...opticsDefaults, waterAttenuationPerCm: 0.02 });
+      const clear = calculateParAtDepth(100, 40, 0.005);
+      const murky = calculateParAtDepth(100, 40, 0.02);
       expect(murky).toBeLessThan(clear);
       expect(clear).toBeLessThan(100);
     });

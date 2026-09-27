@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import { MAX_DOSE_ML, MAX_LIGHT_PAR, MAX_ROOT_TABS, VIGOUR_SPAN, mapKinds } from '../../simulation/index.js';
 import {
+  MAX_ALGAE_ATTENUATION_PER_GRAM,
   MAX_LEAF_ATTENUATION_PER_LAI,
   MAX_SIZE_PER_SURPLUS,
   MAX_SUFFICIENCY_EDGE,
@@ -287,7 +288,7 @@ const RngStateSchema = z
 const AlertStateSchema = z
   .object({
     waterLevelCritical: z.boolean(),
-    highAlgae: z.boolean(),
+    ...mapKinds(() => z.boolean()),
     highAmmonia: z.boolean(),
     highNitrite: z.boolean(),
     highNitrate: z.boolean(),
@@ -426,6 +427,7 @@ const OpticsConfigSchema = z
   .object({
     waterAttenuationPerCm: z.number().min(0).max(MAX_WATER_ATTENUATION_PER_CM),
     leafAttenuationPerLai: z.number().min(0).max(MAX_LEAF_ATTENUATION_PER_LAI),
+    algaeAttenuationPerGram: z.number().min(0).max(MAX_ALGAE_ATTENUATION_PER_GRAM),
   })
   .strict();
 
@@ -463,8 +465,6 @@ const PlantsConfigSchema = z
     sufficiencyEdge: z.number().min(0).max(MAX_SUFFICIENCY_EDGE),
     nitrateStressSeverity: z.number(),
     nitrateEdge: z.number(),
-    algaeShadingSeverity: z.number(),
-    algaeShadingThreshold: z.number(),
     // Vitality benefit peaks
     co2BenefitPeak: z.number(),
     temperatureBenefitPeak: z.number(),

@@ -106,10 +106,8 @@ describe('session roundtrip', () => {
   });
 
   it('rejects a stale v4 session, written before light became PAR', () => {
-    // A v4 session parses and runs — through the night. It carries no
-    // `config.optics`, and the substrate-PAR calculation returns early while
-    // surface PAR is zero, so the missing attenuation coefficient is not read
-    // until the photoperiod opens. A session that loaded would die at 08:00.
+    // A v4 session parses, and carries no `config.optics`: its first tick dies
+    // reading the water's extinction.
     const preParConfig: Record<string, unknown> = { ...DEFAULT_CONFIG };
     delete preParConfig.optics;
     const config = preParConfig as unknown as TunableConfig;
@@ -118,7 +116,7 @@ describe('session roundtrip', () => {
       tankCapacity: 40,
       light: { enabled: true, par: 50, schedule: { startHour: 0, duration: 24 } },
     });
-    expect(() => tick(lit, config)).toThrow(/waterAttenuationPerCm/);
+    expect(() => tick(lit, config)).toThrow(/algaeAttenuationPerGram/);
 
     saveSession({ ...createSession(lit, config), version: 4 }, { path });
     expect(() => loadSession({ path })).toThrow(/Unsupported session version/);

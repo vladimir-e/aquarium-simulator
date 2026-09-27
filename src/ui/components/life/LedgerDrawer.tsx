@@ -1,16 +1,16 @@
 import React from 'react';
 import type { VerbId, VerbScope } from '../../actions';
 import { toneOf } from '../../readings';
-import { LEDGER_DECIMALS, printsAsZero, type Ledger, type LedgerFactor } from '../../run';
+import { LEDGER_DECIMALS, printsAsZero, type Ledger, type LedgerFactor, type LightPathView } from '../../run';
 import { Drawer } from '../ui/Drawer';
 import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
 import { ReadingRow } from '../ui/ReadingRow';
 import { VerbButton } from '../ui/VerbButton';
 import { CONTROL_FOCUS } from '../ui/focus';
 
-function signed(value: number, sign: '+' | '−'): string {
-  const figure = Math.abs(value).toFixed(LEDGER_DECIMALS);
-  return printsAsZero(value, LEDGER_DECIMALS) ? figure : `${sign}${figure}`;
+function signed(value: number, sign: '+' | '−', decimals = LEDGER_DECIMALS): string {
+  const figure = Math.abs(value).toFixed(decimals);
+  return printsAsZero(value, decimals) ? figure : `${sign}${figure}`;
 }
 
 /**
@@ -53,6 +53,26 @@ function Column({
         <span className="text-ink-3">sum</span>
         <span className="tabular-nums text-ink-2">{signed(total, sign)}</span>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The lamp's light down to the leaf: what arrives, then each taker on the way
+ * in the ledger's own line — what it took, or what a sparse crown gave back.
+ */
+function LightPath({ path }: { path: LightPathView }): React.JSX.Element {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <h3 className="text-[11px] text-ink-3">{path.heading}</h3>
+      {path.steps.map((step) => (
+        <div key={step.key} className="flex items-baseline justify-between gap-2 py-0.5 text-[13px]">
+          <span className="truncate text-ink-2">{step.label}</span>
+          <span className="shrink-0 tabular-nums text-ink">
+            {signed(step.change, step.change < 0 ? '−' : '+', 0)} %
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -131,6 +151,18 @@ export function LedgerDrawer({
           />
         )}
 
+        {ledger.shade && (
+          <ReadingRow
+            name="Shade"
+            value={ledger.shade.text}
+            unit="% of plants' light"
+            at={ledger.shade.at}
+            band={ledger.shade.band}
+            tone={toneOf(ledger.shade.status)}
+            note={ledger.shade.note}
+          />
+        )}
+
         {ledger.light && (
           <ReadingRow
             name="Light"
@@ -142,6 +174,8 @@ export function LedgerDrawer({
             note={ledger.light.note}
           />
         )}
+
+        {ledger.lightPath && <LightPath path={ledger.lightPath} />}
 
         <div className="flex flex-col gap-3 border-t border-hairline pt-3">
           <div className="grid grid-cols-2 gap-x-4 gap-y-2">

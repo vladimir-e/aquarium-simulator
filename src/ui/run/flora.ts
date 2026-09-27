@@ -51,6 +51,7 @@ import {
   type TunableConfig,
 } from '../../simulation/config/index.js';
 import { NITRATE_EDGE } from '../../simulation/livestock/tolerance.js';
+import { BLOOM_COVERAGE_LINE, PLANT_LIGHT_LINE } from '../../simulation/alerts/index.js';
 import { COVERAGE_DECIMALS } from '../utils/units.js';
 import type { HourAhead } from './ahead.js';
 import { groupBy, mean, numbered } from './fold.js';
@@ -78,9 +79,9 @@ function bloomShows(mass: number): boolean {
 }
 
 /**
- * A bloom's ladder above none, each rung a multiple of the line the tank alerts
- * over, so its word and its tone move together. Low algae is good for the
- * player, so the tones run green → coral as it climbs.
+ * A bloom's ladder above none, each rung a multiple of the coverage a bloom
+ * alerts over in an unplanted tank, so its word and its tone move together. Low
+ * algae is good for the player, so the tones run green → coral as it climbs.
  */
 const ALGAE_LADDER = [
   { upTo: 0.5, status: 'ok' },
@@ -89,9 +90,9 @@ const ALGAE_LADDER = [
   { upTo: Infinity, status: 'alert' },
 ] as const satisfies readonly { upTo: number; status: Status }[];
 
-/** The rung a coverage that shows stands on, against the line the tank alerts over. */
-function rungOf(mass: number, line: number): number {
-  return ALGAE_LADDER.findIndex((step) => mass <= step.upTo * line);
+/** The rung a coverage that shows stands on. */
+function rungOf(mass: number): number {
+  return ALGAE_LADDER.findIndex((step) => mass <= step.upTo * BLOOM_COVERAGE_LINE);
 }
 
 type WordPer<T extends readonly unknown[]> = { [K in keyof T]: string };
@@ -106,12 +107,22 @@ const ALGAE_WORDS: Record<AlgaeKind, LadderWords> = {
   film: ['clean', 'dusted', 'filmed', 'coated', 'smothered'],
 };
 
-/** How a bloom reads off its coverage, against the line the tank alerts over: its kind's word for none while there is none to see. */
-export function algaeReading(kind: AlgaeKind, mass: number, line: number): Reading {
+/** How a bloom's shade on the plants reads: past the line the engine alerts over, and past twice it. */
+export function shadeStatus(taken: number): Status {
+  return taken > 2 * PLANT_LIGHT_LINE ? 'alert' : taken > PLANT_LIGHT_LINE ? 'warn' : 'ok';
+}
+
+/**
+ * How a bloom reads: its kind's word for its coverage — none while there is
+ * none to see — in the worse tone of that coverage and of the share of the
+ * plants' light it takes, %.
+ */
+export function algaeReading(kind: AlgaeKind, mass: number, taken: number): Reading {
   const words = ALGAE_WORDS[kind];
-  if (!bloomShows(mass)) return { status: 'ok', word: words[0] };
-  const rung = rungOf(mass, line);
-  return { status: ALGAE_LADDER[rung].status, word: words[rung + 1] };
+  const shade = shadeStatus(taken);
+  if (!bloomShows(mass)) return { status: shade, word: words[0] };
+  const rung = rungOf(mass);
+  return { status: worstStatus(ALGAE_LADDER[rung].status, shade), word: words[rung + 1] };
 }
 
 /**
@@ -126,8 +137,8 @@ export function isReported(log: LogEntry): boolean {
   );
 }
 
-export function algaeStatus(mass: number, line: number): Status {
-  return bloomShows(mass) ? ALGAE_LADDER[rungOf(mass, line)].status : 'ok';
+export function algaeStatus(mass: number): Status {
+  return bloomShows(mass) ? ALGAE_LADDER[rungOf(mass)].status : 'ok';
 }
 
 /** Where a plant stands among its kin, numbered the way a reader counts. */

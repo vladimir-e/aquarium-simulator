@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { columnGain, habitatGain, habitatPlaces, habitatSize, namePlaces, placeShare, type HabitatPlace } from './habitat.js';
-import { ALGAE, ALGAE_KINDS, clearPlace, combinedCoverage, coverageAt, emptyBlooms, resettle } from './index.js';
+import { ALGAE, ALGAE_KINDS, clearPlace, coverageAt, emptyBlooms, resettle, waterExtinction } from './index.js';
 import { calculateFloorArea, calculateTankGlassSurface, calculateTankHeight, createSimulation } from '../state.js';
 import { opticsDefaults } from '../config/optics.js';
 import { floorShade } from '../plants/canopy.js';
@@ -18,6 +18,7 @@ const planted = produce(tank, (draft) => {
   ];
 });
 const rocked = placeHardscape(tank, createHardscapeItem('rock', 'neutral_rock'));
+const K_W = opticsDefaults.waterAttenuationPerCm;
 
 describe('columnGain', () => {
   it('is the mean of Beer–Lambert over the column, over the PAR at its floor', () => {
@@ -26,9 +27,9 @@ describe('columnGain', () => {
     const steps = 10_000;
     let sum = 0;
     for (let i = 0; i < steps; i++) sum += Math.exp(k * (depth - ((i + 0.5) / steps) * depth));
-    expect(columnGain(depth, opticsDefaults)).toBeCloseTo(sum / steps, 6);
-    expect(columnGain(depth, opticsDefaults)).toBeGreaterThan(1);
-    expect(columnGain(depth, { ...opticsDefaults, waterAttenuationPerCm: 0 })).toBe(1);
+    expect(columnGain(depth, k)).toBeCloseTo(sum / steps, 6);
+    expect(columnGain(depth, k)).toBeGreaterThan(1);
+    expect(columnGain(depth, 0)).toBe(1);
   });
 });
 
@@ -36,7 +37,27 @@ describe('the column', () => {
   it('is the tank’s litres, lit at the column’s mean whatever stands in it', () => {
     expect(habitatSize('column', tank)).toBe(100);
     for (const state of [tank, planted, rocked]) {
-      expect(habitatGain('column', state, opticsDefaults)).toBe(columnGain(calculateTankHeight(100), opticsDefaults));
+      expect(habitatGain('column', state, opticsDefaults)).toBe(columnGain(calculateTankHeight(100), K_W));
+    }
+  });
+});
+
+describe('under green water', () => {
+  const green = (mass: number): typeof tank => produce(tank, (draft) => void (draft.algae.greenWater.mass = mass));
+  const depth = calculateTankHeight(100);
+  const ofLamp = (state: typeof tank, habitat: 'column' | 'surfaces'): number =>
+    habitatGain(habitat, state, opticsDefaults) * Math.exp(-waterExtinction(state.algae, opticsDefaults) * depth);
+
+  it('reads the column’s mean through the water as it stands', () => {
+    expect(habitatGain('column', green(40), opticsDefaults)).toBe(
+      columnGain(depth, waterExtinction(green(40).algae, opticsDefaults))
+    );
+  });
+
+  it('dims its own column and every surface under it the thicker it grows', () => {
+    for (const habitat of ['column', 'surfaces'] as const) {
+      expect(ofLamp(green(30), habitat)).toBeLessThan(ofLamp(green(0), habitat));
+      expect(ofLamp(green(90), habitat)).toBeLessThan(ofLamp(green(30), habitat));
     }
   });
 });
@@ -51,7 +72,7 @@ describe('the surfaces', () => {
   it('weigh the walls at the column’s mean and the floor and hardscape at what the canopy leaves', () => {
     const glass = calculateTankGlassSurface(100);
     const floor = calculateFloorArea(100);
-    const column = columnGain(calculateTankHeight(100), opticsDefaults);
+    const column = columnGain(calculateTankHeight(100), K_W);
     const underCanopy = 1 - floorShade(planted.plants, 100, opticsDefaults);
 
     expect(habitatGain('surfaces', tank, opticsDefaults)).toBeCloseTo(((glass - floor) * column + floor) / glass, 12);
@@ -102,24 +123,6 @@ describe('namePlaces', () => {
 describe('the kinds', () => {
   it('open empty and healthy in a new tank', () => {
     for (const kind of ALGAE_KINDS) expect(tank.algae[kind]).toEqual({ mass: 0, condition: 100, surplus: 0 });
-  });
-});
-
-describe('combinedCoverage', () => {
-  const blooms = (masses: Record<string, number>): ReturnType<typeof emptyBlooms> =>
-    produce(emptyBlooms(), (draft) => {
-      for (const kind of ALGAE_KINDS) draft[kind].mass = masses[kind] ?? 0;
-    });
-
-  it('is one kind’s coverage alone, and none on an empty tank', () => {
-    expect(combinedCoverage(emptyBlooms())).toBe(0);
-    for (const kind of ALGAE_KINDS) expect(combinedCoverage(blooms({ [kind]: 40 }))).toBeCloseTo(40, 12);
-  });
-
-  it('lets the light through each kind in turn, so it never passes 100', () => {
-    const all = blooms(Object.fromEntries(ALGAE_KINDS.map((kind) => [kind, 50])));
-    expect(combinedCoverage(all)).toBeCloseTo(100 * (1 - 0.5 ** ALGAE_KINDS.length), 12);
-    expect(combinedCoverage(blooms(Object.fromEntries(ALGAE_KINDS.map((kind) => [kind, 100]))))).toBe(100);
   });
 });
 

@@ -1,6 +1,6 @@
 import type { SimulationState } from '../../simulation/state.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { floorCover, floorShade } from '../../simulation/plants/canopy.js';
+import { floorCover, floorLight, floorShade } from '../../simulation/plants/canopy.js';
 import { freeAmmoniaPpm } from '../../simulation/systems/nitrogen-cycle.js';
 import { FREE_AMMONIA_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
 import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
@@ -172,6 +172,18 @@ const DEFINITIONS = [
     read: (s, config): number | null =>
       s.plants.length === 0 ? null : floorShade(s.plants, s.tank.capacity, config.optics),
     band: { green: [0, 0.8], amber: [0, 0.95], why: 'past this the understory is in the dark' },
+  },
+  {
+    id: 'floor_par',
+    label: 'floor PAR',
+    unit: 'PAR',
+    digits: 0,
+    read: (s, config): number => floorLight(s, config.optics),
+    band: {
+      green: [8, ANY],
+      amber: [2, ANY],
+      why: 'the hardiest plant on the roster lives from 8 PAR; under 2 the floor is dark',
+    },
   },
   {
     id: 'plant_cond',

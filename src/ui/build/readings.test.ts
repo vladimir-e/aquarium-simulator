@@ -410,7 +410,7 @@ describe('light readings', () => {
     });
 
     expect(value(read('light', fresh), 'Output now').value).toBe('90 PAR');
-    const landed = calculateParAtDepth(90, calculateTankHeight(40), DEFAULT_CONFIG.optics);
+    const landed = calculateParAtDepth(90, calculateTankHeight(40), DEFAULT_CONFIG.optics.waterAttenuationPerCm);
     expect(value(read('light', fresh), 'At substrate')).toEqual({
       label: 'At substrate',
       value: `${Math.round(landed)} PAR`,

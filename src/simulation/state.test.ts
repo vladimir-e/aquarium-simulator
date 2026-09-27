@@ -89,7 +89,7 @@ describe('createSimulation - the light a tank opens on', () => {
     }).resources.light;
 
   it('reads what the fixture lands at hour 0, not zero', () => {
-    expect(lit(0)).toBeCloseTo(calculateParAtDepth(90, calculateTankHeight(40), opticsDefaults), 10);
+    expect(lit(0)).toBeCloseTo(calculateParAtDepth(90, calculateTankHeight(40), opticsDefaults.waterAttenuationPerCm), 10);
   });
 
   it('reads nothing when the photoperiod has not started', () => {
@@ -113,7 +113,7 @@ describe('createSimulation - the light a tank opens on', () => {
     const expected = scheduledLightByHour(
       { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
       calculateTankHeight(40),
-      opticsDefaults
+      opticsDefaults.waterAttenuationPerCm
     );
 
     expect(createSimulation(config).resources.lightByHour).toEqual(expected);

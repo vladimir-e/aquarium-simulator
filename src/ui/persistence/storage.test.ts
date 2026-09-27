@@ -392,7 +392,8 @@ function createValidSimulation(): PersistedSimulation {
     rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,
-      highAlgae: false,
+      greenWater: false,
+      film: false,
       highAmmonia: false,
       highNitrite: false,
       highNitrate: false,

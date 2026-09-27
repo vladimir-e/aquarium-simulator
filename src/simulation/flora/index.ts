@@ -5,7 +5,7 @@
  *
  * Pipeline:
  * 1. Light: each plant's at its own height in the canopy, each bloom's as the
- *    mean over its habitat.
+ *    mean over its habitat, all through the water and the blooms in it.
  * 2. Each feeder's draw on the water and the bed, read once: its Liebig
  *    sufficiency runs photosynthesis and vitality, and the draws request its
  *    tissue.
@@ -46,7 +46,6 @@ import {
   bloomFixer,
   bloomLight,
   bloomTissue,
-  combinedCoverage,
   habitatGain,
   habitatSize,
   landSpores,
@@ -161,7 +160,6 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   pushDelta('co2', getPpm(respiration.co2ProducedMg, waterVolume), 'respiration');
 
   // 5. Vitality.
-  const algaeMass = combinedCoverage(state.algae);
   const vitalities = state.plants.map((plant, i) =>
     computePlantVitality({
       plant,
@@ -169,7 +167,6 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
       waterVolume,
       plantsConfig,
       nutrientSufficiency: sufficiency[i],
-      algaeMass,
       light: light[i],
     })
   );

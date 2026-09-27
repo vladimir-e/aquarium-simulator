@@ -25,7 +25,7 @@ import { opticsDefaults } from '../config/optics.js';
 import { FILTER_SURFACE, getFilterFlow } from './filter.js';
 import { POWERHEAD_FLOW_LPH } from './powerhead.js';
 import { calculateHardscapeTotalSurface, createHardscapeItem, type HardscapeItem } from './hardscape.js';
-import { ALGAE, ALGAE_KINDS, placeShare } from '../algae/index.js';
+import { ALGAE, ALGAE_KINDS, placeShare, waterExtinction } from '../algae/index.js';
 import { bloomsTissue, kindTissue } from '../tests/blooms.js';
 
 const passive = (state: SimulationState): PassiveResourceValues =>
@@ -101,7 +101,7 @@ describe('calculatePassiveResources', () => {
 
   describe('light', () => {
     const atSubstrate = (capacity: number, surfacePar: number): number =>
-      calculateParAtDepth(surfacePar, calculateTankHeight(capacity), opticsDefaults);
+      calculateParAtDepth(surfacePar, calculateTankHeight(capacity), opticsDefaults.waterAttenuationPerCm);
 
     const lit = (
       tick: number,
@@ -119,6 +119,26 @@ describe('calculatePassiveResources', () => {
       const light = lit(10, { par: 150, schedule: { startHour: 8, duration: 10 } });
       expect(light).toBeCloseTo(atSubstrate(100, 150), 10);
       expect(light).toBeLessThan(150);
+    });
+
+    it('lands through the green water standing in the column, and not through the film on the glass', () => {
+      const bloomed = (greenWater: number, film: number): number =>
+        passive(
+          produce(tank(), (draft) => {
+            draft.tick = 10;
+            draft.algae.greenWater.mass = greenWater;
+            draft.algae.film.mass = film;
+          })
+        ).light;
+      const green = produce(tank(), (draft) => void (draft.algae.greenWater.mass = 50));
+      const { light } = green.equipment;
+
+      expect(bloomed(50, 0)).toBeCloseTo(
+        calculateParAtDepth(light.par, calculateTankHeight(100), waterExtinction(green.algae, opticsDefaults)),
+        10
+      );
+      expect(bloomed(50, 0)).toBeLessThan(bloomed(0, 0));
+      expect(bloomed(0, 90)).toBe(bloomed(0, 0));
     });
 
     it('is dark when disabled or off schedule', () => {

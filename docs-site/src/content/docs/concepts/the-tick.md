@@ -17,7 +17,7 @@ and a month of cycling are all read off the same integer.
 
 | Stage | What settles | Why here |
 |---|---|---|
-| Environment | The clock advances, the passive readings are recomputed — light, flow, surface, aeration — and the hour's light is written into the day's history; then room-driven drift and evaporation apply | The hour has to exist before anything can read it |
+| Environment | The clock advances, the passive readings are recomputed — light, through the green water the hour starts with, flow, surface, aeration — and the hour's light is written into the day's history; then room-driven drift and evaporation apply | The hour has to exist before anything can read it |
 | Equipment | Substrate, hardscape, heater, top-off, CO₂ and doser act on the water they have just met | Equipment answers conditions, so it cannot run ahead of them |
 | Biology | Plants and the blooms in one pass, then livestock, then breeding on the banks livestock just settled | Each reads the one before it; plants and the blooms draw on the water as one |
 | Resources | Decay, nitrification and gas exchange move what the living just produced | The chemistry closes the hour's books on everything emitted above |

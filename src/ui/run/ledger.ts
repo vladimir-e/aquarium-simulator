@@ -7,20 +7,24 @@
 
 import {
   ALGAE,
+  ALGAE_KINDS,
   PLANT_SPECIES_DATA,
+  plantLightTaken,
   type AlgaeHabitat,
   type AlgaeKind,
+  type Light,
+  type LightPath,
   type SimulationState,
   type VitalityFactor,
 } from '../../simulation/index.js';
 import { habitatPlaces, namePlaces } from '../../simulation/algae/index.js';
-import { algaeAlertLine } from '../../simulation/alerts/index.js';
+import { BLOOM_COVERAGE_LINE, PLANT_LIGHT_LINE } from '../../simulation/alerts/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { VerbId, VerbScope } from '../actions/verbs.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 import { COVERAGE_DECIMALS } from '../utils/units.js';
 import type { HourAhead } from './ahead.js';
-import { algaeReading, plantLabels, sharePercent, unitTitle } from './flora.js';
+import { algaeReading, plantLabels, shadeStatus, sharePercent, unitTitle } from './flora.js';
 import { crownBurns, lightStatus, plantLightStatus } from './light.js';
 import { fishNumbers, fishReading, fishSatiation, fishTitle, type Satiation } from './livestock.js';
 import { CONDITION_BAND, type SpeciesId } from './roster.js';
@@ -58,6 +62,20 @@ export interface LedgerBank {
   note: string;
 }
 
+/** One taker on the light's way from the lamp to a leaf: what it did to what reached it, %. */
+export interface LightStep {
+  key: string;
+  label: string;
+  /** Signed: a taker takes, and a crown sparser than a full unit's gives. */
+  change: number;
+}
+
+/** What the lamp lands on a plant's leaf, and what took the rest on the way. */
+export interface LightPathView {
+  heading: string;
+  steps: LightStep[];
+}
+
 /** A reading beside the hero figure: an organism's day of light, or a bloom's coverage. */
 export interface LedgerRow {
   text: string;
@@ -91,8 +109,12 @@ export interface Ledger {
   satiation: Satiation | null;
   /** The day's light against what the organism starves under, % of that need. */
   light: LedgerRow | null;
+  /** A plant's light from the lamp to its leaf. */
+  lightPath: LightPathView | null;
   /** How much of its habitat a bloom fills, %. */
   coverage: LedgerRow | null;
+  /** The share of the plants' light a bloom takes, % — while anything is planted. */
+  shade: LedgerRow | null;
   helping: LedgerFactor[];
   hurting: LedgerFactor[];
   helps: number;
@@ -163,6 +185,27 @@ function bankOf(hour: BankHour, buying: string): Pick<LedgerBank, 'at' | 'note'>
   return { at: bankShare(hour.now, hour.cap), note: bankNote(hour, buying) };
 }
 
+/**
+ * The lamp's rating carried down the path to the leaf, and the takers that
+ * moved it by a whole percent. The product of the path is the leaf's share of
+ * the lamp, so the heading is what the leaf reads while the lamp is on.
+ */
+function lightPathView(path: LightPath, lamp: Light): LightPathView {
+  const passes: [string, string, number][] = [
+    ['water', 'Water', path.water],
+    ['canopy', 'Canopy', path.canopy],
+    ...ALGAE_KINDS.map((kind): [string, string, number] => [kind, ALGAE[kind].name, path.blooms[kind]]),
+  ];
+  const rating = lamp.enabled ? lamp.par : 0;
+  const leaf = passes.reduce((par, [, , pass]) => par * pass, rating);
+  return {
+    heading: rating > 0 ? `${Math.round(leaf)} of the lamp's ${rating} PAR reach its leaf` : 'No lamp lights it',
+    steps: passes
+      .map(([key, label, pass]) => ({ key, label, change: (pass - 1) * 100 }))
+      .filter((step) => !printsAsZero(step.change, 0)),
+  };
+}
+
 /** The track runs to twice the need, so the need sits mid-track. */
 function lightRow(needShare: number, status: Status, note: string): LedgerRow {
   return {
@@ -209,7 +252,9 @@ function fishLedger(
     trend: vital.trend,
     satiation: fishSatiation(fish.satiation, livestock),
     light: null,
+    lightPath: null,
     coverage: null,
+    shade: null,
     helping,
     hurting,
     helps: total(breakdown.benefits),
@@ -277,7 +322,9 @@ function plantLedger(
         ? `${Math.round(light.heightCm)} cm tall · crown past ${lightHigh} PAR`
         : `${Math.round(light.heightCm)} cm tall`
     ),
+    lightPath: lightPathView(light.path, state.equipment.light),
     coverage: null,
+    shade: null,
     helping,
     hurting,
     helps: total(breakdown.benefits),
@@ -304,9 +351,9 @@ type BloomVerb = Extract<VerbId, 'scrubAlgae' | 'waterChange'>;
  * Each habitat in the ledger's words — how a bloom lies in its places, where
  * its light is read — and the verb that takes a bloom out of it.
  */
-const HABITAT: Record<AlgaeHabitat, { lies: string; lit: string; verb: BloomVerb }> = {
-  column: { lies: 'suspended in', lit: 'through the water column', verb: 'waterChange' },
-  surfaces: { lies: 'on', lit: 'on the glass and under the canopy', verb: 'scrubAlgae' },
+const HABITAT: Record<AlgaeHabitat, { lies: string; lit: string; shades: string; verb: BloomVerb }> = {
+  column: { lies: 'suspended in', lit: 'through the water column', shades: 'the deeper a leaf, the more', verb: 'waterChange' },
+  surfaces: { lies: 'on', lit: 'on the glass and under the canopy', shades: 'coating every leaf alike', verb: 'scrubAlgae' },
 };
 
 /** The verb that takes a kind out of the tank, by where it lives. */
@@ -326,8 +373,8 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
   const traits = ALGAE[kind];
   const place = HABITAT[traits.habitat];
   const cap = config.plants.surplusCap;
-  const line = algaeAlertLine(config);
-  const coverage = algaeReading(kind, mass, line);
+  const taken = plantLightTaken(state, config.optics)[kind] * 100;
+  const coverage = algaeReading(kind, mass, taken);
   const { value, trend } = vitalReading(condition, next.condition);
 
   return {
@@ -344,13 +391,24 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     trend,
     satiation: null,
     light: lightRow(next.light.needShare, lightStatus(next.light.needShare), place.lit),
+    lightPath: null,
     coverage: {
       text: mass.toFixed(COVERAGE_DECIMALS),
       at: mass / 100,
-      band: { from: 0, to: line / 100 },
+      band: { from: 0, to: BLOOM_COVERAGE_LINE / 100 },
       status: coverage.status,
       note: projectedTrend(next.mass - mass),
     },
+    shade:
+      state.plants.length > 0
+        ? {
+            text: String(Math.round(taken)),
+            at: taken / 100,
+            band: { from: 0, to: PLANT_LIGHT_LINE / 100 },
+            status: shadeStatus(taken),
+            note: HABITAT[traits.habitat].shades,
+          }
+        : null,
     helping: factors(breakdown.benefits),
     hurting: factors(breakdown.stressors),
     helps: total(breakdown.benefits),

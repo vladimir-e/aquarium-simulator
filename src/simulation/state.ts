@@ -30,7 +30,8 @@ import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
 import { applySeed, type PresetSeed, type TankSeed } from './seed.js';
 import type { AlgaeKind } from './algae/traits.js';
-import { emptyBlooms } from './algae/blooms.js';
+import { emptyBlooms, mapKinds } from './algae/blooms.js';
+import { waterExtinction } from './algae/shade.js';
 import { isPlantableSize, MIN_PLANTABLE_SIZE } from './plants/create-plant.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
@@ -296,13 +297,14 @@ export interface Equipment {
 
 /**
  * Tracks which alert conditions are currently active.
- * Used to only fire alerts once when crossing thresholds.
+ * Used to only fire alerts once when crossing thresholds. Each kind of bloom
+ * has its own, set while it takes more than `PLANT_LIGHT_LINE` of the plants'
+ * light — or, with nothing planted, while it covers more than
+ * `BLOOM_COVERAGE_LINE` of its habitat.
  */
-export interface AlertState {
+export interface AlertState extends Record<AlgaeKind, boolean> {
   /** Water is below `waterLevelAlertLine` % of capacity */
   waterLevelCritical: boolean;
-  /** The kinds' combined coverage is above `algaeAlertLine` */
-  highAlgae: boolean;
   /** Free NH₃ is above `FREE_AMMONIA_EDGE` */
   highAmmonia: boolean;
   /** Nitrite is above `NITRITE_EDGE` */
@@ -313,6 +315,19 @@ export interface AlertState {
   lowOxygen: boolean;
   /** CO₂ is above `HIGH_CO2_THRESHOLD` */
   highCo2: boolean;
+}
+
+/** Every alert clear: what a new or reset tank starts on. */
+export function quietAlerts(): AlertState {
+  return {
+    waterLevelCritical: false,
+    ...mapKinds(() => false),
+    highAmmonia: false,
+    highNitrite: false,
+    highNitrate: false,
+    lowOxygen: false,
+    highCo2: false,
+  };
 }
 
 export interface SimulationState {
@@ -444,12 +459,16 @@ export function calculateFloorArea(capacity: number): number {
   return 2 * height * height;
 }
 
-/** The light history of a tank that has run its fixture's schedule all along. */
+/** The light history of a tank that has run its fixture's schedule all along, through its water as it stands. */
 export function scheduledLightHistory(
-  state: Pick<SimulationState, 'tank' | 'equipment'>,
+  state: Pick<SimulationState, 'tank' | 'equipment' | 'algae'>,
   optics: OpticsConfig
 ): number[] {
-  return scheduledLightByHour(state.equipment.light, calculateTankHeight(state.tank.capacity), optics);
+  return scheduledLightByHour(
+    state.equipment.light,
+    calculateTankHeight(state.tank.capacity),
+    waterExtinction(state.algae, optics)
+  );
 }
 
 /** A tank at hour zero lit under `optics`: its light, and the day it reads, as its schedule has run. */
@@ -651,7 +670,8 @@ export function createSimulation(
     airPump: airPumpConfig,
     autoDoser: autoDoserConfig,
   };
-  const lightByHour = scheduledLightHistory({ tank, equipment }, optics ?? opticsDefaults);
+  const algae = emptyBlooms();
+  const lightByHour = scheduledLightHistory({ tank, equipment, algae }, optics ?? opticsDefaults);
 
   const state: SimulationState = {
     tick: 0,
@@ -697,18 +717,10 @@ export function createSimulation(
     plants: [],
     fish: [],
     clutches: [],
-    algae: emptyBlooms(),
+    algae,
     rng: createRng(rngSeed),
     logs: [initialLog],
-    alertState: {
-      waterLevelCritical: false,
-      highAlgae: false,
-      highAmmonia: false,
-      highNitrite: false,
-      highNitrate: false,
-      lowOxygen: false,
-      highCo2: false,
-    },
+    alertState: quietAlerts(),
   };
 
   if (seed !== undefined) applySeed(state, seed);

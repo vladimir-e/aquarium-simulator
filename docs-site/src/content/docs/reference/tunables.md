@@ -25,7 +25,7 @@ declared minimum of `0.1`.
 | Temperature | `temperature.` | Drift toward the room, scaled by tank size |
 | Evaporation | `evaporation.` | Water lost per day, and how warmth accelerates it |
 | Algae | `algae.` | What thriving plants do to any bloom; a bloom's own kind is its traits, and the rest of it runs on `plants.` |
-| Optics | `optics.` | What the water column and the leaves above take out of the light on the way down |
+| Optics | `optics.` | What the water column, the blooms and the leaves above take out of the light on the way down |
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, respiration, vitality, growth and offshoots, lifecycle |
 | Nutrients | `nutrients.` | Fertilizer formula, root tab, the bed's leak, half-saturations, demand tiers, minerals in organic matter |
@@ -125,6 +125,7 @@ for every kind.
 |---|---|---|
 | `waterAttenuationPerCm` | Beer–Lambert attenuation of the water column, per cm of depth | /cm |
 | `leafAttenuationPerLai` | Beer–Lambert extinction of a canopy, per unit of leaf area index; at 0 leaves shade nothing and a plant reads the water alone | /LAI |
+| `algaeAttenuationPerGram` | Beer–Lambert extinction per gram of algal tissue crossed, per cm² — green water's in the column, film's as a coat on every leaf; at 0 a bloom shades nothing | cm²/g |
 
 ## Water chemistry
 
@@ -156,7 +157,6 @@ for every kind.
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
 | `nutrientDeficiencySeverity` · `sufficiencyEdge` | Damage at a Liebig sufficiency of 0 under saturating light, falling linearly to nothing at the edge; and the sufficiency a plant counts as fed, since a Monod share never reaches 1 | %/hr · — |
 | `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the plant's own edge, and where a hardiness-0 plant's edge sits | %/e-fold/hr · ppm |
-| `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of the blooms' combined coverage past the threshold, and the coverage above which algae shades plants | %/algae/hr · — |
 | `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on the light term times the Liebig sufficiency | %/hr |
 | `maxSheddingRate` | Share of itself a plant sheds per hour at condition 0, falling with the square of the deficit | /hr |
 

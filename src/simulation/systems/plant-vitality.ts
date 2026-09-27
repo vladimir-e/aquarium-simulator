@@ -5,8 +5,8 @@
  * deficiency and the three income channels — are the flora law's (`flora.ts`),
  * read at the plant's own height (see `plants/canopy.ts`) and earned at its
  * vigour. Beside them sit the ones only a plant has: the burn at its crown top
- * while the lamps are on, GH out of band, nitrate on log dose past an edge its
- * hardiness carries out, and algae shading past its threshold.
+ * while the lamps are on, GH out of band, and nitrate on log dose past an edge
+ * its hardiness carries out.
  */
 
 import type { Plant, Resources } from '../state.js';
@@ -32,8 +32,6 @@ export interface PlantVitalityContext {
   plantsConfig: PlantsConfig;
   /** Liebig sufficiency for this plant (0–1), computed once a tick by the flora pass. */
   nutrientSufficiency: number;
-  /** The blooms' combined coverage, 0–100: what the shading stressor reads past its threshold. */
-  algaeMass: number;
   /** The light at this plant's height, from the tick's one canopy pass. */
   light: PlantLight;
 }
@@ -57,18 +55,12 @@ export function plantNitrateEdge(species: PlantSpecies, plantsConfig: PlantsConf
 
 /**
  * Build the stressor list for a plant, hardened: the flora channels, the burn at
- * its crown top, GH and algae shading, and hardiness scales every one of them;
- * nitrate's edge it moves instead.
+ * its crown top and GH, and hardiness scales every one of them; nitrate's edge
+ * it moves instead.
  */
 export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[] {
-  const { plant, resources, waterVolume, plantsConfig, algaeMass, light } = ctx;
+  const { plant, resources, waterVolume, plantsConfig, light } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
-
-  let algaeAmount = 0;
-  if (algaeMass > plantsConfig.algaeShadingThreshold) {
-    algaeAmount =
-      plantsConfig.algaeShadingSeverity * (algaeMass - plantsConfig.algaeShadingThreshold);
-  }
 
   return [
     ...hardened(
@@ -84,7 +76,6 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
           label: 'GH',
           amount: plantsConfig.ghStressSeverity * outsideBand(getDgh(resources.gh, waterVolume), species.tolerableGH),
         },
-        { key: 'algae', label: 'Algae shading', amount: algaeAmount },
       ],
       species.hardiness
     ),

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   ALGAE_KINDS,
+  BLOOM_COVERAGE_LINE,
+  PLANT_LIGHT_LINE,
   applyAction,
   calculateFloorArea,
   calculateNutrientSufficiency,
@@ -14,6 +16,7 @@ import {
   getSubstrateNutrients,
   readPlantLight,
   tick,
+  type AlgaeKind,
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -82,48 +85,36 @@ describe('condition + algae words', () => {
   });
 
   it('maps a bloom’s coverage to status (low is good)', () => {
-    expect(algaeStatus(30, 30)).toBe('ok');
-    expect(algaeStatus(45, 30)).toBe('warn');
-    expect(algaeStatus(61, 30)).toBe('alert');
+    expect(algaeStatus(BLOOM_COVERAGE_LINE)).toBe('ok');
+    expect(algaeStatus(1.5 * BLOOM_COVERAGE_LINE)).toBe('warn');
+    expect(algaeStatus(2.1 * BLOOM_COVERAGE_LINE)).toBe('alert');
   });
 
   it('reads green water as the water’s clarity and film as how coated the glass is', () => {
-    expect([0, 10, 25, 45, 95].map((mass) => algaeReading('greenWater', mass, 30).word)).toEqual([
-      'clear',
-      'hazy',
-      'cloudy',
-      'green',
-      'pea soup',
-    ]);
-    expect([0, 10, 25, 45, 95].map((mass) => algaeReading('film', mass, 30).word)).toEqual([
-      'clean',
-      'dusted',
-      'filmed',
-      'coated',
-      'smothered',
-    ]);
+    const words = (kind: AlgaeKind): string[] =>
+      [0, 0.3, 0.8, 1.5, 3].map((share) => algaeReading(kind, share * BLOOM_COVERAGE_LINE, 0).word);
+    expect(words('greenWater')).toEqual(['clear', 'hazy', 'cloudy', 'green', 'pea soup']);
+    expect(words('film')).toEqual(['clean', 'dusted', 'filmed', 'coated', 'smothered']);
   });
 
   describe.each(ALGAE_KINDS)('%s', (kind) => {
-    it('reads its word for none while the coverage prints as none, whatever the line', () => {
-      const none = algaeReading(kind, 0, 30);
+    it('reads its word for none while the coverage prints as none', () => {
+      const none = algaeReading(kind, 0, 0);
       const printed = 0.5 / 10 ** COVERAGE_DECIMALS;
-      for (const line of [20, 80]) {
-        expect(algaeReading(kind, 0, line)).toEqual({ status: 'ok', word: none.word });
-        expect(algaeReading(kind, 0.9 * printed, line).word).toBe(none.word);
-        expect(algaeReading(kind, printed, line).word).not.toBe(none.word);
-      }
+      expect(none.status).toBe('ok');
+      expect(algaeReading(kind, 0.9 * printed, 0).word).toBe(none.word);
+      expect(algaeReading(kind, printed, 0).word).not.toBe(none.word);
     });
 
-    it('cuts the word ladder from the same line as the tone, wherever it is tuned', () => {
-      for (const line of [20, 80]) {
-        const at = (share: number): Reading => algaeReading(kind, line * share, line);
-        expect(at(0.4).word).toBe(algaeReading(kind, 12, 30).word);
-        expect(at(1).word).toBe(algaeReading(kind, 30, 30).word);
-        expect(at(1.5).word).toBe(algaeReading(kind, 45, 30).word);
-        expect(at(2.5).word).toBe(algaeReading(kind, 75, 30).word);
-        for (const share of [0.4, 1, 1.5, 2.5]) expect(at(share).status).toBe(algaeStatus(line * share, line));
-      }
+    it('takes the worse tone of its coverage and its shade on the plants, keeping its coverage word', () => {
+      const light = BLOOM_COVERAGE_LINE / 2;
+      expect(algaeReading(kind, light, 0).status).toBe('ok');
+      expect(algaeReading(kind, light, 1.5 * PLANT_LIGHT_LINE)).toEqual({
+        status: 'warn',
+        word: algaeReading(kind, light, 0).word,
+      });
+      expect(algaeReading(kind, light, 2.5 * PLANT_LIGHT_LINE).status).toBe('alert');
+      expect(algaeReading(kind, 3 * BLOOM_COVERAGE_LINE, 0).status).toBe('alert');
     });
   });
 });

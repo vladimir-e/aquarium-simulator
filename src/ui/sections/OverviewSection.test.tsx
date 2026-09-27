@@ -89,17 +89,17 @@ describe('OverviewSection', () => {
     const onAct = vi.fn();
     const coated = createSimulation({ tankCapacity: 200 });
     coated.algae.film.mass = 40;
-    renderOverview(bare(coated), { highAlgae: true }, onAct);
+    renderOverview(bare(coated), { film: true }, onAct);
 
     fireEvent.click(within(strip()!).getByRole('button', { name: /Scrub/ }));
     expect(onAct).toHaveBeenCalledWith('scrubAlgae');
   });
 
-  it('answers a bloom need for the kind that covers more: green water with a water change', () => {
+  it('answers green water’s need with a water change', () => {
     const onAct = vi.fn();
     const green = createSimulation({ tankCapacity: 200 });
-    Object.assign(green.algae, { greenWater: { ...green.algae.greenWater, mass: 40 }, film: { ...green.algae.film, mass: 10 } });
-    renderOverview(bare(green), { highAlgae: true }, onAct);
+    green.algae.greenWater.mass = 40;
+    renderOverview(bare(green), { greenWater: true }, onAct);
 
     fireEvent.click(within(strip()!).getByRole('button', { name: /Water change/ }));
     expect(onAct).toHaveBeenCalledWith('waterChange');

@@ -10,7 +10,8 @@ import { Badge } from '@astrojs/starlight/components';
 Each plant is one unit of its growth form — a carpet patch, a sword, a rhizome
 clump — with a size, a condition and a bank, on the
 [vitality](/concepts/vitality/) model. It reads light at its own height, under
-whatever crowns stand above it: that light drives everything it earns, and the
+whatever crowns and green water stand above it and through the film on its
+leaves: that light drives everything it earns, and the
 day of it decides whether it starves. Income at full condition banks; the bank
 heals the plant, grows it toward a full unit and then buys an offshoot of its
 family. Low condition sheds tissue.
@@ -39,7 +40,7 @@ family. Low condition sheds tissue.
 | Root feeding | <Badge text="settled" variant="success" /> | A fixed root share by growth form: a sword draws most of its need from the bed, a carpet half, an epiphyte none. No species is refused a bed — a rooted plant in untabbed gravel declines until it is tabbed. |
 | Carbon limitation | <Badge text="settled" variant="success" /> | Monod on dissolved CO₂, half rate at the species' carbon-need half-saturation. It scales photosynthesis and the CO₂ income channel, and never damages: a carbon-short plant earns and grows less. |
 | Tolerance bands | <Badge text="settled" variant="success" /> | Temperature and pH earn most at the band's centre and nothing at its edge, where damage starts from zero: net is continuous across every edge. |
-| Algae shading | <Badge text="scaffolding" variant="caution" /> | A damage rate on the blooms' combined coverage past `algaeShadingThreshold`, not light: a bloom never dims the PAR a plant reads, so it costs condition without costing photosynthesis. |
+| Shaded by the blooms | <Badge text="settled" variant="success" /> | Through light alone: green water in the column darkens a leaf by the depth above it, film coats every leaf at its coverage ([Light](/subsystems/light/#the-blooms)). A bloom costs a plant income and, past its edge, starvation — never a damage of its own. |
 | Plant nutrient loop | <Badge text="settled" variant="success" /> | Tissue is the organic matter it rots into: growth draws food's recipe from the water and the bed, and shedding and death return it as waste. N, P, K and Fe are conserved by construction. |
 | Tissue recipe | <Badge text="scaffolding" variant="caution" /> | Food's: N:P ≈ 7 by mass is Redfield and fits, but 0.8 % K sits under the 2–4 % macrophyte tissue carries. |
 | General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small draw beside the nitrate that tissue never returns — waste carries no calcium. Calcium never enters sufficiency, so soft water stresses a plant but never starves it. |
@@ -302,7 +303,6 @@ earned  = channel × tanh(PAR_i / Ik) × sufficiency_i × (1 + vigour)
 | Temperature · pH · GH | outside the species band | °C · pH unit · dGH |
 | Nutrient deficiency | sufficiency short of `sufficiencyEdge`, on the light term | share of the edge |
 | Nitrate | past the plant's own edge | e-fold over |
-| Algae shading | the blooms' combined coverage over `algaeShadingThreshold`, not light ([Status](#status)) | coverage point |
 
 A Monod sufficiency never reaches 1, so deficiency starts under an edge rather
 than under full: `sufficiencyEdge`, where a plant has 90 % of its need met. The
@@ -370,7 +370,10 @@ planting compounds by adding units.
 
 A plant reads light at its own height, through the water and the crowns above
 its leaves — the [canopy](/subsystems/light/#the-canopy) — and the thinner its
-own crown, the more of that light its leaves get.
+own crown, the more of that light its leaves get. The blooms take their share on
+the way ([Light](/subsystems/light/#the-blooms)): green water the more the deeper
+a leaf stands, so a carpet goes dark before a sword, and film the same share of
+every leaf, which costs a light-hungry plant more than one that lives on little.
 
 That gives a starved plant a size it can hold. A plant too big for its light
 drops under full condition and sheds; its crown thins, its leaves read more
@@ -394,6 +397,7 @@ overgrown tank is dark, not dead.
 |---|---|---|
 | Floor cover | every unit's footprint over the floor, `Σ footprint / (2 × depth²)`; past 1 the planting has outgrown its floor | thinning — removing units |
 | Floor shade | the share of the substrate light the canopy takes before the floor ([Light](/subsystems/light/#the-canopy)) | trimming or thinning |
+| Floor light | the fixture's rating carried to the floor through the water, the green water and the canopy | trimming, thinning, or clearing green water |
 
 ### Offshoots
 
@@ -495,7 +499,7 @@ The canopy's own constant, `leafAttenuationPerLai`, is under [Light](/subsystems
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia` and `nitrate`, and the `phosphate`, `potassium` and `iron` mineralized beside the ammonia | `ammonia` first and `nitrate` for the rest, with the other three, drawn as tissue grows — the ammonia from what the colony left; `waste` from shedding and death |
 | [Environment](/subsystems/environment/) | `temperature` for the Q10 on respiration and starvation, `water` for every ppm, the box's depth and floor | — |
 | [Equipment](/subsystems/equipment/) | `substrate.nutrients` — the bed's store, for root feeders | The same store, drawn down as root feeders grow |
-| [Algae](/subsystems/algae/) | The kinds' combined coverage — the shading stressor, as the hour starts; each bloom's share of the pooled tissue draw and of the CO₂ | Plant power per litre, the blooms' allelopathy; the canopy over the floor, film's light there |
+| [Algae](/subsystems/algae/) | The light the blooms take at each leaf, as the hour starts — green water by the depth above it, film as a coat; each bloom's share of the pooled tissue draw and of the CO₂ | Plant power per litre, the blooms' allelopathy; the canopy over the floor, film's light there |
 | [Livestock](/subsystems/livestock/) | `foodNitrogenFraction` and `foodMineralContent`, the recipe tissue shares with food | Plant power again, saturating the fish shelter benefit |
 | [Actions](/subsystems/actions/) | — | Planting against the floor, removal and trimming write the array and `size` directly; dosing fills the four nutrient pools in the water, root tabs the bed's |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | A `plant-died` entry per plant lost, a `plant-propagated` entry per offshoot |

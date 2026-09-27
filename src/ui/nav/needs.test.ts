@@ -41,9 +41,9 @@ describe('activeNeeds', () => {
   });
 
   it('names what the engine has latched, the water before the bloom', () => {
-    const state = withAlerts({ highAlgae: true, highNitrite: true, highAmmonia: true });
+    const state = withAlerts({ film: true, highNitrite: true, highAmmonia: true });
 
-    expect(needs(state).map((need) => need.text)).toEqual(['NH₃ high', 'NO₂ high', 'Algae bloom']);
+    expect(needs(state).map((need) => need.text)).toEqual(['NH₃ high', 'NO₂ high', 'Film bloom']);
   });
 
   it('takes each need’s tone and figure from the reading it names', () => {
@@ -62,14 +62,14 @@ describe('activeNeeds', () => {
 
   it('lists the worst tone first, whatever order the needs are written in', () => {
     const state = withAlerts(
-      { highNitrite: true, highAlgae: true },
+      { highNitrite: true, film: true },
       produce(base, (draft) => {
         draft.algae.film.mass = 95;
       })
     );
 
     expect(needs(state).map((need) => [need.text, need.tone])).toEqual([
-      ['Algae bloom', 'alert'],
+      ['Film bloom', 'alert'],
       ['NO₂ high', 'warn'],
     ]);
   });
@@ -85,7 +85,7 @@ describe('activeNeeds', () => {
 
   it('sends each need to the section that answers it, in its worst tone', () => {
     const state = withAlerts(
-      { lowOxygen: true, highAlgae: true },
+      { lowOxygen: true, film: true },
       produce(base, (draft) => {
         draft.resources.oxygen = OXYGEN_EDGE - 1;
       })
@@ -97,6 +97,15 @@ describe('activeNeeds', () => {
         ['life', 'warn'],
       ])
     );
+  });
+
+  it('gives each kind of bloom its own need, answered by its own verb', () => {
+    const state = withAlerts({ greenWater: true, film: true });
+
+    expect(needs(state).map((need) => [need.text, need.act])).toEqual([
+      ['Green water bloom', 'waterChange'],
+      ['Film bloom', 'scrubAlgae'],
+    ]);
   });
 });
 

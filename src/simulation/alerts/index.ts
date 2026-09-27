@@ -8,7 +8,7 @@ import type { LogEntry } from '../core/logging.js';
 import type { AlertState, SimulationState } from '../state.js';
 import type { TunableConfig } from '../config/index.js';
 import { waterLevelAlert } from './water-level.js';
-import { highAlgaeAlert } from './high-algae.js';
+import { bloomAlerts } from './bloom.js';
 import { highAmmoniaAlert } from './high-ammonia.js';
 import { highNitriteAlert } from './high-nitrite.js';
 import { highNitrateAlert } from './high-nitrate.js';
@@ -17,7 +17,7 @@ import { highCo2Alert } from './high-co2.js';
 
 export type { Alert, AlertResult } from './types.js';
 export { waterLevelAlert, waterLevelAlertLine } from './water-level.js';
-export { highAlgaeAlert, algaeAlertLine } from './high-algae.js';
+export { bloomAlert, bloomAlerts, BLOOM_COVERAGE_LINE, PLANT_LIGHT_LINE } from './bloom.js';
 export { highAmmoniaAlert, ammoniaAlertLine } from './high-ammonia.js';
 export { highNitriteAlert } from './high-nitrite.js';
 export { highNitrateAlert } from './high-nitrate.js';
@@ -27,7 +27,7 @@ export { highCo2Alert, HIGH_CO2_THRESHOLD } from './high-co2.js';
 /** All alerts checked after effects are applied */
 export const alerts: Alert[] = [
   waterLevelAlert,
-  highAlgaeAlert,
+  ...bloomAlerts,
   highAmmoniaAlert,
   highNitriteAlert,
   highNitrateAlert,

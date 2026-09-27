@@ -325,6 +325,17 @@ describe('the seven verbs', () => {
     expect(detail(tank(), 'topOff').note).toContain('diluted');
   });
 
+  it('previews the light a water change lets back onto the floor through green water', () => {
+    const green = produce(tank(), (draft) => {
+      draft.algae.greenWater.mass = 80;
+    });
+    const floor = detail(green, 'waterChange', { ...DEFAULT_SETTINGS, waterChange: 0.5 }).preview.find(
+      (preview) => preview.key === 'floorLight'
+    )!;
+
+    expect(Number(floor.after)).toBeGreaterThan(Number(floor.before));
+  });
+
   it('names what a scrub leaves standing by the places the tank has off the glass', () => {
     const rocked = placeHardscape(tank(), createHardscapeItem('rock', 'neutral_rock'));
 

@@ -116,6 +116,8 @@ export {
 export {
   type Ledger,
   type LedgerFactor,
+  type LightPathView,
+  type LightStep,
   type LedgerBank,
   type LedgerRow,
   type LedgerTarget,

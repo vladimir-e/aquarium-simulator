@@ -10,10 +10,17 @@
  * the commit would leave as the live one.
  */
 
-import { ALGAE, ALGAE_KINDS, floorShade, type FishSpeciesData, type SimulationState } from '../../simulation/index.js';
 import {
-  algaeAlertLine,
+  ALGAE,
+  ALGAE_KINDS,
+  floorLight,
+  floorShade,
+  type FishSpeciesData,
+  type SimulationState,
+} from '../../simulation/index.js';
+import {
   ammoniaAlertLine,
+  BLOOM_COVERAGE_LINE,
   HIGH_CO2_THRESHOLD,
   waterLevelAlertLine,
 } from '../../simulation/alerts/index.js';
@@ -366,9 +373,9 @@ const READINGS: Reading[] = [
       unit: PERCENT,
       display: same,
       decimals: COVERAGE_DECIMALS,
-      status: (value, { config }) => algaeStatus(value, algaeAlertLine(config)),
+      status: (value) => algaeStatus(value),
       at: (value) => onScale(DISPLAY_CEILING.algae, value),
-      band: ({ config }) => ({ from: 0, to: onScale(DISPLAY_CEILING.algae, algaeAlertLine(config)) }),
+      band: () => ({ from: 0, to: onScale(DISPLAY_CEILING.algae, BLOOM_COVERAGE_LINE) }),
       note: none,
     })
   ),
@@ -382,6 +389,18 @@ const READINGS: Reading[] = [
     decimals: 1,
     status: quiet,
     at: (value) => value / 100,
+    band: none,
+    note: none,
+  },
+  {
+    key: 'floorLight',
+    label: 'Floor light',
+    read: ({ state, config }) => floorLight(state, config.optics),
+    unit: () => 'PAR',
+    display: same,
+    decimals: 0,
+    status: quiet,
+    at: (value, { state }) => onScale(state.equipment.light.par, value),
     band: none,
     note: none,
   },

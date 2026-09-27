@@ -22,6 +22,7 @@ export type {
 } from './state.js';
 export {
   createSimulation,
+  quietAlerts,
   relight,
   scheduledLightHistory,
   calculateTankHeight,
@@ -270,9 +271,11 @@ export {
   alerts,
   checkAlerts,
   waterLevelAlert,
-  highAlgaeAlert,
+  bloomAlert,
+  bloomAlerts,
   waterLevelAlertLine,
-  algaeAlertLine,
+  BLOOM_COVERAGE_LINE,
+  PLANT_LIGHT_LINE,
 } from './alerts/index.js';
 
 // Actions
@@ -347,10 +350,12 @@ export {
   emptyBlooms,
   isAlgaeKind,
   mapKinds,
-  combinedCoverage,
   resettle,
   bloomLight,
   columnGain,
+  waterShade,
+  waterExtinction,
+  bloomPass,
   habitatSize,
   habitatGain,
   placeShare,
@@ -375,6 +380,8 @@ export type {
   BloomLight,
   HabitatPlace,
   HabitatTank,
+  BloomShade,
+  WaterShade,
   BloomPurchase,
   AlgaeVitalityContext,
 } from './algae/index.js';
@@ -420,11 +427,14 @@ export {
   canopyLight,
   floorCover,
   floorShade,
+  floorLight,
+  plantLightTaken,
   isOvergrown,
 } from './plants/index.js';
 export type {
   PlantLight,
   CanopyLight,
+  LightPath,
   Propagation,
   CarbonFixer,
   Feeder,
