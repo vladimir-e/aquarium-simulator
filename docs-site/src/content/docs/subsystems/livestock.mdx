@@ -31,7 +31,7 @@ broods.
 | Age | <Badge text="settled" variant="success" /> | A linear stressor ramp past the species lifespan, through the same channel as every other stressor. No probabilistic cliff. |
 | Growth | <Badge text="settled" variant="success" /> | Mass is a stock the bank buys, slowing as the fish nears adult size. Fry and adult are words for its size, not states. |
 | Healing | <Badge text="settled" variant="success" /> | The bank heals health at a rate that falls with adult mass to the −¼, as mass-specific metabolism does, integrated over the hour. A fish is sick while its damage outruns its healing. |
-| Broods | <Badge text="settled" variant="success" /> | A female broods on a full bank, the brood the size her brood share buys, and the males pay their share from theirs. No husbandry re-tests — the husbandry is already priced into how the banks filled. |
+| Broods | <Badge text="settled" variant="success" /> | A female broods on a full bank, laying the eggs her brood share buys, and the males pay their share from theirs. No husbandry re-tests — the husbandry is already priced into how the banks filled. |
 | Death | <Badge text="settled" variant="success" /> | Condition reaching zero, from any stressor. Age-driven deaths are labelled in the log so the keeper can tell "got old" from "water went bad". |
 | Low health | <Badge text="settled" variant="success" /> | Only death reads it: health is the buffer between harm and death, so a fish at 5 % eats, breathes and excretes as one at 100 does ([Vitality](/concepts/vitality/)). |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge, and damage starts from zero at or past it. pH earns most at the band's centre; oxygen rises from the alert edge to comfort. |
@@ -222,7 +222,7 @@ indistinguishable in shape.
 
 A fish's size is its mass in % of its species' adult mass, and it splits the
 bank: `size / 100` is its brood share, the rest its growth share. After
-vitality settles, a female on a full bank broods, then every fish's bank draws
+vitality settles, the females on full banks brood, then every fish's bank draws
 toward growth.
 
 ```
@@ -245,12 +245,15 @@ eggs = brood share × bank × mass / (broodCost × fry mass)
 ```
 
 — twenty guppy fry for a grown female on a full bank, seven for one at 60 %.
-Each male of her species can father what his own brood share pays for at his
-species' `maleShare` of that price. The brood is as many as the males father
-between them, up to her eggs, and each male pays the same share of what his
-could; eggs nobody fathers are lost with her bank. A male with an empty bank
-fathers nothing, and each brood drains him, so one male cannot father brood
-after brood. Refilling the banks is the cooldown — there are no timers.
+She lays the whole eggs that buys and pays for exactly those, so a female too
+small to buy one keeps her bank. Each male of her species can father what his
+own brood share pays for at his species' `maleShare` of that price. The ready
+females of a species brood together in the hour: the males father as many as
+they pay for between them, up to all the eggs laid, shared back to each female
+in proportion to her eggs, and each male pays the same share of what his could.
+Eggs nobody fathers are lost with what she paid for them. A male with an empty
+bank fathers nothing, and each brood drains him, so one male cannot father
+brood after brood. Refilling the banks is the cooldown — there are no timers.
 
 | Species | Mode | Hatch | Fry mass | Male share | Grown brood |
 |---|---|---|---|---|---|

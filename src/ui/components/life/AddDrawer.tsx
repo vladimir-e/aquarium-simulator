@@ -13,6 +13,7 @@ import { CONTROL_FOCUS, INSET_FOCUS } from '../ui/focus';
 const TITLE: Record<PickerKind, string> = { fish: 'Add fish', plant: 'Add plant' };
 
 const FISH_SIZE_STEP = 10;
+const FISH_SIZE_MIN = 10;
 
 function Option({
   option,
@@ -69,7 +70,7 @@ export function AddDrawer({
 
   if (kind === null) return null;
 
-  const options = pickerOptions(kind, state, count, unitSystem, bed);
+  const options = pickerOptions(kind, state, { count, size }, unitSystem, bed);
   const option = options.find((o) => o.species === picked) ?? options[0];
   const refusal = count > option.headroom ? (option.refusal ?? `Only ${option.headroom} fit`) : null;
 
@@ -105,7 +106,7 @@ export function AddDrawer({
               <Stepper
                 value={size}
                 onChange={setSize}
-                min={FISH_SIZE_STEP}
+                min={FISH_SIZE_MIN}
                 max={STOCKED_FISH_SIZE}
                 step={FISH_SIZE_STEP}
                 display={`${size}%`}

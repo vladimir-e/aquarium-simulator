@@ -11,7 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Fish grow on their banks** - the bank buys mass toward adult size and a full one a brood sized by the female, the male paying his species' share; stocking names a size; breaking: `Fish.stage` goes (v34).
+- **Fish grow on their banks** - mass toward adult size, broods sized by the female, the male paying his share; stocking names a size; breaking: `Fish.stage` goes (v34).
 - **Feeding through a gut** - fish digest over hours, slower cold and short of O₂; what they digest earns every benefit; short food splits by appetite; breaking: `Fish.gut` replaces `satiation` (v34).
 - **Auto feeder** - drops a set ration once a day at its hour (v34).
 - **Auto doser keeps an hour** - breaking: `AutoDoser.startHour` replaces `schedule` (v34).

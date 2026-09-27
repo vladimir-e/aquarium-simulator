@@ -27,6 +27,7 @@ import { writePassiveResources } from './equipment/index.js';
 import type { AlgaeKind } from './algae/traits.js';
 import { emptyBlooms, mapKinds } from './algae/blooms.js';
 import { isPlantableSize, MIN_PLANTABLE_SIZE } from './plants/create-plant.js';
+import { isStockableSize, unstockableSizeMessage } from './livestock/create-fish.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
 import type { FishSpecies, FishSex } from './livestock/species.js';
@@ -459,7 +460,7 @@ function refuseNonFinite(value: unknown, path: string): void {
  *
  * Throws on a number the tank could not survive: anything non-finite anywhere
  * in the config or seed, a capacity that isn't positive, a fixture rated
- * past {@link MAX_LIGHT_PAR}, or a seeded plant at a size it could not be planted at.
+ * past {@link MAX_LIGHT_PAR}, or a seeded fish or plant at a size it could not be stocked or planted at.
  */
 export function createSimulation(
   config: SimulationConfig,
@@ -475,6 +476,11 @@ export function createSimulation(
   if (par !== undefined && (par < 0 || par > MAX_LIGHT_PAR)) {
     throw new Error(`createSimulation: light.par must be within 0–${MAX_LIGHT_PAR}, got ${par}`);
   }
+  seed?.fish?.forEach(({ species, size }, i) => {
+    if (size !== undefined && !isStockableSize(species, size)) {
+      throw new Error(`createSimulation: seed.fish[${i}].size — ${unstockableSizeMessage(species)}, got ${size}`);
+    }
+  });
   seed?.plants?.forEach(({ size }, i) => {
     if (size !== undefined && !isPlantableSize(size)) {
       throw new Error(`createSimulation: seed.plants[${i}].size must be within ${MIN_PLANTABLE_SIZE}–100, got ${size}`);

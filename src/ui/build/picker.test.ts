@@ -8,6 +8,7 @@ import {
   calculateFloorArea,
   checkPlantFootprint,
   GROWTH_FORMS,
+  STOCKED_FISH_SIZE,
   type Fish,
   type PlantSpecies,
   type SimulationState,
@@ -52,12 +53,12 @@ function option(options: PickerOption[], species: string): PickerOption {
   return options.find((candidate) => candidate.species === species)!;
 }
 
-function fish(state: SimulationState, count = 1): PickerOption[] {
-  return pickerOptions('fish', state, count, 'metric', bedReading(state, DEFAULT_CONFIG));
+function fish(state: SimulationState, count = 1, size = STOCKED_FISH_SIZE): PickerOption[] {
+  return pickerOptions('fish', state, { count, size }, 'metric', bedReading(state, DEFAULT_CONFIG));
 }
 
 function plants(state: SimulationState, bed: BedReading = bedReading(state, DEFAULT_CONFIG)): PickerOption[] {
-  return pickerOptions('plant', state, 1, 'metric', bed);
+  return pickerOptions('plant', state, { count: 1, size: STOCKED_FISH_SIZE }, 'metric', bed);
 }
 
 describe('fish options', () => {
@@ -67,6 +68,15 @@ describe('fish options', () => {
 
     expect(getMaxFishMass(1)).toBe(500);
     expect(neon.headroom).toBe(500 / FISH_SPECIES_DATA.neon_tetra.adultMass);
+  });
+
+  it('counts headroom at the stocked size, so more small fish fit than adults', () => {
+    const state = tank(1);
+    const adults = option(fish(state), 'neon_tetra').headroom;
+    const small = option(fish(state, 1, 25), 'neon_tetra').headroom;
+
+    expect(small).toBe(Math.floor(500 / (0.25 * FISH_SPECIES_DATA.neon_tetra.adultMass)));
+    expect(small).toBeGreaterThan(adults);
   });
 
   it('refuses in the action’s own words once nothing more fits', () => {

@@ -6,8 +6,8 @@
  * Every hour the bank draws `1 − e^−growthDrawRate` of itself toward growth
  * through the growth share, so a fry spends nearly all of its draw on mass and
  * a fish near adult size almost none, and size approaches 100 without a clamp.
- * What growth leaves banks; a female whose bank is full lays the brood its
- * brood share buys, and the males of her species pay their share of it from
+ * What growth leaves banks; a female whose bank is full lays the eggs her
+ * brood share buys, and the males of her species pay their share of them from
  * their own brood shares.
  */
 
@@ -15,6 +15,7 @@ import type { Fish } from '../state.js';
 import type { FishLifeStage, FishSpecies } from '../livestock/species.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
+import { bankFull } from '../config/vitality.js';
 import { hourlyDraw } from '../core/kinetics.js';
 
 /** The size past which a fish reads as an adult: where its brood share passes its growth share. */
@@ -41,7 +42,7 @@ export function fishLifeStage(fish: Sized): FishLifeStage {
 
 /** Share of the bank a fish of this size holds toward broods; the rest it spends on growth. */
 export function broodShare(size: number): number {
-  return size / 100;
+  return Math.min(1, Math.max(0, size / 100));
 }
 
 /** The hour's growth: the bank's draw through the growth share, bought as mass. */
@@ -69,44 +70,57 @@ function broodBank(fish: Fish): number {
   return broodShare(fishSize(fish)) * Math.max(0, fish.surplus);
 }
 
-/** Eggs the brood share of a female's bank lays. */
+/** Eggs the brood share of a female's bank buys. */
 export function eggsLaid(female: Fish, config: LivestockConfig): number {
   return broodBank(female) * offspringPerPoint(female, config);
 }
 
 /** Offspring the brood share of a male's bank can father, at his species' share of the cost. */
 export function offspringFathered(male: Fish, config: LivestockConfig): number {
-  return (
-    (broodBank(male) * offspringPerPoint(male, config)) /
-    FISH_SPECIES_DATA[male.species].breeding.maleShare
-  );
-}
-
-/** Whether a fish's bank is full, the moment it buys a brood. Never at a cap of 0, where every bank reads full. */
-export function bankFull(fish: Fish, config: LivestockConfig): boolean {
-  return config.surplusCap > 0 && fish.surplus >= config.surplusCap;
-}
-
-export interface Brood {
-  offspring: number;
-  female: Fish;
-  males: Fish[];
+  const { maleShare } = FISH_SPECIES_DATA[male.species].breeding;
+  return maleShare > 0 ? (broodBank(male) * offspringPerPoint(male, config)) / maleShare : Infinity;
 }
 
 /**
- * A female spends her brood share on eggs; the males father as many as their
- * brood shares pay for between them, each paying the same share of what his
- * could, and eggs nobody fathers are lost.
+ * Whether a fish pays toward a brood this hour: a female on a full bank that
+ * buys at least one egg, a male with a brood bank to pay his share from.
  */
-export function brood(female: Fish, males: readonly Fish[], config: LivestockConfig): Brood {
-  const reach = males.map((male) => offspringFathered(male, config));
-  const fathering = reach.reduce((sum, n) => sum + n, 0);
-  const offspring = Math.floor(Math.min(eggsLaid(female, config), fathering));
-  const paid = fathering > 0 ? offspring / fathering : 0;
+export function readyToBrood(fish: Fish, config: LivestockConfig): boolean {
+  if (fish.sex === 'female') {
+    return bankFull(fish.surplus, config.surplusCap) && Math.floor(eggsLaid(fish, config)) >= 1;
+  }
+  return FISH_SPECIES_DATA[fish.species].breeding.maleShare > 0 && broodBank(fish) > 0;
+}
+
+export interface Brood {
+  offspring: number[];
+  females: Fish[];
+  males: Fish[];
+}
+
+const sum = (values: readonly number[]): number => values.reduce((total, n) => total + n, 0);
+
+/**
+ * The ready females of one species brood together. Each lays the whole eggs
+ * her brood share buys and pays for exactly those; the males father as many
+ * as their brood shares pay for between them, shared back to each female in
+ * proportion to her eggs, each male paying the same share of what his could.
+ * Eggs nobody fathers are lost with what she paid for them.
+ */
+export function brood(females: readonly Fish[], males: readonly Fish[], config: LivestockConfig): Brood {
+  const eggs = females.map((female) => Math.floor(eggsLaid(female, config)));
+  const laid = sum(eggs);
+  const fathering = sum(males.map((male) => offspringFathered(male, config)));
+  const fathered = laid > 0 ? Math.min(laid, fathering) / laid : 0;
+  const offspring = eggs.map((n) => Math.floor(n * fathered));
+  const paid = fathering > 0 ? sum(offspring) / fathering : 0;
 
   return {
     offspring,
-    female: { ...female, surplus: female.surplus - broodBank(female) },
+    females: females.map((female, i) => ({
+      ...female,
+      surplus: female.surplus - Math.min(broodBank(female), eggs[i] / offspringPerPoint(female, config)),
+    })),
     males: males.map((male) => ({ ...male, surplus: male.surplus - paid * broodBank(male) })),
   };
 }

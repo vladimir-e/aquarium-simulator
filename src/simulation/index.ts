@@ -473,7 +473,7 @@ export {
   eggsLaid,
   offspringFathered,
   brood,
-  bankFull,
+  readyToBrood,
   type Brood,
 } from './systems/fish-growth.js';
 export {

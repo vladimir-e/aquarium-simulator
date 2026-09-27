@@ -7,8 +7,8 @@ import type { SimulationState, Fish } from '../state.js';
 import type { FishSpecies } from '../livestock/species.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { createLog } from '../core/logging.js';
-import { createFish, isStockableSize, STOCKED_FISH_SIZE } from '../livestock/create-fish.js';
-import { fishLifeStage, frySize, massAtSize } from '../systems/fish-growth.js';
+import { createFish, isStockableSize, STOCKED_FISH_SIZE, unstockableSizeMessage } from '../livestock/create-fish.js';
+import { fishLifeStage, massAtSize } from '../systems/fish-growth.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import type { ActionResult, AddFishAction, RemoveFishAction } from './types.js';
 
@@ -111,7 +111,7 @@ export function addFish(
   if (!isStockableSize(species, size)) {
     return {
       state,
-      message: `A ${speciesData.name} is stocked from ${frySize(species)}% to 100% of adult size`,
+      message: unstockableSizeMessage(species),
     };
   }
 

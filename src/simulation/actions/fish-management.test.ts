@@ -4,6 +4,7 @@ import {
   removeFish,
   sellFry,
   canAddFish,
+  checkFishCapacity,
   getMaxFishMass,
   totalFishMass,
 } from './fish-management.js';
@@ -172,6 +173,17 @@ describe('addFish stocking cap', () => {
     expect(canAddFish(filled(ceiling - adultMass), 'guppy')).toBe(true);
     expect(canAddFish(filled(ceiling - adultMass + 0.01), 'guppy')).toBe(false);
     expect(addFish(filled(ceiling), { type: 'addFish', species: 'guppy' }, livestockDefaults).state.fish).toHaveLength(1);
+  });
+
+  it('weighs a small fish at its stocked size', () => {
+    const { adultMass } = FISH_SPECIES_DATA.guppy;
+    const roomFor = (mass: number): Fish[] => [
+      fish({ id: 'resident', species: 'angelfish', mass: getMaxFishMass(1) - mass }),
+    ];
+
+    expect(checkFishCapacity(roomFor(adultMass / 2), 1, 'guppy').ok).toBe(false);
+    expect(checkFishCapacity(roomFor(adultMass / 2), 1, 'guppy', 50).ok).toBe(true);
+    expect(checkFishCapacity(roomFor(adultMass / 4), 1, 'guppy', 50).ok).toBe(false);
   });
 
   it('rejects a fish that would exceed the physical ceiling', () => {

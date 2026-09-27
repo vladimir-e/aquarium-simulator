@@ -13,6 +13,7 @@ import {
   growFish,
   massAtSize,
   offspringFathered,
+  readyToBrood,
 } from './fish-growth.js';
 
 const SPECIES = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
@@ -56,6 +57,11 @@ describe('broodShare', () => {
       expect(step).toBeGreaterThan(0);
       expect(step).toBeLessThan(0.02);
     }
+  });
+
+  it('never gives a fish past adult size more than its whole bank to brood on', () => {
+    expect(broodShare(120)).toBe(1);
+    expect(broodShare(-5)).toBe(0);
   });
 });
 
@@ -128,21 +134,37 @@ describe('brood', () => {
     }
   });
 
-  it('a male with an empty bank fathers nothing, and she still spends her brood share', () => {
+  it('a male with an empty bank fathers nothing, and she still pays for the eggs she laid', () => {
     const she = fish();
-    const result = brood(she, [fish({ sex: 'male', surplus: 0 })], config);
+    const result = brood([she], [fish({ sex: 'male', surplus: 0 })], config);
+    const laid = Math.floor(eggsLaid(she, config));
 
-    expect(result.offspring).toBe(0);
-    expect(result.female.surplus).toBeCloseTo(she.surplus * (1 - broodShare(100)), 10);
+    expect(result.offspring).toEqual([0]);
+    expect(she.surplus - result.females[0].surplus).toBeCloseTo(laid / eggsLaid(she, config) * she.surplus, 10);
+  });
+
+  it('a female too small to lay a whole egg keeps her bank', () => {
+    const small = fish({ size: frySize('guppy') * 2 });
+    expect(Math.floor(eggsLaid(small, config))).toBe(0);
+
+    const result = brood([small], [fish({ sex: 'male' })], config);
+    expect(result.offspring).toEqual([0]);
+    expect(result.females[0].surplus).toBe(small.surplus);
+    expect(readyToBrood(small, config)).toBe(false);
+  });
+
+  it('a male is ready to pay only with a brood bank to pay from', () => {
+    expect(readyToBrood(fish({ sex: 'male' }), config)).toBe(true);
+    expect(readyToBrood(fish({ sex: 'male', surplus: 0 }), config)).toBe(false);
   });
 
   it('each brood drains the male, so one male cannot father brood after brood', () => {
     let male = fish({ sex: 'male' });
     const broods: number[] = [];
     for (let i = 0; i < 10; i++) {
-      const result = brood(fish(), [male], config);
+      const result = brood([fish()], [male], config);
       male = result.males[0];
-      broods.push(result.offspring);
+      broods.push(result.offspring[0]);
     }
     expect(broods[0]).toBeGreaterThan(0);
     expect(broods.at(-1)).toBeLessThan(broods[0]);
@@ -151,24 +173,40 @@ describe('brood', () => {
 
   it('males pay the same share of their brood banks, and only for what they father', () => {
     const males = [fish({ sex: 'male', surplus: 10 }), fish({ sex: 'male', surplus: 40 })];
-    const result = brood(fish(), males, config);
+    const result = brood([fish()], males, config);
     const shares = result.males.map((m, i) => (males[i].surplus - m.surplus) / (broodShare(100) * males[i].surplus));
 
-    expect(result.offspring).toBeGreaterThan(0);
+    expect(result.offspring[0]).toBeGreaterThan(0);
     expect(shares[0]).toBeCloseTo(shares[1], 10);
     expect(shares[0]).toBeLessThanOrEqual(1);
+  });
+
+  it('shares scarce fathering among the females in proportion to their eggs, in any order', () => {
+    const big = fish({ id: 'big', size: 100 });
+    const small = fish({ id: 'small', size: 50 });
+    const male = fish({ sex: 'male', size: 50, surplus: 10 });
+    const eggs = [big, small].map((f) => Math.floor(eggsLaid(f, config)));
+    const fathering = offspringFathered(male, config);
+    expect(fathering).toBeLessThan(eggs[0] + eggs[1]);
+
+    const forward = brood([big, small], [male], config).offspring;
+    const backward = brood([small, big], [male], config).offspring.reverse();
+    const share = fathering / (eggs[0] + eggs[1]);
+
+    expect(forward).toEqual(backward);
+    expect(forward).toEqual(eggs.map((n) => Math.floor(n * share)));
   });
 
   it('keeps every bank finite and non-negative', () => {
     for (const species of SPECIES) {
       for (const size of [frySize(species), 50, 100]) {
         const result = brood(
-          fish({ species, size }),
+          [fish({ species, size }), fish({ species })],
           [fish({ species, sex: 'male', size }), fish({ species, sex: 'male', size, surplus: 0 })],
           config
         );
-        expect(Number.isFinite(result.offspring)).toBe(true);
-        for (const f of [result.female, ...result.males]) {
+        for (const n of result.offspring) expect(Number.isInteger(n)).toBe(true);
+        for (const f of [...result.females, ...result.males]) {
           expect(Number.isFinite(f.surplus)).toBe(true);
           expect(f.surplus).toBeGreaterThanOrEqual(0);
         }

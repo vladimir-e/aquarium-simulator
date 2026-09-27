@@ -18,7 +18,7 @@ import { livestockDefaults } from '../config/livestock.js';
 import type { TunableConfig } from '../config/index.js';
 import { createLog } from '../core/logging.js';
 import { drawId } from '../core/rng.js';
-import { bankFull, brood, frySize, growFish } from '../systems/fish-growth.js';
+import { brood, frySize, growFish, readyToBrood } from '../systems/fish-growth.js';
 import { createFish } from './create-fish.js';
 
 export interface BreedingProcessingResult {
@@ -75,21 +75,25 @@ function hatchClutches(draft: SimulationState, config: LivestockConfig): void {
   draft.clutches = remaining;
 }
 
-/** Every female on a full bank broods, fathered by the males of her species. */
+/** The ready females of each species brood together, fathered by the males of their species. */
 function spawn(draft: SimulationState, config: LivestockConfig): void {
-  const ready = draft.fish.filter((f) => f.sex === 'female' && bankFull(f, config));
+  const ready = draft.fish.filter((f) => f.sex === 'female' && readyToBrood(f, config));
 
-  for (const female of ready) {
-    const { species } = female;
+  for (const species of new Set(ready.map((f) => f.species))) {
+    const females = ready.filter((f) => f.species === species);
     const males = draft.fish.filter((f) => f.species === species && f.sex === 'male');
-    const result = brood(female, males, config);
+    const result = brood(females, males, config);
 
-    female.surplus = result.female.surplus;
+    females.forEach((female, i) => {
+      female.surplus = result.females[i].surplus;
+    });
     males.forEach((male, i) => {
       male.surplus = result.males[i].surplus;
     });
 
-    if (result.offspring > 0) layBrood(draft, species, result.offspring, config);
+    for (const count of result.offspring) {
+      if (count > 0) layBrood(draft, species, count, config);
+    }
   }
 }
 

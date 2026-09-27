@@ -135,6 +135,15 @@ describe('scenario arguments', () => {
     });
     expect(() => parseTweak('plant', 'java_fern:1:big')).toThrow(/positive number/);
   });
+
+  it('stocks fish at the size it names, and refuses one no fish is stocked at', () => {
+    const nano = findSetup('nano');
+    expect(tweaked(nano, '--fish=guppy:2:40').fish.at(-1)).toEqual({ species: 'guppy', count: 2, sex: 'female', size: 40 });
+    expect(tweaked(nano, '--fish=guppy:2').fish.at(-1)).toEqual({ species: 'guppy', count: 2, sex: 'female' });
+    for (const size of ['120', '1', 'big', '']) {
+      expect(() => parseTweak('fish', `guppy:1:${size}`)).toThrow(/stocked from/);
+    }
+  });
 });
 
 describe('the gravel vac', () => {

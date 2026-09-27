@@ -412,6 +412,12 @@ describe('createSimulation seeding', () => {
       }
     });
 
+    it('refuses a size no fish is stocked at', () => {
+      for (const size of [120, 1]) {
+        expect(() => createSimulation(TANK, { fish: [{ species: 'guppy', size }] })).toThrow(/stocked from/);
+      }
+    });
+
     it('carries the individual variation a stocked fish gets', () => {
       const state = createSimulation(TANK, { fish: [{ species: 'neon_tetra', count: 40 }] }, 4);
       const offsets = new Set(state.fish.map((f) => f.hardinessOffset));

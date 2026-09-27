@@ -25,6 +25,10 @@ export function isStockableSize(species: FishSpecies, size: number): boolean {
   return Number.isFinite(size) && size >= frySize(species) && size <= 100;
 }
 
+export function unstockableSizeMessage(species: FishSpecies): string {
+  return `A ${FISH_SPECIES_DATA[species].name} is stocked from ${frySize(species)}% to 100% of adult size`;
+}
+
 export interface CreateFishParams {
   species: FishSpecies;
   /** % of adult mass. */

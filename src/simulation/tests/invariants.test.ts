@@ -10,6 +10,7 @@ import { CACO3_PER_EQUIVALENT, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chem
 import { tissueMass } from '../systems/plant-lifecycle.js';
 import { ALGAE, ALGAE_KINDS } from '../algae/index.js';
 import { purchase } from '../systems/plant-growth.js';
+import { fishSize, frySize } from '../systems/fish-growth.js';
 import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
 import { freshSubstrate } from '../equipment/substrate.js';
 import { getPpm } from '../resources/index.js';
@@ -474,6 +475,45 @@ describe('an offshoot bought on thin water', () => {
   it('conserves nitrogen and every mineral through the lump', () => {
     expect(nitrogenInPools(budded) / nitrogenInPools(start)).toBeCloseTo(1, 10);
     for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(budded, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
+  });
+});
+
+describe('a guppy stocked as a fry', () => {
+  const DAYS = 60;
+  const sizes: number[] = [];
+  let firstBrood = -1;
+  beforeAll(() => {
+    const setup: Setup = {
+      ...SETUPS.find((candidate) => candidate.name === 'nano')!,
+      fish: [
+        { species: 'guppy', count: 1, sex: 'female', size: frySize('guppy') },
+        { species: 'guppy', count: 1, sex: 'male' },
+      ],
+    };
+    let id: string | undefined;
+    let logsRead = 0;
+    keepTank(setup, {
+      config: DEFAULT_CONFIG,
+      untilTick: DAYS * 24,
+      observe: (state) => {
+        id ??= state.fish[0].id;
+        const she = state.fish.find((f) => f.id === id);
+        if (she) sizes.push(fishSize(she));
+        const spawned = state.logs.slice(logsRead).some((log) => log.event === 'fish-spawned');
+        if (firstBrood < 0 && spawned) firstBrood = state.tick;
+        logsRead = state.logs.length;
+      },
+    });
+  });
+
+  it('grows on her bank until she broods', () => {
+    expect(firstBrood).toBeGreaterThan(0);
+    expect(sizes.length).toBeGreaterThan(firstBrood);
+  });
+
+  it('only ever grows, and never past adult size', () => {
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(100);
+    for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1]);
   });
 });
 

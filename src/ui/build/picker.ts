@@ -12,6 +12,7 @@ import {
   getDgh,
   getMaxFishMass,
   getPh,
+  massAtSize,
   PLANT_SPECIES_DATA,
   totalFishMass,
   type FishSpeciesData,
@@ -29,6 +30,11 @@ import {
 } from '../utils/units.js';
 
 export type PickerKind = 'fish' | 'plant';
+
+export interface PickerOrder {
+  count: number;
+  size: number;
+}
 
 export interface PickerOption {
   species: FishSpecies | PlantSpecies;
@@ -98,7 +104,7 @@ function misses(state: SimulationState, data: FishSpeciesData, units: UnitSystem
 function fishOption(
   state: SimulationState,
   species: FishSpecies,
-  count: number,
+  { count, size }: PickerOrder,
   units: UnitSystem
 ): PickerOption {
   const data = FISH_SPECIES_DATA[species];
@@ -106,10 +112,10 @@ function fishOption(
   const [ghLow, ghHigh] = data.ghRange;
   const [worst] = misses(state, data, units);
 
-  const capacity = checkFishCapacity(state.fish, state.tank.capacity, species);
+  const capacity = checkFishCapacity(state.fish, state.tank.capacity, species, size);
   const headroom = Math.max(
     0,
-    Math.floor((getMaxFishMass(state.tank.capacity) - totalFishMass(state.fish)) / data.adultMass)
+    Math.floor((getMaxFishMass(state.tank.capacity) - totalFishMass(state.fish)) / massAtSize(species, size))
   );
 
   const load = bioload(state.fish, state.tank.capacity, { species, count });
@@ -160,11 +166,11 @@ function plantOption(
 export function pickerOptions(
   kind: PickerKind,
   state: SimulationState,
-  count: number,
+  order: PickerOrder,
   units: UnitSystem,
   bed: BedReading
 ): PickerOption[] {
   return kind === 'fish'
-    ? FISH_SPECIES.map((species) => fishOption(state, species, count, units))
+    ? FISH_SPECIES.map((species) => fishOption(state, species, order, units))
     : PLANT_SPECIES.map((species) => plantOption(state, species, bed));
 }
