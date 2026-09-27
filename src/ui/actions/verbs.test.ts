@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   applyAction,
   calculateSurface,
+  createHardscapeItem,
   createSimulation,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
+  placeHardscape,
   WATER_CHANGE_AMOUNTS,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -321,6 +323,13 @@ describe('the seven verbs', () => {
 
     expect(detail(tank(), 'scrubAlgae').note).toContain('clears the glass');
     expect(detail(tank(), 'topOff').note).toContain('diluted');
+  });
+
+  it('names what a scrub leaves standing by the places the tank has off the glass', () => {
+    const rocked = placeHardscape(tank(), createHardscapeItem('rock', 'neutral_rock'));
+
+    expect(detail(tank(), 'scrubAlgae').note).toContain('what coats the floor stays');
+    expect(detail(rocked, 'scrubAlgae').note).toContain('what coats the floor and the hardscape stays');
   });
 
   it('points the chips at the verb they configure, under the heading they read', () => {

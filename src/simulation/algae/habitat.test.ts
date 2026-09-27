@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { columnGain, habitatGain, habitatPlaces, habitatSize, placeShare, type HabitatPlace } from './habitat.js';
+import { columnGain, habitatGain, habitatPlaces, habitatSize, namePlaces, placeShare, type HabitatPlace } from './habitat.js';
 import { ALGAE, ALGAE_KINDS, clearPlace, combinedCoverage, coverageAt, emptyBlooms, resettle } from './index.js';
 import { calculateFloorArea, calculateTankGlassSurface, calculateTankHeight, createSimulation } from '../state.js';
 import { opticsDefaults } from '../config/optics.js';
@@ -88,6 +88,14 @@ describe('placeShare', () => {
       HARDSCAPE_SURFACE.neutral_rock / habitatSize('surfaces', rocked),
       12
     );
+  });
+});
+
+describe('namePlaces', () => {
+  it('lists the places in the keeper\'s words, the last joined by "and"', () => {
+    expect(namePlaces(['floor'])).toBe('the floor');
+    expect(namePlaces(['floor', 'hardscape'])).toBe('the floor and the hardscape');
+    expect(namePlaces(['walls', 'floor', 'hardscape'])).toBe('the glass, the floor and the hardscape');
   });
 });
 

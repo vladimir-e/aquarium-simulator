@@ -38,12 +38,19 @@ const HABITATS: Record<AlgaeHabitat, (tank: HabitatTank) => Partial<Record<Habit
   },
 };
 
-export const PLACE_NAMES: Readonly<Record<HabitatPlace, string>> = {
+const PLACE_NAMES: Readonly<Record<HabitatPlace, string>> = {
   column: 'the water column',
   walls: 'the glass',
   floor: 'the floor',
   hardscape: 'the hardscape',
 };
+
+/** Places in the keeper's words, as a list: "the glass, the floor and the hardscape". */
+export function namePlaces(places: readonly HabitatPlace[]): string {
+  const names = places.map((place) => PLACE_NAMES[place]);
+  const last = names.pop() ?? '';
+  return names.length > 0 ? `${names.join(', ')} and ${last}` : last;
+}
 
 function pieces(habitat: AlgaeHabitat, tank: HabitatTank): [HabitatPlace, number][] {
   return Object.entries(HABITATS[habitat](tank)) as [HabitatPlace, number][];

@@ -27,6 +27,7 @@ import {
   type AlgaeKind,
   type SimulationState,
 } from '../../simulation/index.js';
+import { habitatPlaces, namePlaces } from '../../simulation/algae/index.js';
 import { FoodResource, getPpm, NitrateResource } from '../../simulation/resources/index.js';
 import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
 import {
@@ -507,9 +508,9 @@ function meta(
   }
 }
 
-const SCRUB_REACH: Record<AlgaeHabitat, (name: string) => string> = {
-  surfaces: (name) =>
-    `${name} on the glass comes off; what the floor and the hardscape hold stays, and spreads back over the glass at once.`,
+const SCRUB_REACH: Record<AlgaeHabitat, (name: string, offTheGlass: string) => string> = {
+  surfaces: (name, offTheGlass) =>
+    `${name} on the glass comes off; what coats ${offTheGlass} stays, and spreads back over the glass at once.`,
   column: (name) => `${name} floats free of the glass — a water change takes it.`,
 };
 
@@ -517,14 +518,19 @@ const SCRUB_REACH: Record<AlgaeHabitat, (name: string) => string> = {
  * Prose in the chip row's slot for the two bare verbs, so the settings step is
  * an honest statement rather than an empty panel.
  */
-const BARE_NOTE: Partial<Record<VerbId, string>> = {
-  topOff:
+const BARE_NOTE: Partial<Record<VerbId, (state: SimulationState) => string>> = {
+  topOff: () =>
     'No amount to set — top-off refills to capacity at the tank’s own temperature. The tap’s KH and GH come with it, everything else dissolved is diluted, and pH follows the CO₂ and KH that leaves.',
-  scrubAlgae: [
-    'No amount to set — a scrub clears the glass.',
-    ...ALGAE_KINDS.map((kind) => SCRUB_REACH[ALGAE[kind].habitat](ALGAE[kind].name)),
-    'What comes off is loose in the water as waste: it rots there, and a gravel vac takes it once it settles.',
-  ].join(' '),
+  scrubAlgae: (state) =>
+    [
+      'No amount to set — a scrub clears the glass.',
+      ...ALGAE_KINDS.map((kind) => {
+        const { habitat, name } = ALGAE[kind];
+        const offTheGlass = habitatPlaces(habitat, state).filter((place) => place !== 'walls');
+        return SCRUB_REACH[habitat](name, namePlaces(offTheGlass));
+      }),
+      'What comes off is loose in the water as waste: it rots there, and a gravel vac takes it once it settles.',
+    ].join(' '),
 };
 
 function commitLabel(
@@ -618,7 +624,7 @@ export function verbDetail(
     meta: meta(state, id, settings, units, config, scope),
     setting,
     options: setting === null ? [] : rungs(state, setting, units, config, scope),
-    note: BARE_NOTE[id] ?? null,
+    note: BARE_NOTE[id]?.(state) ?? null,
     preview: previewRows({
       before: state,
       after: applyAction(state, verbAction(id, settings, scope), config).state,

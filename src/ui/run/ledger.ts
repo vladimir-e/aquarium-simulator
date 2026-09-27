@@ -13,6 +13,7 @@ import {
   type SimulationState,
   type VitalityFactor,
 } from '../../simulation/index.js';
+import { habitatPlaces, namePlaces } from '../../simulation/algae/index.js';
 import { algaeAlertLine } from '../../simulation/alerts/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { VerbId, VerbScope } from '../actions/verbs.js';
@@ -300,16 +301,12 @@ function plantLedger(
 type BloomVerb = Extract<VerbId, 'scrubAlgae' | 'waterChange'>;
 
 /**
- * Each habitat in the ledger's words — the line under a bloom's name and where
+ * Each habitat in the ledger's words — how a bloom lies in its places, where
  * its light is read — and the verb that takes a bloom out of it.
  */
-const HABITAT: Record<AlgaeHabitat, { subtitle: string; lit: string; verb: BloomVerb }> = {
-  column: { subtitle: 'suspended in the water column', lit: 'through the water column', verb: 'waterChange' },
-  surfaces: {
-    subtitle: 'on the glass, the floor and the hardscape',
-    lit: 'on the glass and under the canopy',
-    verb: 'scrubAlgae',
-  },
+const HABITAT: Record<AlgaeHabitat, { lies: string; lit: string; verb: BloomVerb }> = {
+  column: { lies: 'suspended in', lit: 'through the water column', verb: 'waterChange' },
+  surfaces: { lies: 'on', lit: 'on the glass and under the canopy', verb: 'scrubAlgae' },
 };
 
 /** The verb that takes a kind out of the tank, by where it lives. */
@@ -337,7 +334,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     target: { kind: 'algae', bloom: kind },
     species: kind,
     title: traits.name,
-    subtitle: place.subtitle,
+    subtitle: `${place.lies} ${namePlaces(habitatPlaces(traits.habitat, state))}`,
     ...coverage,
     value,
     valueStatus: conditionStatus(condition),
