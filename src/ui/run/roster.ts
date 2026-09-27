@@ -18,11 +18,12 @@ import {
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
 import {
   bandStatus,
-  fishSatiation,
+  fishGut,
   fishTitle,
+  gutFullness,
   type FryBatch,
+  type Gut,
   type Hunger,
-  type Satiation,
   type SpeciesGroup,
 } from './livestock.js';
 import {
@@ -57,7 +58,7 @@ interface Vital {
 
 export interface SpeciesRosterRow extends Vital {
   /** Present where the group eats: the mean, and how many are hungry. */
-  satiation: Satiation | null;
+  gut: Gut | null;
   /** Present for plants: the worst-lit unit's. */
   light: LightFigure | null;
   kind: 'species';
@@ -119,7 +120,7 @@ export interface IndividualRosterRow extends Vital {
   parent: string | null;
   figure: string;
   age: string;
-  satiation: Satiation | null;
+  gut: Gut | null;
   light: LightFigure | null;
   /** How far a plant's bank is toward its next offshoot. */
   bank: string | null;
@@ -138,7 +139,7 @@ export interface FryRosterRow extends Vital {
   caption: string;
   figure: string;
   age: string;
-  satiation: Satiation | null;
+  gut: Gut | null;
 }
 
 /**
@@ -185,13 +186,13 @@ function familyKey(familyId: string): string {
 }
 
 interface Grouped {
-  satiation: number;
+  fullness: number;
   hunger: Hunger | null;
 }
 
 /** The group's mean, spoken for by its hungry members where it has any. */
-function groupSatiation(group: Grouped, config: LivestockConfig): Satiation {
-  const mean = fishSatiation(group.satiation, config);
+function groupGut(group: Grouped, config: LivestockConfig): Gut {
+  const mean = fishGut(group.fullness, config);
   return group.hunger
     ? { ...mean, status: bandStatus(group.hunger.band), word: `${group.hunger.count} hungry` }
     : mean;
@@ -218,7 +219,7 @@ function fishRows(
       caption: null,
       figure: `${(group.massG / group.count).toFixed(2)} g each`,
       age: `${group.ageDays} d`,
-      satiation: groupSatiation(group, config),
+      gut: groupGut(group, config),
       light: null,
       dots: group.members.map((member) => member.reading.status),
       dot: 'individual',
@@ -239,7 +240,7 @@ function fishRows(
         parent: null,
         figure: `${fish.mass.toFixed(2)} g`,
         age: days(fish.age),
-        satiation: fishSatiation(fish.satiation, config),
+        gut: fishGut(gutFullness(fish, config), config),
         light: null,
         bank: null,
         at: condition / 100,
@@ -276,7 +277,7 @@ function plantUnit(plant: PlantRow): IndividualRosterRow {
     parent: plant.label.parent === null ? null : `#${plant.label.parent}`,
     figure: `${Math.floor(plant.size)} %`,
     age: days(plant.age),
-    satiation: null,
+    gut: null,
     light: lightFigure(plant.light, plant.lightStatus),
     bank: `${sharePercent(plant.bank)} %`,
     at: plant.condition / 100,
@@ -324,7 +325,7 @@ function plantTable(groups: PlantSpeciesGroup[], expanded: ReadonlySet<string>):
       caption: families(group.families.length),
       figure: summedSize(group.size),
       age: days(group.oldest),
-      satiation: null,
+      gut: null,
       light: lightFigure(group.light, group.lightStatus),
       dots: group.families.map((family) => family.reading.status),
       dot: 'family',
@@ -350,7 +351,7 @@ function fryRow(batch: FryBatch, config: LivestockConfig): FryRosterRow {
         : `${batch.species.length} species`,
     figure: `${(batch.massG / batch.count).toFixed(2)} g each`,
     age: `${batch.ageDays} d`,
-    satiation: groupSatiation(batch, config),
+    gut: groupGut(batch, config),
     at: batch.condition / 100,
     ...batch.reading,
   };

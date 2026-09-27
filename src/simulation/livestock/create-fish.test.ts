@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createFish, fishMassForAge, HARDINESS_OFFSET_SPAN, HEALTH_JITTER } from './create-fish.js';
 import { createRng, draw } from '../core/rng.js';
 import { FISH_SPECIES_DATA } from './species.js';
+import { livestockDefaults } from '../config/livestock.js';
 
 describe('fishMassForAge', () => {
   it('gives adult mass for adults regardless of age', () => {
@@ -33,47 +34,48 @@ describe('fishMassForAge', () => {
 });
 
 describe('createFish', () => {
-  it('builds a stocked adult at full mass, grown, arrival satiation', () => {
-    const fish = createFish({ species: 'angelfish', stage: 'adult', rng: createRng(1) });
+  it('builds a stocked adult at full mass, grown, with a day’s keep in its gut', () => {
+    const fish = createFish({ species: 'angelfish', stage: 'adult', rng: createRng(1), config: livestockDefaults });
     expect(fish.stage).toBe('adult');
     expect(fish.mass).toBe(FISH_SPECIES_DATA.angelfish.adultMass);
     expect(fish.age).toBe(FISH_SPECIES_DATA.angelfish.breeding.maturityAge);
-    expect(fish.satiation).toBe(70);
+    expect(fish.gut).toBeCloseTo(fish.mass * livestockDefaults.maintenanceRation, 12);
     expect(fish.surplus).toBe(0);
   });
 
-  it('builds a fry small, at fry satiation', () => {
+  it('builds a fry small, with a day’s keep in its gut', () => {
     const { adultMass, breeding } = FISH_SPECIES_DATA.guppy;
-    const fish = createFish({ species: 'guppy', stage: 'fry', rng: createRng(1) });
+    const fish = createFish({ species: 'guppy', stage: 'fry', rng: createRng(1), config: livestockDefaults });
     expect(fish.stage).toBe('fry');
     expect(fish.mass).toBeCloseTo(breeding.fryMassFraction * adultMass, 10);
-    expect(fish.satiation).toBe(50);
+    expect(fish.gut).toBeCloseTo(fish.mass * livestockDefaults.maintenanceRation, 12);
     expect(fish.age).toBe(0);
   });
 
   it('takes an age a caller names over the one its stage would start at', () => {
     const rng = createRng(1);
-    expect(createFish({ species: 'guppy', age: 0, stage: 'adult', rng }).age).toBe(0);
-    expect(createFish({ species: 'guppy', age: 240, stage: 'fry', rng }).age).toBe(240);
+    expect(createFish({ species: 'guppy', age: 0, stage: 'adult', rng, config: livestockDefaults }).age).toBe(0);
+    expect(createFish({ species: 'guppy', age: 240, stage: 'fry', rng, config: livestockDefaults }).age).toBe(240);
   });
 
   it('takes an explicit sex instead of sampling one', () => {
     const rng = createRng(12345);
     for (let i = 0; i < 100; i++) {
-      expect(createFish({ species: 'guppy', age: 0, stage: 'adult', sex: 'female', rng }).sex).toBe(
+      expect(createFish({ species: 'guppy', age: 0, stage: 'adult', sex: 'female', rng, config: livestockDefaults }).sex).toBe(
         'female'
       );
     }
   });
 
   it('draws the same stream whether or not it was given a sex', () => {
-    const sampled = createFish({ species: 'guppy', age: 0, stage: 'adult', rng: createRng(3) });
+    const sampled = createFish({ species: 'guppy', age: 0, stage: 'adult', rng: createRng(3), config: livestockDefaults });
     const named = createFish({
       species: 'guppy',
       age: 0,
       stage: 'adult',
       sex: 'male',
       rng: createRng(3),
+      config: livestockDefaults,
     });
 
     expect(named.hardinessOffset).toBe(sampled.hardinessOffset);
@@ -83,8 +85,8 @@ describe('createFish', () => {
   it('leaves the stream where the next fish expects it', () => {
     const build = (sex?: 'male' | 'female'): { fish: ReturnType<typeof createFish>; at: number } => {
       const rng = createRng(3);
-      createFish({ species: 'guppy', age: 0, stage: 'adult', sex, rng });
-      return { fish: createFish({ species: 'guppy', age: 0, stage: 'adult', rng }), at: rng.counter };
+      createFish({ species: 'guppy', age: 0, stage: 'adult', sex, rng, config: livestockDefaults });
+      return { fish: createFish({ species: 'guppy', age: 0, stage: 'adult', rng, config: livestockDefaults }), at: rng.counter };
     };
     const after = build();
     const afterNamed = build('female');
@@ -97,7 +99,7 @@ describe('createFish', () => {
     const rng = createRng(999);
     const maxAbs = HARDINESS_OFFSET_SPAN * FISH_SPECIES_DATA.neon_tetra.hardiness;
     for (let i = 0; i < 500; i++) {
-      const f = createFish({ species: 'neon_tetra', age: 0, stage: 'fry', rng });
+      const f = createFish({ species: 'neon_tetra', age: 0, stage: 'fry', rng, config: livestockDefaults });
       expect(Math.abs(f.hardinessOffset)).toBeLessThanOrEqual(maxAbs + 1e-9);
     }
   });
@@ -105,7 +107,7 @@ describe('createFish', () => {
   it('keeps initial health within the jitter below full health', () => {
     const rng = createRng(7);
     for (let i = 0; i < 500; i++) {
-      const f = createFish({ species: 'guppy', age: 0, stage: 'adult', rng });
+      const f = createFish({ species: 'guppy', age: 0, stage: 'adult', rng, config: livestockDefaults });
       expect(f.health).toBeGreaterThanOrEqual(100 - HEALTH_JITTER);
       expect(f.health).toBeLessThanOrEqual(100);
     }
@@ -119,7 +121,7 @@ describe('createFish', () => {
     const healthDraw = draw(probe);
     const { hardiness } = FISH_SPECIES_DATA.neon_tetra;
 
-    const fish = createFish({ species: 'neon_tetra', age: 0, stage: 'adult', rng });
+    const fish = createFish({ species: 'neon_tetra', age: 0, stage: 'adult', rng, config: livestockDefaults });
 
     expect(fish.sex).toBe(sexDraw < 0.5 ? 'male' : 'female');
     expect(fish.hardinessOffset).toBeCloseTo(
@@ -133,14 +135,14 @@ describe('createFish', () => {
     const rng = createRng(1);
     const ids = new Set<string>();
     for (let i = 0; i < 1000; i++) {
-      ids.add(createFish({ species: 'guppy', age: 0, stage: 'adult', rng }).id);
+      ids.add(createFish({ species: 'guppy', age: 0, stage: 'adult', rng, config: livestockDefaults }).id);
     }
     expect(ids.size).toBe(1000);
   });
 
   it('builds the same fish from the same seed — another seed rerolls all but the id', () => {
     const build = (seed: number): ReturnType<typeof createFish> =>
-      createFish({ species: 'guppy', age: 0, stage: 'adult', rng: createRng(seed) });
+      createFish({ species: 'guppy', age: 0, stage: 'adult', rng: createRng(seed), config: livestockDefaults });
 
     expect(build(11)).toEqual(build(11));
     expect(build(11)).not.toEqual(build(12));

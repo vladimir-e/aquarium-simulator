@@ -16,6 +16,7 @@ import {
   canRootTab,
   coverage,
   getPlantsToTrimCount,
+  maintenance,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
   placeShare,
@@ -176,15 +177,13 @@ function headroom(state: SimulationState): number {
 }
 
 /**
- * Grams that hold the roster's satiation level for a day: what a day's decay
- * costs, priced by the engine's own intake rule. A ration, not a projection —
- * the fish can only swallow an hour's worth at a time, which is why the rest of
- * a big feed shows up in the preview as food left standing in the water.
+ * Grams that hold the roster for a day: what every fish must digest to keep
+ * its condition. A ration, not a projection — a fish swallows no more than its
+ * gut holds, which is why the rest of a big feed shows up in the preview as
+ * food left standing in the water.
  */
 function dailyRation(state: SimulationState, config: TunableConfig): number {
-  const { baseFoodRate, satiationDecayRate } = config.livestock;
-  const dayOfDecay = Math.min(100, satiationDecayRate * 24) / 100;
-  return state.fish.reduce((total, fish) => total + dayOfDecay * fish.mass * baseFoodRate, 0);
+  return state.fish.reduce((total, fish) => total + 24 * maintenance(fish, config.livestock), 0);
 }
 
 /** A ration that outlasts a month says so rather than counting the years. */
@@ -474,7 +473,7 @@ function meta(
       const mouths =
         state.fish.length === 0
           ? 'no fish to feed'
-          : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'eats' : 'eat'} ${grams(dailyRation(state, config))} a day`;
+          : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'needs' : 'need'} ${grams(dailyRation(state, config))} a day`;
       return state.resources.food > 0
         ? `${mouths} · ${grams(state.resources.food)} still in the water`
         : mouths;

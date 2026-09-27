@@ -27,6 +27,7 @@ import {
 } from '../livestock/tolerance.js';
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { plantRecord } from '../tests/plant.js';
+import { maintenance, nourishment } from './digestion.js';
 
 const STRESSORS = [
   'temperature',
@@ -35,7 +36,7 @@ const STRESSORS = [
   'ammonia',
   'nitrite',
   'nitrate',
-  'satiation',
+  'hunger',
   'oxygen',
   'waterLevel',
   'flow',
@@ -57,7 +58,7 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     mass: 0.5,
     health: 100,
     age: 0,
-    satiation: 87,
+    gut: 0,
     sex: 'male',
     stage: 'adult',
     hardinessOffset: 0,
@@ -103,17 +104,29 @@ function makePlant(overrides: Partial<Plant> = {}): Plant {
   });
 }
 
+const NEED = maintenance(makeFish(), livestockDefaults);
+/** A fish digesting three times its maintenance ration, and the share of its benefits that earns. */
+const FED = 3 * NEED;
+const EARNING = nourishment(FED, NEED);
+
 function vitality(
   fish: Partial<Fish> = {},
   resources: ResourceOverrides = {},
-  { plants = [], water = resources.water ?? 100, capacity = 100, config = livestockDefaults } = {} as {
+  {
+    plants = [],
+    water = resources.water ?? 100,
+    capacity = 100,
+    config = livestockDefaults,
+    digested = FED,
+  } = {} as {
     plants?: Plant[];
     water?: number;
     capacity?: number;
     config?: typeof livestockDefaults;
+    digested?: number;
   }
 ): VitalityResult {
-  return computeFishVitality(makeFish(fish), makeResources(resources), plants, water, capacity, config);
+  return computeFishVitality(makeFish(fish), makeResources(resources), plants, water, capacity, config, digested);
 }
 
 function health(
@@ -121,7 +134,7 @@ function health(
   resources: ResourceOverrides = {},
   plants: Plant[] = []
 ): ReturnType<typeof processHealth> {
-  return processHealth(fish, makeResources(resources), plants, 100, 100, livestockDefaults);
+  return processHealth(fish, makeResources(resources), plants, 100, 100, livestockDefaults, fish.map(() => FED));
 }
 
 interface Circulating {
@@ -148,12 +161,17 @@ describe('stressors', () => {
     ['ammonia', { ammonia: 2000 }, {}],
     ['nitrite', { nitrite: 100 }, {}],
     ['nitrate', { nitrate: 20000 }, {}],
-    ['satiation', {}, { satiation: 20 }],
     ['oxygen', { oxygen: 2 }, {}],
   ])('isolates %s stress to its own key', (key, resources, fish) => {
     const v = vitality(fish, resources);
     expect(stressorAmount(v, key)).toBeGreaterThan(0);
     expect(totalStress(v)).toBeCloseTo(stressorAmount(v, key), 10);
+  });
+
+  it('isolates hunger stress to its own key', () => {
+    const v = vitality({}, {}, { digested: NEED / 2 });
+    expect(stressorAmount(v, 'hunger')).toBeGreaterThan(0);
+    expect(totalStress(v)).toBeCloseTo(stressorAmount(v, 'hunger'), 10);
   });
 
   it('charges water level on a low tank', () => {
@@ -183,7 +201,7 @@ describe('stressors', () => {
 
   it('sums every active stressor into the total', () => {
     const v = vitality(
-      { satiation: 20 },
+      {},
       {
         temperature: 18,
         ph: 8.5,
@@ -194,7 +212,8 @@ describe('stressors', () => {
         oxygen: 2,
         water: 30,
         flow: 600,
-      }
+      },
+      { digested: 0 }
     );
     for (const key of STRESSORS) expect(stressorAmount(v, key)).toBeGreaterThan(0);
     const handSum = STRESSORS.reduce((sum, key) => sum + stressorAmount(v, key), 0);
@@ -254,7 +273,7 @@ describe('water quality', () => {
 
   it('raises the oxygen benefit from nothing at the edge to full at comfort', () => {
     const benefit = (oxygen: number): number => benefitAmount(vitality({}, { oxygen }), 'oxygen');
-    const peak = livestockDefaults.oxygenBenefitPeak;
+    const peak = EARNING * livestockDefaults.oxygenBenefitPeak;
     expect(benefit(OXYGEN_EDGE * 0.9)).toBe(0);
     expect(benefit(OXYGEN_EDGE)).toBe(0);
     expect(benefit(Math.sqrt(OXYGEN_EDGE * OXYGEN_COMFORT))).toBeCloseTo(peak / 2, 10);
@@ -272,9 +291,7 @@ describe('water quality', () => {
     key === 'oxygen' ? edge / factor : edge * factor;
 
   const budget = (key: string): number =>
-    livestockDefaults.phBenefitPeak +
-    livestockDefaults.satiationWellFedPeak +
-    (key === 'oxygen' ? 0 : livestockDefaults.oxygenBenefitPeak);
+    EARNING * (livestockDefaults.phBenefitPeak + (key === 'oxygen' ? 0 : livestockDefaults.oxygenBenefitPeak));
 
   it.each(channels)('breaks a fish even on %s where its charge meets the clean-tank budget', (key, edge, severity) => {
     const ratio = Math.exp(budget(key) / severity);
@@ -384,26 +401,32 @@ describe('flow is a turnover', () => {
   });
 });
 
-describe('satiation bands', () => {
-  it.each<[number, 'stress' | 'benefit' | 'neither', string?]>([
-    [99.5, 'stress', 'Overfed'],
-    [82, 'benefit'],
-    [60, 'neither'],
-    [30, 'stress', 'Hungry'],
-    [10, 'stress', 'Starving'],
-  ])('satiation %d → %s', (satiation, expected, label) => {
-    const v = vitality({ satiation });
-    expect(stressorAmount(v, 'satiation') > 0).toBe(expected === 'stress');
-    expect(benefitAmount(v, 'satiation') > 0).toBe(expected === 'benefit');
-    if (label) {
-      expect(v.breakdown.stressors.find((s) => s.key === 'satiation')!.label).toBe(label);
-    }
+describe('hunger', () => {
+  const hunger = (digested: number): number => stressorAmount(vitality({}, {}, { digested }), 'hunger');
+  const hardening = 1 - FISH_SPECIES_DATA.neon_tetra.hardiness;
+
+  it('starts at the maintenance ration and grows linearly to its severity on an empty gut', () => {
+    expect(hunger(2 * NEED)).toBe(0);
+    expect(hunger(NEED)).toBe(0);
+    expect(hunger(NEED / 2)).toBeCloseTo((livestockDefaults.hungerSeverity * hardening) / 2, 12);
+    expect(hunger(0)).toBeCloseTo(livestockDefaults.hungerSeverity * hardening, 12);
+  });
+});
+
+describe('nourishment', () => {
+  const benefits = (digested: number): number => vitality({}, {}, { digested }).breakdown.benefitRate;
+
+  it('earns every benefit on what the fish digested: none on nothing, half at maintenance, more on more', () => {
+    const full = benefits(FED) / EARNING;
+    expect(benefits(0)).toBe(0);
+    expect(benefits(NEED)).toBeCloseTo(full / 2, 12);
+    expect(benefits(6 * NEED)).toBeGreaterThan(benefits(FED));
   });
 
-  it('starving is steeper than hungry', () => {
-    expect(stressorAmount(vitality({ satiation: 10 }), 'satiation')).toBeGreaterThan(
-      stressorAmount(vitality({ satiation: 30 }), 'satiation')
-    );
+  it('banks more on a bigger ration', () => {
+    const banked = (digested: number): number => vitality({}, {}, { digested }).surplus;
+    expect(banked(FED)).toBeGreaterThan(banked(NEED));
+    expect(banked(0)).toBe(0);
   });
 });
 
@@ -414,7 +437,6 @@ describe('benefits', () => {
       'oxygen',
       'ph',
       'plants',
-      'satiation',
     ]);
     expect(benefitAmount(v, 'plants')).toBe(0);
   });
@@ -430,8 +452,8 @@ describe('benefits', () => {
     const earned = (ph: number): number => benefitAmount(vitality({}, { ph }), 'ph');
     expect(earned(hi)).toBe(0);
     expect(stressorAmount(vitality({}, { ph: hi }), 'ph')).toBe(0);
-    expect(earned((lo + hi) / 2)).toBeCloseTo(livestockDefaults.phBenefitPeak, 12);
-    expect(earned((lo + 3 * hi) / 4)).toBeCloseTo(0.75 * livestockDefaults.phBenefitPeak, 12);
+    expect(earned((lo + hi) / 2)).toBeCloseTo(EARNING * livestockDefaults.phBenefitPeak, 12);
+    expect(earned((lo + 3 * hi) / 4)).toBeCloseTo(0.75 * EARNING * livestockDefaults.phBenefitPeak, 12);
   });
 });
 
@@ -462,13 +484,15 @@ describe('processHealth', () => {
     expect(health([makeFish({ health: 100 })]).survivingFish[0].health).toBe(100);
   });
 
-  it('kills a fish whose health reaches 0 and leaves its body as waste', () => {
+  it('kills a fish whose health reaches 0 and leaves its body and its gut as waste', () => {
     const light = health([makeFish({ health: 1, mass: 1 })], { oxygen: 0 });
     const heavy = health([makeFish({ health: 1, mass: 2 })], { oxygen: 0 });
+    const fed = health([makeFish({ health: 1, mass: 1, gut: 0.01 })], { oxygen: 0 });
 
     expect(light.survivingFish).toHaveLength(0);
     expect(light.deadFishNames).toHaveLength(1);
     expect(heavy.deathWaste).toBeCloseTo(2 * light.deathWaste, 10);
+    expect(fed.deathWaste - light.deathWaste).toBeCloseTo(0.01, 12);
   });
 
   it('handles an empty roster', () => {

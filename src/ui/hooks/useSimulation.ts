@@ -114,6 +114,9 @@ interface UseSimulationReturn {
   updateAutoDoserEnabled: (enabled: boolean) => void;
   updateAutoDoserAmount: (amountMl: number) => void;
   updateAutoDoserSchedule: (schedule: DailySchedule) => void;
+  updateAutoFeederEnabled: (enabled: boolean) => void;
+  updateAutoFeederAmount: (grams: number) => void;
+  updateAutoFeederSchedule: (schedule: DailySchedule) => void;
   changeTankCapacity: (capacity: number) => void;
   reset: () => void;
   executeAction: (action: Action) => void;
@@ -219,6 +222,11 @@ function rebuildConfig(state: SimulationState, capacity: number): SimulationConf
       enabled: equipment.autoDoser.enabled,
       doseAmountMl: equipment.autoDoser.doseAmountMl,
       schedule: equipment.autoDoser.schedule,
+    },
+    autoFeeder: {
+      enabled: equipment.autoFeeder.enabled,
+      amount: equipment.autoFeeder.amount,
+      schedule: equipment.autoFeeder.schedule,
     },
   };
 }
@@ -829,6 +837,48 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     );
   }, []);
 
+  const updateAutoFeederEnabled = useCallback((enabled: boolean) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const feeder = draft.equipment.autoFeeder;
+        const message = enabled
+          ? `Auto feeder enabled (${feeder.amount}g at ${feeder.schedule.startHour}:00)`
+          : 'Auto feeder disabled';
+        feeder.enabled = enabled;
+        draft.logs.push(createLog(draft.tick, 'user', 'info', message));
+      })
+    );
+  }, []);
+
+  const updateAutoFeederAmount = useCallback((grams: number) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const feeder = draft.equipment.autoFeeder;
+        if (feeder.amount === grams) return;
+        draft.logs.push(createLog(draft.tick, 'user', 'info', `Auto feeder ration: ${feeder.amount}g → ${grams}g`));
+        feeder.amount = grams;
+      })
+    );
+  }, []);
+
+  const updateAutoFeederSchedule = useCallback((schedule: DailySchedule) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const feeder = draft.equipment.autoFeeder;
+        if (feeder.schedule.startHour === schedule.startHour) return;
+        draft.logs.push(
+          createLog(
+            draft.tick,
+            'user',
+            'info',
+            `Auto feeder time: ${feeder.schedule.startHour}:00 → ${schedule.startHour}:00`
+          )
+        );
+        feeder.schedule = schedule;
+      })
+    );
+  }, []);
+
   const changeTankCapacity = useCallback(
     (capacity: number) => {
       // Stop playing if currently running
@@ -905,6 +955,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     updateAutoDoserEnabled,
     updateAutoDoserAmount,
     updateAutoDoserSchedule,
+    updateAutoFeederEnabled,
+    updateAutoFeederAmount,
+    updateAutoFeederSchedule,
     changeTankCapacity,
     reset,
     executeAction,

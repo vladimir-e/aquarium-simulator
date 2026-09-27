@@ -19,6 +19,7 @@ import {
   isAirPumpUndersized,
   isScheduleActive,
   lightLoss,
+  maintenance,
   FILTER_SPECS,
   FILTER_SURFACE,
   FISH_SPECIES_DATA,
@@ -54,7 +55,7 @@ import {
   getTemperatureUnit,
   type UnitSystem,
 } from '../utils/units.js';
-import type { EquipmentId } from './devices.js';
+import { formatFeed, type EquipmentId } from './devices.js';
 import { hourLabel, scheduleRange } from './schedules.js';
 
 export interface DeviceReading {
@@ -304,6 +305,20 @@ function autoDoserReadings({ state }: DeviceReadingInput): DeviceReading[] {
   ];
 }
 
+function autoFeederReadings({ state }: DeviceReadingInput): DeviceReading[] {
+  const { autoFeeder } = state.equipment;
+  const at = hourLabel(autoFeeder.schedule.startHour);
+  const until = (autoFeeder.schedule.startHour - (state.tick % 24) + 24) % 24;
+
+  return [
+    {
+      label: 'Next feeding',
+      value: autoFeeder.enabled ? at : 'off',
+      note: !autoFeeder.enabled ? `would feed at ${at}` : until === 0 ? 'this hour' : `in ${until} h`,
+    },
+  ];
+}
+
 /** What the cycle reading rests on, in the terms a keeper tests for. */
 function cycleNote(readout: BacteriaReadout): string {
   if (readout.cycled) return 'NH₃ and NO₂ at trace, both stages keeping up';
@@ -346,6 +361,7 @@ const READINGS: Record<EquipmentId, (input: DeviceReadingInput) => DeviceReading
   co2Generator: co2Readings,
   powerhead: powerheadReadings,
   autoDoser: autoDoserReadings,
+  autoFeeder: autoFeederReadings,
   biofilter: biofilterReadings,
 };
 
@@ -460,6 +476,15 @@ export function deviceHint(
           )
         )} ppm.`
       );
+    case 'autoFeeder': {
+      const need = state.fish.reduce((sum, fish) => sum + 24 * maintenance(fish, config.livestock), 0);
+      const ration = equipment.autoFeeder.amount;
+      return muted(
+        need > 0
+          ? `A day's ration of ${formatFeed(ration)} is ${(ration / need).toFixed(1)}× what the fish need to hold condition.`
+          : 'No fish to eat it — what it drops rots in the water.'
+      );
+    }
     case 'biofilter':
       return muted(
         'Colonies grow into whatever surface the filter, substrate, hardscape and glass offer — there is nothing to set here.'

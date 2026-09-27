@@ -232,6 +232,14 @@ export {
   DOSE_AMOUNT_OPTIONS,
   type DoseAmount,
   type AutoDoser,
+  autoFeederUpdate,
+  applyAutoFeederSettings,
+  shouldFeed,
+  DEFAULT_AUTO_FEEDER,
+  FEED_AMOUNT_OPTIONS,
+  MIN_FEED_G,
+  MAX_FEED_G,
+  type AutoFeeder,
   getLightOutput,
   calculateParAtDepth,
   scheduledLightByHour,
@@ -457,14 +465,15 @@ export {
   fishMassForAge,
 } from './livestock/index.js';
 export {
-  satiationContribution,
-  classifySatiationBand,
-  classifySatiationBandPosition,
-  SATIATION_BAND_LABEL,
-  type SatiationBand,
-  type SatiationContribution,
-  type SatiationBandPosition,
-} from './systems/satiation.js';
+  gutCapacity,
+  appetite,
+  serve,
+  digestionRate,
+  digest,
+  maintenance,
+  nourishment,
+  hungerLine,
+} from './systems/digestion.js';
 
 // Vitality
 export {

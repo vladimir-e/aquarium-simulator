@@ -13,6 +13,7 @@ import {
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
 import { LEDGER_DECIMALS, readLedger, type Ledger, type LedgerTarget } from './ledger.js';
+import { FED, STARVING } from '../test/gut';
 import { printsAsZero, projectedTrend } from './status.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 
@@ -22,7 +23,7 @@ function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
     mass: 0.5,
     health: 100,
     age: 24 * 120,
-    satiation: 90,
+    gut: FED,
     sex: 'male',
     stage: 'adult',
     hardinessOffset: 0,
@@ -52,7 +53,7 @@ function fishLedger(state: SimulationState, id = 'fish_a_1', config = DEFAULT_CO
 
 describe('readLedger', () => {
   it('quotes every factor that prints at the rate the reader’s day is measured in, and no other', () => {
-    const state = tank([makeFish({ id: 'fish_a_1', satiation: 5 })], 20);
+    const state = tank([makeFish({ id: 'fish_a_1', gut: STARVING })], 20);
     const ledger = fishLedger(state);
     const { breakdown } = readHourAhead(state, DEFAULT_CONFIG).fish[0].vitality;
     const shows = (perDay: number): boolean => Number(perDay.toFixed(LEDGER_DECIMALS)) > 0;
@@ -72,7 +73,7 @@ describe('readLedger', () => {
   it('balances: what helps less what hurts is the number it prints', () => {
     for (const state of [
       tank([makeFish({ id: 'fish_a_1' })]),
-      tank([makeFish({ id: 'fish_a_1', satiation: 5 })], 20),
+      tank([makeFish({ id: 'fish_a_1', gut: STARVING })], 20),
     ]) {
       const ledger = fishLedger(state);
       expect(ledger.helps - ledger.hurts).toBeCloseTo(ledger.net, 6);
@@ -80,7 +81,7 @@ describe('readLedger', () => {
   });
 
   it('sorts each column worst-first, so the reason is the top line', () => {
-    const ledger = fishLedger(tank([makeFish({ id: 'fish_a_1', satiation: 5 })], 20));
+    const ledger = fishLedger(tank([makeFish({ id: 'fish_a_1', gut: STARVING })], 20));
     const rates = ledger.hurting.map((factor) => factor.perDay);
 
     expect(rates).toEqual([...rates].sort((a, b) => b - a));

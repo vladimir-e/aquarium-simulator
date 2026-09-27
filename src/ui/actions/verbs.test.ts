@@ -394,7 +394,7 @@ describe('the seven verbs', () => {
     const days = (state: SimulationState): number =>
       parseFloat(detail(state, 'feed').options[1].hint);
     expect(days(stocked)).toBeLessThan(days(lean));
-    expect(detail(stocked, 'feed').meta).toMatch(/^8 fish eat \d+\.\d\d g a day$/);
+    expect(detail(stocked, 'feed').meta).toMatch(/^8 fish need \d+\.\d\d g a day$/);
   });
 
   it('stops counting days once a ration would outlast the month', () => {
@@ -412,7 +412,7 @@ describe('the seven verbs', () => {
     const fry = applyAction(tank(), { type: 'addFish', species: 'neon_tetra' }).state;
     const tiny = { ...fry, fish: fry.fish.map((fish) => ({ ...fish, mass: 0.001 })) };
 
-    expect(detail(tiny, 'feed').meta).toBe('1 fish eats under 0.01 g a day');
+    expect(detail(tiny, 'feed').meta).toBe('1 fish needs under 0.01 g a day');
   });
 
   it('names the food already standing in the water, which left Livestock with the verb', () => {

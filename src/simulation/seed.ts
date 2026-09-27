@@ -16,7 +16,8 @@ import {
 } from './equipment/substrate.js';
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
-import { processMetabolism } from './systems/metabolism.js';
+import { excretion } from './systems/metabolism.js';
+import { maintenance } from './systems/digestion.js';
 import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
 import { mapNutrients, nutrientsDefaults, type NutrientVector } from './config/nutrients.js';
@@ -136,25 +137,17 @@ type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
 
 /**
  * mg of ammonia a tick the tank's stock and bed put into the water at rest:
- * every fish fed to satiety, and the bed leaching what it holds. All the waste
- * either one makes is mineralised in the end, whether or not it settles on the
- * way. Food fed past satiety is left out — the engine has no ration to size it
- * by — so under a keeper whose surplus rots in the water the colony errs small
- * and grows on from the seed.
+ * every fish digesting its maintenance ration, and the bed leaching what it
+ * holds. All the waste either one makes is mineralised in the end, whether or
+ * not it settles on the way. Food fed past maintenance is left out — the
+ * engine has no ration to size it by — so under a keeper who feeds more the
+ * colony errs small and grows on from the seed.
  */
 function restingAmmoniaSupply(state: StockedTank): number {
-  const fed = state.fish.map((fish) => ({
-    ...fish,
-    satiation: 100 - livestockDefaults.satiationDecayRate,
-  }));
-  const { ammoniaProduced, wasteProduced } = processMetabolism(
-    fed,
-    Infinity,
-    state.resources.oxygen,
-    livestockDefaults
-  );
+  const digested = state.fish.reduce((sum, fish) => sum + maintenance(fish, livestockDefaults), 0);
+  const { ammonia, waste } = excretion(digested, livestockDefaults);
   const leached = calculateSubstrateLeach(state.equipment.substrate.organicReserve, decayDefaults);
-  return ammoniaProduced + (wasteProduced + leached) * ammoniaPerGramOfFood(livestockDefaults);
+  return ammonia + (waste + leached) * ammoniaPerGramOfFood(livestockDefaults);
 }
 
 /**
@@ -329,6 +322,7 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
           stage: group.stage ?? 'adult',
           sex: group.sex,
           rng: state.rng,
+          config: livestockDefaults,
         })
       );
     }

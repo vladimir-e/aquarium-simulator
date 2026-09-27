@@ -28,9 +28,9 @@ tank has to keep earning.
 | Guild seeding | <Badge text="settled" variant="success" /> | A trickle per litre of water that never stops, so a guild is always present and grows the moment it has feedstock — no concentration gate. |
 | Mineralization rate | <Badge text="scaffolding" variant="caution" /> | A flat fraction of standing waste with no temperature and no oxygen term, in the one aerobic step of the chain that has neither. |
 | Ammonia's other consumers | <Badge text="settled" variant="success" /> | Plants and the blooms take ammonia as they grow, from what the colony left; the colony works on what they leave and the hour's arrivals. |
-| N mass conservation | <Badge text="scaffolding" variant="caution" /> | Water, organics, plant and bloom tissue and the bed's store conserve N per atom, whichever form tissue took it in. A hypoxic fish's undeaminated N is the one untracked sink. |
+| N mass conservation | <Badge text="scaffolding" variant="caution" /> | Water, organics — fish guts included — plant and bloom tissue and the bed's store conserve N per atom, whichever form tissue took it in. A fish's body is outside the ledger, so the share of it that becomes waste at death enters from nowhere. |
 | Colony sizing on inert beds | <Badge text="settled" variant="success" /> | A colony grows to the load it is fed, not to the surface under it, so an inert bed's smaller surface lowers the ceiling without setting the cycling clock. |
-| Cycled seed | <Badge text="settled" variant="success" /> | A `'cycled'` colony is the one the tank's load sustains at rest — its fish fed to satiety and its bed's leach — floored at a fishless month's share of the surface ceiling. A seeded colony already clears its resting load at the trace line, so a stocked setup opens without a spike; food fed past satiety is outside that load, so an overfed tank's colony grows on from the seed. |
+| Cycled seed | <Badge text="settled" variant="success" /> | A `'cycled'` colony is the one the tank's load sustains at rest — its fish digesting their maintenance ration and its bed's leach — floored at a fishless month's share of the surface ceiling. A seeded colony already clears its resting load at the trace line, so a stocked setup opens without a spike; food fed past maintenance is outside that load, so an overfed tank's colony grows on from the seed. |
 | Nitrogen alerts | <Badge text="settled" variant="success" /> | Free NH₃, nitrite and nitrate alert at the shared `*_EDGE`s, the lines every fish's own edge is read off. |
 | Bed disturbance | <Badge text="scaffolding" variant="caution" /> | Lifting hardscape stirs one slot's share of the bed per piece, and uprooting a plant its own patch: that share of the reserve comes loose as waste and its biofilm is scraped off. The bed holds only about a day of the tank's waste, so a rescape shows as a small, short blip. |
 | Denitrification | <Badge text="missing" variant="danger" /> | Nitrate has no biological sink. It leaves only through plant growth and water changes, so an unplanted tank accumulates it without bound. |
@@ -258,8 +258,8 @@ shows more. An inert bed leaches less than soil does, so its colony grows to a
 smaller load, but it cycles on the same seeding clock. A `'cycled'` seed skips
 the clock: each guild opens at the population where growth on its resting load
 meets decay, never below a fishless month's share of the ceiling. That load
-counts what the fish eat, not food fed past satiety, so a tank whose keeper
-overfeeds grows its colony on from the seed.
+counts the fish digesting their maintenance ration, not food fed past it, so a
+tank whose keeper feeds more grows its colony on from the seed.
 
 ## Key tunables
 

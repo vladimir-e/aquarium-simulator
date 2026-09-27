@@ -1,17 +1,16 @@
 /**
  * Livestock grouping: fold the flat fish array into species rows and fry
- * batches, map satiation bands onto the shared status vocabulary, resolve what
- * each fish's vitality is doing to it, and lay the roster out as the flat row
- * list the table renders.
+ * batches, map how full each gut is onto the shared status vocabulary, resolve
+ * what each fish's vitality is doing to it, and lay the roster out as the flat
+ * row list the table renders.
  */
 
 import {
   FISH_SPECIES_DATA,
-  SATIATION_BAND_LABEL,
-  classifySatiationBandPosition,
+  gutCapacity,
+  hungerLine,
   type Fish,
   type FishSpecies,
-  type SatiationBand,
   type SimulationState,
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
@@ -21,24 +20,27 @@ import { groupReading, vitalReading, worstReading, type Reading, type Status } f
 import { groupBy, mean, numbered } from './fold.js';
 import type { ReadingBand } from './water.js';
 
-/** Hungry and starving are the two bands that count toward "N hungry". */
-export function isHungryBand(band: SatiationBand): boolean {
-  return band === 'hungry' || band === 'starving';
+/** Fed over the hunger line; hungry under it; starving under a quarter of it, where hunger charges most of its peak. */
+export type GutBand = 'fed' | 'hungry' | 'starving';
+
+const GUT_BAND_LABEL: Record<GutBand, string> = { fed: 'fed', hungry: 'hungry', starving: 'starving' };
+
+/** Share of a full gut a fish holds. */
+export function gutFullness(fish: Fish, config: LivestockConfig): number {
+  const capacity = gutCapacity(fish, config);
+  return capacity > 0 ? fish.gut / capacity : 0;
 }
 
-export function bandOf(satiation: number, config: LivestockConfig): SatiationBand {
-  return classifySatiationBandPosition(satiation, config).band;
+export function bandOf(fullness: number, config: LivestockConfig): GutBand {
+  const line = hungerLine(config);
+  if (fullness >= line) return 'fed';
+  return fullness >= line / 4 ? 'hungry' : 'starving';
 }
 
-/** Satiation band → bar/status colour. Overfed and hungry both warn; only
- *  starving is an alert, and peckish is the calm middle. */
-export function bandStatus(band: SatiationBand): Status {
+export function bandStatus(band: GutBand): Status {
   switch (band) {
-    case 'wellFed':
+    case 'fed':
       return 'ok';
-    case 'peckish':
-      return 'neutral';
-    case 'overfed':
     case 'hungry':
       return 'warn';
     case 'starving':
@@ -49,7 +51,7 @@ export function bandStatus(band: SatiationBand): Status {
 export interface Hunger {
   count: number;
   /** The worst band among those counted — a group is as urgent as its worst fish. */
-  band: SatiationBand;
+  band: GutBand;
 }
 
 /** Hunger across any set of fish — a species group, a fry batch, the whole tank. */
@@ -57,8 +59,8 @@ export function hungerOf(fish: Fish[], config: LivestockConfig): Hunger | null {
   let count = 0;
   let starving = false;
   for (const f of fish) {
-    const band = bandOf(f.satiation, config);
-    if (!isHungryBand(band)) continue;
+    const band = bandOf(gutFullness(f, config), config);
+    if (band === 'fed') continue;
     count++;
     if (band === 'starving') starving = true;
   }
@@ -69,33 +71,30 @@ export function countFry(fish: Fish[]): number {
   return fish.reduce((n, f) => n + (f.stage === 'fry' ? 1 : 0), 0);
 }
 
-/** Satiation, where the row belongs to something that eats. */
-export interface Satiation extends Reading {
+/** How full a gut is, where the row belongs to something that eats. */
+export interface Gut extends Reading {
   at: number;
   band: ReadingBand;
 }
 
-/** A satiation on its track, between the hungry ceiling and the overfed floor. */
-export function fishSatiation(satiation: number, config: LivestockConfig): Satiation {
-  const band = bandOf(satiation, config);
+/** A gut on its track, fed from the hunger line up. */
+export function fishGut(fullness: number, config: LivestockConfig): Gut {
+  const band = bandOf(fullness, config);
   return {
-    at: satiation / 100,
-    band: {
-      from: config.satiationHungryCeiling / 100,
-      to: config.satiationOverfedFloor / 100,
-    },
+    at: fullness,
+    band: { from: hungerLine(config), to: 1 },
     status: bandStatus(band),
-    word: SATIATION_BAND_LABEL[band].toLowerCase(),
+    word: GUT_BAND_LABEL[band],
   };
 }
 
 /**
  * How one fish reads, across every channel it keeps: its vital reading, and
- * how recently it ate. One definition, so the roster row and the ledger header
+ * how full its gut is. One definition, so the roster row and the ledger header
  * carry one word.
  */
 export function fishReading(fish: Fish, vital: Reading, config: LivestockConfig): Reading {
-  const { status, word } = fishSatiation(fish.satiation, config);
+  const { status, word } = fishGut(gutFullness(fish, config), config);
   return worstReading(vital, { status, word });
 }
 
@@ -149,7 +148,7 @@ export function readFish(state: SimulationState, config: TunableConfig, ahead: H
 
 /**
  * The columns the table prints for one fish or one group. A group carries its
- * *total* mass against *average* age, satiation and condition — mass is the
+ * *total* mass against *average* age, gut and condition — mass is the
  * only figure that sums, because it is the only one bioload is made of.
  */
 export interface RosterFigures {
@@ -157,8 +156,9 @@ export interface RosterFigures {
   massG: number;
   /** Whole days lived, from the engine's tick-hours. */
   ageDays: number;
-  satiation: number;
-  band: SatiationBand;
+  /** Share of a full gut, averaged over a group. */
+  fullness: number;
+  band: GutBand;
   /** `Fish.health` on the 0–100 vitality axis. */
   condition: number;
 }
@@ -184,13 +184,13 @@ export interface FryBatch extends RosterGroup {
 
 function groupFigures(members: FishRead[], config: LivestockConfig): RosterGroup {
   const group = members.map((member) => member.fish);
-  const satiation = mean(group.map((f) => f.satiation));
+  const fullness = mean(group.map((f) => gutFullness(f, config)));
   return {
     count: group.length,
     massG: group.reduce((sum, f) => sum + f.mass, 0),
     ageDays: Math.floor(mean(group.map((f) => f.age)) / 24),
-    satiation,
-    band: bandOf(satiation, config),
+    fullness,
+    band: bandOf(fullness, config),
     condition: mean(group.map((f) => f.health)),
     hunger: hungerOf(group, config),
     reading: groupReading(members),

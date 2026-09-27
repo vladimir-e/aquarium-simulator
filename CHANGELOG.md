@@ -11,6 +11,8 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Feeding is income: the gut** - food fills a gut that digests over hours, slower cold and short of oxygen; what it digests earns every benefit and banks past maintenance, and a meal's ammonia and feces leave as it digests; short food is split by appetite; breaking: `Fish.gut` replaces `satiation`, no overfed or well-fed bands, `processMetabolism` takes the water, `computeFishVitality`/`processHealth` take what was digested, `createFish`/`addFish` take the livestock config (v34).
+- **Auto feeder** - a daily ration dropped at a set hour; `Equipment.autoFeeder` (v34).
 - **Actions settle the passive readings** (#73) - a verb re-reads light, flow, surface and aeration off the tank it leaves, and hosts settle after writing equipment or optics; breaking: `settlePassiveResources` replaces `relight`.
 - **Nitrogen moves KH by its charge** (#73) - minted ammonia takes up a proton, so the cycle drains KH half as fast, and a cycled seed's KH pays for its nitrate while it lasts.
 - **Flora take ammonia before nitrate** (#73) - plants and the blooms take their nitrogen as ammonia before nitrate, moving KH as they do; breaking: pools and `halfSaturation` are per form, `formShares` replaces `nutrientShares` (v33).

@@ -20,6 +20,11 @@ import {
 } from '../utils/units.js';
 import { hourLabel, scheduleRange } from './schedules.js';
 
+/** A feeder's ration, in grams. */
+export function formatFeed(grams: number): string {
+  return `${grams.toFixed(2)} g`;
+}
+
 /** The configurable devices, in list order. */
 export type DeviceId =
   | 'filter'
@@ -29,9 +34,10 @@ export type DeviceId =
   | 'ato'
   | 'co2Generator'
   | 'powerhead'
-  | 'autoDoser';
+  | 'autoDoser'
+  | 'autoFeeder';
 
-/** A list entry: the eight devices plus the biofilter, which is derived. */
+/** A list entry: the nine devices plus the biofilter, which is derived. */
 export type EquipmentId = DeviceId | 'biofilter';
 
 export interface DeviceRow {
@@ -59,6 +65,7 @@ export const DEVICE_ORDER: DeviceId[] = [
   'co2Generator',
   'powerhead',
   'autoDoser',
+  'autoFeeder',
 ];
 
 const DEVICE_NAME: Record<DeviceId, string> = {
@@ -70,6 +77,7 @@ const DEVICE_NAME: Record<DeviceId, string> = {
   co2Generator: 'CO₂ injector',
   powerhead: 'Powerhead',
   autoDoser: 'Auto doser',
+  autoFeeder: 'Auto feeder',
 };
 
 /** The filter in prose, for the one place that offers the choice. */
@@ -122,6 +130,10 @@ function deviceSummary(id: DeviceId, state: SimulationState, units: UnitSystem):
       return d.enabled
         ? `${d.doseAmountMl.toFixed(1)} ml · ${hourLabel(d.schedule.startHour)}`
         : 'off';
+    }
+    case 'autoFeeder': {
+      const f = equipment.autoFeeder;
+      return f.enabled ? `${formatFeed(f.amount)} · ${hourLabel(f.schedule.startHour)}` : 'off';
     }
   }
 }

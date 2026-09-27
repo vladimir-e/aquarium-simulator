@@ -9,6 +9,7 @@
  */
 
 import type { Fish } from '../state.js';
+import type { LivestockConfig } from '../config/livestock.js';
 import { draw, drawId, type RngState } from '../core/rng.js';
 import type { FishSex, FishSpecies, FishLifeStage } from './species.js';
 import { FISH_SPECIES_DATA } from './species.js';
@@ -17,10 +18,6 @@ import { FISH_SPECIES_DATA } from './species.js';
 export const HARDINESS_OFFSET_SPAN = 0.15;
 /** Initial health jitter span (± points around 100). */
 export const HEALTH_JITTER = 5;
-/** Satiation a stocked adult arrives at (peckish — see `addFish`). */
-const ADULT_ARRIVAL_SATIATION = 70;
-/** Satiation a newborn fry starts at (peckish, no immediate stress). */
-const FRY_START_SATIATION = 50;
 
 /**
  * Body mass for a fish of the given stage and age. Adults sit at
@@ -51,15 +48,18 @@ export interface CreateFishParams {
   sex?: FishSex;
   /** The tank's draw stream — both the variation and the id come off it. */
   rng: RngState;
+  config: LivestockConfig;
 }
 
 /**
  * Build a fish with sampled individual variation. Mass is derived from
  * `stage` and `age` via {@link fishMassForAge}; an adult is full mass at
- * any age, a fry starts small and grows.
+ * any age, a fry starts small and grows. Every fish enters the tank with a
+ * day's maintenance ration in its gut — a bought one from the shop, a fry on
+ * its yolk.
  */
 export function createFish(params: CreateFishParams): Fish {
-  const { species, stage, rng } = params;
+  const { species, stage, rng, config } = params;
   const data = FISH_SPECIES_DATA[species];
   const age = params.age ?? (stage === 'adult' ? data.breeding.maturityAge : 0);
 
@@ -70,13 +70,15 @@ export function createFish(params: CreateFishParams): Fish {
   const hardinessOffset = (draw(rng) - 0.5) * 2 * HARDINESS_OFFSET_SPAN * data.hardiness;
   const health = Math.max(0, Math.min(100, 100 + (draw(rng) - 0.5) * 2 * HEALTH_JITTER));
 
+  const mass = fishMassForAge(species, age, stage);
+
   return {
     id: drawId(rng, 'fish'),
     species,
-    mass: fishMassForAge(species, age, stage),
+    mass,
     health,
     age,
-    satiation: stage === 'adult' ? ADULT_ARRIVAL_SATIATION : FRY_START_SATIATION,
+    gut: mass * config.maintenanceRation,
     sex,
     stage,
     hardinessOffset,

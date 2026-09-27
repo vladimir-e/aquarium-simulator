@@ -7,6 +7,7 @@ import { readHourAhead } from './ahead.js';
 import { groupBySpecies, groupFry, readFish } from './livestock.js';
 import { groupPlantsBySpecies, plantRows } from './flora.js';
 import { readLedger } from './ledger.js';
+import { FED, HUNGRY, STARVING } from '../test/gut';
 import { groupReading, worstMember, type Member } from './status.js';
 import {
   inspection,
@@ -26,7 +27,7 @@ function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
     mass: 0.5,
     health: 100,
     age: 24 * 120,
-    satiation: 90,
+    gut: FED,
     sex: 'male',
     stage: 'adult',
     hardinessOffset: 0,
@@ -65,8 +66,8 @@ function tables(
 }
 
 const roster = [
-  makeFish({ id: 'fish_a_1', species: 'neon_tetra', satiation: 80 }),
-  makeFish({ id: 'fish_a_2', species: 'neon_tetra', satiation: 40, sex: 'female' }),
+  makeFish({ id: 'fish_a_1', species: 'neon_tetra' }),
+  makeFish({ id: 'fish_a_2', species: 'neon_tetra', gut: HUNGRY, sex: 'female' }),
   makeFish({ id: 'fish_a_3', species: 'corydoras', mass: 4 }),
 ];
 
@@ -126,7 +127,7 @@ describe('rosterTables', () => {
   });
 
   it('reads a fish by its worst channel, so a full-condition fish can still be hungry', () => {
-    const starving = tables(tank([makeFish({ id: 'fish_a_1', satiation: 5 })]), ['species-neon_tetra']);
+    const starving = tables(tank([makeFish({ id: 'fish_a_1', gut: STARVING })]), ['species-neon_tetra']);
     const individual = starving.fish[1] as IndividualRosterRow;
 
     expect(individual.at).toBe(1);
@@ -198,15 +199,15 @@ describe('rosterTables', () => {
   it('reads a group by its hungry members, even at full condition', () => {
     const banked = { surplus: livestockDefaults.surplusCap };
     const hungry = [
-      makeFish({ id: 'fish_a_1', satiation: 90, ...banked }),
-      makeFish({ id: 'fish_a_2', satiation: 40, ...banked }),
-      makeFish({ id: 'fish_a_3', satiation: 30, ...banked }),
+      makeFish({ id: 'fish_a_1', ...banked }),
+      makeFish({ id: 'fish_a_2', gut: HUNGRY, ...banked }),
+      makeFish({ id: 'fish_a_3', gut: HUNGRY, ...banked }),
     ];
     const [group] = tables(tank(hungry), [], HEALED).fish as SpeciesRosterRow[];
 
     expect(group.status).toBe('warn');
     expect(group.word).toBe('2 hungry');
-    expect(group.satiation!.word).toBe('2 hungry');
+    expect(group.gut!.word).toBe('2 hungry');
   });
 
   it('counts the members whose damage outruns their healing', () => {
@@ -223,19 +224,6 @@ describe('rosterTables', () => {
 
     expect(group.status).toBe('warn');
     expect(group.word).toBe('2 sick');
-  });
-
-  it('counts the overfed members the way it counts the hungry', () => {
-    const banked = { satiation: 100, surplus: livestockDefaults.surplusCap };
-    const fed = [
-      makeFish({ id: 'fish_a_1', ...banked }),
-      makeFish({ id: 'fish_a_2', ...banked }),
-      makeFish({ id: 'fish_a_3', ...banked }),
-    ];
-    const [group] = tables(tank(fed), [], HEALED).fish as SpeciesRosterRow[];
-
-    expect(group.dots).toEqual(['warn', 'warn', 'warn']);
-    expect(group).toMatchObject({ status: 'warn', word: '3 overfed' });
   });
 
   it('reads both tables by the one group rule, and opens the member it names', () => {

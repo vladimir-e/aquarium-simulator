@@ -14,7 +14,7 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     mass: 0.5,
     health: 100,
     age: 0,
-    satiation: 50,
+    gut: 0.01,
     sex: 'male',
     stage: 'adult',
     hardinessOffset: 0,
@@ -42,7 +42,7 @@ describe('processLivestock', () => {
   });
 
   it('processes metabolism: food consumed, waste and gill NH3 produced', () => {
-    const state = makeState([makeFish({ satiation: 50, mass: 1.0 })]);
+    const state = makeState([makeFish({ mass: 1.0 })]);
     const result = processLivestock(state, DEFAULT_CONFIG);
 
     const foodEffect = result.effects.find((e) => e.resource === 'food');
@@ -83,9 +83,9 @@ describe('processLivestock', () => {
   });
 
   it('excretes the minerals of the absorbed food beside the gill NH3', () => {
-    const state = makeState([makeFish({ satiation: 50, mass: 1.0 })]);
+    const state = makeState([makeFish({ mass: 1.0 })]);
     const result = processLivestock(state, DEFAULT_CONFIG);
-    const eaten = -result.effects.find((e) => e.resource === 'food')!.delta;
+    const eaten = result.metabolism.digested[0];
 
     for (const nutrient of WASTE_NUTRIENTS) {
       const excreted = result.effects.find(
@@ -111,12 +111,12 @@ describe('processLivestock', () => {
     expect(co2Effect!.delta).toBeGreaterThan(0);
   });
 
-  it('updates fish satiation and age', () => {
-    const state = makeState([makeFish({ satiation: 20, age: 100 })]);
+  it("moves each fish's gut and age on", () => {
+    const state = makeState([makeFish({ gut: 0.001, age: 100 })]);
     const result = processLivestock(state, DEFAULT_CONFIG);
 
     expect(result.state.fish[0].age).toBe(101);
-    expect(result.state.fish[0].satiation).not.toBe(20);
+    expect(result.state.fish[0].gut).toBeGreaterThan(0.001);
   });
 
   it('removes dead fish and logs death', () => {

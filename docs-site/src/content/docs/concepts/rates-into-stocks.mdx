@@ -65,26 +65,10 @@ have been written to do.
 | Q10 | `q10 ^ ((T − Tref) / 10)` | Temperature, on anything enzymatic |
 | Jassby–Platt | `tanh(PAR / Ik)` | Light. Nothing can overdraw it, so the curve comes from the leaf rather than from the pool |
 | Beer–Lambert | `exp(−k × x)` | Light on its way down, `x` the water or the leaf area above — so depth and a canopy share one exponent |
-| Piecewise anchors | Linear ramps between named points, continuous at every crossing | A tolerance axis, where the real response has inflections but no cliffs |
+| First order | `1 − e^−k` of the stock over the hour | A stock drained in proportion to itself — a gut digesting, a bank healing |
+| Shortfall | `max(0, 1 − x / edge)` | A need short of its edge — a fish digesting under its maintenance ration, a plant under its nutrient sufficiency |
 | Band comfort | Symmetric parabola `4(x − lo)(hi − x) / (hi − lo)²` | The in-band benefit of a tolerance band — full at the centre, zero at each edge where the band's damage starts |
 | Log dose | `ln(x / edge)` past an edge, or `ln((edge + a) / (x + a))` under one, the offset `a` keeping it finite at zero | A toxin, where every doubling costs the same, or a shortfall like oxygen's — and, between two anchors, the fish O₂ benefit |
-
-## The canonical curve
-
-Satiation is the pattern everything else is measured against. A fish's hunger
-axis carries five labelled bands — overfed, well fed, peckish, hungry, starving —
-but the labels sit on one continuous piecewise-linear curve rather than on
-branches. Three of the four boundaries are zero crossings; the fourth, from
-hungry into starving, hands the hungry ramp's own value to the steeper slope
-that continues it. What a fish never crosses is a step.
-
-One curve produces both sides of the ledger. Above the neutral zone it emits a
-benefit that peaks mid-band and returns to zero at both edges; below it, a
-stressor that steepens as the fish starves. The band is a display label; what the
-vitality engine reads is the curve's value.
-
-The shape is already in the repo. A mechanic that needs a smooth response copies
-it rather than inventing one again.
 
 ## Switches, and what only looks like one
 

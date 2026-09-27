@@ -52,7 +52,7 @@ export function processBreeding(
 
   const newState = produce(state, (draft) => {
     growAndMatureFry(draft.fish);
-    hatchClutches(draft);
+    hatchClutches(draft, livestockConfig);
     spawn(draft, livestockConfig);
   });
 
@@ -78,7 +78,7 @@ function growAndMatureFry(fish: Fish[]): void {
 }
 
 /** Hatch every clutch that has reached its hatch time into fry. */
-function hatchClutches(draft: SimulationState): void {
+function hatchClutches(draft: SimulationState, config: LivestockConfig): void {
   if (draft.clutches.length === 0) return;
 
   const remaining: Clutch[] = [];
@@ -89,7 +89,7 @@ function hatchClutches(draft: SimulationState): void {
       continue;
     }
     for (let i = 0; i < clutch.eggCount; i++) {
-      draft.fish.push(createFish({ species: clutch.species, stage: 'fry', rng: draft.rng }));
+      draft.fish.push(createFish({ species: clutch.species, stage: 'fry', rng: draft.rng, config }));
     }
     draft.logs.push(
       createLog(
@@ -130,7 +130,7 @@ function spawn(draft: SimulationState, config: LivestockConfig): void {
 
       if (breeding.mode === 'livebearer') {
         for (let i = 0; i < breeding.clutchSize; i++) {
-          draft.fish.push(createFish({ species, stage: 'fry', rng: draft.rng }));
+          draft.fish.push(createFish({ species, stage: 'fry', rng: draft.rng, config }));
         }
         draft.logs.push(
           createLog(

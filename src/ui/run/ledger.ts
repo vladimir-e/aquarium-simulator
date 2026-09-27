@@ -28,7 +28,7 @@ import { COVERAGE_DECIMALS } from '../utils/units.js';
 import type { HourAhead } from './ahead.js';
 import { algaeReading, lightTakenStatus, plantLabels, sharePercent, unitTitle } from './flora.js';
 import { crownBurns, lightStatus, plantLightStatus } from './light.js';
-import { fishNumbers, fishReading, fishSatiation, fishTitle, type Satiation } from './livestock.js';
+import { fishGut, fishNumbers, fishReading, fishTitle, gutFullness, type Gut } from './livestock.js';
 import { CONDITION_BAND, type SpeciesId } from './roster.js';
 import {
   bankShare,
@@ -108,7 +108,7 @@ export interface Ledger {
   band: ReadingBand | null;
   /** What the next tick does to the hero figure, per day. */
   trend: string;
-  satiation: Satiation | null;
+  gut: Gut | null;
   /** The day's light against what the organism starves under, % of that need. */
   light: LedgerRow | null;
   /** A plant's light from the lamp to its leaf. */
@@ -252,7 +252,7 @@ function fishLedger(
     at: fish.health / 100,
     band: CONDITION_BAND,
     trend: vital.trend,
-    satiation: fishSatiation(fish.satiation, livestock),
+    gut: fishGut(gutFullness(fish, livestock), livestock),
     light: null,
     lightPath: null,
     coverage: null,
@@ -316,7 +316,7 @@ function plantLedger(
     at: plant.condition / 100,
     band: CONDITION_BAND,
     trend,
-    satiation: null,
+    gut: null,
     light: lightRow(
       light.needShare,
       plantLightStatus(light, plant.species),
@@ -389,7 +389,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     at: condition / 100,
     band: CONDITION_BAND,
     trend,
-    satiation: null,
+    gut: null,
     light: lightRow(next.light.needShare, lightStatus(next.light.needShare), place.lit),
     lightPath: null,
     coverage: {

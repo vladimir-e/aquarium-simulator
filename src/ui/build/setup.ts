@@ -59,6 +59,7 @@ function presetSettings(state: SimulationState): string {
     co2: [e.co2Generator.enabled, e.co2Generator.bubbleRate, ...schedule(e.co2Generator.schedule)],
     airPump: e.airPump.enabled,
     autoDoser: [e.autoDoser.enabled, e.autoDoser.doseAmountMl, ...schedule(e.autoDoser.schedule)],
+    autoFeeder: [e.autoFeeder.enabled, e.autoFeeder.amount, ...schedule(e.autoFeeder.schedule)],
   });
 }
 

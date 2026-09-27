@@ -20,6 +20,8 @@ import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
+import type { AutoFeeder } from './equipment/auto-feeder.js';
+import { DEFAULT_AUTO_FEEDER } from './equipment/auto-feeder.js';
 import { applySeed, type PresetSeed, type TankSeed } from './seed.js';
 import { writePassiveResources } from './equipment/index.js';
 import type { AlgaeKind } from './algae/traits.js';
@@ -43,8 +45,8 @@ export interface Fish {
   health: number;
   /** Age in ticks (hours) */
   age: number;
-  /** Satiation percentage (0-100, 0=starving, 100=stuffed). */
-  satiation: number;
+  /** Grams of food in its gut, up to `gutCapacity × mass`. */
+  gut: number;
   /** Sex, used for reproduction */
   sex: FishSex;
   /**
@@ -285,6 +287,8 @@ export interface Equipment {
   airPump: AirPump;
   /** Auto doser for scheduled fertilizer dosing */
   autoDoser: AutoDoser;
+  /** Auto feeder for a scheduled daily ration */
+  autoFeeder: AutoFeeder;
 }
 
 /**
@@ -384,6 +388,8 @@ export interface SimulationConfig {
   airPump?: Partial<AirPump>;
   /** Initial auto doser configuration */
   autoDoser?: Partial<AutoDoser>;
+  /** Initial auto feeder configuration */
+  autoFeeder?: Partial<AutoFeeder>;
   /** Optics the tank will run on, which its first day of light is read through (defaults to the shipped optics) */
   optics?: OpticsConfig;
 }
@@ -502,6 +508,7 @@ export function createSimulation(
     co2Generator,
     airPump,
     autoDoser,
+    autoFeeder,
     optics,
   } = config;
 
@@ -570,6 +577,15 @@ export function createSimulation(
     },
   };
 
+  const autoFeederConfig: AutoFeeder = {
+    ...DEFAULT_AUTO_FEEDER,
+    ...autoFeeder,
+    schedule: {
+      ...DEFAULT_AUTO_FEEDER.schedule,
+      ...autoFeeder?.schedule,
+    },
+  };
+
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
   const effectiveTapWaterTemp = tapWaterTemperature ?? DEFAULT_TAP_WATER_TEMPERATURE;
   const effectiveTapKh = tapKh ?? DEFAULT_TAP_KH;
@@ -596,6 +612,7 @@ export function createSimulation(
     co2Generator: co2GeneratorConfig,
     airPump: airPumpConfig,
     autoDoser: autoDoserConfig,
+    autoFeeder: autoFeederConfig,
   };
 
   const state: SimulationState = {

@@ -97,7 +97,7 @@ describe('LifeSection (phone)', () => {
     const dropped = cells(headings)
       .filter((cell) => !onPhone(cell))
       .map((cell) => cell.textContent);
-    expect(dropped).toEqual(['mass', 'age', 'satiation']);
+    expect(dropped).toEqual(['mass', 'age', 'gut']);
   });
 
   it('still opens a row’s ledger, where there is no room to read it in the table', () => {

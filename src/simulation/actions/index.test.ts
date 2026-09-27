@@ -105,7 +105,7 @@ describe('applyAction', () => {
         mass: 0.1,
         health: 100,
         age: 0,
-        satiation: 70,
+        gut: 0,
         sex: 'female',
         stage: 'fry',
         hardinessOffset: 0,

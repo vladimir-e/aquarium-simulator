@@ -2,9 +2,10 @@
  * Livestock system tunable configuration.
  *
  * Calibration targets:
- * - Metabolism: A 1g fish consumes ~0.01g food/hr, produces proportional waste/CO2
- * - Satiation: Decays ~0.6%/hr when unfed (stuffed to fully starving in ~7 days)
- * - Health: Per-factor benefits sum to ~1%/h in ideal conditions; degrades faster under stress
+ * - Feeding: a fish eats 1–3 % of its body mass a day; a full gut clears in
+ *   about a day at 25 °C, slower cold
+ * - Health: per-factor benefits sum to ~1 %/h at full nourishment in ideal
+ *   conditions; what a fish digests scales them all
  * - Death: vitality-driven (no probabilistic check); past `maxAge` the
  *   age stressor kicks in for a smooth decline.
  */
@@ -13,9 +14,22 @@ import { MAX_SURPLUS_CAP, SURPLUS_CAP_DEFAULT } from './vitality.js';
 import { MW_N, MW_NO3, N_TO_NH3_MASS_RATIO } from '../core/chemistry.js';
 
 export interface LivestockConfig {
+  // Feeding
+  /** Grams of food a full gut holds, per gram of fish. */
+  gutCapacity: number;
+  /** First-order rate, per hour, a gut digests at the reference temperature in unlimited oxygen. */
+  digestionRate: number;
+  digestionQ10: number;
+  digestionReferenceTemp: number;
+  /**
+   * Grams of food a day, per gram of fish, a fish must digest to hold its
+   * condition: its income runs at half rate there, and hunger harms it below.
+   */
+  maintenanceRation: number;
+  /** Hunger damage at an empty gut, %/h before hardiness. */
+  hungerSeverity: number;
+
   // Metabolism
-  /** Base food consumption rate per gram of fish mass per hour */
-  baseFoodRate: number;
   /**
    * Base oxygen consumption rate per gram of fish mass per hour (mg O2).
    *
@@ -55,15 +69,6 @@ export interface LivestockConfig {
    */
   respiratoryQuotient: number;
 
-  // Satiation
-  /**
-   * Satiation decay per hour (percentage points). Fish digest and burn
-   * through stored energy whether or not they're feeding; a fish at
-   * satiation 100 with no food will fall to 0 in ~100 / `satiationDecayRate`
-   * hours.
-   */
-  satiationDecayRate: number;
-
   // Stressor severities (damage per hour per unit deviation)
   /** Health damage per °C outside safe temperature range */
   temperatureStressSeverity: number;
@@ -93,33 +98,9 @@ export interface LivestockConfig {
   /** Water below this % of capacity activates the stressor. */
   waterLevelStressThreshold: number;
 
-  // Satiation band edges (% on the 0–100 satiation axis) — these define
-  // the boundaries between the five UI bands and the inflection points
-  // of the single piecewise-linear contribution function. See
-  // `satiation.ts` for the curve.
-  /** Top of well-fed / bottom of overfed. Above this satiation: overfed stress. */
-  satiationOverfedFloor: number;
-  /** Top of peckish / bottom of well-fed. Above this satiation up to overfed: well-fed benefit. */
-  satiationWellFedFloor: number;
-  /** Top of hungry / bottom of peckish. Below this satiation: hunger stress. */
-  satiationHungryCeiling: number;
-  /** Top of starving / bottom of hungry. Below this satiation: starving stress (steeper). */
-  satiationStarvingCeiling: number;
-
-  // Satiation band peak severities (%/h, per anchor — the curve linearly
-  // interpolates between them; see `satiation.ts`).
-  /** Peak overfed stress at satiation = 100 (fully stuffed). */
-  satiationOverfedSeverity: number;
-  /** Peak well-fed benefit at the midpoint between the two well-fed band edges. */
-  satiationWellFedPeak: number;
-  /** Hungry stress at satiation = `satiationStarvingCeiling` (entry to starving). */
-  satiationHungrySeverity: number;
-  /** Starving stress at satiation = 0 (fully empty). */
-  satiationStarvingSeverity: number;
-
-  // Vitality benefit peaks (%/h) — recovery rate when each factor is
-  // at its best. Sum at all-good (no plants) ≈ 1.0 %/h; with
-  // saturated planting it rises to ≈ 1.2 %/h.
+  // Vitality benefit peaks (%/h) — each earned in full only at full
+  // nourishment. Sum at all-good (no plants) ≈ 0.7 %/h; with saturated
+  // planting it rises to ≈ 0.9 %/h.
   /** pH at the centre of the species range, falling to 0 at its edges. */
   phBenefitPeak: number;
   /** Oxygen, rising on log scale from `OXYGEN_EDGE` to full at `OXYGEN_COMFORT`. */
@@ -153,8 +134,20 @@ export interface LivestockConfig {
 }
 
 export const livestockDefaults: LivestockConfig = {
-  // Metabolism - a 1g fish eats ~0.01g/hr = 0.24g/day
-  baseFoodRate: 0.01,
+  // A fish's stomach takes a meal of about 3 % of its body mass.
+  gutCapacity: 0.03,
+  // Half a gut digests in about 7 h at 25 °C and 95 % in 30 h; ten degrees
+  // colder doubles both.
+  digestionRate: 0.1,
+  digestionQ10: 2.0,
+  digestionReferenceTemp: 25,
+  // Half a percent of body mass a day holds a fish; the hobby's 1–3 % a day
+  // feeds it past that, and the excess is what banks.
+  maintenanceRation: 0.005,
+  // An empty gut costs a mid-hardiness fish 0.3 %/h: unfed, a fish with an
+  // empty bank lasts about two weeks and one with a full bank about three.
+  hungerSeverity: 0.6,
+
   // 0.3 mg O2 / g fish / hr, inside the real-world 0.2–0.5 at 25°C for small
   // freshwater teleosts. Applied as absolute mg/hr and converted to mg/L by the
   // livestock pipeline using tank volume.
@@ -178,11 +171,6 @@ export const livestockDefaults: LivestockConfig = {
   // 80 % of ingested N excreted directly through gills; 20 % via feces.
   gillNFraction: 0.8,
   respiratoryQuotient: 0.8, // textbook mixed-diet value
-
-  // Satiation - decays ~0.6%/hr; fish can survive 3-7 days without food.
-  // From 100 (stuffed) → 50 (peckish boundary) takes ~3.5 days; → 0
-  // (fully starving) takes ~7 days.
-  satiationDecayRate: 0.6,
 
   // Stressor severities
   // Per °C outside the species' preferred temperatureRange, scaled by
@@ -223,47 +211,9 @@ export const livestockDefaults: LivestockConfig = {
 
   waterLevelStressThreshold: 50, // % capacity — below this water level damages fish
 
-  // Satiation band edges (anchors of the piecewise-linear contribution).
-  // 100 → 99  Overfed     (stressor)         — 1%-wide sliver
-  //  99 → 75  Well fed    (benefit, peak at 87)
-  //  75 → 50  Peckish     (neutral)
-  //  50 → 25  Hungry      (stressor)
-  //  25 →  0  Starving    (stressor, steeper)
-  //
-  // The narrow overfed band is intentional: under steady-state eating
-  // the per-tick equilibrium sits at sat ≈ 99.4 (100 − 0.6 %/hr decay),
-  // so a 99-floor band charges only ~0.4× peak overfed severity at the
-  // moment after eating and drops cleanly into well-fed once the food
-  // drains. A 90-floor would have charged near peak severity continuously
-  // — turning the well-fed steady state into perpetual stress.
-  satiationOverfedFloor: 99,
-  satiationWellFedFloor: 75,
-  satiationHungryCeiling: 50,
-  satiationStarvingCeiling: 25,
-
-  // Severity peaks:
-  // - Overfed at 100 lands at 2.0 %/h. With the well-fed benefit
-  //   already gone above the band (so the abiotic budget shrinks to
-  //   pH 0.4 + O2 0.3 = 0.7 %/h), a mid-hardiness fish (factor 0.5)
-  //   sees net ≈ 1.0 × 0.5 − 0.7 = −0.3 %/h — slow drift over hours,
-  //   not a cliff.
-  // - Well-fed peak 0.3 %/h keeps the all-good budget ≈ 1.0 %/h in a
-  //   bare tank.
-  // - Hungry at the bottom of its band (satiation 25) lands at 2.5 %/h
-  //   (0.1 × 25) — moderately stressed.
-  // - Starving at satiation 0 lands at 6.0 %/h — visibly steeper than
-  //   merely hungry; the per-percent slope inside the starving band
-  //   (0.14 %/%) is ~40 % steeper than the hungry slope (0.10 %/%),
-  //   so survival drops sharply once a fish enters the band.
-  satiationOverfedSeverity: 2.0,
-  satiationWellFedPeak: 0.3,
-  satiationHungrySeverity: 2.5,
-  satiationStarvingSeverity: 6.0,
-
-  // Benefit peaks (%/h) for the non-satiation channels. Sum at
-  // all-good in a bare tank, pH at its band centre: pH 0.4 + well-fed 0.3 +
-  // O2 0.3 = 1.0 %/h. With a saturating planting (see
-  // `plantBenefitSaturationPoint`): +0.2 → 1.2 %/h.
+  // Benefit peaks (%/h), each scaled by nourishment. Sum at all-good in a
+  // bare tank, pH at its band centre: pH 0.4 + O2 0.3 = 0.7 %/h. With a
+  // saturating planting (see `plantBenefitSaturationPoint`): +0.2 → 0.9 %/h.
   phBenefitPeak: 0.4,
   oxygenBenefitPeak: 0.3,
   plantBenefitPeak: 0.2,
@@ -300,8 +250,14 @@ export interface LivestockConfigMeta {
 }
 
 export const livestockConfigMeta: LivestockConfigMeta[] = [
+  // Feeding
+  { key: 'gutCapacity', label: 'Gut Capacity', unit: 'g/g', min: 0.005, max: 0.1, step: 0.005 },
+  { key: 'digestionRate', label: 'Digestion Rate', unit: '/hr', min: 0.01, max: 1, step: 0.01 },
+  { key: 'digestionQ10', label: 'Digestion Q10', unit: '', min: 1, max: 4, step: 0.1 },
+  { key: 'digestionReferenceTemp', label: 'Digestion Reference Temp', unit: '°C', min: 15, max: 30, step: 1 },
+  { key: 'maintenanceRation', label: 'Maintenance Ration', unit: 'g/g/day', min: 0.001, max: 0.03, step: 0.001 },
+  { key: 'hungerSeverity', label: 'Hunger Severity', unit: '%/hr', min: 0, max: 5, step: 0.1 },
   // Metabolism
-  { key: 'baseFoodRate', label: 'Base Food Rate', unit: 'g/g/hr', min: 0.001, max: 0.05, step: 0.001 },
   {
     key: 'baseRespirationRate',
     label: 'Base Respiration Rate',
@@ -328,8 +284,6 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   },
   { key: 'gillNFraction', label: 'Gill N Fraction', unit: '', min: 0.5, max: 0.95, step: 0.05 },
   { key: 'respiratoryQuotient', label: 'Respiratory Quotient', unit: '', min: 0.5, max: 1.2, step: 0.1 },
-  // Satiation
-  { key: 'satiationDecayRate', label: 'Satiation Decay', unit: '%/hr', min: 0.1, max: 5, step: 0.1 },
   // Stressor severities
   {
     key: 'temperatureStressSeverity',
@@ -370,15 +324,6 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     step: 0.01,
   },
   { key: 'waterLevelStressThreshold', label: 'Water Level Stress Threshold', unit: '%', min: 20, max: 80, step: 5 },
-  // Satiation band edges and peak severities
-  { key: 'satiationOverfedFloor', label: 'Overfed Floor', unit: '%', min: 80, max: 100, step: 1 },
-  { key: 'satiationWellFedFloor', label: 'Well-fed Floor', unit: '%', min: 60, max: 90, step: 1 },
-  { key: 'satiationHungryCeiling', label: 'Hungry Ceiling', unit: '%', min: 30, max: 70, step: 1 },
-  { key: 'satiationStarvingCeiling', label: 'Starving Ceiling', unit: '%', min: 5, max: 40, step: 1 },
-  { key: 'satiationOverfedSeverity', label: 'Overfed Severity', unit: '%/hr', min: 0, max: 5, step: 0.05 },
-  { key: 'satiationWellFedPeak', label: 'Well-fed Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
-  { key: 'satiationHungrySeverity', label: 'Hungry Severity', unit: '%/hr', min: 0, max: 10, step: 0.1 },
-  { key: 'satiationStarvingSeverity', label: 'Starving Severity', unit: '%/hr', min: 0, max: 20, step: 0.1 },
   // Vitality benefit peaks
   { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'oxygenBenefitPeak', label: 'O2 Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },

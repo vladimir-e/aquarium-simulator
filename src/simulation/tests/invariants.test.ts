@@ -26,11 +26,12 @@ function run(state: SimulationState, hours: number, config = DEFAULT_CONFIG): Si
   return running;
 }
 
-/** Grams of organic matter in the tank: food, waste, the bed's reserve, plant tissue and the blooms'. */
+/** Grams of organic matter in the tank: food, in the water and in the fish's guts, waste, the bed's reserve, plant tissue and the blooms'. */
 function organics(state: SimulationState): number {
-  const { resources, equipment, plants } = state;
+  const { resources, equipment, plants, fish } = state;
   const tissue = plants.reduce((sum, plant) => sum + tissueMass(plant.species, plant.size), 0);
-  return resources.food + resources.waste + equipment.substrate.organicReserve + tissue + bloomsTissue(state);
+  const guts = fish.reduce((sum, f) => sum + f.gut, 0);
+  return resources.food + guts + resources.waste + equipment.substrate.organicReserve + tissue + bloomsTissue(state);
 }
 
 /** Nitrogen in the water column, dissolved, mg as N. */
@@ -71,7 +72,7 @@ function tetra(id: string): Fish {
     mass: 0.5,
     health: 100,
     age: 0,
-    satiation: 50,
+    gut: 0,
     sex: 'male',
     stage: 'adult',
     hardinessOffset: 0,
@@ -133,6 +134,20 @@ describe('nitrogen mass', () => {
     expect(mid.equipment.substrate.organicReserve).toBeGreaterThan(0);
     expect(nitrogenInPools(mid) / nitrogenInPools(start)).toBeCloseTo(1, 2);
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 2);
+  });
+
+  it('is conserved through the fish that eat and digest the food', () => {
+    const start = produce(cycledBareTank(), (draft) => {
+      draft.fish = [tetra('a'), tetra('b'), tetra('c')];
+      draft.resources.food = 0.5;
+    });
+    const fed = run(start, 1);
+    const end = run(fed, 48);
+
+    expect(fed.fish.every((f) => f.gut > 0)).toBe(true);
+    expect(end.fish).toHaveLength(3);
+    expect(nitrogenInPools(fed) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+    expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 10);
   });
 });
 

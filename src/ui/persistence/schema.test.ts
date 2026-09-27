@@ -19,6 +19,7 @@ import {
   createSimulation,
   BUBBLE_RATE_OPTIONS,
   DOSE_AMOUNT_OPTIONS,
+  FEED_AMOUNT_OPTIONS,
   FILTER_TYPES,
   FISH_SPECIES_DATA,
   HEATER_WATTAGE_OPTIONS,
@@ -289,6 +290,7 @@ describe('PersistedSimulationSchema', () => {
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
       airPump: { enabled: false },
       autoDoser: { enabled: false, doseAmountMl: 2, schedule: { startHour: 8, duration: 1 }, dosedToday: false },
+      autoFeeder: { enabled: false, amount: 0.1, schedule: { startHour: 9, duration: 1 } },
     },
     plants: [],
     fish: [],
@@ -447,7 +449,7 @@ describe('PersistedSimulationSchema', () => {
           mass: 0.5,
           health: 100,
           age: 0,
-          satiation: 70,
+          gut: 0,
           sex: 'male',
           stage: 'adult',
           hardinessOffset: 0.05,
@@ -468,7 +470,7 @@ describe('PersistedSimulationSchema', () => {
           mass: 0.5,
           health: 50,
           age: 0,
-          satiation: 70,
+          gut: 0,
           sex: 'male',
           stage: 'adult',
           hardinessOffset: -0.07,
@@ -489,7 +491,7 @@ describe('PersistedSimulationSchema', () => {
           mass: 0.05,
           health: 98,
           age: 12,
-          satiation: 50,
+          gut: 0,
           sex: 'female',
           stage: 'fry',
           hardinessOffset: 0.01,
@@ -519,7 +521,7 @@ describe('PersistedSimulationSchema', () => {
           mass: 0.5,
           health: 100,
           age: 0,
-          satiation: 70,
+          gut: 0,
           sex: 'male',
           hardinessOffset: 0,
           surplus: 0,
@@ -539,7 +541,7 @@ describe('PersistedSimulationSchema', () => {
           mass: 0.5,
           health: 100,
           age: 0,
-          satiation: 70,
+          gut: 0,
           sex: 'male',
           stage: 'adult',
           surplus: 0,
@@ -559,7 +561,7 @@ describe('PersistedSimulationSchema', () => {
           mass: 0.5,
           health: 100,
           age: 0,
-          satiation: 70,
+          gut: 0,
           sex: 'male',
           stage: 'adult',
           hardinessOffset: 0,
@@ -620,6 +622,7 @@ describe('PersistedStateSchema', () => {
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
       airPump: { enabled: false },
       autoDoser: { enabled: false, doseAmountMl: 2, schedule: { startHour: 8, duration: 1 }, dosedToday: false },
+      autoFeeder: { enabled: false, amount: 0.1, schedule: { startHour: 9, duration: 1 } },
     },
     plants: [],
     fish: [],
@@ -685,6 +688,7 @@ describe('PersistedStateSchema', () => {
     [18, 'the collapsed carbon yield'],
     [19, 'the oxygen term every consumer carries'],
     [31, 'the size death threshold'],
+    [33, 'satiation, before the gut'],
   ];
 
   it('rejects every prior version, so no save survives a breaking bump', () => {
@@ -744,6 +748,10 @@ describe('every fixture the UI offers survives a save', () => {
     ).toEqual([]);
   });
 
+  it('auto-feeder rations', () => {
+    expect(refused(FEED_AMOUNT_OPTIONS, (amount) => built({ autoFeeder: { amount } }))).toEqual([]);
+  });
+
   it('filter types', () => {
     expect(refused(FILTER_TYPES, (type) => built({ filter: { type } }))).toEqual([]);
   });
@@ -791,7 +799,7 @@ describe('every fixture the UI offers survives a save', () => {
             mass: 1,
             health: 100,
             age: 0,
-            satiation: 50,
+            gut: 0,
             sex: 'male',
             stage: 'adult',
             hardinessOffset: 0,

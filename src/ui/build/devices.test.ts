@@ -21,7 +21,7 @@ const readout = (state: SimulationState): BacteriaReadout =>
 const rows = equipmentRows(base, readout(base), 'metric');
 
 describe('buildDeviceList', () => {
-  it('lists the eight configurable devices in order', () => {
+  it('lists the nine configurable devices in order', () => {
     expect(buildDeviceList(base.equipment).map((d) => d.id)).toEqual([
       'filter',
       'heater',
@@ -31,6 +31,7 @@ describe('buildDeviceList', () => {
       'co2Generator',
       'powerhead',
       'autoDoser',
+      'autoFeeder',
     ]);
   });
 
@@ -42,10 +43,10 @@ describe('buildDeviceList', () => {
 });
 
 describe('equipmentRows', () => {
-  it('closes the eight devices with the derived biofilter', () => {
-    expect(rows).toHaveLength(9);
-    expect(rows[8].id).toBe('biofilter');
-    expect(rows[8].summary).toMatch(/^uncycled · [\d,]+ cm²$/);
+  it('closes the nine devices with the derived biofilter', () => {
+    expect(rows).toHaveLength(10);
+    expect(rows[9].id).toBe('biofilter');
+    expect(rows[9].summary).toMatch(/^uncycled · [\d,]+ cm²$/);
   });
 
   it('summarises a running device by its setting and a stopped one by "off"', () => {
@@ -68,11 +69,11 @@ describe('equipmentRows', () => {
 
   it('marks the biofilter on once it is cycled, and says so', () => {
     const cycled = createSimulation({ tankCapacity: 40 }, { bacteria: 'cycled' });
-    const row = equipmentRows(cycled, readout(cycled), 'metric')[8];
+    const row = equipmentRows(cycled, readout(cycled), 'metric')[9];
 
     expect(row.on).toBe(true);
     expect(row.summary).toMatch(/^cycled · [\d,]+ cm²$/);
-    expect(rows[8].on).toBe(false);
+    expect(rows[9].on).toBe(false);
   });
 });
 
@@ -95,7 +96,7 @@ describe('isDeviceId', () => {
 
 describe('equipmentSummary', () => {
   it('counts the devices that are on and names the biofilter', () => {
-    expect(equipmentSummary(base, readout(base))).toBe('3 of 8 on · biofilter uncycled');
+    expect(equipmentSummary(base, readout(base))).toBe('3 of 9 on · biofilter uncycled');
   });
 
   it('follows a device being switched off', () => {
@@ -103,6 +104,6 @@ describe('equipmentSummary', () => {
       ...base,
       equipment: { ...base.equipment, light: { ...base.equipment.light, enabled: false } },
     };
-    expect(equipmentSummary(dark, readout(dark))).toBe('2 of 8 on · biofilter uncycled');
+    expect(equipmentSummary(dark, readout(dark))).toBe('2 of 9 on · biofilter uncycled');
   });
 });

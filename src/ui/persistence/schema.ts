@@ -4,7 +4,15 @@
  */
 
 import { z } from 'zod';
-import { MAX_DOSE_ML, MAX_LIGHT_PAR, MAX_ROOT_TABS, VIGOUR_SPAN, mapKinds } from '../../simulation/index.js';
+import {
+  MAX_DOSE_ML,
+  MAX_FEED_G,
+  MAX_LIGHT_PAR,
+  MAX_ROOT_TABS,
+  MIN_FEED_G,
+  VIGOUR_SPAN,
+  mapKinds,
+} from '../../simulation/index.js';
 import {
   MAX_ALGAE_ATTENUATION_PER_GRAM,
   MAX_LEAF_ATTENUATION_PER_LAI,
@@ -202,6 +210,14 @@ const AutoDoserSchema = z
   })
   .strict();
 
+const AutoFeederSchema = z
+  .object({
+    enabled: z.boolean(),
+    amount: z.number().min(MIN_FEED_G).max(MAX_FEED_G),
+    schedule: DailyScheduleSchema,
+  })
+  .strict();
+
 const EquipmentSchema = z
   .object({
     heater: HeaterSchema,
@@ -215,6 +231,7 @@ const EquipmentSchema = z
     co2Generator: Co2GeneratorSchema,
     airPump: AirPumpSchema,
     autoDoser: AutoDoserSchema,
+    autoFeeder: AutoFeederSchema,
   })
   .strict();
 
@@ -249,7 +266,7 @@ const FishSchema = z
     mass: z.number().min(0),
     health: z.number().min(0).max(100),
     age: z.number().int().min(0),
-    satiation: z.number().min(0).max(100),
+    gut: z.number().min(0),
     sex: z.enum(['male', 'female']),
     stage: z.enum(['fry', 'adult']),
     hardinessOffset: z.number(),
@@ -491,13 +508,17 @@ const NutrientsConfigSchema = z
 
 const LivestockConfigSchema = z
   .object({
-    baseFoodRate: z.number(),
+    gutCapacity: z.number(),
+    digestionRate: z.number(),
+    digestionQ10: z.number(),
+    digestionReferenceTemp: z.number(),
+    maintenanceRation: z.number(),
+    hungerSeverity: z.number(),
     baseRespirationRate: z.number(),
     respirationOxygenHalfSaturation: z.number(),
     foodNitrogenFraction: z.number(),
     gillNFraction: z.number(),
     respiratoryQuotient: z.number(),
-    satiationDecayRate: z.number(),
     temperatureStressSeverity: z.number(),
     phStressSeverity: z.number(),
     ghStressSeverity: z.number(),
@@ -509,14 +530,6 @@ const LivestockConfigSchema = z
     flowStressSeverity: z.number(),
     ageStressSeverity: z.number(),
     waterLevelStressThreshold: z.number(),
-    satiationOverfedFloor: z.number(),
-    satiationWellFedFloor: z.number(),
-    satiationHungryCeiling: z.number(),
-    satiationStarvingCeiling: z.number(),
-    satiationOverfedSeverity: z.number(),
-    satiationWellFedPeak: z.number(),
-    satiationHungrySeverity: z.number(),
-    satiationStarvingSeverity: z.number(),
     phBenefitPeak: z.number(),
     oxygenBenefitPeak: z.number(),
     plantBenefitPeak: z.number(),

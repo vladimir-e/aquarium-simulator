@@ -25,6 +25,13 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v34: Feeding runs through a gut. `Fish.satiation` becomes `Fish.gut`,
+ *      grams of food in it; `LivestockConfig` drops `baseFoodRate`,
+ *      `satiationDecayRate` and the eight satiation band knobs, and gains
+ *      `gutCapacity`, `digestionRate`, `digestionQ10`,
+ *      `digestionReferenceTemp`, `maintenanceRation` and `hungerSeverity`.
+ *      `Equipment` gains `autoFeeder`. A v33 save carries fish with no gut and
+ *      no feeder for the strict schema to accept.
  * v33: Algae runs on the plants' vitality model, as two kinds. `state.algae`
  *      holds a bloom per kind — `greenWater` and `film` — and `AlgaeState`
  *      gains `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`,
@@ -250,7 +257,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 33;
+export const PERSISTENCE_VERSION = 34;
 
 /**
  * Storage key for the unified persisted state.

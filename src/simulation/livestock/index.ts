@@ -21,7 +21,7 @@ import { getPpm } from '../resources/index.js';
 export interface LivestockProcessingResult {
   /** Updated state with modified fish */
   state: SimulationState;
-  /** Effects for resource changes (food, waste, O2, CO2) */
+  /** Effects for resource changes (food, waste, NH3, minerals, O2, CO2) */
   effects: Effect[];
   /** What the fish ate, passed and breathed this tick */
   metabolism: MetabolismResult;
@@ -33,7 +33,7 @@ export interface LivestockProcessingResult {
  * Process livestock for one tick.
  *
  * Handles:
- * 1. Metabolism: food consumption, waste/CO2 production, satiation/age updates
+ * 1. Metabolism: digestion, eating, excretion, respiration, age
  * 2. Health: stressor calculations, health recovery/damage, death
  */
 export function processLivestock(
@@ -43,11 +43,9 @@ export function processLivestock(
   const effects: Effect[] = [];
   const livestockConfig = config.livestock ?? livestockDefaults;
 
-  // 1. Process metabolism (food consumption, waste, respiration, satiation, age)
   const metabolismResult = processMetabolism(
     state.fish,
-    state.resources.food,
-    state.resources.oxygen,
+    state.resources,
     livestockConfig,
     config.nutrients.foodMineralContent
   );
@@ -114,14 +112,14 @@ export function processLivestock(
     });
   }
 
-  // 2. Process health (stressors, recovery, death)
   const healthResult = processHealth(
     metabolismResult.updatedFish,
     state.resources,
     state.plants,
     state.resources.water,
     state.tank.capacity,
-    livestockConfig
+    livestockConfig,
+    metabolismResult.digested
   );
 
   // Add death waste effects

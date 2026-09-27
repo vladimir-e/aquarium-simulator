@@ -1,6 +1,6 @@
 ---
 title: Equipment
-description: Eleven fittings, four passive resources recomputed every tick, and a handful of active emitters — flow as turnover, surface as a colony ceiling, and no wear anywhere.
+description: Twelve fittings, four passive resources recomputed every tick, and a handful of active emitters — flow as turnover, surface as a colony ceiling, and no wear anywhere.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -11,7 +11,7 @@ Every fitting a tank can carry, and the two ways one acts. A **passive**
 contributor is recomputed from scratch at the top of each tick into one of four
 shared resources — surface, flow, light, aeration — so unplugging a filter takes
 its contribution away the same hour. An **active** emitter pushes a delta
-instead: heat, water, CO₂, fertiliser, or the bed's own organics and nutrients.
+instead: heat, water, CO₂, fertiliser, food, or the bed's own organics and nutrients.
 
 ## Status
 
@@ -30,6 +30,7 @@ instead: heat, water, CO₂, fertiliser, or the bed's own organics and nutrients
 | Lid | <Badge text="scaffolding" variant="caution" /> | Four hardcoded multipliers outside `config/`, and they reach evaporation only. |
 | ATO trigger | <Badge text="scaffolding" variant="caution" /> | A switch at 99 % of capacity that refills to exactly 100 % in a single tick, however far it fell. |
 | The doser | <Badge text="settled" variant="success" /> | A set volume of one fertiliser formula, once a day. The plants draw at their tissue's recipe rather than the bottle's ratio ([Plants](/subsystems/plants/#a-plant-is-made-of-its-nutrients)), so the water drifts toward whatever the planting leaves behind. |
+| The feeder | <Badge text="settled" variant="success" /> | A set ration of food, once a day at its hour. What the fish don't eat stays in the water and decays like any other feeding. |
 | Hardscape and bed chemistry | <Badge text="scaffolding" variant="caution" /> | Calcite adds KH and GH, driftwood spends KH, aqua soil spends both. Wood and soil draw on finite hand-set reserves that taper as they are spent; calcite never runs out. |
 | Filter class limits | <Badge text="scaffolding" variant="caution" /> | `maxCapacityLiters` is display only — the tick never reads it. A sponge on a 500 L tank is undersized in the readout and unpunished in the model. |
 | Wear, clogging, failure | <Badge text="missing" variant="danger" /> | No fitting ages, fouls or breaks. Media is never consumed and never cleaned; the only maintenance the engine models at all is swapping the bed. |
@@ -129,15 +130,16 @@ they need no blending; their ppm falls out of the new volume.
 Nothing downstream reads the air output. It sets the flow contribution and then
 stops mattering, because aeration itself is a boolean.
 
-### CO₂ and the doser
+### CO₂, the doser and the feeder
 
 The CO₂ generator meters `CO2_MASS_RATE` per bubble-per-second into the
 standing water, on its own schedule — a ~0.1 mL bubble of CO₂ at 1.8 mg/mL. One
 bubble a second holds a 20–40 gal tank with a canister's surface agitation near
 20–30 mg/L. The doser fires once at its schedule's start
 hour and adds one dose of the four-nutrient formula, then latches until midnight.
-Both land in the settle pass, so plants meet the day's carbon and fertiliser in
-the same tick it was metered.
+The feeder drops its ration into `food` at its hour, every day it is on.
+All three land in the settle pass, so plants meet the day's carbon and
+fertiliser, and fish the day's food, in the same tick it was metered.
 
 ### The bed
 
@@ -190,7 +192,7 @@ declare bounds — enforced across the config layer by a test that walks each le
 | [Water & gases](/subsystems/water-and-gases/) | — | `flow` and `aeration` set the exchange rate; CO₂ injection adds `co2`; hardscape and aqua soil move `kh` and `gh`; the ATO blends `oxygen` and `co2` toward tap values and adds tap `kh` and `gh` as it refills |
 | [Light](/subsystems/light/) | — | The fixture's rating and photoperiod are the whole of the light chain's input |
 | [Plants](/subsystems/plants/) | — | The doser writes `nitrate`, `phosphate`, `potassium` and `iron`; the bed's store feeds root feeders and leaks the same four into the water |
-| [Livestock](/subsystems/livestock/) | — | Nothing directly. Fish meet equipment through the water it conditions |
+| [Livestock](/subsystems/livestock/) | — | The feeder writes `food`. Otherwise fish meet equipment through the water it conditions |
 | [Algae](/subsystems/algae/) | — | The glass, the floor and the hardscape are film's habitat; a piece set down thins its coverage, a piece lifted takes its share, and a swapped bed takes the floor's |
 | [Actions](/subsystems/actions/) | — | A root tab fills the bed's store. No other verb reaches a fitting: settings are plain fields the host writes, and a bed swap is an equipment helper of its own — the one such call that costs an organism stock, since both colonies and the floor's film leave with the substrate |
 | [State & persistence](/subsystems/state-and-persistence/) | — | Every fitting's settings serialise; the passive four are recomputed rather than stored |

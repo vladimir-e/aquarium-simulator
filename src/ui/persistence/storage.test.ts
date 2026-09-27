@@ -384,6 +384,7 @@ function createValidSimulation(): PersistedSimulation {
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
       airPump: { enabled: false },
       autoDoser: { enabled: false, doseAmountMl: 2, schedule: { startHour: 8, duration: 1 }, dosedToday: false },
+      autoFeeder: { enabled: false, amount: 0.1, schedule: { startHour: 9, duration: 1 } },
     },
     plants: [],
     fish: [],

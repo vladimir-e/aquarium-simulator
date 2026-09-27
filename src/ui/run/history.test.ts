@@ -27,7 +27,7 @@ function makeFish(id: string, stage: Fish['stage']): Fish {
     mass: 0.5,
     health: 100,
     age: 0,
-    satiation: 90,
+    gut: 0,
     sex: 'male',
     stage,
     hardinessOffset: 0,

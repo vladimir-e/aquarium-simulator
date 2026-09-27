@@ -154,7 +154,7 @@ describe('LifeSection', () => {
     const run = stocked();
     const state: SimulationState = {
       ...run.state,
-      fish: run.state.fish.map((fish, i) => (i === 0 ? { ...fish, satiation: 2 } : fish)),
+      fish: run.state.fish.map((fish, i) => (i === 0 ? { ...fish, gut: 0 } : fish)),
     };
     renderLife({ ...run, state });
 

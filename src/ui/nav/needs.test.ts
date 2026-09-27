@@ -7,6 +7,9 @@ import { getMassFromPpm } from '../../simulation/resources/index.js';
 import { readTank } from '../readings';
 import { snapshotFromState } from '../run';
 import { ALERT_IDS, activeNeeds, needySections, type Need } from './needs.js';
+import { gutAt } from '../test/gut';
+import { hungerLine } from '../../simulation/index.js';
+import { livestockDefaults } from '../../simulation/config/livestock.js';
 
 const base = createSimulation({ tankCapacity: 40 });
 
@@ -27,11 +30,11 @@ function withAlerts(
   return { ...state, alertState: { ...state.alertState, ...flags } };
 }
 
-function stocked(satiation: number): SimulationState {
+function stocked(fullness: number): SimulationState {
   let state = base;
   for (let i = 0; i < 3; i++) state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   return produce(state, (draft) => {
-    for (const fish of draft.fish) fish.satiation = satiation;
+    for (const fish of draft.fish) fish.gut = gutAt(fullness, fish.mass);
   });
 }
 
@@ -75,12 +78,12 @@ describe('activeNeeds', () => {
   });
 
   it('asks for a feeding once fish go hungry, louder once they starve', () => {
-    const [hungry] = needs(stocked(25));
-    const [starving] = needs(stocked(2));
+    const [hungry] = needs(stocked(hungerLine(livestockDefaults) / 2));
+    const [starving] = needs(stocked(0));
 
     expect(hungry).toMatchObject({ text: 'Fish hungry', tone: 'warn', act: 'feed', figure: '3 of 3' });
     expect(starving).toMatchObject({ text: 'Fish starving', tone: 'alert', act: 'feed' });
-    expect(needs(stocked(70))).toEqual([]);
+    expect(needs(stocked(0.7))).toEqual([]);
   });
 
   it('sends each need to the section that answers it, in its worst tone', () => {

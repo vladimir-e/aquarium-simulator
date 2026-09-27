@@ -61,6 +61,13 @@ const PATHS: Record<DeviceId, React.ReactNode> = {
       <path d="M4.4 9.8h7.2" />
     </>
   ),
+  autoFeeder: (
+    <>
+      <rect x="3.4" y="1.8" width="9.2" height="7.4" rx="1.6" />
+      <path d="M6.4 9.2v2.2h3.2V9.2" />
+      <path d="M7 13.2h.01M9 14.4h.01M8 12.8h.01" />
+    </>
+  ),
 };
 
 

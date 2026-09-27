@@ -12,8 +12,8 @@ a spinner step and, for everything but the derived nitrification rates, a
 `min`/`max`. Two writers consult that range: the CLI refuses a `config set`
 outside it, and the tunables drawer holds its field to it. The save path does
 not — its bounds are hand-written per leaf and mostly assert shape rather than
-range, so a stored `satiationDecayRate` of −1 loads without complaint against a
-declared minimum of `0.1`.
+range, so a stored `digestionRate` of −1 loads without complaint against a
+declared minimum of `0.01`.
 
 ## Sections
 
@@ -29,7 +29,7 @@ declared minimum of `0.1`.
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, respiration, vitality, growth and offshoots, lifecycle |
 | Nutrients | `nutrients.` | Fertilizer formula, root tab, the bed's leak, half-saturations, demand tiers, minerals in organic matter |
-| Livestock | `livestock.` | Metabolism, satiation, vitality, death |
+| Livestock | `livestock.` | Feeding, metabolism, vitality, death |
 
 The values themselves are not repeated here. They move when the model is
 recalibrated, and the file that holds each one carries the reference it was read
@@ -178,21 +178,22 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `baseFoodRate` | Food a fish ingests per gram of body mass per hour | g/g/hr |
+| `gutCapacity` | Food a full gut holds, per gram of fish | g/g |
+| `digestionRate` | First-order rate a gut digests at, at the reference temperature in unlimited oxygen | /hr |
+| `digestionQ10` · `digestionReferenceTemp` | How digestion scales with temperature, and where it reads `digestionRate` | — · °C |
+| `maintenanceRation` | Food a day, per gram of fish, digested to hold condition — income at half rate, and where hunger starts | g/g/day |
+| `hungerSeverity` | Damage at an empty gut, before hardiness | %/hr |
 | `baseRespirationRate` | Oxygen a fish draws per gram per hour — a Monod maximum | mg O₂/g/hr |
-| `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales gill ammonia too | mg/L |
+| `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales digestion too | mg/L |
 | `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, or mineralized as waste | g N/g food |
-| `gillNFraction` | Share of ingested nitrogen excreted straight through the gills; the rest leaves as feces | — |
+| `gillNFraction` | Share of digested nitrogen excreted straight through the gills; the rest leaves as feces | — |
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |
-| `satiationDecayRate` | Satiation lost per hour, feeding or not | %/hr |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band | %/unit/hr |
 | `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own tolerance edge, which hardiness moves out — free NH₃, not total ammonia; oxygen counts e-folds under | %/e-fold/hr |
 | `waterLevelStressSeverity` · `flowStressSeverity` | Damage per unit of deviation | %/unit/hr |
 | `ageStressSeverity` | Damage per hour lived past the species' `maxAge`, climbing with the excess | %/(h past maxAge)/h |
 | `waterLevelStressThreshold` | Share of capacity the water-level stressor switches on under | % |
-| `satiationOverfedFloor` · `satiationWellFedFloor` · `satiationHungryCeiling` · `satiationStarvingCeiling` | The four edges dividing the satiation axis into overfed, well-fed, peckish, hungry and starving | % |
-| `satiationOverfedSeverity` · `satiationHungrySeverity` · `satiationStarvingSeverity` | Peak cost of each stressed band; the curve interpolates between the anchors | %/hr |
-| `satiationWellFedPeak` · `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor at its best | %/hr |
+| `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor at its best, at full nourishment | %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which the planted-tank benefit stops growing | power |
 | `surplusCap` | Ceiling on the fish's bank; a female spawns on a full one | pts |
 | `healingDrawRate` | First-order rate a 1 g fish's bank heals it at, scaled by adult mass to the −¼ | /hr at 1 g |

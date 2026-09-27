@@ -22,7 +22,7 @@ function mkFish(o: Partial<Fish> = {}): Fish {
     mass: FISH_SPECIES_DATA.guppy.adultMass,
     health: 100,
     age: 500000,
-    satiation: 80,
+    gut: 0,
     sex: 'female',
     stage: 'adult',
     hardinessOffset: 0,

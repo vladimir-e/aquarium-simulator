@@ -63,7 +63,7 @@ function dispatch(state: SimulationState, action: Action, config: TunableConfig)
     case 'rootTab':
       return rootTab(state, action, config.nutrients.rootTab);
     case 'addFish':
-      return addFish(state, action);
+      return addFish(state, action, config.livestock);
     case 'removeFish':
       return removeFish(state, action);
     case 'sellFry':

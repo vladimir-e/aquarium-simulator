@@ -7,7 +7,7 @@ import {
   type IndividualRosterRow,
   type LightFigure,
   type RosterRow,
-  type Satiation,
+  type Gut,
   type SpeciesRosterRow,
   type Status,
 } from '../../run';
@@ -54,7 +54,7 @@ const HEADINGS: Record<TableLayout, Heading[]> = {
     { label: 'count' },
     { label: 'mass', from: WIDE },
     { label: 'age', from: WIDE },
-    { label: 'satiation', from: WIDEST },
+    { label: 'gut', from: WIDEST },
     { label: 'condition' },
     { label: 'status' },
     { label: '' },
@@ -85,11 +85,11 @@ function Word({ status, word }: { status: Status; word: string }): React.JSX.Ele
   );
 }
 
-function SatiationCell({ satiation }: { satiation: Satiation | null }): React.JSX.Element {
-  if (!satiation) return <span aria-hidden className={WIDEST} />;
+function GutCell({ gut }: { gut: Gut | null }): React.JSX.Element {
+  if (!gut) return <span aria-hidden className={WIDEST} />;
   return (
     <span className={`relative pointer-events-none ${WIDEST}`}>
-      <RangeStrip at={satiation.at} band={satiation.band} tone={toneOf(satiation.status)} />
+      <RangeStrip at={gut.at} band={gut.band} tone={toneOf(gut.status)} />
     </span>
   );
 }
@@ -106,21 +106,21 @@ function LightCell({ light }: { light: LightFigure | null }): React.JSX.Element 
 /**
  * The wide figures between the count and the condition: what each one weighs or
  * measures and how old it is from a tablet up, then from a laptop up what the
- * table reads beside that — a fish's satiation, a plant's light and bank. The
+ * table reads beside that — a fish's gut, a plant's light and bank. The
  * widget has room for none.
  */
 function Figures({
   layout,
   figure,
   age,
-  satiation = null,
+  gut = null,
   light = null,
   bank = null,
 }: {
   layout: RosterLayout;
   figure: string;
   age: string;
-  satiation?: Satiation | null;
+  gut?: Gut | null;
   light?: LightFigure | null;
   bank?: string | null;
 }): React.JSX.Element | null {
@@ -130,7 +130,7 @@ function Figures({
       <span className={`${FIGURE} ${WIDE}`}>{figure}</span>
       <span className={`${FIGURE} ${WIDE}`}>{age}</span>
       {layout === 'fish' ? (
-        <SatiationCell satiation={satiation} />
+        <GutCell gut={gut} />
       ) : (
         <>
           <LightCell light={light} />
@@ -215,7 +215,7 @@ function SpeciesLine({
         layout={layout}
         figure={row.figure}
         age={row.age}
-        satiation={row.satiation}
+        gut={row.gut}
         light={row.light}
       />
       <ConditionCell
@@ -345,7 +345,7 @@ function IndividualLine({
         layout={layout}
         figure={row.figure}
         age={row.age}
-        satiation={row.satiation}
+        gut={row.gut}
         light={row.light}
         bank={row.bank}
       />
@@ -451,7 +451,7 @@ function Line({
             <span className="ml-1.5 text-[13px] font-normal text-ink-2">{row.caption}</span>
           </span>
           <span className={`${CELL} text-right text-[13px] text-ink-2`}>×{row.count}</span>
-          <Figures layout={layout} figure={row.figure} age={row.age} satiation={row.satiation} />
+          <Figures layout={layout} figure={row.figure} age={row.age} gut={row.gut} />
           <ConditionCell at={row.at} status={row.status} label={`${row.name} condition`} />
           <Word status={row.status} word={row.word} />
           {layout !== 'widget' && (

@@ -23,7 +23,7 @@ function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
     mass: 0.5,
     health: 100,
     age: 0,
-    satiation: 90,
+    gut: 0,
     sex: 'male',
     stage: 'adult',
     hardinessOffset: 0,

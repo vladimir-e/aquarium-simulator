@@ -9,20 +9,19 @@
  * `livestock/breeding.ts`).
  *
  * Stressors, hardened here before they reach the vitality engine:
- * - Temperature, pH, GH, satiation (hunger side), water level, flow, age
- *   (past species `maxAge`) are scaled by `1 − effectiveHardiness`.
+ * - Temperature, pH, GH, hunger, water level, flow, age (past species
+ *   `maxAge`) are scaled by `1 − effectiveHardiness`.
  * - Free NH3, nitrite, nitrate and oxygen instead carry hardiness on the
  *   concentration axis: it moves where harm starts, not how steeply it grows.
  *
- * Benefit factors (peaks tunable via `LivestockConfig`):
+ * Benefit factors (peaks tunable via `LivestockConfig`), every one earned on
+ * what the fish digested — its nourishment, half at its maintenance ration:
  * - pH, full at the band centre and zero at its edges
- * - Satiation in well-fed band (peak around mid-well-fed, zero at
- *   the band edges)
  * - Oxygen, rising from `OXYGEN_EDGE` to full at `OXYGEN_COMFORT`
  * - Plant presence (saturating at `plantBenefitSaturationPoint`)
  *
- * At default calibration, pH at its band centre, the abiotic three sum
- * to ≈ 1.0 %/h and the plant benefit adds up to 0.2 %/h on top.
+ * At default calibration and full nourishment, pH at its band centre, the
+ * abiotic two sum to ≈ 0.7 %/h and the plant benefit adds up to 0.2 %/h.
  *
  * Temperature is not a separate benefit: inside the species range
  * temperature stress is zero and the other benefits cover recovery;
@@ -42,7 +41,7 @@ import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { getDgh, getPpm } from '../resources/index.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
-import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';
+import { maintenance, nourishment } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import {
   FREE_AMMONIA_EDGE,
@@ -60,6 +59,7 @@ import {
   eFoldsUnder,
   hardened,
   outsideBand,
+  shortfall,
   type VitalityFactor,
   type VitalityResult,
 } from './vitality.js';
@@ -69,7 +69,7 @@ export interface HealthResult {
   survivingFish: Fish[];
   /** Names of fish that died */
   deadFishNames: string[];
-  /** Total waste produced from dead fish */
+  /** Waste the dead leave: their share of body mass, and whatever their guts held */
   deathWaste: number;
   /** Each fish's vitality this tick, in the order handed in, the dead included */
   vitalities: VitalityResult[];
@@ -95,6 +95,8 @@ interface FishFactorContext {
   tankCapacity: number;
   config: LivestockConfig;
   hardiness: number;
+  /** Grams its gut digested this hour. */
+  digested: number;
 }
 
 /**
@@ -140,21 +142,6 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   const nitrateStress =
     config.nitrateStressSeverity * eFoldsPast(getPpm(resources.nitrate, waterVolume), NITRATE_EDGE * tolerance);
 
-  // Satiation stressor — band-aware label (Overfed / Hungry / Starving)
-  // depending on which side of the well-fed peak the fish is sitting
-  // on. The amount comes from the single piecewise-linear
-  // `satiationContribution` curve; the well-fed benefit is emitted in
-  // `buildBenefits` from the same call. When the fish is in a non-
-  // stressing band (well-fed or peckish) the entry is still emitted at
-  // amount 0 so the breakdown shape stays stable; the label falls back
-  // to the neutral channel name "Satiation" so a UI introspecting the
-  // inactive entry doesn't see a misleading band name.
-  const satiation = satiationContribution(fish.satiation, config);
-  const satiationStressLabel =
-    satiation.band === 'overfed' || satiation.band === 'hungry' || satiation.band === 'starving'
-      ? SATIATION_BAND_LABEL[satiation.band]
-      : 'Satiation';
-
   const oxygenStress =
     config.oxygenStressSeverity * eFoldsUnder(resources.oxygen, OXYGEN_EDGE / tolerance, OXYGEN_LOG_OFFSET);
 
@@ -189,7 +176,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
         { key: 'temperature', label: 'Temperature', amount: tempStress },
         { key: 'ph', label: 'pH', amount: phStress },
         { key: 'gh', label: 'GH', amount: ghStress },
-        { key: 'satiation', label: satiationStressLabel, amount: satiation.stressor },
+        { key: 'hunger', label: 'Hunger', amount: config.hungerSeverity * shortfall(ctx.digested, maintenance(fish, config)) },
         { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
         { key: 'flow', label: 'Flow', amount: flowStress },
         { key: 'age', label: 'Age', amount: ageStress },
@@ -204,39 +191,33 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
 }
 
 /**
- * Build the benefit list for a fish. All four configured factors are
- * emitted every tick, even when they contribute zero — UI filters; the
- * simulation doesn't have to.
+ * Build the benefit list for a fish, every channel earned on its nourishment.
+ * All three are emitted every tick, even at zero — UI filters; the simulation
+ * doesn't have to.
  */
 function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
   const { fish, resources, plants, config } = ctx;
   const speciesData = FISH_SPECIES_DATA[fish.species];
+  const earning = nourishment(ctx.digested, maintenance(fish, config));
 
   return [
     {
       key: 'ph',
       label: 'pH',
-      amount: config.phBenefitPeak * bandComfort(getPh(resources), speciesData.phRange),
-    },
-    {
-      key: 'satiation',
-      label: SATIATION_BAND_LABEL.wellFed,
-      // Same `satiationContribution` curve as the stressor; only the
-      // well-fed band emits a non-zero benefit, and the ramps either
-      // side of the peak meet zero exactly at the band edges.
-      amount: satiationContribution(fish.satiation, config).benefit,
+      amount: earning * config.phBenefitPeak * bandComfort(getPh(resources), speciesData.phRange),
     },
     {
       key: 'oxygen',
       label: 'Oxygen',
       amount:
+        earning *
         config.oxygenBenefitPeak *
         Math.min(1, eFoldsPast(resources.oxygen, OXYGEN_EDGE) / Math.log(OXYGEN_COMFORT / OXYGEN_EDGE)),
     },
     {
       key: 'plants',
       label: 'Plants',
-      amount: plantBenefitAmount(plants, config),
+      amount: earning * plantBenefitAmount(plants, config),
     },
   ];
 }
@@ -252,7 +233,7 @@ export function fishHealingRate(fish: Fish, config: LivestockConfig): number {
 /**
  * A vitality tick for one fish, without applying it — `processHealth` applies
  * it. A caller wanting the next tick's numbers reads it on the hour that tick
- * settles, with the fish as metabolism leaves them.
+ * settles, with the fish as metabolism leaves them and what its gut digested.
  */
 export function computeFishVitality(
   fish: Fish,
@@ -260,10 +241,11 @@ export function computeFishVitality(
   plants: Plant[],
   waterVolume: number,
   tankCapacity: number,
-  config: LivestockConfig
+  config: LivestockConfig,
+  digested: number
 ): VitalityResult {
   const hardiness = effectiveHardiness(fish);
-  const ctx: FishFactorContext = { fish, resources, plants, waterVolume, tankCapacity, config, hardiness };
+  const ctx: FishFactorContext = { fish, resources, plants, waterVolume, tankCapacity, config, hardiness, digested };
   return computeVitality({
     stressors: buildStressors(ctx),
     benefits: buildBenefits(ctx),
@@ -288,13 +270,14 @@ export function processHealth(
   plants: Plant[],
   waterVolume: number,
   tankCapacity: number,
-  config: LivestockConfig
+  config: LivestockConfig,
+  digested: readonly number[]
 ): HealthResult {
   const survivingFish: Fish[] = [];
   const deadFishNames: string[] = [];
   let deathWaste = 0;
-  const vitalities = fish.map((f) =>
-    computeFishVitality(f, resources, plants, waterVolume, tankCapacity, config)
+  const vitalities = fish.map((f, i) =>
+    computeFishVitality(f, resources, plants, waterVolume, tankCapacity, config, digested[i])
   );
 
   fish.forEach((f, i) => {
@@ -309,7 +292,7 @@ export function processHealth(
       // dominant signal.
       const overAge = f.age > speciesData.maxAge;
       deadFishNames.push(overAge ? `${speciesData.name} (old age)` : speciesData.name);
-      deathWaste += f.mass * config.deathDecayFactor;
+      deathWaste += f.mass * config.deathDecayFactor + f.gut;
       return;
     }
 

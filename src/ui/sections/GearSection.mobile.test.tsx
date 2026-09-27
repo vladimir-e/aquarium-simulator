@@ -52,6 +52,7 @@ const DEVICES = [
   'CO₂ injector',
   'Powerhead',
   'Auto doser',
+  'Auto feeder',
 ];
 
 describe('GearSection (phone)', () => {

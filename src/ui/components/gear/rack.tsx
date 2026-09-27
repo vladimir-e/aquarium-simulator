@@ -20,6 +20,7 @@ const POWER: Record<DeviceId, keyof Sim> = {
   co2Generator: 'updateCo2GeneratorEnabled',
   powerhead: 'updatePowerheadEnabled',
   autoDoser: 'updateAutoDoserEnabled',
+  autoFeeder: 'updateAutoFeederEnabled',
 };
 
 export function powerSwitch(sim: Sim): (id: DeviceId, next: boolean) => void {
@@ -31,7 +32,7 @@ export type RackLayout = 'page' | 'widget';
 
 export interface RackEntry {
   row: EquipmentRow & { id: DeviceId };
-  /** The clock it keeps, for the three devices that keep one. */
+  /** The clock it keeps, for the devices that keep one. */
   schedule: ScheduleRow | null;
 }
 
@@ -82,8 +83,8 @@ export function Ribbon({
 
 /**
  * One device, laid out two ways: the switch, what it is, what it is set to —
- * and where it keeps a clock, that clock in place of the sentence, so three
- * ribbons stacked in three rows are the schedule view. Off is grey and stays
+ * and where it keeps a clock, that clock in place of the sentence, so the
+ * ribbons stacked in their rows are the schedule view. Off is grey and stays
  * in place; the accent on the switch is the one status the accent may carry.
  */
 export function DeviceLine({

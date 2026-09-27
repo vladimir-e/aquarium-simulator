@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import {
   BUBBLE_RATE_OPTIONS,
   DOSE_AMOUNT_OPTIONS,
+  FEED_AMOUNT_OPTIONS,
   FILTER_TYPES,
   HEATER_WATTAGE_OPTIONS,
   LIGHT_PAR_OPTIONS,
@@ -26,6 +27,7 @@ import {
   scheduleWithEnd,
   scheduleWithStart,
   FILTER_LABEL,
+  formatFeed,
   type DeviceId,
   type DeviceReading,
 } from '../../build';
@@ -61,6 +63,44 @@ function Figure({ label, value, note, status = 'neutral' }: DeviceReading): Reac
         </span>
         {note && <span className="block text-[12px] leading-4 text-ink-3">{note}</span>}
       </span>
+    </div>
+  );
+}
+
+/** The one hour a day a device fires at, on the day's ribbon. */
+function HourField({
+  label,
+  ariaLabel,
+  startHour,
+  hour,
+  active,
+  onChange,
+}: {
+  label: string;
+  ariaLabel: string;
+  startHour: number;
+  hour: number;
+  active: boolean;
+  onChange: (startHour: number) => void;
+}): React.JSX.Element {
+  return (
+    <div className="py-2">
+      <Ribbon spans={scheduleSpans({ startHour, duration: 1 })} hour={hour} active={active} />
+      <div className="flex justify-between pt-1 text-[11px] tabular-nums text-ink-3">
+        {AXIS.map((tick) => (
+          <span key={tick}>{tick}</span>
+        ))}
+      </div>
+      <FieldRow label={label}>
+        <Stepper
+          ariaLabel={ariaLabel}
+          value={startHour}
+          min={0}
+          max={23}
+          display={hourLabel(startHour)}
+          onChange={onChange}
+        />
+      </FieldRow>
     </div>
   );
 }
@@ -225,30 +265,37 @@ function DeviceFields({
               options={numberOptions(DOSE_AMOUNT_OPTIONS, (ml) => `${ml.toFixed(1)} ml`)}
             />
           </FieldRow>
-          <div className="py-2">
-            <Ribbon
-              spans={scheduleSpans({ startHour: doser.schedule.startHour, duration: 1 })}
-              hour={hour}
-              active={active}
+          <HourField
+            label="Dose hour"
+            ariaLabel="Auto doser hour"
+            startHour={doser.schedule.startHour}
+            hour={hour}
+            active={active}
+            onChange={(startHour) => sim.updateAutoDoserSchedule({ ...doser.schedule, startHour })}
+          />
+        </>
+      );
+    }
+    case 'autoFeeder': {
+      const feeder = equipment.autoFeeder;
+      return (
+        <>
+          <FieldRow label="Ration">
+            <Select
+              ariaLabel="Auto feeder ration"
+              value={String(feeder.amount)}
+              onChange={(v) => sim.updateAutoFeederAmount(Number(v))}
+              options={numberOptions(FEED_AMOUNT_OPTIONS, formatFeed)}
             />
-            <div className="flex justify-between pt-1 text-[11px] tabular-nums text-ink-3">
-              {AXIS.map((tick) => (
-                <span key={tick}>{tick}</span>
-              ))}
-            </div>
-            <FieldRow label="Dose hour">
-              <Stepper
-                ariaLabel="Auto doser hour"
-                value={doser.schedule.startHour}
-                min={0}
-                max={23}
-                display={hourLabel(doser.schedule.startHour)}
-                onChange={(startHour) =>
-                  sim.updateAutoDoserSchedule({ ...doser.schedule, startHour })
-                }
-              />
-            </FieldRow>
-          </div>
+          </FieldRow>
+          <HourField
+            label="Feed hour"
+            ariaLabel="Auto feeder hour"
+            startHour={feeder.schedule.startHour}
+            hour={hour}
+            active={active}
+            onChange={(startHour) => sim.updateAutoFeederSchedule({ ...feeder.schedule, startHour })}
+          />
         </>
       );
     }

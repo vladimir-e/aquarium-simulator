@@ -8,6 +8,7 @@ import type { FishSpecies } from '../livestock/species.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { createLog } from '../core/logging.js';
 import { createFish } from '../livestock/create-fish.js';
+import type { LivestockConfig } from '../config/livestock.js';
 import type { ActionResult, AddFishAction, RemoveFishAction } from './types.js';
 
 /**
@@ -94,7 +95,8 @@ export function canAddFish(state: SimulationState, species: FishSpecies): boolea
  */
 export function addFish(
   state: SimulationState,
-  action: AddFishAction
+  action: AddFishAction,
+  config: LivestockConfig
 ): ActionResult {
   const { species } = action;
 
@@ -115,7 +117,7 @@ export function addFish(
   }
 
   const newState = produce(state, (draft) => {
-    const fish = createFish({ species, stage: 'adult', rng: draft.rng });
+    const fish = createFish({ species, stage: 'adult', rng: draft.rng, config });
     draft.fish.push(fish);
 
     draft.logs.push(

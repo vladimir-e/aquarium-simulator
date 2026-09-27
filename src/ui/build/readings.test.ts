@@ -281,7 +281,8 @@ describe('filter readings', () => {
         state.plants,
         water,
         state.tank.capacity,
-        DEFAULT_CONFIG.livestock
+        DEFAULT_CONFIG.livestock,
+        0
       );
       const charged = breakdown.stressors.find((s) => s.key === 'flow')?.amount ?? 0;
       const warning = hint('filter', state);

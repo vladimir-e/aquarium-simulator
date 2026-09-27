@@ -1,26 +1,30 @@
 ---
 title: Livestock
-description: Fish as individuals — one oxygen factor over the whole metabolism, satiation as a continuous curve, and a bank that heals a fish and buys the next generation.
+description: Fish as individuals — a gut whose digestion is the fish's income, one oxygen factor over the whole metabolism, and a bank that heals a fish and buys the next generation.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
 
 ## What it models
 
-Every fish is an individual with a mass, a health, a satiation and a bank. Its
-whole metabolism — the oxygen it draws, the ammonia it deaminates, the carbon it
-exhales — rides on one oxygen factor, so a suffocating fish loads the water less
-and suffers more. Health is the vitality model reading the water the fish sits
-in: income at full health banks, the bank heals the fish, and a full one pays
-for the next spawn.
+Every fish is an individual with a mass, a health, a gut and a bank. Food fills
+the gut and the gut digests, and what it digests is the fish's income — the way
+nutrient sufficiency is a plant's: every benefit is earned on it, and hunger
+harms a fish digesting less than it needs. Its whole metabolism — digestion, the
+oxygen it draws, the carbon it exhales — rides on one oxygen factor, so a
+suffocating fish loads the water less and suffers more. Health is the vitality
+model: income at full health banks, the bank heals the fish, and a full one pays
+for the next spawn, so a bigger ration buys more broods.
 
 ## Status
 
 | Mechanic | Status | Why |
 |---|---|---|
-| Metabolism | <Badge text="settled" variant="success" /> | Draw, deamination and CO₂ on one Monod factor off one half-saturation constant. Deamination is metabolism, so a depressed fish excretes proportionally less nitrogen. |
-| Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces-bound N come out of one food-nitrogen budget, so the waste mass is derived rather than a free parameter. A fish releases only the nitrogen it ate: a fasting fish releases none. |
-| Satiation | <Badge text="settled" variant="success" /> | One continuous piecewise curve producing both a stressor and a benefit, zero at every band edge. |
+| Metabolism | <Badge text="settled" variant="success" /> | Digestion, draw and CO₂ on one Monod factor off one half-saturation constant. A depressed fish digests, and so excretes, proportionally less. |
+| The gut | <Badge text="settled" variant="success" /> | One stock for hunger. It digests first order, slower cold and short of oxygen, so a meal clears over hours to a day. |
+| Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces come out of what the gut digests, at one food-nitrogen fraction, so a meal's nitrogen leaves over the hours it digests and none is lost on the way. |
+| Nourishment | <Badge text="settled" variant="success" /> | Every benefit is earned on what the fish digests, on a Monod curve half-saturated at its maintenance ration; hunger harms from that same ration down. A starving tank stops banking before it kills. |
+| Serving | <Badge text="settled" variant="success" /> | Every fish eats at once. Short food is split in proportion to appetite, so a school eats and thins together. |
 | Water quality | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen harm on log dose from each fish's own edge, which hardiness moves out from the alert's. Chloride, which blunts nitrite, is not modelled. |
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits — as `1 − hardiness` for most, and on the concentration axis for water quality. A hardy fish tolerates bad water but isn't more energised by good. |
 | Age | <Badge text="settled" variant="success" /> | A linear stressor ramp past the species lifespan, through the same channel as every other stressor. No probabilistic cliff. |
@@ -69,25 +73,23 @@ Mass drives every number, and one oxygen factor scales most of them.
 
 | Flow | Per hour | Scaled by the oxygen factor |
 |---|---|---|
-| Food eaten | `emptiness × mass × baseFoodRate` | no |
+| Digested | `gut × (1 − e^−k)`, `k = digestionRate × Q10 term` | yes |
+| Eaten | the room left in the gut, `gutCapacity × mass − gut`, or its share of short food | no |
 | Oxygen drawn | `baseRespirationRate × mass` | yes |
 | CO₂ exhaled | the oxygen drawn × `respiratoryQuotient`, through the molar mass step | yes — it derives from the draw |
-| Gill ammonia | food eaten × `foodNitrogenFraction` × `gillNFraction`, as NH₃ | yes |
-| Feces | food eaten × `(1 − gillNFraction)` | no |
-| Minerals, beside the gill ammonia | food eaten × `gillNFraction` × `foodMineralContent` | no |
+| Gill ammonia | digested × `foodNitrogenFraction` × `gillNFraction`, as NH₃ | through digestion |
+| Feces | digested × `(1 − gillNFraction)` | through digestion |
+| Minerals, beside the gill ammonia | digested × `gillNFraction` × `foodMineralContent` | through digestion |
 
 A fish regulates its uptake until the water falls past its critical oxygen
 tension, so the half-saturation constant sits at 1.0 mg/L — the highest in the
 tank. Fish feel a shortage before the bacteria do.
 
-Every nitrogen flow starts from food eaten, so a fish that eats nothing releases
-no nitrogen. Feces sit outside the factor because that nitrogen was never
-absorbed, and the gut does not care what the gills are getting. The nitrogen a
-depressed fish does not deaminate stays in its body, which is an untracked sink.
-Minerals take no such detour: food carries phosphate, potassium and iron at
-`foodMineralContent`, and waste carries the same per gram, so every milligram fed
-returns to the water — eaten, through the gills or the feces; uneaten, as it
-decays.
+Every nitrogen and mineral flow starts from what the gut digests, so a meal
+comes out over the hours after it is eaten and a fish with an empty gut
+releases nothing. Food in the gut still carries its nitrogen and minerals, so
+every milligram fed returns to the water — digested, through the gills or the
+feces; uneaten, as it decays; in a fish that dies, with its body.
 
 Damage is a separate reading. The oxygen stressor still charges a fish for the
 water it is in, so a suffocating fish draws less *and* suffers more.
@@ -97,43 +99,45 @@ water it is in, so a suffocating fish draws less *and* suffers more.
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
 | `health` | Benefits; healing from the bank | Stressors | %, normal at 100 |
-| `satiation` | Eating, toward the 100 cap | `satiationDecayRate`, every hour, fed or not | % |
+| `gut` | Eating, up to `gutCapacity × mass` | Digestion, first order | g |
 | `surplus` | Income at full health | Healing; a female's spawn empties it | condition points, capped at `surplusCap` |
 | `age` | One tick per hour, always | — | ticks |
 | `mass` | Re-derived from age while the fish is a fry; fixed at `adultMass` after | — | g |
-| `food` | Feeding, elsewhere | Fish eating, hungriest first | g |
-| `waste` | Feces; half the body mass of a fish that dies | Mineralization, elsewhere | g |
+| `food` | Feeding and the feeder, elsewhere | Fish eating, a share of their appetite each | g |
+| `waste` | Feces; half the body mass of a fish that dies, and its gut | Mineralization, elsewhere | g |
 | `ammonia` | Gill excretion | Nitrification, elsewhere | mg |
 | `kh` | Gill excretion, an equivalent per mole of ammonia | Nitrification, elsewhere | mg CaCO₃ |
 | `oxygen` | Gas exchange, elsewhere | Respiration, itself throttled by the oxygen already standing | mg/L |
 | `co2` | Respiration, derived from the oxygen drawn | Photosynthesis and gas exchange, elsewhere | mg/L |
 
-### Feeding and satiation
+### Feeding and the gut
 
-Fish are served hungriest first. Each takes
-`emptiness × mass × baseFoodRate`, where emptiness is the gap to the 100 cap, so
-a fish at satiation 0 eats a full ration and one at 50 eats half. There is no
-voluntary stop at "full enough" — overfeeding is reachable through the normal
-eating loop and is punished afterwards.
+Every fish eats at once. Each wants the room left in its gut; while the food
+lasts every appetite is met, and when it runs short each fish takes the same
+share of its own appetite, so a school fills and thins together. Food the fish
+leave stays in the water and decays, which is where overfeeding costs them.
 
-Satiation then feeds one continuous piecewise-linear curve that emits a stressor
-on one side and a benefit on the other. The bands are labels; the curve passes
-through zero at every edge.
+The gut digests the same share of whatever it holds each hour, at
+`digestionRate` at 25 °C, doubling for every ten degrees warmer and slowing
+under oxygen the way the rest of the metabolism does. A full gut is about half
+digested in seven hours and nearly clear in thirty; a cold tank takes twice as
+long. A fish enters the tank with a day's maintenance ration in its gut — a
+bought fish from the shop, a fry on its yolk.
 
-| Satiation | Band | Contribution |
+What the gut digests this hour is the fish's income. Against its maintenance
+ration — `maintenanceRation × mass` a day, what holds its condition — it sets
+two rates:
+
+| Rate | Shape | At maintenance |
 |---|---|---|
-| 100 → 99 | Overfed | stressor, ramping to `satiationOverfedSeverity` at 100 |
-| 99 → 75 | Well fed | benefit, triangular, peaking at 87 |
-| 75 → 50 | Peckish | neutral |
-| 50 → 25 | Hungry | stressor, ramping to `satiationHungrySeverity` at 25 |
-| 25 → 0 | Starving | stressor, continuing onto a steeper slope to `satiationStarvingSeverity` at 0 |
+| Nourishment | `digested / (digested + maintenance)`, scaling every benefit | half |
+| Hunger | `hungerSeverity × (1 − digested / maintenance)` below it, hardened | nothing |
 
-The overfed band is one point wide on purpose. Steady-state eating settles at
-about 99.4 — a hundred minus the hourly decay — so a normal feeding cadence
-charges a fraction of the peak for one hour and drops cleanly back into well
-fed. Sustained overfeeding pins satiation at 100, which is where the cost bites.
-
-Unfed, a stuffed fish reaches zero in about seven days.
+A ration past maintenance earns more of every benefit, so it banks faster and
+buys more broods; one under it earns less and harms. Fed once a day, a fish
+digests most of its meal in the first half of the day and runs a little hungry
+before the next. Unfed, it stops banking at once and dies in about two weeks,
+three with a full bank.
 
 ### Health
 
@@ -153,20 +157,21 @@ outruns its healing, so its health falls.
 | Oxygen | under the fish's own edge | e-fold under |
 | Water level | below `waterLevelStressThreshold` of capacity | % under |
 | Flow | above the species `maxTurnover` | tank volumes/h over |
-| Satiation | overfed, hungry or starving | the curve above |
+| Hunger | digesting under its maintenance ration | share short of it |
 | Age | past the species `maxAge` | hour over |
+
+Every benefit is its peak times the fish's nourishment.
 
 | Benefit | Earns when | Peak |
 |---|---|---|
 | pH | inside the species range, most at its centre and nothing at its edges | `phBenefitPeak` |
 | Oxygen | rising on log scale from 4 mg/L, full from 6 | `oxygenBenefitPeak` |
-| Well fed | satiation 75–99 | `satiationWellFedPeak` |
 | Plants | plant power, saturating at `plantBenefitSaturationPoint` | `plantBenefitPeak` |
 
-The three non-plant channels sum to 1.0 %/h in a clean tank with pH at the
-band's centre; a saturated planting lifts the budget to 1.2. That headroom over
-zero is the whole point — a healthy planted tank sits at full health with a
-positive net rate, banking what breeding spends.
+At full nourishment pH and oxygen sum to 0.7 %/h in a clean tank with pH at the
+band's centre, and a saturated planting lifts the budget to 0.9. That headroom
+over zero is the whole point — a fed fish in a healthy tank sits at full health
+with a positive net rate, banking what breeding spends.
 
 #### Water quality
 
@@ -260,20 +265,20 @@ visible decline rather than a coin flip.
 
 | Constant | Meaning | Value |
 |---|---|---|
-| `baseFoodRate` | Full ration for an empty stomach, per gram of fish | `0.01` g/g/hr |
+| `gutCapacity` | Food a full gut holds, per gram of fish | `0.03` g/g |
+| `digestionRate` · `digestionQ10` | First-order rate a gut digests at 25 °C, and how it scales with temperature | `0.1` /hr · `2` |
+| `maintenanceRation` | Food a day, per gram of fish, that holds condition — nourishment is half here, and hunger starts below it | `0.005` g/g/day |
+| `hungerSeverity` | Damage at an empty gut, before hardiness | `0.6` %/hr |
 | `baseRespirationRate` | Oxygen draw per gram, a Monod maximum | `0.3` mg O₂/g/hr |
-| `respirationOxygenHalfSaturation` | O₂ at which the whole metabolism runs at half rate — draw, deamination and CO₂ alike | `1.0` mg/L |
+| `respirationOxygenHalfSaturation` | O₂ at which the whole metabolism runs at half rate — digestion, draw and CO₂ alike | `1.0` mg/L |
 | `foodNitrogenFraction` | Nitrogen in food, and in the waste it becomes | `0.05` g N/g |
-| `gillNFraction` | Share of ingested nitrogen leaving through the gills; the rest is feces | `0.8` |
+| `gillNFraction` | Share of digested nitrogen leaving through the gills; the rest is feces | `0.8` |
 | `respiratoryQuotient` | CO₂ exhaled per O₂ consumed, a molar ratio | `0.8` |
-| `satiationDecayRate` | Satiation burned per hour, fed or fasted | `0.6` %/hr |
 | `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own edge; oxygen's per e-fold under | `0.56` · `0.75` · `1.0` · `2.7` %/e-fold/hr |
 | `flowStressSeverity` | Damage per turnover unit above species tolerance | `0.3` %/×/hr |
 | `ghStressSeverity` | Damage per dGH outside the species range — a chronic harm, so a guppy five degrees short stays inside a fed tank's recovery | `0.1` %/dGH/hr |
 | `ageStressSeverity` | Damage per hour past the species lifespan | `0.05` %/hr/hr |
-| Satiation band edges | The four anchors of the curve: overfed, well-fed, hungry, starving | `99` · `75` · `50` · `25` % |
-| Satiation severities | Peak at each anchor — overfed, well-fed benefit, hungry, starving | `2.0` · `0.3` · `2.5` · `6.0` %/hr |
-| `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | The three non-satiation recovery channels | `0.4` · `0.3` · `0.2` %/hr |
+| `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | The three benefit channels, at full nourishment | `0.4` · `0.3` · `0.2` %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which shelter tops out — three full healthy java fern clumps, or a little over one sword | `3.0` |
 | `surplusCap` | Ceiling on the bank; a female spawns on a full one | `50` condition points |
 | `healingDrawRate` | First-order rate a 1 g fish's bank heals it at, scaled by adult mass to the −¼ | `0.05` /hr |
@@ -286,7 +291,7 @@ visible decline rather than a coin flip.
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, each past its tolerance edge | `ammonia`, `phosphate`, `potassium` and `iron` through the gills; `waste` as feces and death mass |
 | [Water & gases](/subsystems/water-and-gases/) | `oxygen` twice — as the Monod factor on the whole metabolism, and as a stressor under the fish's own edge and a benefit rising above the alert's; pH, derived from `co2` and `kh`, and `gh`, each as a tolerance band | `oxygen` drawn, `co2` exhaled, `kh` returned on the gill ammonia |
 | [Environment](/subsystems/environment/) | `temperature` as a tolerance band; `water` for every ppm and for the water-level stressor | — |
-| [Equipment](/subsystems/equipment/) | `flow`, divided by standing water into a turnover | — |
+| [Equipment](/subsystems/equipment/) | `flow`, divided by standing water into a turnover; `food` the feeder drops | — |
 | [Plants](/subsystems/plants/) | Plant power — the shelter benefit, saturating | — |
 | [Actions](/subsystems/actions/) | `food` put in the tank by feeding | Stocking, removal and selling fry write the array directly |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | `fish-died`, `fish-spawned`, `eggs-laid` and `eggs-hatched` entries; `fish-spawned` and `eggs-hatched` carry a count |
@@ -295,6 +300,6 @@ visible decline rather than a coin flip.
 ## Source
 
 `src/simulation/livestock/` — the roster, construction, the per-tick pipeline
-and breeding; `src/simulation/systems/` — metabolism, satiation, fish health and
+and breeding; `src/simulation/systems/` — metabolism, digestion, fish health and
 the shared vitality engine; `src/simulation/config/` — the tunables above and
 their declared ranges.

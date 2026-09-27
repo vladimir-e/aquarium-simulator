@@ -113,11 +113,12 @@ describe('rackSchedules', () => {
     expect(rackSchedules(atHour(14)).hour).toBe(14);
   });
 
-  it('carries the three scheduled devices, in rack order', () => {
+  it('carries the scheduled devices, in rack order', () => {
     expect(rackSchedules(base).rows.map((r) => r.id)).toEqual([
       'light',
       'co2Generator',
       'autoDoser',
+      'autoFeeder',
     ]);
   });
 
