@@ -86,7 +86,11 @@ function tendClutches(draft: SimulationState, config: LivestockConfig, metabolic
     waste += hour.spoiled * eggMass + eaten.overflow;
     (hour.clutch.development < 1 ? developing : developed).push(hour.clutch);
   }
-  waste += swallow(draft.fish, shares, config);
+  const swallowed = swallow(draft.fish, shares, config);
+  draft.fish.forEach((fish, i) => {
+    fish.gut += swallowed.taken[i];
+  });
+  waste += swallowed.overflow;
 
   draft.clutches = developing;
   for (const clutch of developed) waste += hatch(draft, clutch, config);

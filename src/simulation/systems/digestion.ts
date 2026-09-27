@@ -49,20 +49,16 @@ export function shareCapped(weights: readonly number[], caps: readonly number[],
   return { taken, overflow: shared.overflow + overflow };
 }
 
-/** Each gut swallows its share of prey up to the room left in it; returns the grams that overflowed. */
+/** What each gut swallows of its share of prey, up to the room left in it, and the grams that overflow. */
 export function swallow(
-  eaters: (Sized & Pick<Fish, 'gut'>)[],
+  eaters: readonly (Sized & Pick<Fish, 'gut'>)[],
   shares: readonly number[],
   config: LivestockConfig
-): number {
-  const { taken, overflow } = capped(
+): Shared {
+  return capped(
     shares,
     eaters.map((eater) => appetite(eater, config))
   );
-  eaters.forEach((eater, i) => {
-    eater.gut += taken[i];
-  });
-  return overflow;
 }
 
 /** Grams a gut digests over the hour, its metabolism running at `factor`. */

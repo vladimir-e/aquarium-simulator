@@ -284,10 +284,14 @@ function powerheadReadings({ state, units }: DeviceReadingInput): DeviceReading[
   ];
 }
 
+/** Hours, 1 to 24, until the next tick that runs `hour` of the day: this state has already run its own. */
+function hoursUntil(tick: number, hour: number): number {
+  return ((((hour - tick - 1) % 24) + 24) % 24) + 1;
+}
+
 function autoDoserReadings({ state }: DeviceReadingInput): DeviceReading[] {
   const { autoDoser } = state.equipment;
-  const hour = state.tick % 24;
-  const until = (autoDoser.startHour - hour + 24) % 24;
+  const until = hoursUntil(state.tick, autoDoser.startHour);
 
   return [
     {
@@ -297,9 +301,7 @@ function autoDoserReadings({ state }: DeviceReadingInput): DeviceReading[] {
         ? `would dose at ${hourLabel(autoDoser.startHour)}`
         : autoDoser.dosedToday
           ? 'dosed today'
-          : until === 0
-            ? 'this hour'
-            : `in ${until} h`,
+          : `in ${until} h`,
     },
   ];
 }
@@ -307,13 +309,13 @@ function autoDoserReadings({ state }: DeviceReadingInput): DeviceReading[] {
 function autoFeederReadings({ state }: DeviceReadingInput): DeviceReading[] {
   const { autoFeeder } = state.equipment;
   const at = hourLabel(autoFeeder.startHour);
-  const until = (autoFeeder.startHour - (state.tick % 24) + 24) % 24;
+  const until = hoursUntil(state.tick, autoFeeder.startHour);
 
   return [
     {
       label: 'Next feeding',
       value: autoFeeder.enabled ? at : 'off',
-      note: !autoFeeder.enabled ? `would feed at ${at}` : until === 0 ? 'this hour' : `in ${until} h`,
+      note: autoFeeder.enabled ? `in ${until} h` : `would feed at ${at}`,
     },
   ];
 }
@@ -476,9 +478,11 @@ export function deviceHint(
     case 'autoFeeder': {
       const fed = equipment.autoFeeder.amount;
       return muted(
-        ahead.ration > 0
-          ? `A day's ration of ${formatFeed(fed)} is ${(fed / ahead.ration).toFixed(1)}× what the fish need to hold condition.`
-          : 'No fish to eat it — what it drops rots in the water.'
+        state.fish.length === 0
+          ? 'No fish to eat it — what it drops rots in the water.'
+          : ahead.ration > 0
+            ? `A day's ration of ${formatFeed(fed)} is ${(fed / ahead.ration).toFixed(1)}× what the fish need to hold condition.`
+            : 'Without oxygen the fish cannot eat — what it drops rots in the water.'
       );
     }
     case 'biofilter':

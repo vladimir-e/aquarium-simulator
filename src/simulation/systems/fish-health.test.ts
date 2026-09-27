@@ -647,6 +647,21 @@ describe('predation', () => {
     expect(gained).toBeGreaterThan(0.9 * brood);
   });
 
+  it('lets the share a hunter that died this hour did rot, not pass to the hunters that survive it', () => {
+    const prey = { ...fry, health: 0.001, gut: 0 };
+    const dying = makeFish({ id: 'dying', mass: 20, health: 0.001, gut: 0 });
+    const surviving = makeFish({ id: 'surviving', mass: 20, health: 100, gut: 0 });
+    const result = health([prey, dying, surviving], { oxygen: 1 });
+
+    expect(result.survivingFish.map((f) => f.id)).toEqual(['surviving']);
+    const hunted = stressorAmount(result.vitalities[0], 'hunted') / result.vitalities[0].breakdown.damageRate;
+    const remains = prey.mass * livestockDefaults.deathDecayFactor;
+    const gained = result.survivingFish[0].gut;
+    expect(hunted).toBeGreaterThan(0);
+    expect(gained).toBeCloseTo((hunted / 2) * remains, 12);
+    expect(gained + result.deathWaste).toBeCloseTo(remains + dying.mass * livestockDefaults.deathDecayFactor, 12);
+  });
+
   it('leaves a fry to rot when nothing larger survives to eat it', () => {
     const prey = { ...fry, health: 0.001 };
     const predator = makeFish({ id: 'big', mass: 40, health: 0.001 });

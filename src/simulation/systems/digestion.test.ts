@@ -100,20 +100,19 @@ describe('swallow', () => {
     { mass: 20, gut: 20 * config.gutCapacity },
   ];
 
-  it('fills each gut by its share while it has room', () => {
-    const eaters = school();
-    expect(swallow(eaters, [0.001, 0.003, 0], config)).toBe(0);
-    expect(eaters.map((e) => e.gut)).toEqual([0.001, 0.003, 20 * config.gutCapacity]);
+  it('takes each share while the gut has room, leaving the eaters as they were', () => {
+    const eaters = Object.freeze(school().map((e) => Object.freeze(e)));
+    expect(swallow(eaters, [0.001, 0.003, 0], config)).toEqual({ taken: [0.001, 0.003, 0], overflow: 0 });
+    expect(eaters.map((e) => e.gut)).toEqual([0, 0, 20 * config.gutCapacity]);
   });
 
-  it('fills a gut no further than full, the rest overflowing, every gram accounted for', () => {
+  it('takes no more than a gut has room for, the rest overflowing, every gram accounted for', () => {
     const eaters = school();
-    const before = eaters.reduce((sum, e) => sum + e.gut, 0);
     const shares = [5, 5, 5];
-    const overflow = swallow(eaters, shares, config);
-    eaters.forEach((e) => expect(e.gut).toBeLessThanOrEqual(gutCapacity(e, config) + 1e-15));
+    const { taken, overflow } = swallow(eaters, shares, config);
+    eaters.forEach((e, i) => expect(e.gut + taken[i]).toBeLessThanOrEqual(gutCapacity(e, config) + 1e-15));
     expect(overflow).toBeGreaterThan(0);
-    expect(eaters.reduce((sum, e) => sum + e.gut, 0) - before + overflow).toBeCloseTo(15, 12);
+    expect(taken.reduce((sum, g) => sum + g, 0) + overflow).toBeCloseTo(15, 12);
   });
 });
 
