@@ -6,21 +6,10 @@ import { produce } from 'immer';
 import { monodFactor } from '../core/kinetics.js';
 import { metabolicMass } from '../systems/digestion.js';
 import type { Fish } from '../state.js';
+import { fishRecord } from '../tests/fish.js';
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
-  return {
-    id: 'fish_1',
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 0,
-    gut: 0.01,
-    sex: 'male',
-    hardinessOffset: 0,
-    surplus: 0,
-    ovary: 0,
-    ...overrides,
-  };
+  return fishRecord({ gut: 0.01, ...overrides });
 }
 
 function makeState(fish: Fish[] = []): SimulationState {

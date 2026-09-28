@@ -19,26 +19,14 @@ import {
   readyToBrood,
 } from './fish-growth.js';
 import { metabolicMass } from './digestion.js';
+import { fishRecord } from '../tests/fish.js';
 
 const SPECIES = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
 
 function fish(o: Partial<Fish> & { size?: number } = {}): Fish {
   const { size = 100, ...rest } = o;
   const species = rest.species ?? 'guppy';
-  const made: Fish = {
-    id: 'f',
-    species,
-    mass: massAtSize(species, size),
-    health: 100,
-    age: 0,
-    gut: 0,
-    sex: 'female',
-    hardinessOffset: 0,
-    surplus: config.surplusCap,
-    ovary: 0,
-    ...rest,
-  };
-  return { ...made, ovary: rest.ovary ?? (made.sex === 'female' ? eggsLaid(made, config) : 0) };
+  return fishRecord({ id: 'f', species, mass: massAtSize(species, size), sex: 'female', surplus: config.surplusCap, ...rest });
 }
 
 describe('size', () => {
@@ -257,6 +245,12 @@ describe('brood', () => {
     expect(readyToBrood(she, [], config)).toBe(true);
     expect(readyToBrood(she, [another], config)).toBe(true);
     expect(readyToBrood(she, [carried], config)).toBe(false);
+  });
+
+  it('a female whose ovary holds no whole egg is not ready, and keeps her full bank for when it does', () => {
+    const she = fish({ ovary: 0.9 });
+    expect(readyToBrood(she, [], config)).toBe(false);
+    expect(readyToBrood({ ...she, ovary: 1 }, [], config)).toBe(true);
   });
 
   it('a male pays toward a brood only with a brood bank to pay from', () => {

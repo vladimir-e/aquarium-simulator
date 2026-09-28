@@ -20,20 +20,10 @@ import {
   type RosterRow,
   type SpeciesRosterRow,
 } from './roster.js';
+import { fishRecord } from '../../simulation/tests/fish.js';
 
-function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
-  return {
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 24 * 120,
-    gut: FED,
-    sex: 'male',
-    hardinessOffset: 0,
-    surplus: 0,
-    ovary: 0,
-    ...overrides,
-  };
+function makeFish(overrides: Partial<Fish> = {}): Fish {
+  return fishRecord({ age: 24 * 120, gut: FED, ...overrides });
 }
 
 function tank(fish: Fish[], clutches: Clutch[] = []): SimulationState {

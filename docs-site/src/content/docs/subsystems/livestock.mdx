@@ -54,8 +54,8 @@ fish hunt the young that hatch.
 | Angelfish | 15.0 g | 0.2 | 10 y | 0.4 | 24–30 °C | 6.0–8.0 | 3–15 dGH | 10 ×/h |
 
 pH and GH bands are generous hobby care-sheet ranges. Flow tolerance is a
-turnover — flow divided by standing water — so a fixed-output powerhead is harsher
-in a small tank.
+turnover — flow divided by standing water — so a fixed-output powerhead is
+harsher in a small tank.
 
 ### Metabolism
 
@@ -65,9 +65,10 @@ tank, so fish feel a shortage before the bacteria do.
 
 A fish's rates run on its metabolic mass, not its mass: Kleiber's law puts a
 body's metabolism on mass to the ¾, so per gram it runs on mass to the −¼.
-Against a grown fish of its own species, `M = adultMass × (mass / adultMass)^(1 + massScalingExponent)`,
-so a grown fish sits at the per-gram constants and a guppy fry at 1 % of adult
-mass holds, needs, breathes and asks to grow 3.2× as much per gram.
+Against a grown fish of its own species,
+`M = adultMass × (mass / adultMass)^(1 + massScalingExponent)`, so a grown fish
+sits at the per-gram constants and a guppy fry at 1 % of adult mass holds,
+needs, breathes and asks to grow 3.2× as much per gram.
 
 | Flow | Per hour | Scaled by the metabolic factor |
 |---|---|---|
@@ -81,13 +82,12 @@ mass holds, needs, breathes and asks to grow 3.2× as much per gram.
 | Minerals, beside the gill ammonia | (digested × `assimilatedFraction` − retained) × `foodMineralContent` | through digestion |
 
 A gram of fish, egg or embryo is `bodyOrganicShare` grams of organic matter
-of the food's recipe — 2.75 % N and 0.36 % P by wet mass — and water. Every
-milligram fed returns to the water or stays in a body: digested, through the
-gills or feces, less what growth and ovaries retain; uneaten, as it decays; at death, the
-whole body, ovary, gut and brood. A stocked fish brings its body and gut in; a removed
-or sold one takes them out.
-The oxygen stressor is a separate reading, so a suffocating fish draws less
-*and* suffers more.
+of the food's recipe and water. Every milligram fed returns to the water or
+stays in a body: digested, through the gills or feces, less what growth and
+ovaries retain; uneaten, as it decays; at death, the whole body, ovary, gut and
+brood. A stocked fish brings its body and gut in; a removed or sold one takes
+them out. The oxygen stressor is a separate reading, so a suffocating fish
+draws less *and* suffers more.
 
 ### Stocks
 
@@ -180,10 +180,9 @@ predator mass = Σ over every fish of max(0, its mass − prey mass)
 hunted        = predationRate × predator mass / water × (1 − size / 100)^preyVulnerabilityExponent
 ```
 
-hardened by `1 − hardiness`. A grown neon pair in 30 gal costs a newborn neon
-0.45 %/h and a guppy pair a newborn guppy 0.35 %/h, about half what a fed fry
-earns. A fed fry earning past it grows out of reach; a hungry or crowded one
-dies — so a tank breeds until its own fish hold the fry back.
+hardened by `1 − hardiness`. A fed fry earning past it grows out of reach; a
+hungry or crowded one dies — so a tank breeds until its own fish hold the fry
+back.
 
 #### Ageing
 
@@ -210,28 +209,21 @@ after vitality, clutches advance, females on full banks brood, then every bank
 draws toward growth:
 
 ```
-drawn   = bank × (1 − e^−growthDrawRate) × (1 − size / 100)
-asked   = bodyOrganicShare × M × drawn × growthRate × growthPerSurplus / 100
-yolked  = (eggs her brood share buys − ovary) × egg organics   (a female)
-supply  = digested × assimilatedFraction × growthEfficiency
-built   = supply / (supply + asked + yolked)
-mass   += asked × built / bodyOrganicShare
-ovary  += yolked × built / egg organics
-bank   −= drawn × built
+drawn     = bank × (1 − e^−growthDrawRate) × (1 − size / 100)
+growthAsk = bodyOrganicShare × M × drawn × growthRate × growthPerSurplus / 100
+ovaryAsk  = max(0, eggs her brood share buys − ovary) × egg organics   (a female)
+asked     = growthAsk + ovaryAsk
+supply    = digested × assimilatedFraction × growthEfficiency
+built     = supply / (supply + asked)
+mass     += growthAsk × built / bodyOrganicShare
+ovary    += ovaryAsk × built / egg organics
+bank     −= drawn × built
 ```
 
-The asking is a share of the fish's metabolic mass `M` — anabolism runs on
-mass to the ¾ like the rest of its metabolism — so growth is a specific rate on
-mass to the −¼ that tapers logistically: on a full bank a hatchling grows
-fastest, and a fish near adult size barely at all. Fed all it can eat, a
-newborn reaches adult size in about two and a half months as a guppy, three as
-a betta, four as a neon, five as a corydoras and seven as an angelfish. Supply scales with `M` too,
-so a fry on a thin ration stunts at any size: growth never builds more
-than its supply, and slows smoothly when digestion is short, the bank paying
-only for what was built. What it retains leaves the gill stream, so a growing
-fish excretes less ammonia per gram of food; a grown one retains only what a
-female's ovary takes. Size
-approaches 100 without a clamp. Fry and adult split at 50 %, where the brood
+Supply scales with `M` too, so a fry on a thin ration stunts at any size, and
+the bank pays only for what was built. What a fish retains leaves the gill
+stream, so a growing fish excretes less ammonia per gram of food. Size
+approaches 100 without a clamp; fry and adult split at 50 %, where the brood
 share passes the growth share.
 
 A brood costs a parent `broodCost` bank points per its own body mass of
@@ -241,16 +233,16 @@ offspring:
 eggs = brood share × bank × mass / (broodCost × egg mass)
 ```
 
-A female's eggs are built from her food alongside growth: her ovary asks for
-the eggs her brood share buys that it doesn't yet hold, and one supply builds
-both askings in proportion. She pays for the whole eggs her share buys and lays
-as many as her ovary holds, so a well-fed female lays her full brood and a
-food-short one a small one; her body never pays. Each male of her
-species fathers what his brood share pays for at his species' `maleShare` of the
-price. Ready females of a species brood together: the males father up to all
-eggs laid, shared back in proportion, each paying the same share of what he
-could. Unfathered eggs stay in her ovary, lost with what she paid. Refilling the banks is the
-cooldown.
+A female's ovary asks for the eggs her brood share buys that it doesn't yet
+hold. On a full bank, with at least one egg in her ovary, she pays for the
+whole eggs her share buys — refilling the bank is the cooldown — and lays as
+many as her ovary holds, so a well-fed female lays her full brood and a
+food-short one a small one; her body never pays. Each male of her species
+fathers what his brood share pays for at his species' `maleShare` of the price.
+Ready females of a species brood together: the males father up to all eggs
+laid, shared back in proportion, each paying the same share of what he could.
+She reabsorbs unfathered eggs; the bank points she paid for them are what's
+lost.
 
 Stocking names a size, grown by default. Age starts at 0 and is read only by
 wear and healing. Breeding is uncapped: the stocking ceiling gates only the
@@ -269,8 +261,9 @@ Every hour two competing first-order losses thin it and one rate develops it:
 | Development | `metabolic factor / developmentTime` |
 
 At development 1 each whole egg left hatches into a fry of the egg's mass with
-its yolk in its gut; the part egg goes to waste. Eggs the water kills go to waste; eaten eggs go into the eaters' guts by
-the grams each outweighs an egg, as room allows, the rest to waste.
+its yolk in its gut; the part egg goes to waste. Eggs the water kills go to
+waste; eaten eggs go into the eaters' guts by the grams each outweighs an egg,
+as room allows, the rest to waste.
 
 | Species | Mode | Hatches in, at 25 °C | Exposure | Egg and fry | Male share | Grown brood |
 |---|---|---|---|---|---|---|
@@ -280,18 +273,16 @@ the grams each outweighs an egg, as room allows, the rest to waste.
 | Corydoras | egg-depositor | 4 days | 1 | 4 mg | 0.2 | 100 eggs |
 | Angelfish | substrate-spawner | 2½ days | 0.5 | 2 mg | 0.5 | 750 eggs |
 
-Exposure is how much of the tank's predation reaches a laid clutch: a grown
-neon pair in 30 gal finds an eighth of an open clutch an hour, so one egg in
-twenty-five hatches, and every fry already swimming finds more. A
+Exposure is how much of the tank's predation reaches a laid clutch. A
 livebearer carries one brood at a time through gestation — a gestating female
 doesn't brood — and it dies or leaves the tank with her.
 
 ### Death
 
-Health reaching zero removes the fish. Its remains — its whole body, ovary, gut
-and any carried brood — rot to waste, less the share its
-surviving predators eat: their share of its dying hour's damage, into their guts
-by weight as room allows.
+Health reaching zero removes the fish. Its remains — its whole body, ovary,
+gut and any carried brood — rot to waste, less the share its surviving
+predators eat: their share of its dying hour's damage, into their guts by
+weight as room allows.
 
 ## Key tunables
 
@@ -300,9 +291,9 @@ by weight as room allows.
 | `gutCapacity` | Food a full gut holds, per gram of grown fish | `0.03` g/g |
 | `massScalingExponent` | Power of mass the per-gram gut, maintenance, respiration and healing run on | `−0.25` |
 | `digestionRate` · `metabolicQ10` | First-order digestion at 25 °C; the metabolism's temperature scaling | `0.1` /hr · `2` |
-| `maintenanceRation` | Food a day per gram that holds condition at 25 °C in ample oxygen | `0.005` g/g/day |
+| `maintenanceRation` | Food a day per gram of grown fish that holds condition at 25 °C in ample oxygen | `0.005` g/g/day |
 | `hungerSeverity` | Damage at an empty gut, before hardiness | `0.6` %/hr |
-| `baseRespirationRate` | Oxygen draw per gram at 25 °C, a Monod maximum | `0.3` mg O₂/g/hr |
+| `baseRespirationRate` | Oxygen draw per gram of grown fish at 25 °C, a Monod maximum | `0.3` mg O₂/g/hr |
 | `respirationOxygenHalfSaturation` | O₂ at which the whole metabolism runs at half rate | `1.0` mg/L |
 | `foodNitrogenFraction` | Nitrogen in food, and in the waste it becomes | `0.05` g N/g |
 | `assimilatedFraction` | Share of digested food a fish assimilates — growth's material, the rest through the gills; the remainder is feces | `0.8` |
@@ -343,6 +334,6 @@ by weight as room allows.
 ## Source
 
 `src/simulation/livestock/` — the roster, construction, the per-tick pipeline
-and the bodies' step after it; `src/simulation/systems/` — metabolism, digestion, fish health and
-the shared vitality engine; `src/simulation/config/` — the tunables above and
-their declared ranges.
+and the bodies' step after it; `src/simulation/systems/` — metabolism,
+digestion, fish health and the shared vitality engine; `src/simulation/config/`
+— the tunables above and their declared ranges.

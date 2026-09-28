@@ -25,8 +25,8 @@ import type { HistorySnapshot } from './history.js';
  *    age is wear: `ageStressSeverity` gives way to `wearAtLifespan`,
  *    `wearDoublingShare` and `healingHalvingShare`. A fish is made of what it
  *    ate: `deathDecayFactor` gives way to `bodyOrganicShare` and
- *    `growthEfficiency`, and `gillNFraction` becomes `assimilatedFraction`.
- *    Metabolism scales with mass: `massScalingExponent`.
+ *    `growthEfficiency`, `gillNFraction` becomes `assimilatedFraction`, and
+ *    `Fish` gains `ovary`. Metabolism scales with mass: `massScalingExponent`.
  *    A v18 session parses, the first tick with a clutch standing drains it by
  *    keys it does not carry, and every fish's wear, healing and growth read
  *    keys it does not carry.

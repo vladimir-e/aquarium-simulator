@@ -14,7 +14,6 @@ import {
   MAX_SUFFICIENCY_EDGE,
   MAX_SURPLUS_CAP,
   MAX_WATER_ATTENUATION_PER_CM,
-  MIN_BROOD_COST,
 } from '../../simulation/config/index.js';
 import {
   createSimulation,
@@ -221,9 +220,9 @@ describe('TunableConfigSchema', () => {
     expect(plants({ sizePerSurplus: MAX_SIZE_PER_SURPLUS * 2 })).toBe(false);
   });
 
-  it('refuses a brood cost under the drawer’s least, where a brood can outweigh its mother', () => {
-    expect(livestock({ broodCost: MIN_BROOD_COST })).toBe(true);
-    expect(livestock({ broodCost: MIN_BROOD_COST - 1 })).toBe(false);
+  it('refuses a brood cost of nothing, which would buy endless eggs', () => {
+    expect(livestock({ broodCost: 1 })).toBe(true);
+    expect(livestock({ broodCost: 0 })).toBe(false);
   });
 
   it('refuses a species demand of nothing, which no plant has', () => {

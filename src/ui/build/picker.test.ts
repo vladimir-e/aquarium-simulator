@@ -9,7 +9,6 @@ import {
   checkPlantFootprint,
   GROWTH_FORMS,
   STOCKED_FISH_SIZE,
-  type Fish,
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -17,21 +16,7 @@ import { getGhMass } from '../../simulation/resources/index.js';
 import { pickerOptions, type PickerOption } from './picker';
 import { bioload } from './stocking';
 import { bedReading, type BedReading } from '../run';
-
-function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
-  return {
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 0,
-    gut: 0,
-    sex: 'male',
-    hardinessOffset: 0,
-    surplus: 0,
-    ovary: 0,
-    ...overrides,
-  };
-}
+import { fishRecord } from '../../simulation/tests/fish.js';
 
 function tank(capacity = 200): SimulationState {
   return createSimulation({ tankCapacity: capacity });
@@ -83,7 +68,7 @@ describe('fish options', () => {
   it('refuses in the action’s own words once nothing more fits', () => {
     const state: SimulationState = {
       ...tank(1),
-      fish: [makeFish({ id: 'whale', mass: 499.8 })],
+      fish: [fishRecord({ id: 'whale', mass: 499.8 })],
     };
     const neon = option(fish(state), 'neon_tetra');
 
@@ -94,7 +79,7 @@ describe('fish options', () => {
   it('says nothing while one more fits, and leaves the shortfall to the count', () => {
     const state: SimulationState = {
       ...tank(1),
-      fish: [makeFish({ id: 'whale', mass: 499 })],
+      fish: [fishRecord({ id: 'whale', mass: 499 })],
     };
     const neon = option(fish(state, 5), 'neon_tetra');
 
@@ -129,7 +114,7 @@ describe('fish options', () => {
   it('reads the fit through the same bioload the module’s row reads', () => {
     const state: SimulationState = {
       ...tank(150),
-      fish: Array.from({ length: 20 }, (_, i) => makeFish({ id: `c${i}`, species: 'corydoras' })),
+      fish: Array.from({ length: 20 }, (_, i) => fishRecord({ id: `c${i}`, species: 'corydoras' })),
     };
     const cory = option(fish(state, 3), 'corydoras');
     const after = bioload(state.fish, 150, { species: 'corydoras', count: 3 });

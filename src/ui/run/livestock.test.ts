@@ -21,20 +21,10 @@ import {
 import { readHourAhead } from './ahead';
 import { projectedTrend } from './status';
 import { FED, HUNGRY, STARVING, gutAt } from '../test/gut';
+import { fishRecord } from '../../simulation/tests/fish.js';
 
-function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
-  return {
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 0,
-    gut: FED,
-    sex: 'male',
-    hardinessOffset: 0,
-    surplus: 0,
-    ovary: 0,
-    ...overrides,
-  };
+function makeFish(overrides: Partial<Fish> = {}): Fish {
+  return fishRecord({ gut: FED, ...overrides });
 }
 
 function tank(fish: Fish[], clutches: Clutch[] = [], hour = 0): SimulationState {

@@ -11,26 +11,14 @@ import { arrivalGut } from '../systems/digestion.js';
 import { bodyOrganics, eggOrganics, eggsLaid, growFish } from '../systems/fish-growth.js';
 import { N_TO_NH3_MASS_RATIO } from '../core/chemistry.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
+import { fishRecord } from '../tests/fish.js';
 
 const CAP = DEFAULT_CONFIG.livestock.surplusCap;
 
 let idSeq = 0;
 function mkFish(o: Partial<Fish> = {}): Fish {
   const species = o.species ?? 'guppy';
-  const made: Fish = {
-    id: `f${idSeq++}`,
-    species,
-    mass: FISH_SPECIES_DATA[species].adultMass,
-    health: 100,
-    age: 0,
-    gut: 0,
-    sex: 'female',
-    hardinessOffset: 0,
-    surplus: 0,
-    ovary: 0,
-    ...o,
-  };
-  return { ...made, ovary: o.ovary ?? (made.sex === 'female' ? eggsLaid(made, DEFAULT_CONFIG.livestock) : 0) };
+  return fishRecord({ id: `f${idSeq++}`, species, mass: FISH_SPECIES_DATA[species].adultMass, sex: 'female', ...o });
 }
 
 function withTank(fish: Fish[], clutches: Clutch[] = []): SimulationState {

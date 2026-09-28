@@ -6,6 +6,7 @@ import { DEFAULT_CONFIG } from '../config/index.js';
 import { calculatePassiveResources, scheduledLightHistory } from '../equipment/index.js';
 import { tick } from '../tick.js';
 import { produce } from 'immer';
+import { fishRecord } from '../tests/fish.js';
 
 describe('applyAction', () => {
   it('dispatches topOff action to correct handler', () => {
@@ -99,18 +100,7 @@ describe('applyAction', () => {
 
   it('dispatches sellFry action to correct handler', () => {
     const state = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
-      draft.fish.push({
-        id: 'fry_1',
-        species: 'guppy',
-        mass: 0.1,
-        health: 100,
-        age: 0,
-        gut: 0,
-        sex: 'female',
-        hardinessOffset: 0,
-        surplus: 0,
-        ovary: 0,
-      });
+      draft.fish.push(fishRecord({ id: 'fry_1', species: 'guppy', mass: 0.1, sex: 'female' }));
     });
 
     const result = applyAction(state, { type: 'sellFry' });

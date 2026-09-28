@@ -1,31 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import type { Fish, FishSpecies } from '../../simulation/index.js';
 import { bioload, bioloadNote, GUIDELINE_G_PER_L, projectedAdultMass } from './stocking';
-
-function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
-  return {
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 0,
-    gut: 0,
-    sex: 'male',
-    hardinessOffset: 0,
-    surplus: 0,
-    ovary: 0,
-    ...overrides,
-  };
-}
+import { fishRecord } from '../../simulation/tests/fish.js';
 
 function stock(species: FishSpecies, n: number): Fish[] {
-  return Array.from({ length: n }, (_, i) => makeFish({ id: `${species}-${i}`, species }));
+  return Array.from({ length: n }, (_, i) => fishRecord({ id: `${species}-${i}`, species }));
 }
 
 describe('projectedAdultMass', () => {
   it('sums species adult mass, counting fry at adult mass', () => {
     const fish = [
-      makeFish({ id: 'a', species: 'corydoras' }),
-      makeFish({ id: 'f', species: 'corydoras', age: 24, mass: 0.2 }),
+      fishRecord({ id: 'a', species: 'corydoras' }),
+      fishRecord({ id: 'f', species: 'corydoras', age: 24, mass: 0.2 }),
     ];
     expect(projectedAdultMass(fish)).toBe(8);
   });

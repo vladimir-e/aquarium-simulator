@@ -38,7 +38,8 @@ import {
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { plantRecord } from '../tests/plant.js';
 import { maintenance, nourishment } from './digestion.js';
-import { bodyOrganics, massAtSize } from './fish-growth.js';
+import { bodyOrganics, eggOrganics, massAtSize } from './fish-growth.js';
+import { fishRecord } from '../tests/fish.js';
 
 const STRESSORS = [
   'temperature',
@@ -63,22 +64,6 @@ const benefitAmount = (v: VitalityResult, key: string): number =>
 
 const totalStress = (v: VitalityResult): number =>
   v.breakdown.stressors.reduce((sum, s) => sum + s.amount, 0);
-
-function makeFish(overrides: Partial<Fish> = {}): Fish {
-  return {
-    id: 'fish_1',
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 0,
-    gut: 0,
-    sex: 'male',
-    hardinessOffset: 0,
-    surplus: 0,
-    ovary: 0,
-    ...overrides,
-  };
-}
 
 function makeResources(overrides: ResourceOverrides = {}): Resources {
   return withPh({
@@ -120,7 +105,7 @@ function makePlant(overrides: Partial<Plant> = {}): Plant {
 /** The defaults with no wear, so a young fish in clean water takes no damage at all. */
 const AGELESS = { ...livestockDefaults, wearAtLifespan: 0 };
 
-const NEED = maintenance(makeFish(), 1, livestockDefaults);
+const NEED = maintenance(fishRecord(), 1, livestockDefaults);
 /** A fish digesting three times its maintenance ration, and the share of its benefits that earns. */
 const FED = 3 * NEED;
 const EARNING = nourishment(FED, NEED);
@@ -147,7 +132,7 @@ function vitality(
   }
 ): VitalityResult {
   return computeFishVitality(
-    makeFish(fish),
+    fishRecord(fish),
     makeResources(resources),
     plants,
     water,
@@ -529,14 +514,14 @@ describe('plant-presence benefit', () => {
 
 describe('processHealth', () => {
   it('recovers health in ideal conditions, capped at 100', () => {
-    expect(health([makeFish({ health: 80 })]).survivingFish[0].health).toBeGreaterThan(80);
-    expect(health([makeFish({ health: 100 })]).survivingFish[0].health).toBe(100);
+    expect(health([fishRecord({ health: 80 })]).survivingFish[0].health).toBeGreaterThan(80);
+    expect(health([fishRecord({ health: 100 })]).survivingFish[0].health).toBe(100);
   });
 
   it('kills a fish whose health reaches 0 and leaves its body and its gut as waste', () => {
-    const light = health([makeFish({ health: 1, mass: 1 })], { oxygen: 0 });
-    const heavy = health([makeFish({ health: 1, mass: 2 })], { oxygen: 0 });
-    const fed = health([makeFish({ health: 1, mass: 1, gut: 0.01 })], { oxygen: 0 });
+    const light = health([fishRecord({ health: 1, mass: 1 })], { oxygen: 0 });
+    const heavy = health([fishRecord({ health: 1, mass: 2 })], { oxygen: 0 });
+    const fed = health([fishRecord({ health: 1, mass: 1, gut: 0.01 })], { oxygen: 0 });
 
     expect(light.survivingFish).toHaveLength(0);
     expect(light.deadFishNames).toHaveLength(1);
@@ -553,7 +538,7 @@ describe('processHealth', () => {
 
   it('processes each fish independently', () => {
     const result = health(
-      [makeFish({ id: 'healthy', health: 100 }), makeFish({ id: 'sick', health: 1 })],
+      [fishRecord({ id: 'healthy', health: 100 }), fishRecord({ id: 'sick', health: 1 })],
       { oxygen: 1 }
     );
     expect(result.survivingFish.map((f) => f.id)).toEqual(['healthy']);
@@ -561,7 +546,7 @@ describe('processHealth', () => {
 });
 
 describe('predation', () => {
-  const fry = makeFish({ id: 'fry', mass: massAtSize('neon_tetra', 5) });
+  const fry = fishRecord({ id: 'fry', mass: massAtSize('neon_tetra', 5) });
 
   it('grows with the grams of predators per litre', () => {
     const one = predationStress(fry, 1, 100, livestockDefaults);
@@ -580,9 +565,9 @@ describe('predation', () => {
   });
 
   it('weighs each fish in by the grams it outweighs the prey, nothing between equals', () => {
-    const big = makeFish({ id: 'big', mass: 3 });
-    const twin = makeFish({ id: 'twin', mass: fry.mass });
-    const small = makeFish({ id: 'small', mass: fry.mass / 2 });
+    const big = fishRecord({ id: 'big', mass: 3 });
+    const twin = fishRecord({ id: 'twin', mass: fry.mass });
+    const small = fishRecord({ id: 'small', mass: fry.mass / 2 });
     expect(predatorWeight(big, fry)).toBeCloseTo(3 - fry.mass, 12);
     expect(predatorWeight(twin, fry)).toBe(0);
     expect(predatorWeight(small, fry)).toBe(0);
@@ -606,9 +591,9 @@ describe('predation', () => {
 
   it('feeds what a fry it kills leaves to the larger fish by their weight on it, instead of the rot', () => {
     const prey = { ...fry, health: 0.001, gut: 0.0002 };
-    const big = makeFish({ id: 'big', mass: 20, gut: 0 });
-    const bigger = makeFish({ id: 'bigger', mass: 40, gut: 0 });
-    const tiny = makeFish({ id: 'tiny', mass: fry.mass / 2, gut: 0 });
+    const big = fishRecord({ id: 'big', mass: 20, gut: 0 });
+    const bigger = fishRecord({ id: 'bigger', mass: 40, gut: 0 });
+    const tiny = fishRecord({ id: 'tiny', mass: fry.mass / 2, gut: 0 });
     const result = health([prey, big, bigger, tiny]);
 
     const guts = new Map(result.survivingFish.map((f) => [f.id, f.gut]));
@@ -625,7 +610,7 @@ describe('predation', () => {
 
   it('feeds a predator only as far as its gut has room, the rest to waste', () => {
     const prey = { ...fry, health: 0.001, gut: 0 };
-    const predator = makeFish({ id: 'full', mass: 20 });
+    const predator = fishRecord({ id: 'full', mass: 20 });
     const room = 0.2 * bodyOrganics(prey.mass, livestockDefaults);
     const full = { ...predator, gut: predator.mass * livestockDefaults.gutCapacity - room };
     const result = health([prey, full]);
@@ -638,7 +623,7 @@ describe('predation', () => {
 
   it('feeds the brood an eaten mother carried to her predators with her', () => {
     const mother = { ...fry, health: 0.001, gut: 0 };
-    const predator = makeFish({ id: 'big', mass: 20, gut: 0 });
+    const predator = fishRecord({ id: 'big', mass: 20, gut: 0 });
     const brood = 0.001;
     const bare = health([mother, predator]);
     const carrying = health([mother, predator], {}, [], [brood, 0]);
@@ -650,8 +635,8 @@ describe('predation', () => {
 
   it('lets the share a hunter that died this hour did rot, not pass to the hunters that survive it', () => {
     const prey = { ...fry, health: 0.001, gut: 0 };
-    const dying = makeFish({ id: 'dying', mass: 20, health: 0.001, gut: 0 });
-    const surviving = makeFish({ id: 'surviving', mass: 20, health: 100, gut: 0 });
+    const dying = fishRecord({ id: 'dying', mass: 20, health: 0.001, gut: 0 });
+    const surviving = fishRecord({ id: 'surviving', mass: 20, health: 100, gut: 0 });
     const result = health([prey, dying, surviving], { oxygen: 1 });
 
     expect(result.survivingFish.map((f) => f.id)).toEqual(['surviving']);
@@ -663,15 +648,17 @@ describe('predation', () => {
     expect(gained + result.deathWaste).toBeCloseTo(remains + bodyOrganics(dying.mass, livestockDefaults), 12);
   });
 
-  it('returns the whole of every dead body, its gut and its brood', () => {
-    const dying = makeFish({ id: 'dying', mass: 2, health: 0.001, gut: 0.01 });
+  it('returns the whole of every dead body, its ovary, its gut and its brood', () => {
+    const dying = fishRecord({ id: 'dying', mass: 2, health: 0.001, gut: 0.01, sex: 'female', ovary: 3.5 });
     const result = health([dying], { oxygen: 0 }, [], [0.003]);
-    expect(result.deathWaste).toBeCloseTo(bodyOrganics(2, livestockDefaults) + 0.01 + 0.003, 15);
+    const ovary = 3.5 * eggOrganics('neon_tetra', livestockDefaults);
+    expect(ovary).toBeGreaterThan(0);
+    expect(result.deathWaste).toBeCloseTo(bodyOrganics(2, livestockDefaults) + ovary + 0.01 + 0.003, 15);
   });
 
   it('leaves a fry to rot when nothing larger survives to eat it', () => {
     const prey = { ...fry, health: 0.001 };
-    const predator = makeFish({ id: 'big', mass: 40, health: 0.001 });
+    const predator = fishRecord({ id: 'big', mass: 40, health: 0.001 });
     const result = health([prey, predator], { oxygen: 0 });
     expect(result.survivingFish).toHaveLength(0);
     expect(result.deathWaste).toBeCloseTo(bodyOrganics(prey.mass + predator.mass, livestockDefaults), 12);
@@ -681,8 +668,8 @@ describe('predation', () => {
 describe('ageing', () => {
   const { lifespan } = FISH_SPECIES_DATA.neon_tetra;
   const doubling = livestockDefaults.wearDoublingShare * lifespan;
-  const worn = (fish: Partial<Fish> = {}): number => fishWear(makeFish(fish), livestockDefaults);
-  const healing = (age: number): number => fishHealingRate(makeFish({ age }), livestockDefaults);
+  const worn = (fish: Partial<Fish> = {}): number => fishWear(fishRecord(fish), livestockDefaults);
+  const healing = (age: number): number => fishHealingRate(fishRecord({ age }), livestockDefaults);
 
   it('charges wear as its own stressor, rising exponentially and doubling over the span', () => {
     const config = livestockDefaults;
@@ -723,21 +710,21 @@ describe('ageing', () => {
       expect(Number.isNaN(result.newCondition)).toBe(false);
       expect(Number.isNaN(result.surplus)).toBe(false);
       expect(Number.isNaN(healing(age))).toBe(false);
-      expect(fishWear(makeFish({ age }), AGELESS)).toBe(0);
+      expect(fishWear(fishRecord({ age }), AGELESS)).toBe(0);
     }
     expect(vitality({ age: 1e3 * lifespan }, {}, { config: livestockDefaults }).newCondition).toBe(0);
-    const ancient = health([makeFish({ age: 1e9 * lifespan })], {}, [], [0], livestockDefaults);
+    const ancient = health([fishRecord({ age: 1e9 * lifespan })], {}, [], [0], livestockDefaults);
     expect(ancient.deadFishNames).toEqual(['Neon Tetra (old age)']);
   });
 
   it('attributes a death mostly of wear to old age', () => {
-    const result = health([makeFish({ age: 3 * lifespan, health: 1 })], {}, [], [0], livestockDefaults);
+    const result = health([fishRecord({ age: 3 * lifespan, health: 1 })], {}, [], [0], livestockDefaults);
     expect(result.survivingFish).toHaveLength(0);
     expect(result.deadFishNames[0]).toContain('old age');
   });
 
   it('gives an old fish killed mostly by something else no old-age label', () => {
-    const old = makeFish({ age: lifespan, health: 0.1 });
+    const old = fishRecord({ age: lifespan, health: 0.1 });
     const result = health([old], { oxygen: 0.5 }, [], [0], livestockDefaults);
     expect(result.survivingFish).toHaveLength(0);
     expect(result.vitalities[0].breakdown.stressors.find((f) => f.key === 'wear')!.amount).toBeGreaterThan(0);
@@ -745,8 +732,8 @@ describe('ageing', () => {
   });
 
   it('names old age over eaten when wear did most of the damage to a hunted fish', () => {
-    const fry = makeFish({ id: 'fry', mass: massAtSize('neon_tetra', 60), age: 3 * lifespan, health: 0.1 });
-    const predator = makeFish({ id: 'big', species: 'angelfish', mass: 15 });
+    const fry = fishRecord({ id: 'fry', mass: massAtSize('neon_tetra', 60), age: 3 * lifespan, health: 0.1 });
+    const predator = fishRecord({ id: 'big', species: 'angelfish', mass: 15 });
     const result = health([fry, predator], {}, [], [0, 0], livestockDefaults);
     const hunted = result.vitalities[0].breakdown.stressors.find((f) => f.key === 'hunted')!.amount;
     const wear = result.vitalities[0].breakdown.stressors.find((f) => f.key === 'wear')!.amount;
@@ -760,22 +747,22 @@ describe('surplus', () => {
   const cold = { temperature: 18 };
 
   it('banks at full health and not while recovering', () => {
-    expect(health([makeFish({ health: 100 })]).survivingFish[0].surplus).toBeGreaterThan(0);
-    expect(health([makeFish({ health: 80 })]).survivingFish[0].surplus).toBe(0);
+    expect(health([fishRecord({ health: 100 })]).survivingFish[0].surplus).toBeGreaterThan(0);
+    expect(health([fishRecord({ health: 80 })]).survivingFish[0].surplus).toBe(0);
   });
 
   it('banks faster in a planted tank', () => {
-    const planted = health([makeFish()], {}, [makePlant()]).survivingFish[0].surplus;
-    const bare = health([makeFish()]).survivingFish[0].surplus;
+    const planted = health([fishRecord()], {}, [makePlant()]).survivingFish[0].surplus;
+    const bare = health([fishRecord()]).survivingFish[0].surplus;
     expect(planted).toBeGreaterThan(bare);
   });
 
   it('saturates at the cap, clamping an over-cap bank', () => {
     const { surplusCap } = livestockDefaults;
-    expect(health([makeFish({ surplus: surplusCap - 0.01 })]).survivingFish[0].surplus).toBe(
+    expect(health([fishRecord({ surplus: surplusCap - 0.01 })]).survivingFish[0].surplus).toBe(
       surplusCap
     );
-    expect(health([makeFish({ surplus: surplusCap * 2 })]).survivingFish[0].surplus).toBe(
+    expect(health([fishRecord({ surplus: surplusCap * 2 })]).survivingFish[0].surplus).toBe(
       surplusCap
     );
   });
@@ -783,7 +770,7 @@ describe('surplus', () => {
   it('heals from the bank at its rate over the hour, holding health a bare fish loses', () => {
     const buffered = vitality({ surplus: 10 }, cold);
     expect(buffered.breakdown.healed).toBeCloseTo(
-      Math.min(-buffered.breakdown.net, 10 * -Math.expm1(-fishHealingRate(makeFish(), livestockDefaults))),
+      Math.min(-buffered.breakdown.net, 10 * -Math.expm1(-fishHealingRate(fishRecord(), livestockDefaults))),
       12
     );
     expect(buffered.surplus).toBeCloseTo(10 - buffered.breakdown.healed, 12);
@@ -792,12 +779,12 @@ describe('surplus', () => {
 
   it('scales the healing rate by its own mass to the −¼ power, a gram healing at the draw rate', () => {
     const grown = (species: FishSpecies): number =>
-      fishHealingRate(makeFish({ species, mass: FISH_SPECIES_DATA[species].adultMass }), livestockDefaults);
+      fishHealingRate(fishRecord({ species, mass: FISH_SPECIES_DATA[species].adultMass }), livestockDefaults);
     const ratio = FISH_SPECIES_DATA.angelfish.adultMass / FISH_SPECIES_DATA.neon_tetra.adultMass;
     expect(grown('neon_tetra') / grown('angelfish')).toBeCloseTo(ratio ** 0.25, 12);
-    expect(fishHealingRate(makeFish({ mass: 1 }), livestockDefaults)).toBeCloseTo(livestockDefaults.healingDrawRate, 12);
-    expect(fishHealingRate(makeFish({ mass: 0.5 / 16 }), livestockDefaults)).toBeCloseTo(
-      2 * fishHealingRate(makeFish({ mass: 0.5 }), livestockDefaults),
+    expect(fishHealingRate(fishRecord({ mass: 1 }), livestockDefaults)).toBeCloseTo(livestockDefaults.healingDrawRate, 12);
+    expect(fishHealingRate(fishRecord({ mass: 0.5 / 16 }), livestockDefaults)).toBeCloseTo(
+      2 * fishHealingRate(fishRecord({ mass: 0.5 }), livestockDefaults),
       12
     );
   });

@@ -12,6 +12,7 @@ import { createSimulation, type SimulationState, type Fish } from '../state.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { produce } from 'immer';
+import { fishRecord } from '../tests/fish.js';
 
 function makeState(rngSeed = 31337): SimulationState {
   return createSimulation({ tankCapacity: 100 }, undefined, rngSeed);
@@ -25,25 +26,10 @@ function stockedRoster(species: FishSpecies, count: number, rngSeed?: number): F
   return state.fish;
 }
 
-function fish(overrides: Partial<Fish> & { id: string }): Fish {
-  return {
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 0,
-    gut: 0,
-    sex: 'male',
-    hardinessOffset: 0,
-    surplus: 0,
-    ovary: 0,
-    ...overrides,
-  };
-}
-
 function makeStateWithFish(): SimulationState {
   const state = makeState();
   return produce(state, (draft) => {
-    draft.fish.push(fish({ id: 'fish_existing' }));
+    draft.fish.push(fishRecord({ id: 'fish_existing' }));
   });
 }
 
@@ -178,7 +164,7 @@ describe('addFish stocking cap', () => {
     const { adultMass } = FISH_SPECIES_DATA.guppy;
     const filled = (mass: number): SimulationState =>
       produce(createSimulation({ tankCapacity: capacity }), (draft) => {
-        draft.fish.push(fish({ id: 'fry_1', species: 'angelfish', mass }));
+        draft.fish.push(fishRecord({ id: 'fry_1', species: 'angelfish', mass }));
       });
 
     expect(totalFishMass(filled(3).fish)).toBe(3);
@@ -190,7 +176,7 @@ describe('addFish stocking cap', () => {
   it('weighs a small fish at its stocked size', () => {
     const { adultMass } = FISH_SPECIES_DATA.guppy;
     const roomFor = (mass: number): Fish[] => [
-      fish({ id: 'resident', species: 'angelfish', mass: getMaxFishMass(1) - mass }),
+      fishRecord({ id: 'resident', species: 'angelfish', mass: getMaxFishMass(1) - mass }),
     ];
 
     expect(checkFishCapacity(roomFor(adultMass / 2), 1, 'guppy').ok).toBe(false);
@@ -216,9 +202,9 @@ describe('sellFry', () => {
   function makeStateWithMixedStages(): SimulationState {
     return produce(makeState(), (draft) => {
       draft.fish.push(
-        fish({ id: 'adult_1', species: 'guppy', mass: 1.0 }),
-        fish({ id: 'fry_1', species: 'guppy', mass: 0.1 }),
-        fish({ id: 'fry_2', species: 'neon_tetra', mass: 0.05 })
+        fishRecord({ id: 'adult_1', species: 'guppy', mass: 1.0 }),
+        fishRecord({ id: 'fry_1', species: 'guppy', mass: 0.1 }),
+        fishRecord({ id: 'fry_2', species: 'neon_tetra', mass: 0.05 })
       );
     });
   }

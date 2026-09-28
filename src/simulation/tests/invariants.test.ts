@@ -19,10 +19,10 @@ import { getPpm } from '../resources/index.js';
 import { plantRecord } from './plant.js';
 import { bloomsTissue, kindTissue } from './blooms.js';
 import { leaves, nonFinitePaths } from './leaves.js';
-import { BREEDING_TANK_MS } from './breeding-tank.js';
 // The scenario setups are the shared definition of a real tank, so the engine invariants run over them.
 import { SETUPS, type Setup } from '../../cli/scenarios/setups.js';
 import { keepTank } from '../../cli/scenarios/run.js';
+import { fishRecord } from './fish.js';
 
 function run(state: SimulationState, hours: number, config = DEFAULT_CONFIG): SimulationState {
   let running = state;
@@ -83,18 +83,7 @@ function alkalinityNetOfNitrogen({ resources, equipment }: SimulationState): num
 }
 
 function tetra(id: string): Fish {
-  return {
-    id,
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 0,
-    gut: 0,
-    sex: 'male',
-    hardinessOffset: 0,
-    surplus: 0,
-    ovary: 0,
-  };
+  return fishRecord({ id });
 }
 
 function cycledBareTank(tankCapacity = 150): SimulationState {
@@ -201,18 +190,8 @@ describe('nitrogen mass', () => {
     const { lifespan } = FISH_SPECIES_DATA.guppy;
     const { foodNitrogenFraction: n } = DEFAULT_CONFIG.livestock;
     const minerals = DEFAULT_CONFIG.nutrients.foodMineralContent;
-    const guppy = (id: string, sex: Fish['sex'], size: number, age: number): Fish => ({
-      id,
-      species: 'guppy',
-      mass: massAtSize('guppy', size),
-      health: 100,
-      age,
-      gut: 0,
-      sex,
-      hardinessOffset: 0,
-      surplus: 0,
-      ovary: 0,
-    });
+    const guppy = (id: string, sex: Fish['sex'], size: number, age: number): Fish =>
+      fishRecord({ id, species: 'guppy', mass: massAtSize('guppy', size), age, sex });
     let state = produce(cycledBareTank(10), (draft) => {
       draft.clutches = [{ id: 'brood', species: 'guppy', eggs: 10, development: 0.8, motherId: 'mother' }];
       draft.fish = [
@@ -256,7 +235,7 @@ describe('the fish as ledger entries', () => {
   const nitrogenOf = (state: Pick<SimulationState, 'fish' | 'clutches'>): number => livestockOrganics(state) * n;
   const tank = produce(cycledBareTank(), (draft) => {
     draft.fish = [
-      { ...tetra('mother'), species: 'guppy', mass: 1, sex: 'female', gut: 0.01 },
+      { ...tetra('mother'), species: 'guppy', mass: 1, sex: 'female', gut: 0.01, ovary: 2.4 },
       { ...tetra('fry'), species: 'guppy', mass: massAtSize('guppy', 10), gut: 0.001 },
       tetra('adult'),
     ];
@@ -277,7 +256,7 @@ describe('the fish as ledger entries', () => {
     );
   });
 
-  it('take a removed fish’s body, gut and carried brood out as an output, exactly', () => {
+  it('take a removed fish’s body, part-built ovary, gut and carried brood out as an output, exactly', () => {
     const removed = applyAction(tank, { type: 'removeFish', fishId: 'mother' }).state;
     const out = { fish: [tank.fish[0]], clutches: [tank.clutches[0]] };
     expect(removed.clutches.map((clutch) => clutch.id)).toEqual(['laid']);
@@ -671,7 +650,7 @@ describe.each(SETUPS.map((setup) => [setup.name, setup] as const))('the %s tank'
   let state: SimulationState;
   beforeAll(() => {
     state = keep(setup, DAYS);
-  }, BREEDING_TANK_MS);
+  });
 
   it('never holds a non-finite number', () => {
     expect(nonFinitePaths(state)).toEqual([]);
@@ -679,5 +658,5 @@ describe.each(SETUPS.map((setup) => [setup.name, setup] as const))('the %s tank'
 
   it('runs the same life twice on one rng seed', () => {
     expect(keep(setup, DAYS)).toStrictEqual(state);
-  }, BREEDING_TANK_MS);
+  });
 });

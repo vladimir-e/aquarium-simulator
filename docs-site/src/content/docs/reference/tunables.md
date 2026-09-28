@@ -182,9 +182,9 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `digestionRate` | First-order rate a gut digests at, at the reference temperature in unlimited oxygen | /hr |
 | `massScalingExponent` | Power of mass a fish's per-gram gut, maintenance, respiration and healing scale with — against its species' adult mass, and 1 g for healing | — |
 | `metabolicQ10` · `metabolicReferenceTemp` | How the metabolism — digestion, respiration and the maintenance ration — scales with temperature, and where it reads their base values | — · °C |
-| `maintenanceRation` | Food a day, per gram of fish, digested to hold condition at the reference temperature in unlimited oxygen — income at half rate, and where hunger starts | g/g/day |
+| `maintenanceRation` | Food a day, per gram of grown fish (metabolic mass), digested to hold condition at the reference temperature in unlimited oxygen — income at half rate, and where hunger starts | g/g/day |
 | `hungerSeverity` | Damage at an empty gut, before hardiness | %/hr |
-| `baseRespirationRate` | Oxygen a fish draws per gram per hour at the reference temperature — a Monod maximum | mg O₂/g/hr |
+| `baseRespirationRate` | Oxygen a fish draws per gram of grown fish (metabolic mass) per hour at the reference temperature — a Monod maximum | mg O₂/g/hr |
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales digestion and the maintenance ration too | mg/L |
 | `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, or mineralized as waste | g N/g food |
 | `assimilatedFraction` | Share of digested food a fish assimilates — what growth builds from, the rest leaving through the gills; the remainder leaves as feces | — |
@@ -210,10 +210,10 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `predationRate` | Damage an hour, before hardiness, one gram per litre of predator mass — the grams each larger fish outweighs the prey — does a fish at no size | %/hr per g/L |
 | `preyVulnerabilityExponent` | How steeply a growing fish outgrows its predators: exposure is `(1 − size / 100)` to this power | — |
 
-`bodyOrganicShare` weighs the organic matter in every body and egg standing, and
-`maintenanceRation` the yolk in every egg, so moving either mid-run re-values
-what is already in the tank and the nitrogen ledger jumps with it — they are
-dev knobs.
+`bodyOrganicShare` weighs the organic matter in every body and egg standing,
+and `maintenanceRation` and `massScalingExponent` the yolk in every egg, laid
+or in an ovary, so moving any of them mid-run re-values what is already in the
+tank and the nitrogen ledger jumps with it — they are dev knobs.
 
 ## Fixed tables
 

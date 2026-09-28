@@ -1,21 +1,8 @@
 /**
- * Fish growth and broods — the bank sets the pace, and the fish's own food
- * supplies the material.
- *
- * A fish's size is its mass in % of its species' adult mass, and it splits
- * the bank: `size / 100` of it is the brood share, the rest goes to growth.
- * Every hour the bank draws `1 − e^−growthDrawRate` of itself toward growth
- * through the growth share, and each point drawn asks for new mass in
- * proportion to the fish's metabolic mass — anabolism runs on mass to the ¾
- * like the rest of its metabolism — so growth is a specific rate on mass to
- * the −¼ that tapers logistically: a hatchling doubles fast, a fish near
- * adult size gains almost nothing, and size approaches 100 without a clamp.
- * A female's ovary asks for the eggs her brood share buys that it doesn't yet
- * hold. The share of what the fish assimilated that hour growth can use
- * builds both askings, on one Monod curve against their sum, and the bank
- * pays only for the growth built. A female whose bank is full pays for the
- * eggs her brood share buys and lays as many as her ovary holds, and the
- * males of her species pay their share of them from their own brood shares.
+ * Fish growth and broods: the bank sets the pace, and the fish's own food
+ * supplies the material. Anabolism asks on metabolic mass (mass to the ¾),
+ * like the rest of a fish's metabolism, so a hatchling grows fast per gram
+ * and a fish nearing adult size gains almost nothing, with no clamp at 100.
  */
 
 import type { Clutch, Fish } from '../state.js';
@@ -93,17 +80,17 @@ export function growFish(fish: Fish, assimilated: number, config: LivestockConfi
   const drawn =
     Math.max(0, fish.surplus) * hourlyDraw(config.growthDrawRate) * (1 - broodShare(fishSize(fish)));
   const { growthRate } = FISH_SPECIES_DATA[fish.species];
-  const grown = bodyOrganics((metabolicMass(fish, config) * drawn * growthRate * config.growthPerSurplus) / 100, config);
-  const yolked = ovaryAsked(fish, config);
-  const asked = grown + yolked;
+  const growthAsk = bodyOrganics((metabolicMass(fish, config) * drawn * growthRate * config.growthPerSurplus) / 100, config);
+  const ovaryAsk = ovaryAsked(fish, config);
+  const asked = growthAsk + ovaryAsk;
   if (asked <= 0) return { fish, retained: 0 };
 
   const built = monodFactor(assimilated * config.growthEfficiency, asked);
   return {
     fish: {
       ...fish,
-      mass: fish.mass + (grown * built) / config.bodyOrganicShare,
-      ovary: fish.ovary + (yolked * built) / eggOrganics(fish.species, config),
+      mass: fish.mass + (growthAsk * built) / config.bodyOrganicShare,
+      ovary: fish.ovary + (ovaryAsk * built) / eggOrganics(fish.species, config),
       surplus: fish.surplus - drawn * built,
     },
     retained: asked * built,
@@ -133,13 +120,14 @@ export function offspringFathered(male: Fish, config: LivestockConfig): number {
   );
 }
 
-/** Whether a female broods this hour: she carries no brood, and her full bank buys at least one whole egg. */
+/** Whether a female broods this hour: she carries no brood, her full bank buys at least one whole egg, and her ovary holds one. */
 export function readyToBrood(fish: Fish, clutches: readonly Clutch[], config: LivestockConfig): boolean {
   return (
     fish.sex === 'female' &&
     !clutches.some((clutch) => clutch.motherId === fish.id) &&
     bankFull(fish.surplus, config.surplusCap) &&
-    Math.floor(eggsLaid(fish, config)) >= 1
+    Math.floor(eggsLaid(fish, config)) >= 1 &&
+    fish.ovary >= 1
   );
 }
 
@@ -190,6 +178,7 @@ export function brood(females: readonly Fish[], males: readonly Fish[], config: 
     females: females.map((female, i) => ({
       ...female,
       ovary: female.ovary - offspring[i],
+      // The whole brood bought is a cooldown: charged only for eggs laid, a food-short female would lay one an hour on a full bank.
       surplus: female.surplus - Math.min(broodBank(female), bought[i] / offspringPerPoint(female, config)),
     })),
     males: males.map((male) => ({ ...male, surplus: male.surplus - paid * broodBank(male) })),

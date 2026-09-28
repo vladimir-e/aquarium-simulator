@@ -29,8 +29,9 @@ export interface LivestockConfig {
    */
   massScalingExponent: number;
   /**
-   * Grams of food a day, per gram of fish, a fish must digest to hold its
-   * condition: its income runs at half rate there, and hunger harms it below.
+   * Grams of food a day, per gram of grown fish (metabolic mass), a fish must
+   * digest to hold its condition: its income runs at half rate there, and
+   * hunger harms it below.
    */
   maintenanceRation: number;
   /** Hunger damage at an empty gut, %/h before hardiness. */
@@ -38,9 +39,9 @@ export interface LivestockConfig {
 
   // Metabolism
   /**
-   * Base oxygen consumption rate per gram of fish mass per hour (mg O2), at
-   * the reference temperature in unlimited oxygen; it runs on the metabolic
-   * factor.
+   * Base oxygen consumption rate per gram of grown fish (metabolic mass) per
+   * hour (mg O2), at the reference temperature in unlimited oxygen; it runs
+   * on the metabolic factor.
    *
    * Intrinsic physiological rate — independent of tank volume. The
    * livestock pipeline converts the absolute mg/hr draw into a mg/L
@@ -260,9 +261,8 @@ export const livestockDefaults: LivestockConfig = {
   // asking stunts it.
   growthDrawRate: 0.02,
   growthPerSurplus: 0.6,
-  // A full bank buys a grown female a brood a tenth her weight, out of her
-  // body: twenty guppy fry, 125 neon eggs, several hundred
-  // angelfish eggs.
+  // A full bank buys a grown female a brood a tenth her weight: twenty guppy
+  // fry, 125 neon eggs, several hundred angelfish eggs.
   broodCost: 500,
   // Against food's 5 % N, a fish is 2.75 % N and 0.36 % P by wet mass — real
   // fish sit at 2.5–3 % N and 0.4–0.5 % P.
@@ -307,9 +307,6 @@ export function nitratePerGramOfFood(config: LivestockConfig): number {
 
 /** The most a bank point buys at growth rate 1, held alike by the tunables drawer and the save boundary. */
 export const MAX_FISH_GROWTH_PER_SURPLUS = 1;
-
-/** The least a brood of her own weight costs a female, held alike by the tunables drawer and the save boundary. */
-export const MIN_BROOD_COST = 200;
 
 export interface LivestockConfigMeta {
   key: keyof LivestockConfig;
@@ -398,7 +395,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'healingDrawRate', label: 'Healing Draw Rate', unit: '/hr at 1 g', min: 0.005, max: 0.5, step: 0.005 },
   { key: 'growthDrawRate', label: 'Growth Draw Rate', unit: '/hr', min: 0.005, max: 0.2, step: 0.005 },
   { key: 'growthPerSurplus', label: 'Growth per Bank Point', unit: '%/pt', min: 0.01, max: MAX_FISH_GROWTH_PER_SURPLUS, step: 0.01 },
-  { key: 'broodCost', label: 'Brood Cost', unit: 'pts/body mass', min: MIN_BROOD_COST, max: 5000, step: 50 },
+  { key: 'broodCost', label: 'Brood Cost', unit: 'pts/body mass', min: 200, max: 5000, step: 50 },
   { key: 'bodyOrganicShare', label: 'Body Organic Share', unit: 'g/g', min: 0.2, max: 1, step: 0.05 },
   { key: 'growthEfficiency', label: 'Growth Efficiency', unit: '', min: 0.05, max: 1, step: 0.05 },
   // Ageing

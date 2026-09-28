@@ -11,27 +11,15 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
-import { eggsLaid } from '../../simulation/systems/fish-growth.js';
 import { readHourAhead } from './ahead.js';
 import { LEDGER_DECIMALS, readLedger, type Ledger, type LedgerTarget } from './ledger.js';
 import { FED, STARVING } from '../test/gut';
 import { printsAsZero, projectedTrend } from './status.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
+import { fishRecord } from '../../simulation/tests/fish.js';
 
-function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
-  const made: Fish = {
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 24 * 120,
-    gut: FED,
-    sex: 'male',
-    hardinessOffset: 0,
-    surplus: 0,
-    ovary: 0,
-    ...overrides,
-  };
-  return { ...made, ovary: overrides.ovary ?? (made.sex === 'female' ? eggsLaid(made, DEFAULT_CONFIG.livestock) : 0) };
+function makeFish(overrides: Partial<Fish> = {}): Fish {
+  return fishRecord({ age: 24 * 120, gut: FED, ...overrides });
 }
 
 function tank(fish: Fish[], ppm = 0): SimulationState {

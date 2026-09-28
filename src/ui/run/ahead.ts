@@ -107,11 +107,10 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
   const livestock = processLivestock(planted, config);
   const { metabolicFactor } = livestock.metabolism;
   const bodies = processBodies(applyEffects(livestock.state, livestock.effects, config), config, livestock.metabolism);
-  const bred = bodies.state;
   const plantSpent = spentBy(planted.plants);
-  const fishSpent = spentBy(bred.fish);
+  const fishSpent = spentBy(bodies.state.fish);
   const standingClutches = new Set(livestock.state.clutches.map((clutch) => clutch.id));
-  const tended = bred.clutches.filter((clutch) => standingClutches.has(clutch.id));
+  const tended = bodies.state.clutches.filter((clutch) => standingClutches.has(clutch.id));
   const layers = livestock.state.fish.filter((fish) => readyToBrood(fish, tended, config.livestock));
   const brooding = new Set(layers.map((fish) => fish.species));
   const fathers = livestock.state.fish.filter((fish) => brooding.has(fish.species) && paysTowardBrood(fish));
@@ -120,7 +119,7 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
   const budded = new Set(
     planted.plants.filter((plant) => !standing.has(plant.id)).map((plant) => plant.parentId)
   );
-  const food = bred.resources;
+  const food = bodies.state.resources;
   const decayed = calculateDecay(food.food, food.temperature, food.oxygen, config.decay);
   const wasteShare = config.decay.wasteConversionRatio;
 

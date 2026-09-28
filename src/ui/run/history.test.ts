@@ -8,9 +8,10 @@ import {
 } from './history';
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
 import { getPpm } from '../../simulation/resources/index.js';
-import type { Fish, Plant } from '../../simulation/state.js';
+import type { Plant } from '../../simulation/state.js';
 import { plantRecord } from '../../simulation/tests/plant.js';
 import { snapshot } from '../test/snapshot';
+import { fishRecord } from '../../simulation/tests/fish.js';
 
 function makeState(mutate: (draft: SimulationState) => void): SimulationState {
   return produce(createSimulation({ tankCapacity: 100 }), mutate);
@@ -18,21 +19,6 @@ function makeState(mutate: (draft: SimulationState) => void): SimulationState {
 
 function makePlant(size: number): Plant {
   return plantRecord({ id: `p-${size}`, species: 'java_fern', size, condition: 80, surplus: 0 });
-}
-
-function makeFish(id: string, mass: number): Fish {
-  return {
-    id,
-    species: 'neon_tetra',
-    mass,
-    health: 100,
-    age: 0,
-    gut: 0,
-    sex: 'male',
-    hardinessOffset: 0,
-    surplus: 0,
-    ovary: 0,
-  };
 }
 
 describe('snapshotFromState', () => {
@@ -127,7 +113,7 @@ describe('snapshotFromState', () => {
   it('counts adults apart from fry, and the plants standing', () => {
     const state = makeState((d) => {
       d.plants = [makePlant(40), makePlant(60), makePlant(80)];
-      d.fish = [makeFish('a', 0.5), makeFish('b', 0.5), makeFish('c', 0.05)];
+      d.fish = [fishRecord({ id: 'a', mass: 0.5 }), fishRecord({ id: 'b', mass: 0.5 }), fishRecord({ id: 'c', mass: 0.05 })];
     });
     const snap = snapshotFromState(state);
     expect(snap.fishCount).toBe(2);

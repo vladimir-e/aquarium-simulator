@@ -51,7 +51,7 @@ export function excretion(
   config: LivestockConfig,
   foodMineralContent: MineralVector = nutrientsDefaults.foodMineralContent
 ): Excretion {
-  const absorbed = Math.max(0, assimilated(digested, config) - retained);
+  const absorbed = assimilated(digested, config) - retained;
   return {
     waste: digested - assimilated(digested, config),
     ammonia: absorbed * config.foodNitrogenFraction * NH3_MG_PER_G_N,
