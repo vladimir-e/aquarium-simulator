@@ -62,10 +62,10 @@ export interface FishCapacityResult {
 }
 
 /**
- * Single source of truth for the {@link addFish} stocking ceiling — the
- * cap comparison and its rejection message. Both the action (via
- * {@link canAddFish}) and the demo UI call this, so the math and the
- * message can't drift apart. Mirrors {@link checkPlantFootprint}'s floor budget.
+ * Single source of truth for whether {@link addFish} stocks a fish — a known
+ * species, a stockable size, room under the ceiling — and its rejection
+ * message. Both the action (via {@link canAddFish}) and the demo UI call
+ * this, so the math and the message can't drift apart. Mirrors {@link checkPlantFootprint}'s floor budget.
  */
 export function checkFishCapacity(
   fish: Fish[],
@@ -73,8 +73,14 @@ export function checkFishCapacity(
   species: FishSpecies,
   size: number = STOCKED_FISH_SIZE
 ): FishCapacityResult {
+  if (!FISH_SPECIES_DATA[species]) {
+    return { ok: false, message: `Unknown fish species: ${species}` };
+  }
+  if (!isStockableSize(species, size)) {
+    return { ok: false, message: unstockableSizeMessage(species) };
+  }
   const maxMass = getMaxFishMass(tankCapacity);
-  const ok = Boolean(FISH_SPECIES_DATA[species]) && totalFishMass(fish) + massAtSize(species, size) <= maxMass;
+  const ok = totalFishMass(fish) + massAtSize(species, size) <= maxMass;
   return {
     ok,
     message: ok ? '' : `Tank at fish capacity (~${Math.floor(maxMass)}g of fish max)`,
@@ -101,27 +107,11 @@ export function addFish(
 ): ActionResult {
   const { species, size = STOCKED_FISH_SIZE } = action;
 
-  if (!FISH_SPECIES_DATA[species]) {
-    return {
-      state,
-      message: `Unknown fish species: ${species}`,
-    };
-  }
-
-  const speciesData = FISH_SPECIES_DATA[species];
-
-  if (!isStockableSize(species, size)) {
-    return {
-      state,
-      message: unstockableSizeMessage(species),
-    };
-  }
-
-  // Physical stocking ceiling — see MAX_FISH_VOLUME_FRACTION.
   const capacity = checkFishCapacity(state.fish, state.tank.capacity, species, size);
   if (!capacity.ok) {
     return { state, message: capacity.message };
   }
+  const speciesData = FISH_SPECIES_DATA[species];
 
   const newState = produce(state, (draft) => {
     const fish = createFish({ species, size, rng: draft.rng, config });

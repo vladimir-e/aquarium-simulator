@@ -482,7 +482,7 @@ export function deviceHint(
           ? 'No fish to eat it — what it drops rots in the water.'
           : ahead.ration > 0
             ? `A day's ration of ${formatFeed(fed)} is ${(fed / ahead.ration).toFixed(1)}× what the fish need to hold condition.`
-            : 'Without oxygen the fish cannot eat — what it drops rots in the water.'
+            : 'Without oxygen the fish cannot digest — what they eat sits in their guts.'
       );
     }
     case 'biofilter':

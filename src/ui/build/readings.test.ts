@@ -845,12 +845,12 @@ describe('deviceHint', () => {
     expect(hint('autoFeeder', cold)?.text).toContain(`is ${multiple.toFixed(1)}× what the fish need`);
   });
 
-  it('tells a roster that cannot eat for want of oxygen from an empty one', () => {
+  it('tells a roster that cannot digest for want of oxygen from an empty one', () => {
     expect(hint('autoFeeder', base)?.text).toMatch(/^No fish to eat it/);
     const stocked = applyAction(base, { type: 'addFish', species: 'neon_tetra' }).state;
     const anoxic = { ...stocked, resources: { ...stocked.resources, oxygen: 0 } };
     expect(readHourAhead(anoxic, DEFAULT_CONFIG).ration).toBe(0);
-    expect(hint('autoFeeder', anoxic)?.text).toMatch(/^Without oxygen the fish cannot eat/);
+    expect(hint('autoFeeder', anoxic)?.text).toMatch(/^Without oxygen the fish cannot digest — what they eat sits in their guts/);
   });
 });
 

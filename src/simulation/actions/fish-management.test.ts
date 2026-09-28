@@ -191,6 +191,18 @@ describe('addFish stocking cap', () => {
     expect(result.message).toContain('capacity');
   });
 
+  it('refuses an unstockable size before weighing it, as addFish does', () => {
+    const state = makeState();
+    for (const size of [-50, 0.1, 101, Number.NaN]) {
+      const check = checkFishCapacity(state.fish, state.tank.capacity, 'guppy', size);
+      const added = addFish(state, { type: 'addFish', species: 'guppy', size }, livestockDefaults);
+
+      expect(canAddFish(state, 'guppy', size)).toBe(false);
+      expect(check.ok).toBe(false);
+      expect(check.message).toBe(added.message);
+    }
+  });
+
   it('canAddFish rejects an unknown species', () => {
     const state = makeState();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -65,6 +65,19 @@ function day(): { state: SimulationState; next: SimulationState }[] {
 
 const hours = day();
 
+/** The bodies pass the next tick runs, and the grams it moves into a resource from a source. */
+function bodiesOf(state: SimulationState): {
+  bodies: ReturnType<typeof processBodies>;
+  delta: (resource: string, source: string) => number;
+} {
+  const flora = processFlora(settleEnvironment(state, config), config);
+  const livestock = processLivestock(applyEffects(flora.state, flora.effects, config), config);
+  const bodies = processBodies(applyEffects(livestock.state, livestock.effects, config), config, livestock.metabolism);
+  const delta = (resource: string, source: string): number =>
+    bodies.effects.filter((e) => e.resource === resource && e.source === source).reduce((sum, e) => sum + e.delta, 0);
+  return { bodies, delta };
+}
+
 describe('readHourAhead', () => {
   it('reads each plant exactly as the next tick runs it, at every hour of the day', () => {
     expect(hours.some(({ state, next }) => next.plants.length > state.plants.length)).toBe(true);
@@ -157,27 +170,27 @@ describe('readHourAhead', () => {
 
     for (const { state } of hours) {
       const ahead = readHourAhead(state, config);
-      const settled = settleEnvironment(state, config);
-      const flora = processFlora(settled, config);
-      const livestock = processLivestock(applyEffects(flora.state, flora.effects, config), config);
-      const bodies = processBodies(
-        applyEffects(livestock.state, livestock.effects, config),
-        config,
-        livestock.metabolism
-      );
-      const delta = (resource: string, source: string): number =>
-        bodies.effects
-          .filter((e) => e.resource === resource && e.source === source)
-          .reduce((sum, e) => sum + e.delta, 0);
+      const { bodies, delta } = bodiesOf(state);
       const left = bodies.state.resources;
 
-      expect(ahead.fishWaste).toBeCloseTo(delta('waste', 'fish-metabolism'), 12);
+      expect(ahead.fishWaste).toBeCloseTo(delta('waste', 'fish-metabolism') + delta('waste', 'dead-eggs'), 12);
       expect(ahead.gillAmmonia).toBeCloseTo(delta('ammonia', 'fish-gill-excretion'), 12);
       expect(ahead.foodWaste).toBe(
         calculateDecay(left.food, left.temperature, left.oxygen, config.decay) *
           config.decay.wasteConversionRatio
       );
     }
+  });
+
+  it('reads the eggs a clutch loses as waste the same hour', () => {
+    const stocked = createSimulation({ tankCapacity: 100 }, { fish: [{ species: 'neon_tetra', count: 2 }] });
+    const hatching = produce(stocked, (draft) => {
+      draft.clutches = [{ id: 'scattered', species: 'neon_tetra', eggs: 40.5, development: 0.9999 }];
+    });
+    const { bodies, delta } = bodiesOf(hatching);
+
+    expect(delta('waste', 'dead-eggs')).toBeGreaterThan(0);
+    expect(readHourAhead(hatching, config).fishWaste).toBeCloseTo(bodies.excreted.waste + delta('waste', 'dead-eggs'), 12);
   });
 
   it('reads every bloom exactly as the next tick runs it, at every hour of the day', () => {

@@ -69,7 +69,7 @@ export interface HourAhead {
   dailyLight: number;
   /** Grams of waste the plants shed — their steady rate, apart from a death's one-off lump. */
   shedding: number;
-  /** Grams of waste the fish pass. */
+  /** Grams of waste the fish pass and their clutches leave. */
   fishWaste: number;
   /** mg of NH₃ the fish excrete through their gills. */
   gillAmmonia: number;
@@ -138,7 +138,7 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     algae: mapKinds((kind) => ({ ...flora.algae[kind], ...planted.algae[kind] })),
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),
     shedding: flora.shedding,
-    fishWaste: bodies.excreted.waste,
+    fishWaste: bodies.effects.reduce((grams, e) => (e.resource === 'waste' ? grams + e.delta : grams), 0),
     gillAmmonia: bodies.excreted.ammonia,
     metabolicFactor,
     ration: dailyMaintenance(state.fish, metabolicFactor, config.livestock),
