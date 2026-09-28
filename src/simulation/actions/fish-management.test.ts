@@ -35,6 +35,7 @@ function fish(overrides: Partial<Fish> & { id: string }): Fish {
     sex: 'male',
     hardinessOffset: 0,
     surplus: 0,
+    ovary: 0,
     ...overrides,
   };
 }

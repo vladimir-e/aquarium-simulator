@@ -109,6 +109,7 @@ describe('applyAction', () => {
         sex: 'female',
         hardinessOffset: 0,
         surplus: 0,
+        ovary: 0,
       });
     });
 

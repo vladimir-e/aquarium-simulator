@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Clutch, Fish } from '../state.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
-import { livestockConfigMeta, livestockDefaults as config, MIN_BROOD_COST } from '../config/livestock.js';
-import { MAX_SURPLUS_CAP } from '../config/vitality.js';
+import { livestockDefaults as config } from '../config/livestock.js';
 import {
   ADULT_SIZE,
   brood,
@@ -15,6 +14,7 @@ import {
   growFish,
   massAtSize,
   offspringFathered,
+  ovaryAsked,
   paysTowardBrood,
   readyToBrood,
 } from './fish-growth.js';
@@ -25,7 +25,7 @@ const SPECIES = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
 function fish(o: Partial<Fish> & { size?: number } = {}): Fish {
   const { size = 100, ...rest } = o;
   const species = rest.species ?? 'guppy';
-  return {
+  const made: Fish = {
     id: 'f',
     species,
     mass: massAtSize(species, size),
@@ -35,8 +35,10 @@ function fish(o: Partial<Fish> & { size?: number } = {}): Fish {
     sex: 'female',
     hardinessOffset: 0,
     surplus: config.surplusCap,
+    ovary: 0,
     ...rest,
   };
+  return { ...made, ovary: rest.ovary ?? (made.sex === 'female' ? eggsLaid(made, config) : 0) };
 }
 
 describe('size', () => {
@@ -154,6 +156,47 @@ describe('growFish', () => {
     const full = growFish(fish({ size: 10, surplus: 40 }), PLENTY, config).fish;
     const thin = growFish(fish({ size: 10, surplus: 5 }), PLENTY, config).fish;
     expect(full.mass).toBeGreaterThan(thin.mass);
+  });
+});
+
+describe('the ovary', () => {
+  const PLENTY = 1;
+
+  it('asks for the eggs her brood share buys that it does not hold, and nothing of a male', () => {
+    const she = fish({ ovary: 0 });
+    expect(ovaryAsked(she, config)).toBeCloseTo(eggsLaid(she, config) * eggOrganics('guppy', config), 15);
+    expect(ovaryAsked({ ...she, ovary: eggsLaid(she, config) / 4 }, config)).toBeCloseTo((3 / 4) * ovaryAsked(she, config), 15);
+    expect(ovaryAsked(fish(), config)).toBe(0);
+    expect(ovaryAsked(fish({ sex: 'male', ovary: 0 }), config)).toBe(0);
+    expect(ovaryAsked(fish({ ovary: 0, surplus: 0 }), config)).toBe(0);
+  });
+
+  it('builds her eggs from her supply, never more than it, her body keeping its mass', () => {
+    const she = fish({ ovary: 0 });
+    for (const supply of [0, 1e-7, 1e-5, 1e-3, PLENTY]) {
+      const { fish: after, retained } = growFish(she, supply, config);
+      expect((after.ovary - she.ovary) * eggOrganics('guppy', config)).toBeCloseTo(retained, 15);
+      expect(retained).toBeLessThanOrEqual(supply * config.growthEfficiency);
+      expect(after.mass).toBe(she.mass);
+      expect(after.surplus).toBe(she.surplus);
+      expect(Number.isFinite(after.ovary)).toBe(true);
+    }
+    expect(growFish(she, 1e-5, config).fish.ovary).toBeLessThan(growFish(she, PLENTY, config).fish.ovary);
+  });
+
+  it('shares one supply with growth in proportion to what each asks, the ledger exact', () => {
+    const she = fish({ size: 70, ovary: 0, surplus: 30 });
+    const alone = { ...she, sex: 'male' as const };
+    const grownAsk = growFish(alone, 1e9, config).retained;
+    const eggAsk = ovaryAsked(she, config);
+    for (const supply of [1e-6, 1e-4, PLENTY]) {
+      const { fish: after, retained } = growFish(she, supply, config);
+      const grown = (after.mass - she.mass) * config.bodyOrganicShare;
+      const yolked = (after.ovary - she.ovary) * eggOrganics('guppy', config);
+      expect(grown + yolked).toBeCloseTo(retained, 15);
+      expect(yolked / eggAsk).toBeCloseTo(grown / grownAsk, 6);
+      expect(retained).toBeLessThan(supply * config.growthEfficiency);
+    }
   });
 });
 
@@ -285,36 +328,30 @@ describe('brood', () => {
     });
   });
 
-  it('makes the fathered eggs of the mother’s body, the males’ bodies untouched', () => {
+  it('makes the fathered eggs of her ovary, every body untouched', () => {
     const she = fish();
     const male = fish({ sex: 'male' });
     const result = brood([she], [male], config);
     expect(result.offspring[0]).toBeGreaterThan(0);
-    expect((she.mass - result.females[0].mass) * config.bodyOrganicShare).toBeCloseTo(
-      result.offspring[0] * eggOrganics('guppy', config),
-      15
-    );
+    expect(she.ovary - result.females[0].ovary).toBe(result.offspring[0]);
+    expect(result.females[0].mass).toBe(she.mass);
     expect(result.males[0].mass).toBe(male.mass);
   });
 
-  it('leaves the mother a body however cheap a brood is set', () => {
-    const range = (key: keyof typeof config): { min: number; max: number } =>
-      livestockConfigMeta.find((knob) => knob.key === key)!;
-    const extreme = {
-      ...config,
-      surplusCap: MAX_SURPLUS_CAP,
-      maintenanceRation: range('maintenanceRation').max,
-      bodyOrganicShare: range('bodyOrganicShare').min,
-    };
-    for (const broodCost of [MIN_BROOD_COST, 1, 1e-6]) {
-      for (const species of SPECIES) {
-        const she = fish({ species, surplus: MAX_SURPLUS_CAP });
-        const result = brood([she], [fish({ species, sex: 'male', surplus: MAX_SURPLUS_CAP })], { ...extreme, broodCost });
-        expect(result.offspring[0]).toBeGreaterThan(0);
-        expect(result.females[0].mass).toBeGreaterThan(0);
-        expect(result.females[0].surplus).toBeGreaterThanOrEqual(0);
-      }
+  it('lays no more eggs than her ovary holds, and pays for the brood her bank bought', () => {
+    const full = fish();
+    const bought = Math.floor(eggsLaid(full, config));
+    const male = fish({ sex: 'male' });
+    for (const share of [0, 0.3, 0.7, 1]) {
+      const she = { ...full, ovary: share * full.ovary };
+      const result = brood([she], [male], config);
+      expect(result.offspring[0]).toBeLessThanOrEqual(Math.floor(she.ovary));
+      expect(result.females[0].ovary).toBeGreaterThanOrEqual(0);
+      expect(she.surplus - result.females[0].surplus).toBeCloseTo((bought / eggsLaid(full, config)) * full.surplus, 10);
     }
+    expect(brood([{ ...full, ovary: 0.3 * full.ovary }], [male], config).offspring[0]).toBeLessThan(
+      brood([full], [male], config).offspring[0]
+    );
   });
 
   it('keeps every bank finite and non-negative', () => {

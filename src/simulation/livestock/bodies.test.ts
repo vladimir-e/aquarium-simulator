@@ -17,7 +17,7 @@ const CAP = DEFAULT_CONFIG.livestock.surplusCap;
 let idSeq = 0;
 function mkFish(o: Partial<Fish> = {}): Fish {
   const species = o.species ?? 'guppy';
-  return {
+  const made: Fish = {
     id: `f${idSeq++}`,
     species,
     mass: FISH_SPECIES_DATA[species].adultMass,
@@ -27,8 +27,10 @@ function mkFish(o: Partial<Fish> = {}): Fish {
     sex: 'female',
     hardinessOffset: 0,
     surplus: 0,
+    ovary: 0,
     ...o,
   };
+  return { ...made, ovary: o.ovary ?? (made.sex === 'female' ? eggsLaid(made, DEFAULT_CONFIG.livestock) : 0) };
 }
 
 function withTank(fish: Fish[], clutches: Clutch[] = []): SimulationState {
@@ -320,15 +322,39 @@ describe('processBodies', () => {
     expect(out.excreted.ammonia).toBeGreaterThan(0);
   });
 
-  it('makes a brood of its mother’s body: she loses exactly the organic matter her clutch holds', () => {
-    const config = DEFAULT_CONFIG.livestock;
+  it('makes a brood of her ovary: it loses exactly the eggs her clutch holds, and her body nothing', () => {
     for (const species of ['guppy', 'neon_tetra'] as const) {
       const she = mkFish({ id: `she-${species}`, species, sex: 'female', surplus: CAP });
       const out = breed(withTank([she, mkFish({ species, sex: 'male', surplus: CAP })]), DEFAULT_CONFIG);
       const [clutch] = out.state.clutches;
-      const lost = bodyOrganics(she.mass - out.state.fish[0].mass, config);
-      expect(lost).toBeCloseTo(clutch.eggs * egg(species), 12);
+      const [after] = out.state.fish;
+      expect(clutch.eggs).toBeGreaterThan(0);
+      expect(after.mass).toBe(she.mass);
+      expect(she.ovary - after.ovary).toBe(clutch.eggs);
     }
+  });
+
+  it('builds a hungry female’s eggs from her food, never her body: she lays what her ovary built and keeps her mass', () => {
+    const config = DEFAULT_CONFIG.livestock;
+    const HUNGRY = 2e-3;
+    const HOURS = 48;
+    const she = mkFish({ id: 'she', sex: 'female', surplus: CAP - 0.01, ovary: 0 });
+    let state = withTank([she, mkFish({ sex: 'male', surplus: CAP })]);
+    for (let hour = 0; hour < HOURS; hour++) {
+      state = produce(breed(state, DEFAULT_CONFIG, [HUNGRY, 0]).state, (draft) => {
+        draft.fish[0].surplus = hour < HOURS - 1 ? CAP - 0.01 : CAP;
+      });
+      expect(state.fish[0].mass).toBe(she.mass);
+    }
+    const built = state.fish[0].ovary;
+    const out = breed(state, DEFAULT_CONFIG).state;
+    const [clutch] = out.clutches;
+
+    expect(built * egg('guppy')).toBeLessThan(HOURS * assimilated(HUNGRY, config) * config.growthEfficiency);
+    expect(clutch.eggs).toBe(Math.floor(built));
+    expect(clutch.eggs).toBeGreaterThan(0);
+    expect(clutch.eggs).toBeLessThan(Math.floor(eggsLaid({ ...she, surplus: CAP }, config)));
+    expect(out.fish[0].mass).toBe(she.mass);
   });
 
   it('never broods at a surplus cap of 0', () => {

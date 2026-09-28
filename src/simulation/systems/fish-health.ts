@@ -35,7 +35,7 @@ import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { maintenance, nourishment, shareOut, swallow } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import { sum } from '../core/sum.js';
-import { bodyOrganics, fishSize } from './fish-growth.js';
+import { bodyOrganics, eggOrganics, fishSize } from './fish-growth.js';
 import {
   FREE_AMMONIA_EDGE,
   NITRATE_EDGE,
@@ -387,7 +387,7 @@ export function processHealth(
   fish.forEach((f, i) => {
     if (vitalities[i].newCondition > 0) return;
     const speciesData = FISH_SPECIES_DATA[f.species];
-    const remains = bodyOrganics(f.mass, config) + f.gut + carried[i];
+    const remains = bodyOrganics(f.mass, config) + f.ovary * eggOrganics(f.species, config) + f.gut + carried[i];
     const weights = survivingFish.map((survivor) => predatorWeight(survivor, f));
     const surviving = predatorMass[i] > 0 ? Math.min(1, sum(weights) / predatorMass[i]) : 0;
     const share = damageShare(vitalities[i], 'hunted') * surviving;

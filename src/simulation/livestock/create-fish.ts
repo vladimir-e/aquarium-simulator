@@ -73,5 +73,6 @@ export function createFish(params: CreateFishParams): Fish {
     sex,
     hardinessOffset,
     surplus: 0,
+    ovary: 0,
   };
 }

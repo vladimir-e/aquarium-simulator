@@ -31,6 +31,7 @@ function makeFish(id: string, mass: number): Fish {
     sex: 'male',
     hardinessOffset: 0,
     surplus: 0,
+    ovary: 0,
   };
 }
 

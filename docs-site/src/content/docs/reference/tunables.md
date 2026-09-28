@@ -201,7 +201,7 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `growthPerSurplus` | New mass, in % of the fish's metabolic mass, a bank point buys at species growth rate 1 | %/pt |
 | `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his species' share | pts per body mass |
 | `bodyOrganicShare` | Organic matter, of the food's recipe, in a gram of fish, egg or embryo; the rest is water | g/g |
-| `growthEfficiency` | Share of what a fish assimilates that growth can build into its body; the rest it burns | — |
+| `growthEfficiency` | Share of what a fish assimilates that growth and eggs can build into its body and ovary; the rest it burns | — |
 | `wearAtLifespan` | Wear at the species lifespan, for a fish of its species' hardiness | %/hr |
 | `wearDoublingShare` | Span wear doubles over, as a share of the species lifespan | × lifespan |
 | `healingHalvingShare` | Age healing halves over, as a share of the species lifespan | × lifespan |

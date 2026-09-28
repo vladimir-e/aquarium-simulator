@@ -162,7 +162,7 @@ function layBroods(draft: SimulationState, config: LivestockConfig): void {
     const result = brood(females, males, config);
 
     females.forEach((female, i) => {
-      female.mass = result.females[i].mass;
+      female.ovary = result.females[i].ovary;
       female.surplus = result.females[i].surplus;
     });
     males.forEach((male, i) => {

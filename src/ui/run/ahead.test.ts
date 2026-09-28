@@ -14,6 +14,7 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { settleEnvironment } from '../../simulation/tick.js';
+import { eggsLaid } from '../../simulation/systems/fish-growth.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
 
@@ -43,6 +44,7 @@ function recovering(): SimulationState {
       fish.surplus = config.livestock.surplusCap / 2;
     }
     Object.assign(draft.fish[0], { sex: 'female', health: 100, surplus: config.livestock.surplusCap });
+    draft.fish[0].ovary = eggsLaid(draft.fish[0], config.livestock);
     draft.fish[1].sex = 'male';
     for (const kind of ALGAE_KINDS) draft.algae[kind].mass = 20;
     draft.resources.food = 1;
@@ -208,6 +210,7 @@ describe('readHourAhead', () => {
     const stocked = createSimulation({ tankCapacity: 100 }, { fish: [{ species: 'guppy', count: 2 }] });
     const due = produce(stocked, (draft) => {
       Object.assign(draft.fish[0], { sex: 'female', health: 100, surplus: cap });
+      draft.fish[0].ovary = eggsLaid(draft.fish[0], config.livestock);
       Object.assign(draft.fish[1], { sex: 'male', health: 100, surplus: cap });
       draft.clutches = [{ id: 'due', species: 'guppy', eggs: 10, development: 0.9999, motherId: draft.fish[0].id }];
     });

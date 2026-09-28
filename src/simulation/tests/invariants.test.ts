@@ -30,10 +30,10 @@ function run(state: SimulationState, hours: number, config = DEFAULT_CONFIG): Si
   return running;
 }
 
-/** Grams of organic matter the fish hold: their bodies, their guts and every clutch, laid or carried. */
+/** Grams of organic matter the fish hold: their bodies, ovaries and guts and every clutch, laid or carried. */
 function livestockOrganics({ fish, clutches }: Pick<SimulationState, 'fish' | 'clutches'>): number {
   const { livestock } = DEFAULT_CONFIG;
-  const bodies = fish.reduce((sum, f) => sum + bodyOrganics(f.mass, livestock) + f.gut, 0);
+  const bodies = fish.reduce((sum, f) => sum + bodyOrganics(f.mass, livestock) + clutchOrganics({ species: f.species, eggs: f.ovary }, livestock) + f.gut, 0);
   return bodies + clutches.reduce((sum, clutch) => sum + clutchOrganics(clutch, livestock), 0);
 }
 
@@ -93,6 +93,7 @@ function tetra(id: string): Fish {
     sex: 'male',
     hardinessOffset: 0,
     surplus: 0,
+    ovary: 0,
   };
 }
 
@@ -210,6 +211,7 @@ describe('nitrogen mass', () => {
       sex,
       hardinessOffset: 0,
       surplus: 0,
+      ovary: 0,
     });
     let state = produce(cycledBareTank(10), (draft) => {
       draft.clutches = [{ id: 'brood', species: 'guppy', eggs: 10, development: 0.8, motherId: 'mother' }];
@@ -657,12 +659,10 @@ describe('a guppy stocked as a fry', () => {
     expect(sizes[firstBrood - 1]).toBeGreaterThan(20 * frySize('guppy'));
   });
 
-  it('only ever grows but by the broods she makes of her body, and never past adult size', () => {
+  it('only ever grows, her broods made of her food and not her body, and never past adult size', () => {
+    expect(broods.size).toBeGreaterThan(0);
     expect(Math.max(...sizes)).toBeLessThanOrEqual(100);
-    for (let i = 1; i < sizes.length; i++) {
-      if (!broods.has(i)) expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1]);
-    }
-    for (const i of broods) expect(sizes[i]).toBeLessThan(sizes[i - 1]);
+    for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1]);
   });
 });
 

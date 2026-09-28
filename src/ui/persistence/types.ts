@@ -41,7 +41,8 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      `wearDoublingShare` and `healingHalvingShare`. A fish is made of what
  *      it ate: `deathDecayFactor` gives way to `bodyOrganicShare` and
  *      `growthEfficiency`, and `gillNFraction` becomes `assimilatedFraction`.
- *      Metabolism scales with mass: `massScalingExponent`.
+ *      Metabolism scales with mass: `massScalingExponent`. A female
+ *      builds her eggs from her food: `Fish.ovary`.
  * v33: Algae runs on the plants' vitality model, as two kinds. `state.algae`
  *      holds a bloom per kind — `greenWater` and `film` — and `AlgaeState`
  *      gains `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`,

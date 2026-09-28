@@ -11,7 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **A fish is made of what it ate** - it grows from digested food, and grows, eats and burns per gram on mass^−¼, broods from its mother's body, returns its body at death; breaking: `processBodies` replaces `processBreeding`, `assimilatedFraction` replaces `gillNFraction` (v34).
+- **A fish is made of what it ate** - it grows from digested food, and grows, eats and burns per gram on mass^−¼, builds its mother's eggs from her food, returns its body at death; breaking: `processBodies` replaces `processBreeding`, `assimilatedFraction` replaces `gillNFraction` (v34).
 - **Old age is wear** - fish age by a rising damage rate and heal slower, a cohort dying over a few months near the species lifespan; breaking: `lifespan` replaces `maxAge` (v34).
 - **Predation** - larger fish hunt the young by the grams they outweigh them and eat what they kill; breaking: `computeFishVitality`, `readyToBrood` args (v34).
 - **Eggs are a stock** - water and fish thin a clutch as it develops, livebearers carry theirs; breaking: `Clutch` holds `eggs`, `development`; `createFish`, `processMetabolism`, `processHealth` leave the barrel (v34).

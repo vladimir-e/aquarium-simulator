@@ -348,6 +348,7 @@ describe('PersistedSimulationSchema', () => {
       sex: 'female',
       hardinessOffset: 0,
       surplus: 0,
+      ovary: 0,
     };
     const loaded = PersistedSimulationSchema.parse({
       ...validSimulation,
@@ -483,6 +484,7 @@ describe('PersistedSimulationSchema', () => {
           sex: 'male',
           hardinessOffset: 0.05,
           surplus: 0,
+          ovary: 0,
         },
       ],
     };
@@ -503,6 +505,7 @@ describe('PersistedSimulationSchema', () => {
           sex: 'male',
           hardinessOffset: -0.07,
           surplus: 1.5,
+          ovary: 0,
         },
       ],
     };
@@ -523,6 +526,7 @@ describe('PersistedSimulationSchema', () => {
           sex: 'female',
           hardinessOffset: 0.01,
           surplus: 0,
+          ovary: 0,
         },
       ],
       clutches: [{ id: 'c1', species: 'neon_tetra', eggs: 24.3, development: 0.6 }],
@@ -553,6 +557,7 @@ describe('PersistedSimulationSchema', () => {
           stage: 'adult',
           hardinessOffset: 0,
           surplus: 0,
+          ovary: 0,
         },
       ],
     };
@@ -829,6 +834,7 @@ describe('every fixture the UI offers survives a save', () => {
             sex: 'male',
             hardinessOffset: 0,
             surplus: 0,
+            ovary: 0,
           },
         ],
       }))

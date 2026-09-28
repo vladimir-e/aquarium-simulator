@@ -148,7 +148,7 @@ export interface LivestockConfig {
    * embryo; the rest is water.
    */
   bodyOrganicShare: number;
-  /** Share of what a fish assimilates that growth can build into its body; the rest it burns. */
+  /** Share of what a fish assimilates that growth and eggs can build into its body and ovary; the rest it burns. */
   growthEfficiency: number;
 
   // Ageing

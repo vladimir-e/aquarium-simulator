@@ -9,7 +9,7 @@
  * meal's ammonia and waste come out over the hours it digests. Of every gram
  * digested, `assimilatedFraction` is assimilated and the rest is feces, which
  * carry the food's own nitrogen and mineral fractions into the waste pool. What a
- * growing fish builds into its body comes out of the assimilated share; the
+ * fish builds into its body and ovary comes out of the assimilated share; the
  * rest leaves through the gills as NH3, with its minerals beside it:
  *     wasteMass = digested × (1 − assimilatedFraction)
  *     gill      = digested × assimilatedFraction − retained

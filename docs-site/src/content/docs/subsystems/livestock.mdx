@@ -31,7 +31,7 @@ fish hunt the young that hatch.
 | Old age | <Badge text="settled" variant="success" /> | Gompertz wear and healing that falls with age. |
 | Growth | <Badge text="settled" variant="success" /> | A specific rate on the fish's own mass, tapering to adult size; the bank sets the pace, digested food supplies the mass. Fry and adult are readouts of size, not states. |
 | Healing | <Badge text="settled" variant="success" /> | The bank heals at a rate falling with mass to the −¼ and with age. |
-| Broods | <Badge text="settled" variant="success" /> | A female broods on a full bank, out of her body; males pay their share. No timers or husbandry re-tests. |
+| Broods | <Badge text="settled" variant="success" /> | A female broods on a full bank, her eggs built from her food; males pay their share. No timers or husbandry re-tests. |
 | Death | <Badge text="settled" variant="success" /> | Health reaching zero. A death mostly of wear is logged as old age. |
 | Low health | <Badge text="settled" variant="success" /> | Only death reads it. |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge; damage starts at the edge. |
@@ -83,8 +83,8 @@ mass holds, needs, breathes and asks to grow 3.2× as much per gram.
 A gram of fish, egg or embryo is `bodyOrganicShare` grams of organic matter
 of the food's recipe — 2.75 % N and 0.36 % P by wet mass — and water. Every
 milligram fed returns to the water or stays in a body: digested, through the
-gills or feces, less what growth retains; uneaten, as it decays; at death, the
-whole body, gut and brood. A stocked fish brings its body and gut in; a removed
+gills or feces, less what growth and ovaries retain; uneaten, as it decays; at death, the
+whole body, ovary, gut and brood. A stocked fish brings its body and gut in; a removed
 or sold one takes them out.
 The oxygen stressor is a separate reading, so a suffocating fish draws less
 *and* suffers more.
@@ -101,7 +101,8 @@ The fish's own stocks; what it reads and writes in the tank is under [Seams](#se
 | clutch `eggs` | A brood | Water harm and predation, first order; hatching | eggs |
 | clutch `development` | The metabolic factor over the species' development time | Hatching, at 1 | share of the way to hatching |
 | `age` | One tick per hour, always | — | ticks |
-| `mass` | Growth, at the bank's pace out of digested food | A female's brood | g |
+| `mass` | Growth, at the bank's pace out of digested food | — | g |
+| `ovary` | A female's eggs, out of digested food | A brood | eggs |
 
 ### Feeding and the gut
 
@@ -209,12 +210,14 @@ after vitality, clutches advance, females on full banks brood, then every bank
 draws toward growth:
 
 ```
-drawn    = bank × (1 − e^−growthDrawRate) × (1 − size / 100)
-asked    = bodyOrganicShare × M × drawn × growthRate × growthPerSurplus / 100
-supply   = digested × assimilatedFraction × growthEfficiency
-retained = asked × supply / (supply + asked)
-mass    += retained / bodyOrganicShare
-bank    −= drawn × retained / asked
+drawn   = bank × (1 − e^−growthDrawRate) × (1 − size / 100)
+asked   = bodyOrganicShare × M × drawn × growthRate × growthPerSurplus / 100
+yolked  = (eggs her brood share buys − ovary) × egg organics   (a female)
+supply  = digested × assimilatedFraction × growthEfficiency
+built   = supply / (supply + asked + yolked)
+mass   += asked × built / bodyOrganicShare
+ovary  += yolked × built / egg organics
+bank   −= drawn × built
 ```
 
 The asking is a share of the fish's metabolic mass `M` — anabolism runs on
@@ -226,7 +229,8 @@ a betta, four as a neon, five as a corydoras and seven as an angelfish. Supply s
 so a fry on a thin ration stunts at any size: growth never builds more
 than its supply, and slows smoothly when digestion is short, the bank paying
 only for what was built. What it retains leaves the gill stream, so a growing
-fish excretes less ammonia per gram of food; a grown one retains none. Size
+fish excretes less ammonia per gram of food; a grown one retains only what a
+female's ovary takes. Size
 approaches 100 without a clamp. Fry and adult split at 50 %, where the brood
 share passes the growth share.
 
@@ -237,13 +241,15 @@ offspring:
 eggs = brood share × bank × mass / (broodCost × egg mass)
 ```
 
-A female lays the whole eggs her share buys, never more than her body can make
-and still weigh something, and pays for those; the fathered ones are made of
-her body, which loses what they hold. Each male of her
+A female's eggs are built from her food alongside growth: her ovary asks for
+the eggs her brood share buys that it doesn't yet hold, and one supply builds
+both askings in proportion. She pays for the whole eggs her share buys and lays
+as many as her ovary holds, so a well-fed female lays her full brood and a
+food-short one a small one; her body never pays. Each male of her
 species fathers what his brood share pays for at his species' `maleShare` of the
 price. Ready females of a species brood together: the males father up to all
 eggs laid, shared back in proportion, each paying the same share of what he
-could. Unfathered eggs are lost with what she paid. Refilling the banks is the
+could. Unfathered eggs stay in her ovary, lost with what she paid. Refilling the banks is the
 cooldown.
 
 Stocking names a size, grown by default. Age starts at 0 and is read only by
@@ -282,7 +288,7 @@ doesn't brood — and it dies or leaves the tank with her.
 
 ### Death
 
-Health reaching zero removes the fish. Its remains — its whole body, its gut
+Health reaching zero removes the fish. Its remains — its whole body, ovary, gut
 and any carried brood — rot to waste, less the share its
 surviving predators eat: their share of its dying hour's damage, into their guts
 by weight as room allows.
@@ -315,7 +321,7 @@ by weight as room allows.
 | `healingHalvingShare` | Age healing halves over, as a share of lifespan | `1` × lifespan |
 | `broodCost` | Bank points a brood of its parent's own weight costs — the female in full, the male at his share | `500` pts |
 | `bodyOrganicShare` | Organic matter, of the food's recipe, in a gram of fish, egg or embryo | `0.55` g/g |
-| `growthEfficiency` | Share of what a fish assimilates that growth can build into its body | `0.45` |
+| `growthEfficiency` | Share of what a fish assimilates that growth and eggs can build into its body and ovary | `0.45` |
 | `eggSensitivity` | How many times harder the water harms a laid egg than a fish | `3` × |
 | `eggPredationRate` | Share of a laid clutch eaten an hour per g/L of predator mass, before exposure | `15` L/g/hr |
 | `predationRate` | Damage an hour, before hardiness, per g/L of predator mass on a fish at no size | `100` %/hr per g/L |

@@ -1,6 +1,6 @@
 /**
  * Fish growth and broods — the bank sets the pace, and the fish's own food
- * and body supply the material.
+ * supplies the material.
  *
  * A fish's size is its mass in % of its species' adult mass, and it splits
  * the bank: `size / 100` of it is the brood share, the rest goes to growth.
@@ -9,10 +9,12 @@
  * proportion to the fish's metabolic mass — anabolism runs on mass to the ¾
  * like the rest of its metabolism — so growth is a specific rate on mass to
  * the −¼ that tapers logistically: a hatchling doubles fast, a fish near
- * adult size gains almost nothing, and size approaches 100 without a clamp. The share of what the
- * fish assimilated that hour growth can use builds the asking, on a Monod
- * curve against it, and the bank pays only for what was built. A female whose
- * bank is full lays the eggs her brood share buys out of her own body, and the
+ * adult size gains almost nothing, and size approaches 100 without a clamp.
+ * A female's ovary asks for the eggs her brood share buys that it doesn't yet
+ * hold. The share of what the fish assimilated that hour growth can use
+ * builds both askings, on one Monod curve against their sum, and the bank
+ * pays only for the growth built. A female whose bank is full pays for the
+ * eggs her brood share buys and lays as many as her ovary holds, and the
  * males of her species pay their share of them from their own brood shares.
  */
 
@@ -69,44 +71,43 @@ export function broodShare(size: number): number {
 
 export interface Growth {
   fish: Fish;
-  /** Grams of assimilated food built into its body. */
+  /** Grams of assimilated food built into its body and ovary. */
   retained: number;
 }
 
+/** Grams of organic matter the eggs her brood share buys hold, less the eggs her ovary holds already; nothing in a male. */
+export function ovaryAsked(fish: Fish, config: LivestockConfig): number {
+  if (fish.sex !== 'female') return 0;
+  return Math.max(0, eggsLaid(fish, config) - fish.ovary) * eggOrganics(fish.species, config);
+}
+
 /**
- * The hour's growth. The bank's draw through the growth share asks for
- * `growthRate × growthPerSurplus` % of the fish's metabolic mass a point;
- * `growthEfficiency` of the `assimilated` grams of food is the supply, and it
- * builds `monodFactor(supply, asked)` of the asking, so a fish never builds
- * more than its supply, and the bank pays for the share it built.
+ * The hour's growth and eggs. The bank's draw through the growth share asks
+ * for `growthRate × growthPerSurplus` % of the fish's metabolic mass a point,
+ * and her ovary asks for its `ovaryAsked`; `growthEfficiency` of the
+ * `assimilated` grams of food is the supply, and it builds
+ * `monodFactor(supply, asked)` of both, so a fish never builds more than its
+ * supply, and the bank pays for the share of growth it built.
  */
 export function growFish(fish: Fish, assimilated: number, config: LivestockConfig): Growth {
   const drawn =
     Math.max(0, fish.surplus) * hourlyDraw(config.growthDrawRate) * (1 - broodShare(fishSize(fish)));
   const { growthRate } = FISH_SPECIES_DATA[fish.species];
-  const asked = bodyOrganics((metabolicMass(fish, config) * drawn * growthRate * config.growthPerSurplus) / 100, config);
+  const grown = bodyOrganics((metabolicMass(fish, config) * drawn * growthRate * config.growthPerSurplus) / 100, config);
+  const yolked = ovaryAsked(fish, config);
+  const asked = grown + yolked;
   if (asked <= 0) return { fish, retained: 0 };
 
   const built = monodFactor(assimilated * config.growthEfficiency, asked);
-  const retained = asked * built;
   return {
     fish: {
       ...fish,
-      mass: fish.mass + retained / config.bodyOrganicShare,
+      mass: fish.mass + (grown * built) / config.bodyOrganicShare,
+      ovary: fish.ovary + (yolked * built) / eggOrganics(fish.species, config),
       surplus: fish.surplus - drawn * built,
     },
-    retained,
+    retained: asked * built,
   };
-}
-
-/** Grams one egg takes out of its mother's body. */
-function eggWeight(species: FishSpecies, config: LivestockConfig): number {
-  return eggOrganics(species, config) / config.bodyOrganicShare;
-}
-
-/** The most whole eggs a female's body can make and still weigh something. */
-function eggsHerBodyMakes(female: Fish, config: LivestockConfig): number {
-  return Math.max(0, Math.ceil(female.mass / eggWeight(female.species, config)) - 1);
 }
 
 /** Offspring one bank point buys this parent: `broodCost` buys a brood of its own weight. */
@@ -170,17 +171,16 @@ function apportion(females: readonly Fish[], eggs: readonly number[], fathered: 
 }
 
 /**
- * The ready females of one species brood together. Each lays the whole eggs
- * her brood share buys and pays for exactly those; the males father as many
- * as their brood shares pay for between them, shared back to each female in
- * proportion to her eggs, each male paying the same share of what his could.
- * Eggs nobody fathers are lost with the bank she paid for them; the fathered
- * ones are made of her body.
+ * The ready females of one species brood together. Each pays for the whole
+ * eggs her brood share buys and lays as many of them as her ovary holds; the
+ * males father as many as their brood shares pay for between them, shared
+ * back to each female in proportion to her eggs, each male paying the same
+ * share of what his could. The fathered eggs leave her ovary; the rest stay
+ * in it, and the bank she paid for them is lost.
  */
 export function brood(females: readonly Fish[], males: readonly Fish[], config: LivestockConfig): Brood {
-  const eggs = females.map((female) =>
-    Math.min(Math.floor(eggsLaid(female, config)), eggsHerBodyMakes(female, config))
-  );
+  const bought = females.map((female) => Math.floor(eggsLaid(female, config)));
+  const eggs = females.map((female, i) => Math.min(bought[i], Math.floor(female.ovary)));
   const fathering = sum(males.map((male) => offspringFathered(male, config)));
   const offspring = apportion(females, eggs, Math.min(sum(eggs), fathering));
   const paid = fathering > 0 ? sum(offspring) / fathering : 0;
@@ -189,8 +189,8 @@ export function brood(females: readonly Fish[], males: readonly Fish[], config: 
     offspring,
     females: females.map((female, i) => ({
       ...female,
-      mass: female.mass - offspring[i] * eggWeight(female.species, config),
-      surplus: female.surplus - Math.min(broodBank(female), eggs[i] / offspringPerPoint(female, config)),
+      ovary: female.ovary - offspring[i],
+      surplus: female.surplus - Math.min(broodBank(female), bought[i] / offspringPerPoint(female, config)),
     })),
     males: males.map((male) => ({ ...male, surplus: male.surplus - paid * broodBank(male) })),
   };

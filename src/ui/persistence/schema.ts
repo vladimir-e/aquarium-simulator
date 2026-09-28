@@ -273,6 +273,7 @@ const FishSchema = z
     sex: z.enum(['male', 'female']),
     hardinessOffset: z.number(),
     surplus: z.number().min(0),
+    ovary: z.number().min(0),
   })
   .strict();
 
