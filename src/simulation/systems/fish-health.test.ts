@@ -789,12 +789,14 @@ describe('surplus', () => {
     expect(buffered.newCondition).toBeGreaterThan(vitality({ surplus: 0 }, cold).newCondition);
   });
 
-  it('scales the healing rate by adult mass to the −¼ power', () => {
-    const share = (species: FishSpecies): number => fishHealingRate(makeFish({ species }), livestockDefaults);
+  it('scales the healing rate by its own mass to the −¼ power, a gram healing at the draw rate', () => {
+    const grown = (species: FishSpecies): number =>
+      fishHealingRate(makeFish({ species, mass: FISH_SPECIES_DATA[species].adultMass }), livestockDefaults);
     const ratio = FISH_SPECIES_DATA.angelfish.adultMass / FISH_SPECIES_DATA.neon_tetra.adultMass;
-    expect(share('neon_tetra') / share('angelfish')).toBeCloseTo(ratio ** 0.25, 12);
-    expect(share('guppy')).toBeCloseTo(
-      livestockDefaults.healingDrawRate * FISH_SPECIES_DATA.guppy.adultMass ** -0.25,
+    expect(grown('neon_tetra') / grown('angelfish')).toBeCloseTo(ratio ** 0.25, 12);
+    expect(fishHealingRate(makeFish({ mass: 1 }), livestockDefaults)).toBeCloseTo(livestockDefaults.healingDrawRate, 12);
+    expect(fishHealingRate(makeFish({ mass: 0.5 / 16 }), livestockDefaults)).toBeCloseTo(
+      2 * fishHealingRate(makeFish({ mass: 0.5 }), livestockDefaults),
       12
     );
   });

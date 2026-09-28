@@ -4,23 +4,38 @@
  * it digests is the fish's income: its vitality earns on it and its waste
  * comes out of it. The ration it must digest to hold condition runs on the
  * same factor.
+ *
+ * What a gut holds, what a fish needs and what it breathes scale with its
+ * metabolic mass, not its mass: per gram, each runs on mass to the −¼
+ * against a grown fish of its species, so a fry eats, digests and burns
+ * more for its size than its parents do.
  */
 
 import type { Fish } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { hourlyDraw, monodFactor } from '../core/kinetics.js';
 import { sum } from '../core/sum.js';
+import { FISH_SPECIES_DATA } from '../livestock/species.js';
 
-type Sized = Pick<Fish, 'mass'>;
+type Sized = Pick<Fish, 'species' | 'mass'>;
 
-/** A day's maintenance ration: what a fish of this mass arrives with in its gut, from the shop or its egg. */
-export function arrivalGut(mass: number, config: LivestockConfig): number {
-  return mass * config.maintenanceRation;
+/**
+ * Grams of grown fish of its species whose metabolism matches this fish's:
+ * per gram, a fish runs at its mass over its adult mass to `massScalingExponent`.
+ */
+export function metabolicMass(fish: Sized, config: LivestockConfig): number {
+  const { adultMass } = FISH_SPECIES_DATA[fish.species];
+  return adultMass * (fish.mass / adultMass) ** (1 + config.massScalingExponent);
+}
+
+/** A day's maintenance ration: what a fish arrives with in its gut, from the shop or its egg. */
+export function arrivalGut(fish: Sized, config: LivestockConfig): number {
+  return dailyMaintenance([fish], 1, config);
 }
 
 /** Grams of food a full gut holds. */
 export function gutCapacity(fish: Sized, config: LivestockConfig): number {
-  return fish.mass * config.gutCapacity;
+  return metabolicMass(fish, config) * config.gutCapacity;
 }
 
 /** Grams it would eat this hour: the room left in its gut. */
@@ -73,7 +88,7 @@ export function digest(gut: number, factor: number, config: LivestockConfig): nu
 
 /** Grams a day a roster must digest to hold its condition, its metabolism running at `factor`. */
 export function dailyMaintenance(fish: readonly Sized[], factor: number, config: LivestockConfig): number {
-  return sum(fish.map((f) => f.mass)) * config.maintenanceRation * factor;
+  return sum(fish.map((f) => metabolicMass(f, config))) * config.maintenanceRation * factor;
 }
 
 /** Grams an hour a fish must digest to hold its condition, its metabolism running at `factor`. */
@@ -92,6 +107,5 @@ export function nourishment(digested: number, need: number): number {
  */
 export function hungerLine(factor: number, config: LivestockConfig): number {
   if (factor <= 0) return 0;
-  const fish = { mass: 1 };
-  return maintenance(fish, factor, config) / digest(gutCapacity(fish, config), factor, config);
+  return (config.maintenanceRation * factor) / 24 / digest(config.gutCapacity, factor, config);
 }

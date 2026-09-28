@@ -516,6 +516,7 @@ const LivestockConfigSchema = z
     digestionRate: z.number(),
     metabolicQ10: z.number(),
     metabolicReferenceTemp: z.number(),
+    massScalingExponent: z.number().max(0).gt(-1),
     maintenanceRation: z.number(),
     hungerSeverity: z.number(),
     baseRespirationRate: z.number(),

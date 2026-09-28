@@ -37,7 +37,7 @@ function stocked(fullness: number, fish: Partial<Fish> = {}): SimulationState {
   let state = base;
   for (let i = 0; i < 3; i++) state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   return produce(state, (draft) => {
-    for (const f of draft.fish) Object.assign(f, { gut: gutAt(fullness, f.mass), health: 100, ...fish });
+    for (const f of draft.fish) Object.assign(f, { gut: gutAt(fullness, f), health: 100, ...fish });
   });
 }
 
@@ -102,7 +102,7 @@ describe('activeNeeds', () => {
 
   it('sends a hungry fish sick of ammonia to its ledger, not to the food', () => {
     const state = produce(stocked(1, { surplus: 0 }), (draft) => {
-      draft.fish[0].gut = gutAt(HUNGRY_FULLNESS, draft.fish[0].mass);
+      draft.fish[0].gut = gutAt(HUNGRY_FULLNESS, draft.fish[0]);
       draft.resources.ammonia = 10 * draft.resources.water;
     });
     const [sick] = needs(state);

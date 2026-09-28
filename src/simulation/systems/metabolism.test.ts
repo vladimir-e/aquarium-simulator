@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { excretion, processMetabolism, type Excretion, type MetabolismResult, type MetabolismWater } from './metabolism.js';
-import { gutCapacity } from './digestion.js';
+import { gutCapacity, metabolicMass } from './digestion.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { WASTE_NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
@@ -29,7 +29,7 @@ function water(overrides: Partial<MetabolismWater> = {}): MetabolismWater {
   return { food: 10, oxygen: AMPLE_O2, temperature: 25, ...overrides };
 }
 
-const full = (mass: number): number => gutCapacity({ mass }, livestockDefaults);
+const full = (mass: number): number => gutCapacity({ species: 'neon_tetra', mass }, livestockDefaults);
 
 const excreted = (r: MetabolismResult, retained = 0): Excretion =>
   excretion(r.digested.reduce((a, b) => a + b, 0), retained, livestockDefaults);
@@ -151,23 +151,25 @@ describe('processMetabolism', () => {
     const { metabolicReferenceTemp: ref } = livestockDefaults;
     for (const temperature of [ref - 10, ref, ref + 5]) {
       const r = at(temperature);
-      expect(r.oxygenConsumedMg).toBeCloseTo(livestockDefaults.baseRespirationRate * 2 * r.metabolicFactor, 12);
+      expect(r.oxygenConsumedMg).toBeCloseTo(
+        livestockDefaults.baseRespirationRate * metabolicMass(makeFish({ mass: 2 }), livestockDefaults) * r.metabolicFactor,
+        12
+      );
     }
     expect(at(ref + 5).oxygenConsumedMg).toBeGreaterThan(at(ref).oxygenConsumedMg);
   });
 
-  it('consumes oxygen on mass, at half its base rate at the half-saturation constant', () => {
+  it('consumes oxygen on metabolic mass, at half its base rate at the half-saturation constant', () => {
+    const fish = makeFish({ mass: 2 });
     const at = (oxygen: number): number =>
-      processMetabolism([makeFish({ mass: 2 })], water({ oxygen }), livestockDefaults).oxygenConsumedMg;
+      processMetabolism([fish], water({ oxygen }), livestockDefaults).oxygenConsumedMg;
+    const base = livestockDefaults.baseRespirationRate * metabolicMass(fish, livestockDefaults);
 
     expect(at(AMPLE_O2)).toBeCloseTo(
-      livestockDefaults.baseRespirationRate * 2 * monodFactor(AMPLE_O2, livestockDefaults.respirationOxygenHalfSaturation),
+      base * monodFactor(AMPLE_O2, livestockDefaults.respirationOxygenHalfSaturation),
       9
     );
-    expect(at(livestockDefaults.respirationOxygenHalfSaturation)).toBeCloseTo(
-      livestockDefaults.baseRespirationRate * 2 * 0.5,
-      9
-    );
+    expect(at(livestockDefaults.respirationOxygenHalfSaturation)).toBeCloseTo(base * 0.5, 9);
     expect(at(0)).toBe(0);
   });
 
@@ -198,6 +200,17 @@ describe('processMetabolism', () => {
     expect(result.co2ProducedMg / MW_CO2).toBeCloseTo(
       (result.oxygenConsumedMg / MW_O2) * livestockDefaults.respiratoryQuotient,
       10
+    );
+  });
+
+  it('breathes per gram on mass^−¼ against a grown fish of its species', () => {
+    const perGram = (mass: number): number =>
+      processMetabolism([makeFish({ mass })], water(), livestockDefaults).oxygenConsumedMg / mass;
+    const adult = 0.5;
+    expect(perGram(adult / 16) / perGram(adult)).toBeCloseTo(2, 9);
+    expect(perGram(adult)).toBeCloseTo(
+      livestockDefaults.baseRespirationRate * monodFactor(AMPLE_O2, livestockDefaults.respirationOxygenHalfSaturation),
+      9
     );
   });
 

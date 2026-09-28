@@ -17,12 +17,17 @@ import { MW_N, MW_NO3, N_TO_NH3_MASS_RATIO } from '../core/chemistry.js';
 
 export interface LivestockConfig {
   // Feeding
-  /** Grams of food a full gut holds, per gram of fish. */
+  /** Grams of food a full gut holds, per gram of grown fish. */
   gutCapacity: number;
   /** First-order rate, per hour, a gut digests at the reference temperature in unlimited oxygen. */
   digestionRate: number;
   metabolicQ10: number;
   metabolicReferenceTemp: number;
+  /**
+   * Power of mass a fish's per-gram gut, maintenance, respiration and healing
+   * scale with; a grown fish of its species sets the reference, 1 g does for healing.
+   */
+  massScalingExponent: number;
   /**
    * Grams of food a day, per gram of fish, a fish must digest to hold its
    * condition: its income runs at half rate there, and hunger harms it below.
@@ -123,7 +128,7 @@ export interface LivestockConfig {
   surplusCap: number;
   /**
    * Rate, per hour, a 1 g fish's bank heals health below 100 at; scaled by
-   * adult mass to the −¼ power (see `fishHealingRate`).
+   * its mass to `massScalingExponent` (see `fishHealingRate`).
    */
   healingDrawRate: number;
   /**
@@ -175,6 +180,9 @@ export const livestockDefaults: LivestockConfig = {
   digestionRate: 0.1,
   metabolicQ10: 2.0,
   metabolicReferenceTemp: 25,
+  // Kleiber: whole-body metabolism runs on mass^¾, so per gram on mass^−¼ —
+  // a guppy fry at 1 % of adult mass eats, needs and breathes 3.2× per gram.
+  massScalingExponent: -0.25,
   // Half a percent of body mass a day holds a fish; the hobby's 1–3 % a day
   // feeds it past that, and the excess is what banks.
   maintenanceRation: 0.005,
@@ -314,6 +322,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'digestionRate', label: 'Digestion Rate', unit: '/hr', min: 0.01, max: 1, step: 0.01 },
   { key: 'metabolicQ10', label: 'Metabolic Q10', unit: '', min: 1, max: 4, step: 0.1 },
   { key: 'metabolicReferenceTemp', label: 'Metabolic Reference Temp', unit: '°C', min: 15, max: 30, step: 1 },
+  { key: 'massScalingExponent', label: 'Mass Scaling Exponent', unit: '', min: -0.5, max: 0, step: 0.05 },
   { key: 'maintenanceRation', label: 'Maintenance Ration', unit: 'g/g/day', min: 0.001, max: 0.03, step: 0.001 },
   { key: 'hungerSeverity', label: 'Hunger Severity', unit: '%/hr', min: 0, max: 5, step: 0.1 },
   // Metabolism

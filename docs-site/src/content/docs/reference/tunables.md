@@ -178,8 +178,9 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `gutCapacity` | Food a full gut holds, per gram of fish | g/g |
+| `gutCapacity` | Food a full gut holds, per gram of grown fish | g/g |
 | `digestionRate` | First-order rate a gut digests at, at the reference temperature in unlimited oxygen | /hr |
+| `massScalingExponent` | Power of mass a fish's per-gram gut, maintenance, respiration and healing scale with — against its species' adult mass, and 1 g for healing | — |
 | `metabolicQ10` · `metabolicReferenceTemp` | How the metabolism — digestion, respiration and the maintenance ration — scales with temperature, and where it reads their base values | — · °C |
 | `maintenanceRation` | Food a day, per gram of fish, digested to hold condition at the reference temperature in unlimited oxygen — income at half rate, and where hunger starts | g/g/day |
 | `hungerSeverity` | Damage at an empty gut, before hardiness | %/hr |
@@ -195,7 +196,7 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor at its best, at full nourishment | %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which the planted-tank benefit stops growing | power |
 | `surplusCap` | Ceiling on the fish's bank; a female broods on a full one | pts |
-| `healingDrawRate` | First-order rate a young 1 g fish's bank heals it at, scaled by adult mass to the −¼ and halving with age | /hr at 1 g |
+| `healingDrawRate` | First-order rate a young 1 g fish's bank heals it at, scaled by its mass to `massScalingExponent` and halving with age | /hr at 1 g |
 | `growthDrawRate` | First-order rate the bank draws toward growth at, before the growth share `1 − size / 100` | /hr |
 | `growthPerSurplus` | New mass, in % of the fish's own, a bank point buys at species growth rate 1 | %/pt |
 | `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his species' share | pts per body mass |

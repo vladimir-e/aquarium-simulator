@@ -51,7 +51,7 @@ const breed = (
   });
 
 const yolk = (species: FishSpecies): number =>
-  arrivalGut(FISH_SPECIES_DATA[species].breeding.eggMass, DEFAULT_CONFIG.livestock);
+  arrivalGut({ species, mass: FISH_SPECIES_DATA[species].breeding.eggMass }, DEFAULT_CONFIG.livestock);
 const egg = (species: FishSpecies): number => eggOrganics(species, DEFAULT_CONFIG.livestock);
 const MG_NH3_PER_G_N = N_TO_NH3_MASS_RATIO * 1000;
 

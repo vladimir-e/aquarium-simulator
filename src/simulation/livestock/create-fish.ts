@@ -69,7 +69,7 @@ export function createFish(params: CreateFishParams): Fish {
     mass,
     health,
     age: params.age ?? 0,
-    gut: params.gut ?? arrivalGut(mass, config),
+    gut: params.gut ?? arrivalGut({ species, mass }, config),
     sex,
     hardinessOffset,
     surplus: 0,

@@ -3,6 +3,7 @@ import { createFish, HARDINESS_OFFSET_SPAN, HEALTH_JITTER } from './create-fish.
 import { createRng, draw } from '../core/rng.js';
 import { FISH_SPECIES_DATA } from './species.js';
 import { livestockDefaults } from '../config/livestock.js';
+import { dailyMaintenance } from '../systems/digestion.js';
 
 describe('createFish', () => {
   it('builds a fish at its size, as that share of adult mass, with a day’s keep in its gut', () => {
@@ -10,7 +11,7 @@ describe('createFish', () => {
     for (const size of [2, 40, 100]) {
       const fish = createFish({ species: 'angelfish', size, rng: createRng(1), config: livestockDefaults });
       expect(fish.mass).toBeCloseTo((size / 100) * adultMass, 12);
-      expect(fish.gut).toBeCloseTo(fish.mass * livestockDefaults.maintenanceRation, 12);
+      expect(fish.gut).toBeCloseTo(dailyMaintenance([fish], 1, livestockDefaults), 12);
       expect(fish.surplus).toBe(0);
     }
   });

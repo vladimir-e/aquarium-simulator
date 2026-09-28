@@ -21,7 +21,7 @@ fish hunt the young that hatch.
 | Mechanic | Status | Why |
 |---|---|---|
 | Metabolism | <Badge text="settled" variant="success" /> | Digestion, maintenance, oxygen draw and CO₂ on one metabolic factor. |
-| The gut | <Badge text="scaffolding" variant="caution" /> | One stock for hunger, digested first order. Its capacity and pace are per gram at any size, so a fry digests at an adult's specific rate and, fed without limit, grows at under half the hobby pace. |
+| The gut | <Badge text="settled" variant="success" /> | One stock for hunger, digested first order, holding more per gram the smaller the fish. |
 | Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces come out of what the gut digests, less what growth builds in; none is lost. |
 | Body composition | <Badge text="settled" variant="success" /> | A body, egg or embryo is organic matter of the food's recipe and water; it enters and leaves the tank's ledger whole. |
 | Nourishment | <Badge text="settled" variant="success" /> | Benefits on a Monod curve of digestion, half at the maintenance ration; hunger below it. |
@@ -30,7 +30,7 @@ fish hunt the young that hatch.
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits. |
 | Old age | <Badge text="settled" variant="success" /> | Gompertz wear and healing that falls with age. |
 | Growth | <Badge text="settled" variant="success" /> | A specific rate on the fish's own mass, tapering to adult size; the bank sets the pace, digested food supplies the mass. Fry and adult are readouts of size, not states. |
-| Healing | <Badge text="settled" variant="success" /> | The bank heals at a rate falling with adult mass to the −¼ and with age. |
+| Healing | <Badge text="settled" variant="success" /> | The bank heals at a rate falling with mass to the −¼ and with age. |
 | Broods | <Badge text="settled" variant="success" /> | A female broods on a full bank, out of her body; males pay their share. No timers or husbandry re-tests. |
 | Death | <Badge text="settled" variant="success" /> | Health reaching zero. A death mostly of wear is logged as old age. |
 | Low health | <Badge text="settled" variant="success" /> | Only death reads it. |
@@ -63,12 +63,18 @@ The metabolic factor is the Q10 term times the oxygen Monod factor, read once an
 hour for the whole tank. Its half-saturation sits at 1.0 mg/L, the highest in the
 tank, so fish feel a shortage before the bacteria do.
 
+A fish's rates run on its metabolic mass, not its mass: Kleiber's law puts a
+body's metabolism on mass to the ¾, so per gram it runs on mass to the −¼.
+Against a grown fish of its own species, `M = adultMass × (mass / adultMass)^(1 + massScalingExponent)`,
+so a grown fish sits at the per-gram constants and a guppy fry at 1 % of adult
+mass holds, needs and breathes 3.2× as much per gram.
+
 | Flow | Per hour | Scaled by the metabolic factor |
 |---|---|---|
 | Digested | `gut × (1 − e^−k)`, `k = digestionRate × metabolic factor` | yes |
-| Maintenance | `maintenanceRation × mass / 24 × metabolic factor` | yes |
-| Eaten | the room left in the gut, `gutCapacity × mass − gut`, or its share of short food | no |
-| Oxygen drawn | `baseRespirationRate × mass × metabolic factor` | yes |
+| Maintenance | `maintenanceRation × M / 24 × metabolic factor` | yes |
+| Eaten | the room left in the gut, `gutCapacity × M − gut`, or its share of short food | no |
+| Oxygen drawn | `baseRespirationRate × M × metabolic factor` | yes |
 | CO₂ exhaled | the oxygen drawn × `respiratoryQuotient`, through the molar mass step | yes — it derives from the draw |
 | Gill ammonia | (digested × `assimilatedFraction` − retained) × `foodNitrogenFraction`, as NH₃ | through digestion |
 | Feces | digested × `(1 − assimilatedFraction)` | through digestion |
@@ -90,7 +96,7 @@ The fish's own stocks; what it reads and writes in the tank is under [Seams](#se
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
 | `health` | Benefits; healing from the bank | Stressors | %, normal at 100 |
-| `gut` | Eating, up to `gutCapacity × mass`; eggs and fry it eats; a hatchling's yolk | Digestion, first order | g |
+| `gut` | Eating, up to `gutCapacity × M`; eggs and fry it eats; a hatchling's yolk | Digestion, first order | g |
 | `surplus` | Income at full health | Healing; growth; a brood | condition points, capped at `surplusCap` |
 | clutch `eggs` | A brood | Water harm and predation, first order; hatching | eggs |
 | clutch `development` | The metabolic factor over the species' development time | Hatching, at 1 | share of the way to hatching |
@@ -105,7 +111,7 @@ left over decays. A stocked fish arrives with a day's maintenance ration in its
 gut; a hatchling's yolk is the same ration.
 
 Digestion is the fish's income. Against its maintenance ration —
-`maintenanceRation × mass` a day, scaled by the metabolic factor — it sets two
+`maintenanceRation × M` a day, scaled by the metabolic factor — it sets two
 rates:
 
 | Rate | Shape | At maintenance |
@@ -181,7 +187,7 @@ back.
 
 ```
 wear    = wearAtLifespan × 2^((age − L) / (wearDoublingShare × L)) × species hardiness / its own
-healing = healingDrawRate × adultMass^−¼ × 2^(−age / (healingHalvingShare × L))
+healing = healingDrawRate × mass^massScalingExponent × 2^(−age / (healingHalvingShare × L))
 ```
 
 for species lifespan `L`. Species hardiness doesn't shield wear; only an
@@ -280,7 +286,8 @@ by weight as room allows.
 
 | Constant | Meaning | Value |
 |---|---|---|
-| `gutCapacity` | Food a full gut holds, per gram of fish | `0.03` g/g |
+| `gutCapacity` | Food a full gut holds, per gram of grown fish | `0.03` g/g |
+| `massScalingExponent` | Power of mass the per-gram gut, maintenance, respiration and healing run on | `−0.25` |
 | `digestionRate` · `metabolicQ10` | First-order digestion at 25 °C; the metabolism's temperature scaling | `0.1` /hr · `2` |
 | `maintenanceRation` | Food a day per gram that holds condition at 25 °C in ample oxygen | `0.005` g/g/day |
 | `hungerSeverity` | Damage at an empty gut, before hardiness | `0.6` %/hr |

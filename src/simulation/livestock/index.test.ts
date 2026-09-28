@@ -4,6 +4,7 @@ import { createSimulation, type SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { produce } from 'immer';
 import { monodFactor } from '../core/kinetics.js';
+import { metabolicMass } from '../systems/digestion.js';
 import type { Fish } from '../state.js';
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
@@ -128,7 +129,7 @@ describe('processLivestock', () => {
     const expectedDelta =
       -(
         DEFAULT_CONFIG.livestock.baseRespirationRate *
-        6.0 *
+        state.fish.reduce((total, fish) => total + metabolicMass(fish, DEFAULT_CONFIG.livestock), 0) *
         monodFactor(
           state.resources.oxygen,
           DEFAULT_CONFIG.livestock.respirationOxygenHalfSaturation

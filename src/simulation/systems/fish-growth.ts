@@ -50,7 +50,7 @@ export function bodyOrganics(mass: number, config: LivestockConfig): number {
 /** Grams of organic matter one egg holds: its hatchling's body and the yolk it arrives with. */
 export function eggOrganics(species: FishSpecies, config: LivestockConfig): number {
   const { eggMass } = FISH_SPECIES_DATA[species].breeding;
-  return bodyOrganics(eggMass, config) + arrivalGut(eggMass, config);
+  return bodyOrganics(eggMass, config) + arrivalGut({ species, mass: eggMass }, config);
 }
 
 export function fishLifeStage(fish: Sized): FishLifeStage {

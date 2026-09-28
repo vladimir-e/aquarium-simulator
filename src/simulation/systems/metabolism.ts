@@ -17,7 +17,7 @@
  * Deamination rides digestion, and digestion and respiration both ride the
  * metabolic factor — the metabolic Q10 times the oxygen factor — so a hypoxic
  * fish digests, deaminates and breathes less together, a cold one slower, and
- * a warm one faster.
+ * a warm one faster. All three run on each fish's metabolic mass.
  */
 
 import type { Fish, Resources } from '../state.js';
@@ -26,7 +26,7 @@ import { N_TO_NH3_MASS_RATIO, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js'
 import { monodFactor, q10Factor } from '../core/kinetics.js';
 import { WASTE_NUTRIENTS, nutrientsDefaults, type MineralVector } from '../config/nutrients.js';
 import { sum } from '../core/sum.js';
-import { appetite, digest, shareCapped } from './digestion.js';
+import { appetite, digest, metabolicMass, shareCapped } from './digestion.js';
 
 const NH3_MG_PER_G_N = N_TO_NH3_MASS_RATIO * 1000;
 
@@ -105,7 +105,7 @@ export function processMetabolism(fish: Fish[], water: MetabolismWater, config: 
   const eaten = shareCapped(appetites, appetites, water.food).taken;
   const updatedFish = digestedFish.map((f, i) => ({ ...f, gut: f.gut + eaten[i], age: f.age + 1 }));
 
-  const oxygenConsumedMg = config.baseRespirationRate * sum(fish.map((f) => f.mass)) * factor;
+  const oxygenConsumedMg = config.baseRespirationRate * sum(fish.map((f) => metabolicMass(f, config))) * factor;
 
   return {
     updatedFish,

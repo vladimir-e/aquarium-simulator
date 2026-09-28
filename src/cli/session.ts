@@ -26,6 +26,7 @@ import type { HistorySnapshot } from './history.js';
  *    `wearDoublingShare` and `healingHalvingShare`. A fish is made of what it
  *    ate: `deathDecayFactor` gives way to `bodyOrganicShare` and
  *    `growthEfficiency`, and `gillNFraction` becomes `assimilatedFraction`.
+ *    Metabolism scales with mass: `massScalingExponent`.
  *    A v18 session parses, the first tick with a clutch standing drains it by
  *    keys it does not carry, and every fish's wear, healing and growth read
  *    keys it does not carry.

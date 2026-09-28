@@ -149,7 +149,7 @@ describe('groupFry', () => {
 
   it('gives the batch the same gut and condition figures a species row gets', () => {
     const fish = [
-      makeFish({ id: 'f1', species: 'guppy', mass: 0.1, gut: gutAt(1, 0.1), health: 90 }),
+      makeFish({ id: 'f1', species: 'guppy', mass: 0.1, gut: gutAt(1, { species: 'guppy', mass: 0.1 }), health: 90 }),
       makeFish({ id: 'f2', species: 'guppy', mass: 0.1, gut: STARVING, health: 50 }),
     ];
     const batch = fry(tank(fish))!;
