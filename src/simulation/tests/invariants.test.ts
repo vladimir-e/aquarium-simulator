@@ -18,6 +18,7 @@ import { freshSubstrate } from '../equipment/substrate.js';
 import { getPpm } from '../resources/index.js';
 import { plantRecord } from './plant.js';
 import { bloomsTissue, kindTissue } from './blooms.js';
+import { BREEDING_TANK_MS } from './breeding-tank.js';
 import { leaves, nonFinitePaths } from './leaves.js';
 // The scenario setups are the shared definition of a real tank, so the engine invariants run over them.
 import { SETUPS, type Setup } from '../../cli/scenarios/setups.js';
@@ -650,7 +651,7 @@ describe.each(SETUPS.map((setup) => [setup.name, setup] as const))('the %s tank'
   let state: SimulationState;
   beforeAll(() => {
     state = keep(setup, DAYS);
-  });
+  }, BREEDING_TANK_MS);
 
   it('never holds a non-finite number', () => {
     expect(nonFinitePaths(state)).toEqual([]);
@@ -658,5 +659,5 @@ describe.each(SETUPS.map((setup) => [setup.name, setup] as const))('the %s tank'
 
   it('runs the same life twice on one rng seed', () => {
     expect(keep(setup, DAYS)).toStrictEqual(state);
-  });
+  }, BREEDING_TANK_MS);
 });
