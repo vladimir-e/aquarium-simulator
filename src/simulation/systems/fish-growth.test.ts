@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { Clutch, Fish } from '../state.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
-import { livestockDefaults as config } from '../config/livestock.js';
+import { livestockConfigMeta, livestockDefaults as config, MIN_BROOD_COST } from '../config/livestock.js';
+import { MAX_SURPLUS_CAP } from '../config/vitality.js';
 import {
   ADULT_SIZE,
   brood,
@@ -70,21 +71,40 @@ describe('broodShare', () => {
 describe('growFish', () => {
   const PLENTY = 1;
 
-  it('grows a fed fry toward adult size, ever slower, never reaching it', () => {
+  const specificGain = (f: Fish, assimilated = PLENTY): number => growFish(f, assimilated, config).fish.mass / f.mass - 1;
+
+  it('grows a fed fry toward adult size at a specific rate that only falls, never reaching it', () => {
     for (const species of SPECIES) {
       let f = fish({ species, size: frySize(species) });
-      let lastGain = Infinity;
+      let lastRate = Infinity;
       for (let hour = 0; hour < 24 * 365; hour++) {
         const before = f.mass;
         f = growFish({ ...f, surplus: config.surplusCap }, PLENTY, config).fish;
-        const gain = f.mass - before;
-        expect(gain).toBeGreaterThan(0);
-        expect(gain).toBeLessThanOrEqual(lastGain);
-        lastGain = gain;
+        const rate = f.mass / before - 1;
+        expect(rate).toBeGreaterThan(0);
+        expect(rate).toBeLessThanOrEqual(lastRate);
+        lastRate = rate;
       }
       expect(fishSize(f)).toBeLessThan(100);
       expect(fishSize(f)).toBeGreaterThan(90);
     }
+  });
+
+  it('asks for mass in proportion to its own at small size, tapering to nothing at adult size', () => {
+    const tiny = specificGain(fish({ size: 0.01 }));
+    expect(specificGain(fish({ size: 0.02 }))).toBeCloseTo(tiny, 6);
+    expect(specificGain(fish({ size: 1 })) / tiny).toBeCloseTo(0.99, 3);
+    expect(specificGain(fish({ size: 50 })) / tiny).toBeCloseTo(0.5, 3);
+    expect(specificGain(fish({ size: 95 })) / tiny).toBeCloseTo(0.05, 3);
+  });
+
+  it('grows a thin-fed fry at the same specific rate at any small size, its food and its asking both scaling with its mass', () => {
+    const thin = (size: number): number => {
+      const f = fish({ size });
+      return specificGain(f, f.mass * 1e-4);
+    };
+    expect(thin(0.02) / thin(0.01)).toBeCloseTo(1, 4);
+    expect(thin(0.02)).toBeLessThan(specificGain(fish({ size: 0.02 })) / 2);
   });
 
   it('draws the bank down by exactly the points it grew on', () => {
@@ -95,7 +115,7 @@ describe('growFish', () => {
       const { growthRate } = FISH_SPECIES_DATA.guppy;
 
       expect(drawn).toBeGreaterThan(0);
-      expect(fishSize(grown) - fishSize(f)).toBeCloseTo(drawn * growthRate * config.sizePerSurplus, 10);
+      expect(grown.mass / f.mass - 1).toBeCloseTo((drawn * growthRate * config.growthPerSurplus) / 100, 12);
     }
   });
 
@@ -273,6 +293,26 @@ describe('brood', () => {
       15
     );
     expect(result.males[0].mass).toBe(male.mass);
+  });
+
+  it('leaves the mother a body however cheap a brood is set', () => {
+    const range = (key: keyof typeof config): { min: number; max: number } =>
+      livestockConfigMeta.find((knob) => knob.key === key)!;
+    const extreme = {
+      ...config,
+      surplusCap: MAX_SURPLUS_CAP,
+      maintenanceRation: range('maintenanceRation').max,
+      bodyOrganicShare: range('bodyOrganicShare').min,
+    };
+    for (const broodCost of [MIN_BROOD_COST, 1, 1e-6]) {
+      for (const species of SPECIES) {
+        const she = fish({ species, surplus: MAX_SURPLUS_CAP });
+        const result = brood([she], [fish({ species, sex: 'male', surplus: MAX_SURPLUS_CAP })], { ...extreme, broodCost });
+        expect(result.offspring[0]).toBeGreaterThan(0);
+        expect(result.females[0].mass).toBeGreaterThan(0);
+        expect(result.females[0].surplus).toBeGreaterThanOrEqual(0);
+      }
+    }
   });
 
   it('keeps every bank finite and non-negative', () => {

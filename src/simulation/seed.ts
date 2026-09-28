@@ -131,10 +131,11 @@ type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
 /**
  * mg of ammonia a tick the tank's stock and bed put into the water at rest:
  * every fish digesting its maintenance ration in the water it is in, building
- * none of it into its body, and the bed leaching what it holds. All the waste either one makes is mineralised in
- * the end, whether or not it settles on the way. Food fed past maintenance is left out — the
- * engine has no ration to size it by — so under a keeper who feeds more the
- * colony errs small and grows on from the seed.
+ * none of it into its body, and the bed leaching what it holds. All the waste
+ * either one makes is mineralised in the end, whether or not it settles on the
+ * way. Food fed past maintenance is left out — the engine has no ration to
+ * size it by — so under a keeper who feeds more the colony errs small and
+ * grows on from the seed.
  */
 function restingAmmoniaSupply(state: StockedTank): number {
   const factor = metabolicFactorOf(state.resources, livestockDefaults);

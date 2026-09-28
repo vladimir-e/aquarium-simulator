@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { processBreeding } from './breeding.js';
+import { processBodies } from './bodies.js';
 import { processLivestock } from './index.js';
 import { createSimulation, type SimulationState, type Fish, type Clutch } from '../state.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
@@ -8,7 +8,7 @@ import type { LogEntry } from '../core/logging.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { assimilated, metabolicFactorOf } from '../systems/metabolism.js';
 import { arrivalGut } from '../systems/digestion.js';
-import { bodyOrganics, eggOrganics, eggsLaid, fishSize, frySize, growFish } from '../systems/fish-growth.js';
+import { bodyOrganics, eggOrganics, eggsLaid, growFish } from '../systems/fish-growth.js';
 import { N_TO_NH3_MASS_RATIO } from '../core/chemistry.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 
@@ -43,8 +43,8 @@ const breed = (
   state: SimulationState,
   config: TunableConfig,
   digested: readonly number[] = state.fish.map(() => 0)
-): ReturnType<typeof processBreeding> =>
-  processBreeding(state, config, {
+): ReturnType<typeof processBodies> =>
+  processBodies(state, config, {
     updatedFish: state.fish,
     digested: [...digested],
     metabolicFactor: metabolicFactorOf(state.resources, config.livestock),
@@ -58,7 +58,7 @@ const MG_NH3_PER_G_N = N_TO_NH3_MASS_RATIO * 1000;
 const born = (before: Fish[], after: Fish[]): Fish[] => after.slice(before.length);
 const events = (s: SimulationState, e: string): LogEntry[] => s.logs.filter((l) => l.event === e);
 
-describe('processBreeding', () => {
+describe('processBodies', () => {
   it('no-ops an empty tank', () => {
     const out = breed(withTank([]), DEFAULT_CONFIG);
     expect(out.state.fish).toHaveLength(0);
@@ -199,20 +199,20 @@ describe('processBreeding', () => {
     expect(out.state.fish).toHaveLength(7);
     for (const fry of out.state.fish) {
       expect(fry.gut).toBeCloseTo(yolk('neon_tetra'), 15);
-      expect(fry.mass).toBeCloseTo(FISH_SPECIES_DATA.neon_tetra.breeding.eggMass, 15);
+      expect(fry.mass).toBe(FISH_SPECIES_DATA.neon_tetra.breeding.eggMass);
       expect(bodyOrganics(fry.mass, DEFAULT_CONFIG.livestock) + fry.gut).toBeCloseTo(egg('neon_tetra'), 15);
     }
     const waste = out.effects.find((e) => e.resource === 'waste')!.delta;
     expect(waste).toBeCloseTo(0.6 * egg('neon_tetra'), 15);
   });
 
-  it('hatches fry at fry size and about half of each sex', () => {
+  it('hatches fry at their egg’s weight and about half of each sex', () => {
     const clutch: Clutch = { id: 'c', species: 'guppy', eggs: 3000, development: 0.9999 };
     const hatched = breed(withTank([], [clutch]), DEFAULT_CONFIG).state.fish;
 
     expect(hatched).toHaveLength(3000);
     for (const f of hatched.slice(0, 50)) {
-      expect(fishSize(f)).toBeCloseTo(frySize('guppy'), 10);
+      expect(f.mass).toBe(FISH_SPECIES_DATA.guppy.breeding.eggMass);
       expect(f.age).toBe(0);
       expect(f.health).toBeGreaterThanOrEqual(95);
     }
@@ -269,7 +269,7 @@ describe('processBreeding', () => {
     ];
     const neon: Clutch = { id: 'n', species: 'neon_tetra', eggs: 400, development: 0 };
     const cory: Clutch = { id: 'c', species: 'corydoras', eggs: 200, development: 0 };
-    const waste = (out: ReturnType<typeof processBreeding>): number => out.effects.reduce((sum, e) => sum + e.delta, 0);
+    const waste = (out: ReturnType<typeof processBodies>): number => out.effects.reduce((sum, e) => sum + e.delta, 0);
 
     const one = breed(withTank(fish, [neon, cory]), DEFAULT_CONFIG);
     const other = breed(withTank(fish, [cory, neon]), DEFAULT_CONFIG);
@@ -303,7 +303,7 @@ describe('processBreeding', () => {
     const passed = assimilated(0.0025, config) - retained;
 
     expect(retained).toBeGreaterThan(0);
-    expect(out.excreted.waste).toBeCloseTo(0.0025 * (1 - config.gillNFraction), 15);
+    expect(out.excreted.waste).toBeCloseTo(0.0025 * (1 - config.assimilatedFraction), 15);
     expect(effect('waste', 'fish-metabolism')).toBe(out.excreted.waste);
     expect(effect('ammonia', 'fish-gill-excretion')).toBeCloseTo(passed * config.foodNitrogenFraction * MG_NH3_PER_G_N, 12);
     for (const n of WASTE_NUTRIENTS) expect(effect(n, 'fish-gill-excretion')).toBeCloseTo(passed * minerals[n], 12);
@@ -311,7 +311,7 @@ describe('processBreeding', () => {
 
   it('excretes the hour’s digestion of a fish that died in it', () => {
     const state = withTank([]);
-    const out = processBreeding(state, DEFAULT_CONFIG, {
+    const out = processBodies(state, DEFAULT_CONFIG, {
       updatedFish: [mkFish({ id: 'gone' })],
       digested: [0.001],
       metabolicFactor: 1,

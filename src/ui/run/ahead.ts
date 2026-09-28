@@ -1,7 +1,7 @@
 /**
  * The hour the next tick runs, settled in the tick's own order: the
  * environment, the flora pass — plants and the blooms — with its effects
- * applied, the livestock, then breeding. Every readout that says what the next
+ * applied, the livestock, then their bodies. Every readout that says what the next
  * tick will do reads it here, so a plant, a fish and a bloom are read on the
  * same hour.
  */
@@ -12,7 +12,7 @@ import {
   dailyMaintenance,
   dailyLightIntegral,
   mapKinds,
-  processBreeding,
+  processBodies,
   processFlora,
   paysTowardBrood,
   processLivestock,
@@ -106,8 +106,8 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
   const planted = applyEffects(flora.state, flora.effects, config);
   const livestock = processLivestock(planted, config);
   const { metabolicFactor } = livestock.metabolism;
-  const breeding = processBreeding(applyEffects(livestock.state, livestock.effects, config), config, livestock.metabolism);
-  const bred = breeding.state;
+  const bodies = processBodies(applyEffects(livestock.state, livestock.effects, config), config, livestock.metabolism);
+  const bred = bodies.state;
   const plantSpent = spentBy(planted.plants);
   const fishSpent = spentBy(bred.fish);
   const standingClutches = new Set(livestock.state.clutches.map((clutch) => clutch.id));
@@ -139,8 +139,8 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     algae: mapKinds((kind) => ({ ...flora.algae[kind], ...planted.algae[kind] })),
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),
     shedding: flora.shedding,
-    fishWaste: breeding.excreted.waste,
-    gillAmmonia: breeding.excreted.ammonia,
+    fishWaste: bodies.excreted.waste,
+    gillAmmonia: bodies.excreted.ammonia,
     metabolicFactor,
     ration: dailyMaintenance(state.fish, metabolicFactor, config.livestock),
     foodWaste: decayed * wasteShare,

@@ -9,6 +9,7 @@ import { FILTER_SURFACE } from './equipment/filter.js';
 import { POWERHEAD_FLOW_LPH } from './equipment/powerhead.js';
 import type { HardscapeType } from './equipment/hardscape.js';
 import { dailyLightIntegral } from './equipment/light.js';
+import { BREEDING_TANK_MS } from './tests/breeding-tank.js';
 
 describe('tick', () => {
   const still = (): SimulationState =>
@@ -208,8 +209,6 @@ describe('tick determinism', () => {
     ],
     plants: [{ species: 'java_fern', count: 2, size: 90 }],
   };
-
-  const BREEDING_TANK_MS = 60_000;
 
   function fortnight(rngSeed: number): SimulationState {
     let state = createSimulation(TANK, ROSTER, rngSeed);

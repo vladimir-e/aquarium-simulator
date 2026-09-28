@@ -35,7 +35,7 @@ export interface LivestockProcessingResult {
  * 1. Metabolism: digestion, eating, respiration, age
  * 2. Health: stressor calculations, health recovery/damage, death
  *
- * What the fish digested is excreted by `processBreeding`, once growth has
+ * What the fish digested is excreted by `processBodies`, once growth has
  * built its share into their bodies.
  */
 export function processLivestock(

@@ -10,7 +10,7 @@ import { CACO3_PER_EQUIVALENT, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chem
 import { tissueMass } from '../systems/plant-lifecycle.js';
 import { ALGAE, ALGAE_KINDS } from '../algae/index.js';
 import { purchase } from '../systems/plant-growth.js';
-import { bodyOrganics, fishSize, massAtSize } from '../systems/fish-growth.js';
+import { bodyOrganics, fishSize, frySize, massAtSize } from '../systems/fish-growth.js';
 import { clutchOrganics } from '../systems/clutch.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
@@ -19,6 +19,7 @@ import { getPpm } from '../resources/index.js';
 import { plantRecord } from './plant.js';
 import { bloomsTissue, kindTissue } from './blooms.js';
 import { leaves, nonFinitePaths } from './leaves.js';
+import { BREEDING_TANK_MS } from './breeding-tank.js';
 // The scenario setups are the shared definition of a real tank, so the engine invariants run over them.
 import { SETUPS, type Setup } from '../../cli/scenarios/setups.js';
 import { keepTank } from '../../cli/scenarios/run.js';
@@ -616,17 +617,22 @@ describe('an offshoot bought on thin water', () => {
 });
 
 describe('a guppy stocked as a fry', () => {
-  const DAYS = 60;
+  const DAYS = 180;
+  const FRY_RATION = 0.1;
   const sizes: number[] = [];
   const broods = new Set<number>();
   let firstBrood = -1;
   beforeAll(() => {
+    const nano = SETUPS.find((candidate) => candidate.name === 'nano')!;
     const setup: Setup = {
-      ...SETUPS.find((candidate) => candidate.name === 'nano')!,
+      ...nano,
       fish: [
-        { species: 'guppy', count: 1, sex: 'female', size: 18 },
+        { species: 'guppy', count: 1, sex: 'female', size: frySize('guppy') },
         { species: 'guppy', count: 1, sex: 'male' },
       ],
+      schedule: nano.schedule.map((entry) =>
+        'shareOfStock' in entry.action ? { ...entry, action: { ...entry.action, shareOfStock: FRY_RATION } } : entry
+      ),
     };
     let id: string | undefined;
     let logsRead = 0;
@@ -645,9 +651,10 @@ describe('a guppy stocked as a fry', () => {
     });
   });
 
-  it('grows on her bank until she broods', () => {
+  it('grows on her bank from birth weight until she broods', () => {
+    expect(sizes[0]).toBeCloseTo(frySize('guppy'), 10);
     expect(firstBrood).toBeGreaterThan(0);
-    expect(sizes[firstBrood - 1]).toBeGreaterThan(18);
+    expect(sizes[firstBrood - 1]).toBeGreaterThan(20 * frySize('guppy'));
   });
 
   it('only ever grows but by the broods she makes of her body, and never past adult size', () => {
@@ -661,7 +668,6 @@ describe('a guppy stocked as a fry', () => {
 
 describe.each(SETUPS.map((setup) => [setup.name, setup] as const))('the %s tank', (_name, setup) => {
   const DAYS = 90;
-  const BREEDING_TANK_MS = 60_000;
   let state: SimulationState;
   beforeAll(() => {
     state = keep(setup, DAYS);

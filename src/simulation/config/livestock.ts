@@ -57,15 +57,16 @@ export interface LivestockConfig {
    */
   foodNitrogenFraction: number;
   /**
-   * Fraction of digested food nitrogen excreted directly via the gills
-   * as NH3/NH4⁺ (0–1). The remainder leaves as feces-bound N that
-   * mineralizes through the waste → NH3 path.
+   * Fraction of digested food a fish assimilates (0–1). The remainder leaves
+   * as feces that mineralize through the waste → NH3 path; of what it
+   * assimilates, growth builds its share into the body and the rest leaves
+   * through the gills as NH3/NH4⁺.
    *
    * Aquarium fish are ammoniotelic: canonical split is ≈75–80 % gill
    * ammonia, ≈15–20 % feces, ≈5 % urine. We collapse urine into the
-   * gill stream for simulation, giving a ~80 / 20 split.
+   * gill stream for simulation, giving a ~80 / 20 split for a fish not growing.
    */
-  gillNFraction: number;
+  assimilatedFraction: number;
   /**
    * Moles of CO2 exhaled per mole of O2 consumed. A *molar* ratio, as the
    * literature defines it — converting it to a mass takes the molar step
@@ -130,8 +131,8 @@ export interface LivestockConfig {
    * brood share `size / 100` holds part of it back.
    */
   growthDrawRate: number;
-  /** Size, in % of adult mass, a bank point buys at species growth rate 1. */
-  sizePerSurplus: number;
+  /** New mass, in % of the fish's own, a bank point buys at species growth rate 1. */
+  growthPerSurplus: number;
   /**
    * Bank points a brood weighing as much as its parent costs that parent —
    * the female in full, the male at his species' share.
@@ -201,8 +202,8 @@ export const livestockDefaults: LivestockConfig = {
   respirationOxygenHalfSaturation: 1.0,
   // 5 % N in food — conservative; typical flake is 6–8 % N.
   foodNitrogenFraction: 0.05,
-  // 80 % of digested N excreted directly through gills; 20 % via feces.
-  gillNFraction: 0.8,
+  // 80 % of digested food assimilated; 20 % leaves as feces.
+  assimilatedFraction: 0.8,
   respiratoryQuotient: 0.8, // textbook mixed-diet value
 
   // Stressor severities
@@ -246,12 +247,14 @@ export const livestockDefaults: LivestockConfig = {
   // its whole benefit budget, and runs out with a 20 h time constant under a
   // steady insult. A neon heals at 0.06 /h, an angelfish at 0.025.
   healingDrawRate: 0.05,
-  // A well-fed guppy grows from fry to adult size in about two and a half
-  // months, a neon in about five.
+  // On a full bank, a guppy fry's asking doubles its mass in about ten days
+  // and brings a newborn to adult size in two and a half months; food that
+  // falls short of the asking stunts it.
   growthDrawRate: 0.02,
-  sizePerSurplus: 0.15,
+  growthPerSurplus: 0.3,
   // A full bank buys a grown female a brood a tenth her weight, out of her
-  // body: twenty guppy fry, sixty neon eggs, several hundred angelfish eggs.
+  // body: twenty guppy fry, 125 neon eggs, several hundred
+  // angelfish eggs.
   broodCost: 500,
   // Against food's 5 % N, a fish is 2.75 % N and 0.36 % P by wet mass — real
   // fish sit at 2.5–3 % N and 0.4–0.5 % P.
@@ -291,7 +294,10 @@ export function nitratePerGramOfFood(config: LivestockConfig): number {
 }
 
 /** The most a bank point buys at growth rate 1, held alike by the tunables drawer and the save boundary. */
-export const MAX_FISH_SIZE_PER_SURPLUS = 1;
+export const MAX_FISH_GROWTH_PER_SURPLUS = 1;
+
+/** The least a brood of her own weight costs a female, held alike by the tunables drawer and the save boundary. */
+export const MIN_BROOD_COST = 200;
 
 export interface LivestockConfigMeta {
   key: keyof LivestockConfig;
@@ -335,7 +341,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     max: 0.12,
     step: 0.005,
   },
-  { key: 'gillNFraction', label: 'Gill N Fraction', unit: '', min: 0.5, max: 0.95, step: 0.05 },
+  { key: 'assimilatedFraction', label: 'Assimilated Fraction', unit: '', min: 0.5, max: 0.95, step: 0.05 },
   { key: 'respiratoryQuotient', label: 'Respiratory Quotient', unit: '', min: 0.5, max: 1.2, step: 0.1 },
   // Stressor severities
   {
@@ -378,8 +384,8 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: MAX_SURPLUS_CAP, step: 5 },
   { key: 'healingDrawRate', label: 'Healing Draw Rate', unit: '/hr at 1 g', min: 0.005, max: 0.5, step: 0.005 },
   { key: 'growthDrawRate', label: 'Growth Draw Rate', unit: '/hr', min: 0.005, max: 0.2, step: 0.005 },
-  { key: 'sizePerSurplus', label: 'Size per Bank Point', unit: '%/pt', min: 0.01, max: MAX_FISH_SIZE_PER_SURPLUS, step: 0.01 },
-  { key: 'broodCost', label: 'Brood Cost', unit: 'pts/body mass', min: 200, max: 5000, step: 50 },
+  { key: 'growthPerSurplus', label: 'Growth per Bank Point', unit: '%/pt', min: 0.01, max: MAX_FISH_GROWTH_PER_SURPLUS, step: 0.01 },
+  { key: 'broodCost', label: 'Brood Cost', unit: 'pts/body mass', min: MIN_BROOD_COST, max: 5000, step: 50 },
   { key: 'bodyOrganicShare', label: 'Body Organic Share', unit: 'g/g', min: 0.2, max: 1, step: 0.05 },
   { key: 'growthEfficiency', label: 'Growth Efficiency', unit: '', min: 0.05, max: 1, step: 0.05 },
   // Ageing

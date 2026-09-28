@@ -101,13 +101,13 @@ describe('processMetabolism', () => {
     }
   });
 
-  it('splits digested nitrogen between gill NH3 and feces at gillNFraction', () => {
+  it('splits digested nitrogen between gill NH3 and feces at assimilatedFraction', () => {
     const r = processMetabolism([makeFish({ mass: 2, gut: full(2) })], water({ food: 0 }), livestockDefaults);
     const digested = r.digested[0];
 
-    expect(excreted(r).waste).toBeCloseTo(digested * (1 - livestockDefaults.gillNFraction), 12);
+    expect(excreted(r).waste).toBeCloseTo(digested * (1 - livestockDefaults.assimilatedFraction), 12);
     expect(excreted(r).ammonia).toBeCloseTo(
-      digested * livestockDefaults.foodNitrogenFraction * livestockDefaults.gillNFraction * NH3_PER_G_N,
+      digested * livestockDefaults.foodNitrogenFraction * livestockDefaults.assimilatedFraction * NH3_PER_G_N,
       9
     );
   });
@@ -135,6 +135,14 @@ describe('processMetabolism', () => {
     for (const n of WASTE_NUTRIENTS) {
       expect(adult.minerals[n] - growing.minerals[n]).toBeCloseTo(retained * release[n], 15);
     }
+  });
+
+  it('never takes back through the gills more than the fish assimilated', () => {
+    const digested = 0.01;
+    const out = excretion(digested, digested, livestockDefaults);
+    expect(out.ammonia).toBe(0);
+    for (const n of WASTE_NUTRIENTS) expect(out.minerals[n]).toBe(0);
+    expect(out.waste).toBeCloseTo(digested * (1 - livestockDefaults.assimilatedFraction), 15);
   });
 
   it('breathes on the metabolic factor, harder warm and slower cold', () => {

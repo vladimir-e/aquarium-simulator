@@ -25,13 +25,14 @@ import type { HistorySnapshot } from './history.js';
  *    age is wear: `ageStressSeverity` gives way to `wearAtLifespan`,
  *    `wearDoublingShare` and `healingHalvingShare`. A fish is made of what it
  *    ate: `deathDecayFactor` gives way to `bodyOrganicShare` and
- *    `growthEfficiency`. A v18 session parses, the first tick with a clutch
- *    standing drains it by keys it does not carry, and every fish's wear,
- *    healing and growth read keys it does not carry.
+ *    `growthEfficiency`, and `gillNFraction` becomes `assimilatedFraction`.
+ *    A v18 session parses, the first tick with a clutch standing drains it by
+ *    keys it does not carry, and every fish's wear, healing and growth read
+ *    keys it does not carry.
  * v18 fed fish through a gut and let their banks buy their growth and broods.
  *    `Fish.satiation` becomes `Fish.gut` and `Fish.stage` goes — mass is a
  *    stock the bank grows; `LivestockConfig` trades its satiation knobs for
- *    the gut's and gains `growthDrawRate`, `sizePerSurplus` and `broodCost`,
+ *    the gut's and gains `growthDrawRate`, `growthPerSurplus` and `broodCost`,
  *    and `Equipment` gains `autoFeeder`. A v17 session parses, and the first
  *    tick digests a gut and grows a fish off keys it does not carry.
  * v17 put algae on the plants' vitality model as two kinds and fed every

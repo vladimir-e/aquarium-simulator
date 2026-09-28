@@ -186,7 +186,7 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `baseRespirationRate` | Oxygen a fish draws per gram per hour at the reference temperature — a Monod maximum | mg O₂/g/hr |
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales digestion and the maintenance ration too | mg/L |
 | `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, or mineralized as waste | g N/g food |
-| `gillNFraction` | Share of digested nitrogen excreted straight through the gills; the rest leaves as feces | — |
+| `assimilatedFraction` | Share of digested food a fish assimilates — what growth builds from, the rest leaving through the gills; the remainder leaves as feces | — |
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band | %/unit/hr |
 | `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own tolerance edge, which hardiness moves out — free NH₃, not total ammonia; oxygen counts e-folds under | %/e-fold/hr |
@@ -197,7 +197,7 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `surplusCap` | Ceiling on the fish's bank; a female broods on a full one | pts |
 | `healingDrawRate` | First-order rate a young 1 g fish's bank heals it at, scaled by adult mass to the −¼ and halving with age | /hr at 1 g |
 | `growthDrawRate` | First-order rate the bank draws toward growth at, before the growth share `1 − size / 100` | /hr |
-| `sizePerSurplus` | Size, in % of adult mass, a bank point buys at species growth rate 1 | %/pt |
+| `growthPerSurplus` | New mass, in % of the fish's own, a bank point buys at species growth rate 1 | %/pt |
 | `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his species' share | pts per body mass |
 | `bodyOrganicShare` | Organic matter, of the food's recipe, in a gram of fish, egg or embryo; the rest is water | g/g |
 | `growthEfficiency` | Share of what a fish assimilates that growth can build into its body; the rest it burns | — |
@@ -208,6 +208,11 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `eggPredationRate` | Share of a laid clutch an hour one gram of predator mass per litre — the grams each fish outweighs an egg — eats, before the clutch's exposure | L/g/hr |
 | `predationRate` | Damage an hour, before hardiness, one gram per litre of predator mass — the grams each larger fish outweighs the prey — does a fish at no size | %/hr per g/L |
 | `preyVulnerabilityExponent` | How steeply a growing fish outgrows its predators: exposure is `(1 − size / 100)` to this power | — |
+
+`bodyOrganicShare` weighs the organic matter in every body and egg standing, and
+`maintenanceRation` the yolk in every egg, so moving either mid-run re-values
+what is already in the tank and the nitrogen ledger jumps with it — they are
+dev knobs.
 
 ## Fixed tables
 

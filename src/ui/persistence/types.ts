@@ -32,7 +32,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      `metabolicReferenceTemp`, `maintenanceRation` and `hungerSeverity`.
  *      `Equipment` gains `autoFeeder`, and `AutoDoser.schedule` becomes
  *      `startHour`. Fish grow on their banks: `Fish.stage` goes, and
- *      `LivestockConfig` gains `growthDrawRate`, `sizePerSurplus` and
+ *      `LivestockConfig` gains `growthDrawRate`, `growthPerSurplus` and
  *      `broodCost`. A `Clutch` is a stock: `eggs` and `development` replace
  *      `eggCount` and `laidTick`, a carried one names its `motherId`, and
  *      `LivestockConfig` gains `eggSensitivity`, `eggPredationRate`,
@@ -40,7 +40,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      `ageStressSeverity` gives way to `wearAtLifespan`,
  *      `wearDoublingShare` and `healingHalvingShare`. A fish is made of what
  *      it ate: `deathDecayFactor` gives way to `bodyOrganicShare` and
- *      `growthEfficiency`.
+ *      `growthEfficiency`, and `gillNFraction` becomes `assimilatedFraction`.
  * v33: Algae runs on the plants' vitality model, as two kinds. `state.algae`
  *      holds a bloom per kind — `greenWater` and `film` — and `AlgaeState`
  *      gains `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`,

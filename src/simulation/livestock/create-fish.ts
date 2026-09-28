@@ -30,10 +30,11 @@ export function unstockableSizeMessage(species: FishSpecies): string {
   return `A ${FISH_SPECIES_DATA[species].name} is stocked from ${Number(frySize(species).toPrecision(2))}% to 100% of adult size`;
 }
 
-export interface CreateFishParams {
+/** How big it arrives: a size in % of adult mass, or its grams outright. */
+type FishBody = { size: number; mass?: never } | { mass: number; size?: never };
+
+export type CreateFishParams = FishBody & {
   species: FishSpecies;
-  /** % of adult mass. */
-  size: number;
   /** Age in ticks; 0 when not named. Wear and healing read it. */
   age?: number;
   /** Grams in its gut on arrival; its {@link arrivalGut} when not named. */
@@ -46,11 +47,11 @@ export interface CreateFishParams {
   /** The tank's draw stream — both the variation and the id come off it. */
   rng: RngState;
   config: LivestockConfig;
-}
+};
 
 /** Build a fish with sampled individual variation. */
 export function createFish(params: CreateFishParams): Fish {
-  const { species, size, rng, config } = params;
+  const { species, rng, config } = params;
   const data = FISH_SPECIES_DATA[species];
 
   // Drawn even when the caller named a sex: a seed that names one and a seed
@@ -60,7 +61,7 @@ export function createFish(params: CreateFishParams): Fish {
   const hardinessOffset = (draw(rng) - 0.5) * 2 * HARDINESS_OFFSET_SPAN * data.hardiness;
   const health = Math.max(0, Math.min(100, 100 + (draw(rng) - 0.5) * 2 * HEALTH_JITTER));
 
-  const mass = massAtSize(species, size);
+  const mass = params.mass ?? massAtSize(species, params.size);
 
   return {
     id: drawId(rng, 'fish'),

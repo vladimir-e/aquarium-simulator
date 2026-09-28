@@ -9,7 +9,7 @@ import { coreSystems } from './systems/index.js';
 import { processEquipment, writePassiveResources } from './equipment/index.js';
 import { processFlora } from './flora/index.js';
 import { processLivestock } from './livestock/index.js';
-import { processBreeding } from './livestock/breeding.js';
+import { processBodies } from './livestock/bodies.js';
 import { checkAlerts } from './alerts/index.js';
 import { type TunableConfig, DEFAULT_CONFIG } from './config/index.js';
 
@@ -84,10 +84,11 @@ export function tick(
   newState = livestockResult.state;
   newState = applyEffects(newState, livestockResult.effects, config);
 
-  // Reproduction and growth read the surplus banks livestock just updated,
-  // and growth builds from the hour's digestion before the rest is excreted.
-  const breedingResult = processBreeding(newState, config, livestockResult.metabolism);
-  newState = applyEffects(breedingResult.state, breedingResult.effects, config);
+  // The fish's bodies — clutches, broods and growth — read the banks
+  // livestock just updated, and growth builds from the hour's digestion
+  // before the rest is excreted.
+  const bodiesResult = processBodies(newState, config, livestockResult.metabolism);
+  newState = applyEffects(bodiesResult.state, bodiesResult.effects, config);
 
   // Then other active systems
   const activeEffects = collectSystemEffects(newState, 'active', config);

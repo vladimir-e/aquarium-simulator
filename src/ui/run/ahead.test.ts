@@ -7,7 +7,7 @@ import {
   createSimulation,
   dailyLightIntegral,
   getPresetById,
-  processBreeding,
+  processBodies,
   processFlora,
   processLivestock,
   tick,
@@ -158,16 +158,16 @@ describe('readHourAhead', () => {
       const settled = settleEnvironment(state, config);
       const flora = processFlora(settled, config);
       const livestock = processLivestock(applyEffects(flora.state, flora.effects, config), config);
-      const breeding = processBreeding(
+      const bodies = processBodies(
         applyEffects(livestock.state, livestock.effects, config),
         config,
         livestock.metabolism
       );
       const delta = (resource: string, source: string): number =>
-        breeding.effects
+        bodies.effects
           .filter((e) => e.resource === resource && e.source === source)
           .reduce((sum, e) => sum + e.delta, 0);
-      const left = breeding.state.resources;
+      const left = bodies.state.resources;
 
       expect(ahead.fishWaste).toBeCloseTo(delta('waste', 'fish-metabolism'), 12);
       expect(ahead.gillAmmonia).toBeCloseTo(delta('ammonia', 'fish-gill-excretion'), 12);

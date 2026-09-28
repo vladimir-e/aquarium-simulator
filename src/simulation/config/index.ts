@@ -76,7 +76,8 @@ export {
   type LivestockConfig,
   livestockDefaults,
   livestockConfigMeta,
-  MAX_FISH_SIZE_PER_SURPLUS,
+  MAX_FISH_GROWTH_PER_SURPLUS,
+  MIN_BROOD_COST,
 } from './livestock.js';
 
 import { type DecayConfig, decayDefaults, decayConfigMeta } from './decay.js';

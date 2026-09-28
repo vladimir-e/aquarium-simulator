@@ -452,7 +452,7 @@ export type {
 
 // Livestock
 export { processLivestock } from './livestock/index.js';
-export { processBreeding } from './livestock/breeding.js';
+export { processBodies, type Digestion } from './livestock/bodies.js';
 export { isStockableSize, STOCKED_FISH_SIZE } from './livestock/create-fish.js';
 export { computeFishVitality, fishHealingRate, fishWear, predationStress, predatorWeight, preyVulnerability } from './systems/fish-health.js';
 export {

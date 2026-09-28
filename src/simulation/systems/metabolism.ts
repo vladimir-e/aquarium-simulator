@@ -7,12 +7,12 @@
  * Aquarium fish are ammoniotelic, and the only nitrogen a fish releases is
  * nitrogen it digested. Food in the gut still holds all of its nitrogen, so a
  * meal's ammonia and waste come out over the hours it digests. Of every gram
- * digested, `gillNFraction` is assimilated and the rest is feces, which carry
- * the food's own nitrogen and mineral fractions into the waste pool. What a
+ * digested, `assimilatedFraction` is assimilated and the rest is feces, which
+ * carry the food's own nitrogen and mineral fractions into the waste pool. What a
  * growing fish builds into its body comes out of the assimilated share; the
  * rest leaves through the gills as NH3, with its minerals beside it:
- *     wasteMass = digested × (1 − gillNFraction)
- *     gill      = digested × gillNFraction − retained
+ *     wasteMass = digested × (1 − assimilatedFraction)
+ *     gill      = digested × assimilatedFraction − retained
  *
  * Deamination rides digestion, and digestion and respiration both ride the
  * metabolic factor — the metabolic Q10 times the oxygen factor — so a hypoxic
@@ -41,7 +41,7 @@ export interface Excretion {
 
 /** Grams of `digested` food a fish takes into its body. */
 export function assimilated(digested: number, config: LivestockConfig): number {
-  return digested * config.gillNFraction;
+  return digested * config.assimilatedFraction;
 }
 
 /** What `digested` grams of food leave in the water once `retained` grams of them are built into bodies. */
@@ -51,7 +51,7 @@ export function excretion(
   config: LivestockConfig,
   foodMineralContent: MineralVector = nutrientsDefaults.foodMineralContent
 ): Excretion {
-  const absorbed = assimilated(digested, config) - retained;
+  const absorbed = Math.max(0, assimilated(digested, config) - retained);
   return {
     waste: digested - assimilated(digested, config),
     ammonia: absorbed * config.foodNitrogenFraction * NH3_MG_PER_G_N,
