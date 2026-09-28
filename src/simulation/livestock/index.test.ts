@@ -4,7 +4,6 @@ import { createSimulation, type SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { produce } from 'immer';
 import { monodFactor } from '../core/kinetics.js';
-import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import type { Fish } from '../state.js';
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
@@ -40,28 +39,16 @@ describe('processLivestock', () => {
     expect(result.effects).toHaveLength(0);
   });
 
-  it('processes metabolism: food consumed, waste and gill NH3 produced', () => {
+  it('eats, and leaves the hour’s digestion to be excreted once growth has built from it', () => {
     const state = makeState([makeFish({ mass: 1.0 })]);
     const result = processLivestock(state, DEFAULT_CONFIG);
 
-    const foodEffect = result.effects.find((e) => e.resource === 'food');
-    expect(foodEffect).toBeDefined();
-    expect(foodEffect!.delta).toBeLessThan(0);
-
-    const wasteEffect = result.effects.find(
-      (e) => e.resource === 'waste' && e.source === 'fish-metabolism'
-    );
-    expect(wasteEffect).toBeDefined();
-    expect(wasteEffect!.delta).toBeGreaterThan(0);
-
-    const ammoniaEffect = result.effects.find(
-      (e) => e.resource === 'ammonia' && e.source === 'fish-gill-excretion'
-    );
-    expect(ammoniaEffect).toBeDefined();
-    expect(ammoniaEffect!.delta).toBeGreaterThan(0);
+    expect(result.effects.find((e) => e.resource === 'food')!.delta).toBeLessThan(0);
+    expect(result.metabolism.digested[0]).toBeGreaterThan(0);
+    expect(result.effects.some((e) => e.resource === 'waste' || e.resource === 'ammonia')).toBe(false);
   });
 
-  it('returns the metabolism behind its effects, and a vitality per fish handed in, the dead included', () => {
+  it('returns the metabolism and a vitality per fish handed in, the dead included', () => {
     const state = produce(
       makeState([makeFish({ id: 'f1', mass: 1.0 }), makeFish({ id: 'f2', health: 1 })]),
       (draft) => {
@@ -69,32 +56,13 @@ describe('processLivestock', () => {
       }
     );
     const result = processLivestock(state, DEFAULT_CONFIG);
-    const effect = (resource: string, source: string): number =>
-      result.effects.find((e) => e.resource === resource && e.source === source)!.delta;
 
-    expect(result.metabolism.wasteProduced).toBe(effect('waste', 'fish-metabolism'));
-    expect(result.metabolism.ammoniaProduced).toBe(effect('ammonia', 'fish-gill-excretion'));
+    expect(result.metabolism.updatedFish.map((fish) => fish.id)).toEqual(['f1', 'f2']);
     expect(result.vitalities).toHaveLength(2);
     expect(result.vitalities[1].newCondition).toBe(0);
     expect(result.state.fish.map((fish) => [fish.id, fish.health, fish.surplus])).toEqual([
       ['f1', result.vitalities[0].newCondition, result.vitalities[0].surplus],
     ]);
-  });
-
-  it('excretes the minerals of the absorbed food beside the gill NH3', () => {
-    const state = makeState([makeFish({ mass: 1.0 })]);
-    const result = processLivestock(state, DEFAULT_CONFIG);
-    const digested = result.metabolism.digested[0];
-
-    for (const nutrient of WASTE_NUTRIENTS) {
-      const excreted = result.effects.find(
-        (e) => e.resource === nutrient && e.source === 'fish-gill-excretion'
-      );
-      expect(excreted!.delta).toBeCloseTo(
-        digested * DEFAULT_CONFIG.livestock.gillNFraction * DEFAULT_CONFIG.nutrients.foodMineralContent[nutrient],
-        12
-      );
-    }
   });
 
   it('processes respiration: O2 consumed and CO2 produced', () => {

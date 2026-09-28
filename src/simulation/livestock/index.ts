@@ -10,19 +10,17 @@ import type { SimulationState } from '../state.js';
 import type { Effect } from '../core/effects.js';
 import type { TunableConfig } from '../config/index.js';
 import { livestockDefaults } from '../config/livestock.js';
-import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { processMetabolism, type MetabolismResult } from '../systems/metabolism.js';
-import { mintAmmonia } from '../systems/nitrogen-cycle.js';
 import type { VitalityResult } from '../systems/vitality.js';
 import { processHealth } from '../systems/fish-health.js';
 import { createLog } from '../core/logging.js';
-import { clutchMass, clutchesWithMothers } from '../systems/clutch.js';
+import { clutchOrganics, clutchesWithMothers } from '../systems/clutch.js';
 import { getPpm } from '../resources/index.js';
 
 export interface LivestockProcessingResult {
   /** Updated state with modified fish */
   state: SimulationState;
-  /** Effects for resource changes (food, waste, NH3, minerals, O2, CO2) */
+  /** Effects for resource changes (food, waste, O2, CO2) */
   effects: Effect[];
   /** What the fish ate, passed and breathed this tick */
   metabolism: MetabolismResult;
@@ -34,8 +32,11 @@ export interface LivestockProcessingResult {
  * Process livestock for one tick.
  *
  * Handles:
- * 1. Metabolism: digestion, eating, excretion, respiration, age
+ * 1. Metabolism: digestion, eating, respiration, age
  * 2. Health: stressor calculations, health recovery/damage, death
+ *
+ * What the fish digested is excreted by `processBreeding`, once growth has
+ * built its share into their bodies.
  */
 export function processLivestock(
   state: SimulationState,
@@ -44,12 +45,7 @@ export function processLivestock(
   const effects: Effect[] = [];
   const livestockConfig = config.livestock ?? livestockDefaults;
 
-  const metabolismResult = processMetabolism(
-    state.fish,
-    state.resources,
-    livestockConfig,
-    config.nutrients.foodMineralContent
-  );
+  const metabolismResult = processMetabolism(state.fish, state.resources, livestockConfig);
 
   if (state.fish.length === 0) {
     return { state, effects, metabolism: metabolismResult, vitalities: [] };
@@ -63,33 +59,6 @@ export function processLivestock(
       delta: -metabolismResult.foodConsumed,
       source: 'fish-metabolism',
     });
-  }
-
-  if (metabolismResult.wasteProduced > 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'waste',
-      delta: metabolismResult.wasteProduced,
-      source: 'fish-metabolism',
-    });
-  }
-
-  // Direct ammonia excretion via gills (ammoniotelic pathway).
-  // Stored as NH3 compound mass (mg); MW scaling handled in metabolism.
-  if (metabolismResult.ammoniaProduced > 0) {
-    effects.push(...mintAmmonia(metabolismResult.ammoniaProduced, 'active', 'fish-gill-excretion'));
-  }
-
-  for (const nutrient of WASTE_NUTRIENTS) {
-    const excreted = metabolismResult.mineralsExcreted[nutrient];
-    if (excreted > 0) {
-      effects.push({
-        tier: 'active',
-        resource: nutrient,
-        delta: excreted,
-        source: 'fish-gill-excretion',
-      });
-    }
   }
 
   const waterVolume = state.resources.water;
@@ -116,7 +85,7 @@ export function processLivestock(
   const carried = new Map<string, number>();
   for (const clutch of state.clutches) {
     const mother = clutch.motherId;
-    if (mother !== undefined) carried.set(mother, (carried.get(mother) ?? 0) + clutchMass(clutch));
+    if (mother !== undefined) carried.set(mother, (carried.get(mother) ?? 0) + clutchOrganics(clutch, livestockConfig));
   }
   const healthResult = processHealth(
     metabolismResult.updatedFish,

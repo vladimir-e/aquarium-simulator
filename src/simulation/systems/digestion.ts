@@ -13,6 +13,11 @@ import { sum } from '../core/sum.js';
 
 type Sized = Pick<Fish, 'mass'>;
 
+/** A day's maintenance ration: what a fish of this mass arrives with in its gut, from the shop or its egg. */
+export function arrivalGut(mass: number, config: LivestockConfig): number {
+  return mass * config.maintenanceRation;
+}
+
 /** Grams of food a full gut holds. */
 export function gutCapacity(fish: Sized, config: LivestockConfig): number {
   return fish.mass * config.gutCapacity;

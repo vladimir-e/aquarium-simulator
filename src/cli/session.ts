@@ -23,9 +23,11 @@ import type { HistorySnapshot } from './history.js';
  *    `motherId`, and `LivestockConfig` gains `eggSensitivity`,
  *    `eggPredationRate`, `predationRate` and `preyVulnerabilityExponent`. Old
  *    age is wear: `ageStressSeverity` gives way to `wearAtLifespan`,
- *    `wearDoublingShare` and `healingHalvingShare`. A v18 session parses, the
- *    first tick with a clutch standing drains it by keys it does not carry,
- *    and every fish's wear and healing read keys it does not carry.
+ *    `wearDoublingShare` and `healingHalvingShare`. A fish is made of what it
+ *    ate: `deathDecayFactor` gives way to `bodyOrganicShare` and
+ *    `growthEfficiency`. A v18 session parses, the first tick with a clutch
+ *    standing drains it by keys it does not carry, and every fish's wear,
+ *    healing and growth read keys it does not carry.
  * v18 fed fish through a gut and let their banks buy their growth and broods.
  *    `Fish.satiation` becomes `Fish.gut` and `Fish.stage` goes — mass is a
  *    stock the bank grows; `LivestockConfig` trades its satiation knobs for

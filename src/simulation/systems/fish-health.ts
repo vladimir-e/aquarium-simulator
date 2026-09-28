@@ -35,7 +35,7 @@ import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { maintenance, nourishment, shareOut, swallow } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import { sum } from '../core/sum.js';
-import { fishSize } from './fish-growth.js';
+import { bodyOrganics, fishSize } from './fish-growth.js';
 import {
   FREE_AMMONIA_EDGE,
   NITRATE_EDGE,
@@ -62,7 +62,7 @@ export interface HealthResult {
   survivingFish: Fish[];
   /** Names of fish that died */
   deadFishNames: string[];
-  /** Waste the dead leave: their share of body mass, their guts and the broods they carried, less what the survivors ate */
+  /** Waste the dead leave: their bodies, their guts and the broods they carried, less what the survivors ate */
   deathWaste: number;
   /** Each fish's vitality this tick, in the order handed in, the dead included */
   vitalities: VitalityResult[];
@@ -343,9 +343,10 @@ function damageShare(vitality: VitalityResult, key: string): number {
 
 /**
  * One tick of vitality for every fish; a fish whose condition reaches 0 dies.
- * What it leaves — its rotting body, its gut and the brood it carried — its
- * predators eat in the share of its damage they did, by their weight on it and
- * as far as their guts have room; the rest is waste.
+ * What it leaves — its whole body, its gut and the brood it carried, all in
+ * grams of organic matter — its predators eat in the share of its damage they
+ * did, by their weight on it and as far as their guts have room; the rest is
+ * waste.
  */
 export function processHealth(
   fish: Fish[],
@@ -382,7 +383,7 @@ export function processHealth(
   fish.forEach((f, i) => {
     if (vitalities[i].newCondition > 0) return;
     const speciesData = FISH_SPECIES_DATA[f.species];
-    const remains = f.mass * config.deathDecayFactor + f.gut + carried[i];
+    const remains = bodyOrganics(f.mass, config) + f.gut + carried[i];
     const weights = survivingFish.map((survivor) => predatorWeight(survivor, f));
     const surviving = predatorMass[i] > 0 ? Math.min(1, sum(weights) / predatorMass[i]) : 0;
     const share = damageShare(vitalities[i], 'hunted') * surviving;

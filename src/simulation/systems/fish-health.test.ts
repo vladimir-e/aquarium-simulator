@@ -38,7 +38,7 @@ import {
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { plantRecord } from '../tests/plant.js';
 import { maintenance, nourishment } from './digestion.js';
-import { massAtSize } from './fish-growth.js';
+import { bodyOrganics, massAtSize } from './fish-growth.js';
 
 const STRESSORS = [
   'temperature',
@@ -614,7 +614,7 @@ describe('predation', () => {
     expect(guts.has('fry')).toBe(false);
     expect(result.deathWaste).toBe(0);
     expect(guts.get('big')! + guts.get('bigger')!).toBeCloseTo(
-      prey.mass * livestockDefaults.deathDecayFactor + prey.gut,
+      bodyOrganics(prey.mass, livestockDefaults) + prey.gut,
       12
     );
     expect(guts.get('bigger')! / guts.get('big')!).toBeCloseTo((40 - prey.mass) / (20 - prey.mass), 10);
@@ -625,12 +625,12 @@ describe('predation', () => {
   it('feeds a predator only as far as its gut has room, the rest to waste', () => {
     const prey = { ...fry, health: 0.001, gut: 0 };
     const predator = makeFish({ id: 'full', mass: 20 });
-    const room = 0.2 * (prey.mass * livestockDefaults.deathDecayFactor);
+    const room = 0.2 * bodyOrganics(prey.mass, livestockDefaults);
     const full = { ...predator, gut: predator.mass * livestockDefaults.gutCapacity - room };
     const result = health([prey, full]);
 
     const after = result.survivingFish[0];
-    const remains = prey.mass * livestockDefaults.deathDecayFactor;
+    const remains = bodyOrganics(prey.mass, livestockDefaults);
     expect(after.gut - full.gut).toBeLessThan(remains);
     expect(after.gut - full.gut + result.deathWaste).toBeCloseTo(remains, 12);
   });
@@ -655,11 +655,17 @@ describe('predation', () => {
 
     expect(result.survivingFish.map((f) => f.id)).toEqual(['surviving']);
     const hunted = stressorAmount(result.vitalities[0], 'hunted') / result.vitalities[0].breakdown.damageRate;
-    const remains = prey.mass * livestockDefaults.deathDecayFactor;
+    const remains = bodyOrganics(prey.mass, livestockDefaults);
     const gained = result.survivingFish[0].gut;
     expect(hunted).toBeGreaterThan(0);
     expect(gained).toBeCloseTo((hunted / 2) * remains, 12);
-    expect(gained + result.deathWaste).toBeCloseTo(remains + dying.mass * livestockDefaults.deathDecayFactor, 12);
+    expect(gained + result.deathWaste).toBeCloseTo(remains + bodyOrganics(dying.mass, livestockDefaults), 12);
+  });
+
+  it('returns the whole of every dead body, its gut and its brood', () => {
+    const dying = makeFish({ id: 'dying', mass: 2, health: 0.001, gut: 0.01 });
+    const result = health([dying], { oxygen: 0 }, [], [0.003]);
+    expect(result.deathWaste).toBeCloseTo(bodyOrganics(2, livestockDefaults) + 0.01 + 0.003, 15);
   });
 
   it('leaves a fry to rot when nothing larger survives to eat it', () => {
@@ -667,7 +673,7 @@ describe('predation', () => {
     const predator = makeFish({ id: 'big', mass: 40, health: 0.001 });
     const result = health([prey, predator], { oxygen: 0 });
     expect(result.survivingFish).toHaveLength(0);
-    expect(result.deathWaste).toBeCloseTo((prey.mass + predator.mass) * livestockDefaults.deathDecayFactor, 12);
+    expect(result.deathWaste).toBeCloseTo(bodyOrganics(prey.mass + predator.mass, livestockDefaults), 12);
   });
 });
 

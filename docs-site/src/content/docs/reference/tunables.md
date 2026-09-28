@@ -199,6 +199,8 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `growthDrawRate` | First-order rate the bank draws toward growth at, before the growth share `1 − size / 100` | /hr |
 | `sizePerSurplus` | Size, in % of adult mass, a bank point buys at species growth rate 1 | %/pt |
 | `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his species' share | pts per body mass |
+| `bodyOrganicShare` | Organic matter, of the food's recipe, in a gram of fish, egg or embryo; the rest is water | g/g |
+| `growthEfficiency` | Share of what a fish assimilates that growth can build into its body; the rest it burns | — |
 | `wearAtLifespan` | Wear at the species lifespan, for a fish of its species' hardiness | %/hr |
 | `wearDoublingShare` | Span wear doubles over, as a share of the species lifespan | × lifespan |
 | `healingHalvingShare` | Age healing halves over, as a share of the species lifespan | × lifespan |
@@ -206,7 +208,6 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `eggPredationRate` | Share of a laid clutch an hour one gram of predator mass per litre — the grams each fish outweighs an egg — eats, before the clutch's exposure | L/g/hr |
 | `predationRate` | Damage an hour, before hardiness, one gram per litre of predator mass — the grams each larger fish outweighs the prey — does a fish at no size | %/hr per g/L |
 | `preyVulnerabilityExponent` | How steeply a growing fish outgrows its predators: exposure is `(1 − size / 100)` to this power | — |
-| `deathDecayFactor` | Share of a dead fish's mass that becomes waste | — |
 
 ## Fixed tables
 
@@ -216,7 +217,7 @@ can move them at runtime.
 
 | Table | Holds |
 |---|---|
-| Fish species | Per species: adult mass, growth rate, lifespan, hardiness, temperature / pH / flow tolerance bands, and a breeding block — mode, development time, clutch exposure, egg mass, fry mass, the male's share of a brood |
+| Fish species | Per species: adult mass, growth rate, lifespan, hardiness, temperature / pH / flow tolerance bands, and a breeding block — mode, development time, clutch exposure, egg mass (a fry hatches at it), the male's share of a brood |
 | Plant species | Per species: growth rate, growth form, hardiness, CO₂ requirement, nutrient demand tier, and the PAR band it tolerates, whose low end sets the daily light it starves under |
 | Growth forms | Per form: what one full unit is — its height and how height grows with size, its footprint, its leaf area index — the share of its food it draws through its roots, and what its offshoot is called |
 | Filters | Per type: biological surface, target turnover, flow ceiling, tank-size ceiling, and whether it is air-driven |

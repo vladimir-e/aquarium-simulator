@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { processMetabolism, type MetabolismResult, type MetabolismWater } from './metabolism.js';
+import { excretion, processMetabolism, type Excretion, type MetabolismResult, type MetabolismWater } from './metabolism.js';
 import { gutCapacity } from './digestion.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { WASTE_NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
@@ -31,14 +31,15 @@ function water(overrides: Partial<MetabolismWater> = {}): MetabolismWater {
 
 const full = (mass: number): number => gutCapacity({ mass }, livestockDefaults);
 
+const excreted = (r: MetabolismResult, retained = 0): Excretion =>
+  excretion(r.digested.reduce((a, b) => a + b, 0), retained, livestockDefaults);
+
 describe('processMetabolism', () => {
   it('returns empty results for no fish', () => {
     const result = processMetabolism([], water(), livestockDefaults);
     expect(result.updatedFish).toHaveLength(0);
     expect(result.digested).toHaveLength(0);
     expect(result.foodConsumed).toBe(0);
-    expect(result.wasteProduced).toBe(0);
-    expect(result.ammoniaProduced).toBe(0);
     expect(result.oxygenConsumedMg).toBe(0);
     expect(result.co2ProducedMg).toBe(0);
   });
@@ -73,13 +74,13 @@ describe('processMetabolism', () => {
   it("releases a meal's nitrogen as it digests, not as it is eaten", () => {
     const meal = processMetabolism([makeFish()], water(), livestockDefaults);
     expect(meal.foodConsumed).toBeGreaterThan(0);
-    expect(meal.ammoniaProduced).toBe(0);
-    expect(meal.wasteProduced).toBe(0);
+    expect(excreted(meal).ammonia).toBe(0);
+    expect(excreted(meal).waste).toBe(0);
 
     const after = processMetabolism(meal.updatedFish, water({ food: 0 }), livestockDefaults);
     expect(after.digested[0]).toBeGreaterThan(0);
-    expect(after.ammoniaProduced).toBeGreaterThan(0);
-    expect(after.wasteProduced).toBeGreaterThan(0);
+    expect(excreted(after).ammonia).toBeGreaterThan(0);
+    expect(excreted(after).waste).toBeGreaterThan(0);
   });
 
   it('conserves nitrogen: what the gut loses leaves through the gills and the feces', () => {
@@ -90,8 +91,8 @@ describe('processMetabolism', () => {
       let waste = 0;
       for (let hour = 0; hour < 72; hour++) {
         const r = processMetabolism(fish, water({ food: 0, oxygen }), livestockDefaults);
-        ammonia += r.ammoniaProduced;
-        waste += r.wasteProduced;
+        ammonia += excreted(r).ammonia;
+        waste += excreted(r).waste;
         fish = r.updatedFish;
       }
       const digestedN = (start - fish[0].gut) * livestockDefaults.foodNitrogenFraction;
@@ -104,8 +105,8 @@ describe('processMetabolism', () => {
     const r = processMetabolism([makeFish({ mass: 2, gut: full(2) })], water({ food: 0 }), livestockDefaults);
     const digested = r.digested[0];
 
-    expect(r.wasteProduced).toBeCloseTo(digested * (1 - livestockDefaults.gillNFraction), 12);
-    expect(r.ammoniaProduced).toBeCloseTo(
+    expect(excreted(r).waste).toBeCloseTo(digested * (1 - livestockDefaults.gillNFraction), 12);
+    expect(excreted(r).ammonia).toBeCloseTo(
       digested * livestockDefaults.foodNitrogenFraction * livestockDefaults.gillNFraction * NH3_PER_G_N,
       9
     );
@@ -114,10 +115,25 @@ describe('processMetabolism', () => {
   it('returns every milligram of digested mineral to the water, gills and feces together', () => {
     const release = nutrientsDefaults.foodMineralContent;
     const fish = [makeFish({ mass: 2, gut: full(2) }), makeFish({ id: 'b', gut: full(0.5) / 3 })];
-    const r = processMetabolism(fish, water(), livestockDefaults, release);
+    const r = processMetabolism(fish, water(), livestockDefaults);
     const digested = r.digested.reduce((a, b) => a + b, 0);
+    const out = excretion(digested, 0, livestockDefaults, release);
     for (const n of WASTE_NUTRIENTS) {
-      expect(r.mineralsExcreted[n] + r.wasteProduced * release[n]).toBeCloseTo(digested * release[n], 12);
+      expect(out.minerals[n] + out.waste * release[n]).toBeCloseTo(digested * release[n], 12);
+    }
+  });
+
+  it('holds back from the gills exactly what growth retains, nitrogen and minerals alike, and never from the feces', () => {
+    const release = nutrientsDefaults.foodMineralContent;
+    const digested = 0.01;
+    const retained = 0.003;
+    const adult = excretion(digested, 0, livestockDefaults, release);
+    const growing = excretion(digested, retained, livestockDefaults, release);
+
+    expect(growing.waste).toBe(adult.waste);
+    expect((adult.ammonia - growing.ammonia) / NH3_PER_G_N).toBeCloseTo(retained * livestockDefaults.foodNitrogenFraction, 15);
+    for (const n of WASTE_NUTRIENTS) {
+      expect(adult.minerals[n] - growing.minerals[n]).toBeCloseTo(retained * release[n], 15);
     }
   });
 
@@ -153,7 +169,7 @@ describe('processMetabolism', () => {
     const gasping = at(1);
     const breathing = at(AMPLE_O2);
 
-    expect(at(0).ammoniaProduced).toBe(0);
+    expect(excreted(at(0)).ammonia).toBe(0);
     expect(gasping.digested[0]).toBeLessThan(breathing.digested[0]);
     expect(gasping.oxygenConsumedMg).toBeLessThan(breathing.oxygenConsumedMg);
   });
@@ -188,8 +204,8 @@ describe('processMetabolism', () => {
       const numbers = [
         ...r.digested,
         ...r.updatedFish.map((f) => f.gut),
-        r.wasteProduced,
-        r.ammoniaProduced,
+        excreted(r).waste,
+        excreted(r).ammonia,
         r.oxygenConsumedMg,
         r.co2ProducedMg,
       ];

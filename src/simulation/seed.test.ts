@@ -413,7 +413,7 @@ describe('createSimulation seeding', () => {
     });
 
     it('refuses a size no fish is stocked at', () => {
-      for (const size of [120, 1]) {
+      for (const size of [120, 0.1]) {
         expect(() => createSimulation(TANK, { fish: [{ species: 'guppy', size }] })).toThrow(/stocked from/);
       }
     });

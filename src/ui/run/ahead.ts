@@ -106,7 +106,8 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
   const planted = applyEffects(flora.state, flora.effects, config);
   const livestock = processLivestock(planted, config);
   const { metabolicFactor } = livestock.metabolism;
-  const bred = processBreeding(applyEffects(livestock.state, livestock.effects, config), config, metabolicFactor).state;
+  const breeding = processBreeding(applyEffects(livestock.state, livestock.effects, config), config, livestock.metabolism);
+  const bred = breeding.state;
   const plantSpent = spentBy(planted.plants);
   const fishSpent = spentBy(bred.fish);
   const standingClutches = new Set(livestock.state.clutches.map((clutch) => clutch.id));
@@ -138,8 +139,8 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     algae: mapKinds((kind) => ({ ...flora.algae[kind], ...planted.algae[kind] })),
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),
     shedding: flora.shedding,
-    fishWaste: livestock.metabolism.wasteProduced,
-    gillAmmonia: livestock.metabolism.ammoniaProduced,
+    fishWaste: breeding.excreted.waste,
+    gillAmmonia: breeding.excreted.ammonia,
     metabolicFactor,
     ration: dailyMaintenance(state.fish, metabolicFactor, config.livestock),
     foodWaste: decayed * wasteShare,

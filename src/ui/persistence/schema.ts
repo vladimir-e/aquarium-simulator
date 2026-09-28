@@ -541,6 +541,8 @@ const LivestockConfigSchema = z
     growthDrawRate: z.number().min(0),
     sizePerSurplus: z.number().positive().max(MAX_FISH_SIZE_PER_SURPLUS),
     broodCost: z.number().positive(),
+    bodyOrganicShare: z.number().positive(),
+    growthEfficiency: z.number().min(0).max(1),
     wearAtLifespan: z.number().min(0),
     wearDoublingShare: z.number().positive(),
     healingHalvingShare: z.number().positive(),
@@ -548,7 +550,6 @@ const LivestockConfigSchema = z
     eggPredationRate: z.number().min(0),
     predationRate: z.number().min(0),
     preyVulnerabilityExponent: z.number().positive(),
-    deathDecayFactor: z.number(),
   })
   .strict();
 

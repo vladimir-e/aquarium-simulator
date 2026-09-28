@@ -158,15 +158,16 @@ describe('readHourAhead', () => {
       const settled = settleEnvironment(state, config);
       const flora = processFlora(settled, config);
       const livestock = processLivestock(applyEffects(flora.state, flora.effects, config), config);
-      const delta = (resource: string, source: string): number =>
-        livestock.effects
-          .filter((e) => e.resource === resource && e.source === source)
-          .reduce((sum, e) => sum + e.delta, 0);
-      const left = processBreeding(
+      const breeding = processBreeding(
         applyEffects(livestock.state, livestock.effects, config),
         config,
-        livestock.metabolism.metabolicFactor
-      ).state.resources;
+        livestock.metabolism
+      );
+      const delta = (resource: string, source: string): number =>
+        breeding.effects
+          .filter((e) => e.resource === resource && e.source === source)
+          .reduce((sum, e) => sum + e.delta, 0);
+      const left = breeding.state.resources;
 
       expect(ahead.fishWaste).toBeCloseTo(delta('waste', 'fish-metabolism'), 12);
       expect(ahead.gillAmmonia).toBeCloseTo(delta('ammonia', 'fish-gill-excretion'), 12);

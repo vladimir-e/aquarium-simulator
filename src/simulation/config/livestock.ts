@@ -137,6 +137,13 @@ export interface LivestockConfig {
    * the female in full, the male at his species' share.
    */
   broodCost: number;
+  /**
+   * Grams of organic matter — the food's recipe — in a gram of fish, egg or
+   * embryo; the rest is water.
+   */
+  bodyOrganicShare: number;
+  /** Share of what a fish assimilates that growth can build into its body; the rest it burns. */
+  growthEfficiency: number;
 
   // Ageing
   /** Wear, %/h, a fish of average vigour takes at its species lifespan. */
@@ -157,10 +164,6 @@ export interface LivestockConfig {
   predationRate: number;
   /** How steeply a fish outgrows its predators: vulnerability is `(1 − size / 100)` to this power. */
   preyVulnerabilityExponent: number;
-
-  // Death
-  /** Fraction of fish mass added as waste on death */
-  deathDecayFactor: number;
 }
 
 export const livestockDefaults: LivestockConfig = {
@@ -247,9 +250,16 @@ export const livestockDefaults: LivestockConfig = {
   // months, a neon in about five.
   growthDrawRate: 0.02,
   sizePerSurplus: 0.15,
-  // A full bank buys a grown female a brood about her own weight: twenty
-  // guppy fry, fifty angelfish eggs.
-  broodCost: 50,
+  // A full bank buys a grown female a brood a tenth her weight, out of her
+  // body: twenty guppy fry, sixty neon eggs, several hundred angelfish eggs.
+  broodCost: 500,
+  // Against food's 5 % N, a fish is 2.75 % N and 0.36 % P by wet mass — real
+  // fish sit at 2.5–3 % N and 0.4–0.5 % P.
+  bodyOrganicShare: 0.55,
+  // Of the 80 % of dietary N a fish assimilates, growth can hold at most
+  // 45 % — 36 % of what it ate, and about half that when food is what limits
+  // it; real growing fish retain 25–35 %.
+  growthEfficiency: 0.45,
 
   // Wear passes a fed fish's income a little before its lifespan and eats
   // through its bank and health over the months after. It doubles over an
@@ -268,9 +278,6 @@ export const livestockDefaults: LivestockConfig = {
 
   predationRate: 20,
   preyVulnerabilityExponent: 4,
-
-  // Death
-  deathDecayFactor: 0.5, // Half fish mass becomes waste
 };
 
 /** mg of NH₃ a gram of food, or of the waste it becomes, yields once mineralized. */
@@ -372,7 +379,9 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'healingDrawRate', label: 'Healing Draw Rate', unit: '/hr at 1 g', min: 0.005, max: 0.5, step: 0.005 },
   { key: 'growthDrawRate', label: 'Growth Draw Rate', unit: '/hr', min: 0.005, max: 0.2, step: 0.005 },
   { key: 'sizePerSurplus', label: 'Size per Bank Point', unit: '%/pt', min: 0.01, max: MAX_FISH_SIZE_PER_SURPLUS, step: 0.01 },
-  { key: 'broodCost', label: 'Brood Cost', unit: 'pts/body mass', min: 5, max: 500, step: 5 },
+  { key: 'broodCost', label: 'Brood Cost', unit: 'pts/body mass', min: 200, max: 5000, step: 50 },
+  { key: 'bodyOrganicShare', label: 'Body Organic Share', unit: 'g/g', min: 0.2, max: 1, step: 0.05 },
+  { key: 'growthEfficiency', label: 'Growth Efficiency', unit: '', min: 0.05, max: 1, step: 0.05 },
   // Ageing
   { key: 'wearAtLifespan', label: 'Wear at Lifespan', unit: '%/hr', min: 0.1, max: 5, step: 0.1 },
   { key: 'wearDoublingShare', label: 'Wear Doubling Span', unit: '× lifespan', min: 0.05, max: 0.5, step: 0.005 },
@@ -383,6 +392,4 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   // Predation
   { key: 'predationRate', label: 'Predation Rate', unit: '%/hr per g/L', min: 0, max: 200, step: 1 },
   { key: 'preyVulnerabilityExponent', label: 'Prey Vulnerability Exponent', unit: '', min: 1, max: 10, step: 0.5 },
-  // Death
-  { key: 'deathDecayFactor', label: 'Death Decay Factor', unit: '', min: 0.1, max: 1.0, step: 0.1 },
 ];

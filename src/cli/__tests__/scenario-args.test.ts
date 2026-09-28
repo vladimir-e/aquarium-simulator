@@ -140,7 +140,7 @@ describe('scenario arguments', () => {
     const nano = findSetup('nano');
     expect(tweaked(nano, '--fish=guppy:2:40').fish.at(-1)).toEqual({ species: 'guppy', count: 2, sex: 'female', size: 40 });
     expect(tweaked(nano, '--fish=guppy:2').fish.at(-1)).toEqual({ species: 'guppy', count: 2, sex: 'female' });
-    for (const size of ['120', '1', 'big', '']) {
+    for (const size of ['120', '0.1', 'big', '']) {
       expect(() => parseTweak('fish', `guppy:1:${size}`)).toThrow(/stocked from/);
     }
   });

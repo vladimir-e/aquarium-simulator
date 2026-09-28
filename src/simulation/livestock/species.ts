@@ -31,10 +31,8 @@ export interface FishBreedingData {
   developmentTime: number;
   /** Share of the tank's egg predation that reaches its clutch: 1 left in the open, 0 carried. */
   clutchExposure: number;
-  /** Grams one egg weighs — a livebearer's, one embryo late in gestation. */
+  /** Grams one egg weighs, and the fry it hatches — a livebearer's, one embryo late in gestation. */
   eggMass: number;
-  /** Fry starting mass as a fraction of `adultMass`. */
-  fryMassFraction: number;
   /** The male's share of a brood's cost, paid from his own bank. */
   maleShare: number;
 }
@@ -86,7 +84,6 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       developmentTime: 24,
       clutchExposure: 1,
       eggMass: 0.0004,
-      fryMassFraction: 0.05,
       maleShare: 0.2,
     },
   },
@@ -108,7 +105,6 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       developmentTime: 32,
       clutchExposure: 0.3,
       eggMass: 0.0005,
-      fryMassFraction: 0.03,
       maleShare: 0.6,
     },
   },
@@ -130,7 +126,6 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       developmentTime: 600,
       clutchExposure: 0,
       eggMass: 0.005,
-      fryMassFraction: 0.05,
       maleShare: 0.2,
     },
   },
@@ -152,7 +147,6 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       developmentTime: 54,
       clutchExposure: 0.5,
       eggMass: 0.002,
-      fryMassFraction: 0.02,
       maleShare: 0.5,
     },
   },
@@ -173,7 +167,6 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       developmentTime: 90,
       clutchExposure: 1,
       eggMass: 0.004,
-      fryMassFraction: 0.04,
       maleShare: 0.2,
     },
   },

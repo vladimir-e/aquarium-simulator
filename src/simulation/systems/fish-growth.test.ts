@@ -6,6 +6,7 @@ import {
   ADULT_SIZE,
   brood,
   broodShare,
+  eggOrganics,
   eggsLaid,
   fishLifeStage,
   fishSize,
@@ -67,13 +68,15 @@ describe('broodShare', () => {
 });
 
 describe('growFish', () => {
-  it('grows a fry toward adult size, ever slower, never reaching it', () => {
+  const PLENTY = 1;
+
+  it('grows a fed fry toward adult size, ever slower, never reaching it', () => {
     for (const species of SPECIES) {
       let f = fish({ species, size: frySize(species) });
       let lastGain = Infinity;
       for (let hour = 0; hour < 24 * 365; hour++) {
         const before = f.mass;
-        f = growFish({ ...f, surplus: config.surplusCap }, config);
+        f = growFish({ ...f, surplus: config.surplusCap }, PLENTY, config).fish;
         const gain = f.mass - before;
         expect(gain).toBeGreaterThan(0);
         expect(gain).toBeLessThanOrEqual(lastGain);
@@ -86,25 +89,49 @@ describe('growFish', () => {
 
   it('draws the bank down by exactly the points it grew on', () => {
     const f = fish({ size: 30, surplus: 20 });
-    const grown = growFish(f, config);
-    const drawn = f.surplus - grown.surplus;
-    const { growthRate } = FISH_SPECIES_DATA.guppy;
+    for (const supply of [PLENTY, 1e-4]) {
+      const grown = growFish(f, supply, config).fish;
+      const drawn = f.surplus - grown.surplus;
+      const { growthRate } = FISH_SPECIES_DATA.guppy;
 
-    expect(drawn).toBeGreaterThan(0);
-    expect(fishSize(grown) - fishSize(f)).toBeCloseTo(drawn * growthRate * config.sizePerSurplus, 10);
+      expect(drawn).toBeGreaterThan(0);
+      expect(fishSize(grown) - fishSize(f)).toBeCloseTo(drawn * growthRate * config.sizePerSurplus, 10);
+    }
   });
 
-  it('buys nothing on an empty bank or at adult size', () => {
+  it('builds its new mass of exactly the food it retains', () => {
+    const f = fish({ size: 30, surplus: 20 });
+    const { fish: grown, retained } = growFish(f, 1e-4, config);
+    expect(retained).toBeGreaterThan(0);
+    expect((grown.mass - f.mass) * config.bodyOrganicShare).toBeCloseTo(retained, 15);
+  });
+
+  it('never retains more than growth can use of what it assimilated, and slows smoothly as that falls short: half its asking at its asking', () => {
+    const f = fish({ size: 10, surplus: 40 });
+    const asked = growFish(f, 1e9, config).retained;
+    const assimilatedFor = (supply: number): number => supply / config.growthEfficiency;
+    let last = 0;
+    for (const supply of [asked / 100, asked / 10, asked / 2, asked, 2 * asked, 10 * asked]) {
+      const { retained } = growFish(f, assimilatedFor(supply), config);
+      expect(retained).toBeLessThan(supply);
+      expect(retained).toBeGreaterThan(last);
+      last = retained;
+    }
+    expect(growFish(f, assimilatedFor(asked), config).retained).toBeCloseTo(asked / 2, 12);
+    expect(growFish(f, 0, config).retained).toBe(0);
+  });
+
+  it('buys and retains nothing on an empty bank or at adult size', () => {
     const empty = fish({ size: 20, surplus: 0 });
     const grown = fish({ size: 100 });
-    expect(growFish(empty, config)).toBe(empty);
-    expect(growFish(grown, config)).toBe(grown);
+    expect(growFish(empty, PLENTY, config)).toEqual({ fish: empty, retained: 0 });
+    expect(growFish(grown, PLENTY, config)).toEqual({ fish: grown, retained: 0 });
   });
 
-  it('a starved fry grows slower than a fed one', () => {
-    const fed = growFish(fish({ size: 10, surplus: 40 }), config);
-    const starved = growFish(fish({ size: 10, surplus: 5 }), config);
-    expect(fed.mass).toBeGreaterThan(starved.mass);
+  it('a fry on a fuller bank grows faster than one on a thin bank', () => {
+    const full = growFish(fish({ size: 10, surplus: 40 }), PLENTY, config).fish;
+    const thin = growFish(fish({ size: 10, surplus: 5 }), PLENTY, config).fish;
+    expect(full.mass).toBeGreaterThan(thin.mass);
   });
 });
 
@@ -120,7 +147,7 @@ describe('brood', () => {
 
   it('costs a parent in proportion to the brood it lays', () => {
     const female = fish({ size: 100 });
-    const perEgg = config.broodCost * (massAtSize('guppy', frySize('guppy')) / female.mass);
+    const perEgg = config.broodCost * (FISH_SPECIES_DATA.guppy.breeding.eggMass / female.mass);
     expect(eggsLaid(female, config) * perEgg).toBeCloseTo(broodShare(100) * female.surplus, 10);
   });
 
@@ -196,7 +223,7 @@ describe('brood', () => {
   });
 
   describe('settles the ready females of a species together', () => {
-    const perPoint = (f: Fish): number => f.mass / (config.broodCost * massAtSize(f.species, frySize(f.species)));
+    const perPoint = (f: Fish): number => f.mass / (config.broodCost * FISH_SPECIES_DATA[f.species].breeding.eggMass);
     const cases: [Fish[], Fish[]][] = [];
     for (const species of SPECIES) {
       for (const bank of [0, 3, 10, 25, config.surplusCap]) {
@@ -234,6 +261,18 @@ describe('brood', () => {
         expect(backward).toEqual(forward);
       }
     });
+  });
+
+  it('makes the fathered eggs of the mother’s body, the males’ bodies untouched', () => {
+    const she = fish();
+    const male = fish({ sex: 'male' });
+    const result = brood([she], [male], config);
+    expect(result.offspring[0]).toBeGreaterThan(0);
+    expect((she.mass - result.females[0].mass) * config.bodyOrganicShare).toBeCloseTo(
+      result.offspring[0] * eggOrganics('guppy', config),
+      15
+    );
+    expect(result.males[0].mass).toBe(male.mass);
   });
 
   it('keeps every bank finite and non-negative', () => {

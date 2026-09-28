@@ -11,9 +11,10 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **A fish is made of what it ate** - growth builds from digested food, broods from the mother, death returns the whole body; breaking: `processBreeding` takes the metabolism (v34).
 - **Old age is wear** - fish age by a rising damage rate and heal slower, a cohort dying over a few months near the species lifespan; breaking: `lifespan` replaces `maxAge` (v34).
 - **Predation** - larger fish hunt the young by the grams they outweigh them and eat what they kill; breaking: `computeFishVitality`, `readyToBrood` args (v34).
-- **Eggs are a stock** - water and fish thin a clutch as it develops, livebearers carry theirs; breaking: `Clutch` holds `eggs`, `development`; `processBreeding` takes the metabolic factor; `createFish`, `processMetabolism`, `processHealth` leave the barrel (v34).
+- **Eggs are a stock** - water and fish thin a clutch as it develops, livebearers carry theirs; breaking: `Clutch` holds `eggs`, `development`; `createFish`, `processMetabolism`, `processHealth` leave the barrel (v34).
 - **Fish grow on their banks** - mass and broods are bought by the bank, both parents pay, stocking names a size; breaking: `Fish.stage` goes (v34).
 - **Feeding through a gut** - fish digest over hours, slower cold, and earn on what they digest; breaking: `Fish.gut` replaces `satiation` (v34).
 - **Auto feeder** - drops a set ration once a day at its hour (v34).

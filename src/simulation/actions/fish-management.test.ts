@@ -64,7 +64,7 @@ describe('addFish', () => {
   });
 
   it('refuses a size smaller than a fry or bigger than grown', () => {
-    for (const size of [1, 101, Number.NaN]) {
+    for (const size of [0.1, 101, Number.NaN]) {
       const result = addFish(makeState(), { type: 'addFish', species: 'guppy', size }, livestockDefaults);
       expect(result.state.fish).toHaveLength(0);
     }

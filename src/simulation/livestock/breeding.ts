@@ -2,7 +2,8 @@
  * What the fish's banks buy, and the clutches they bought — the ACTIVE-tier
  * step after `processLivestock` (see `tick.ts`). It mutates `state.fish` and
  * `state.clutches` directly because it *adds* organisms, which the effect
- * system can't express; the waste dead eggs leave goes out as an effect.
+ * system can't express; what the hour's digestion leaves once growth has
+ * built its share, and the waste dead eggs leave, go out as effects.
  *
  * The clutches standing live their hour first, then a female on a full bank
  * broods, then every fish's bank draws toward growth. The brood runs before
@@ -20,39 +21,72 @@ import type { TunableConfig } from '../config/index.js';
 import { createLog } from '../core/logging.js';
 import { drawId } from '../core/rng.js';
 import { sum } from '../core/sum.js';
-import { brood, frySize, growFish, massAtSize, readyToBrood } from '../systems/fish-growth.js';
+import { brood, eggOrganics, frySize, growFish, readyToBrood } from '../systems/fish-growth.js';
 import { shareOut, swallow } from '../systems/digestion.js';
+import { assimilated, excretion, type Excretion, type MetabolismResult } from '../systems/metabolism.js';
+import { mintAmmonia } from '../systems/nitrogen-cycle.js';
+import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { fishHardiness, predatorWeight, speciesHardiness } from '../systems/fish-health.js';
 import { developmentRate, eggHarmRate, eggPredationRate, settleClutch } from '../systems/clutch.js';
-import { arrivalGut, createFish } from './create-fish.js';
+import { createFish } from './create-fish.js';
 
 export interface BreedingProcessingResult {
   state: SimulationState;
   effects: Effect[];
+  /** What the hour's digestion left in the water. */
+  excreted: Excretion;
 }
 
-/** One hour of breeding, clutches developing at `metabolicFactor` — the pace the hour's digestion ran at. */
+/**
+ * The hour's digestion — every fish `processLivestock` fed, the dead
+ * included — and the pace it ran at, which the clutches develop at.
+ */
+export type Digestion = Pick<MetabolismResult, 'updatedFish' | 'digested' | 'metabolicFactor'>;
+
+/** One hour of breeding and growth, and what the hour's digestion leaves once growth has built from it. */
 export function processBreeding(
   state: SimulationState,
   config: TunableConfig,
-  metabolicFactor: number
+  digestion: Digestion
 ): BreedingProcessingResult {
   const livestockConfig = config.livestock ?? livestockDefaults;
-
-  if (state.fish.length === 0 && state.clutches.length === 0) {
-    return { state, effects: [] };
-  }
+  const intake = new Map(digestion.updatedFish.map((fish, i) => [fish.id, digestion.digested[i]]));
 
   let deadEggs = 0;
-  const newState = produce(state, (draft) => {
-    deadEggs = tendClutches(draft, livestockConfig, metabolicFactor);
-    layBroods(draft, livestockConfig);
-    draft.fish = draft.fish.map((fish) => growFish(fish, livestockConfig));
-  });
+  let retained = 0;
+  const newState =
+    state.fish.length === 0 && state.clutches.length === 0
+      ? state
+      : produce(state, (draft) => {
+          deadEggs = tendClutches(draft, livestockConfig, digestion.metabolicFactor);
+          layBroods(draft, livestockConfig);
+          draft.fish = draft.fish.map((fish) => {
+            const growth = growFish(fish, assimilated(intake.get(fish.id) ?? 0, livestockConfig), livestockConfig);
+            retained += growth.retained;
+            return growth.fish;
+          });
+        });
 
-  const effects: Effect[] =
-    deadEggs > 0 ? [{ tier: 'active', resource: 'waste', delta: deadEggs, source: 'dead-eggs' }] : [];
-  return { state: newState, effects };
+  const excreted = excretion(sum(digestion.digested), retained, livestockConfig, config.nutrients.foodMineralContent);
+  return { state: newState, effects: excretionEffects(excreted, deadEggs), excreted };
+}
+
+function excretionEffects(excreted: Excretion, deadEggs: number): Effect[] {
+  const effects: Effect[] = [];
+  if (excreted.waste > 0) {
+    effects.push({ tier: 'active', resource: 'waste', delta: excreted.waste, source: 'fish-metabolism' });
+  }
+  if (excreted.ammonia > 0) {
+    effects.push(...mintAmmonia(excreted.ammonia, 'active', 'fish-gill-excretion'));
+  }
+  for (const nutrient of WASTE_NUTRIENTS) {
+    const delta = excreted.minerals[nutrient];
+    if (delta > 0) effects.push({ tier: 'active', resource: nutrient, delta, source: 'fish-gill-excretion' });
+  }
+  if (deadEggs > 0) {
+    effects.push({ tier: 'active', resource: 'waste', delta: deadEggs, source: 'dead-eggs' });
+  }
+  return effects;
 }
 
 /** One hour of every clutch, hatching those developed; returns the grams of egg left as waste. */
@@ -79,11 +113,12 @@ function tendClutches(draft: SimulationState, config: LivestockConfig, metabolic
       developmentRate(clutch.species, metabolicFactor)
     );
 
-    const eaten = shareOut(weights, hour.eaten * eggMass);
+    const organics = eggOrganics(clutch.species, config);
+    const eaten = shareOut(weights, hour.eaten * organics);
     eaten.taken.forEach((grams, i) => {
       shares[i] += grams;
     });
-    waste += hour.spoiled * eggMass + eaten.overflow;
+    waste += hour.spoiled * organics + eaten.overflow;
     (hour.clutch.development < 1 ? developing : developed).push(hour.clutch);
   }
   const swallowed = swallow(draft.fish, shares, config);
@@ -97,15 +132,13 @@ function tendClutches(draft: SimulationState, config: LivestockConfig, metabolic
   return waste;
 }
 
-/** Each whole egg becomes a fry, its yolk out of the egg's mass; returns the grams of egg left over. */
+/** Each whole egg becomes a fry of its body and yolk; returns the grams of the part-egg left over. */
 function hatch(draft: SimulationState, clutch: Clutch, config: LivestockConfig): number {
   const { species } = clutch;
-  const { name, breeding } = FISH_SPECIES_DATA[species];
+  const { name } = FISH_SPECIES_DATA[species];
   const count = Math.floor(clutch.eggs);
-  const size = frySize(species);
-  const yolk = Math.min(breeding.eggMass, arrivalGut(massAtSize(species, size), config));
   for (let i = 0; i < count; i++) {
-    draft.fish.push(createFish({ species, size, gut: yolk, rng: draft.rng, config }));
+    draft.fish.push(createFish({ species, size: frySize(species), rng: draft.rng, config }));
   }
   if (count > 0) {
     draft.logs.push(
@@ -114,7 +147,7 @@ function hatch(draft: SimulationState, clutch: Clutch, config: LivestockConfig):
         : createLog(draft.tick, 'simulation', 'info', `${name} gave birth to ${count} fry`, 'fry-born', count)
     );
   }
-  return clutch.eggs * breeding.eggMass - count * yolk;
+  return (clutch.eggs - count) * eggOrganics(species, config);
 }
 
 /** The ready females of each species brood together, fathered by the males of their species. */
@@ -127,6 +160,7 @@ function layBroods(draft: SimulationState, config: LivestockConfig): void {
     const result = brood(females, males, config);
 
     females.forEach((female, i) => {
+      female.mass = result.females[i].mass;
       female.surplus = result.females[i].surplus;
     });
     males.forEach((male, i) => {

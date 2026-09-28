@@ -7,10 +7,12 @@
  * Aquarium fish are ammoniotelic, and the only nitrogen a fish releases is
  * nitrogen it digested. Food in the gut still holds all of its nitrogen, so a
  * meal's ammonia and waste come out over the hours it digests. Of every gram
- * digested, `gillNFraction` of its nitrogen leaves through the gills as NH3,
- * with the minerals of that share beside it; the rest is feces, which carry
- * the food's own nitrogen and mineral fractions into the waste pool:
+ * digested, `gillNFraction` is assimilated and the rest is feces, which carry
+ * the food's own nitrogen and mineral fractions into the waste pool. What a
+ * growing fish builds into its body comes out of the assimilated share; the
+ * rest leaves through the gills as NH3, with its minerals beside it:
  *     wasteMass = digested × (1 − gillNFraction)
+ *     gill      = digested × gillNFraction − retained
  *
  * Deamination rides digestion, and digestion and respiration both ride the
  * metabolic factor — the metabolic Q10 times the oxygen factor — so a hypoxic
@@ -37,15 +39,21 @@ export interface Excretion {
   minerals: MineralVector;
 }
 
-/** What `digested` grams of food leave in the water. */
+/** Grams of `digested` food a fish takes into its body. */
+export function assimilated(digested: number, config: LivestockConfig): number {
+  return digested * config.gillNFraction;
+}
+
+/** What `digested` grams of food leave in the water once `retained` grams of them are built into bodies. */
 export function excretion(
   digested: number,
+  retained: number,
   config: LivestockConfig,
   foodMineralContent: MineralVector = nutrientsDefaults.foodMineralContent
 ): Excretion {
-  const absorbed = digested * config.gillNFraction;
+  const absorbed = assimilated(digested, config) - retained;
   return {
-    waste: digested - absorbed,
+    waste: digested - assimilated(digested, config),
     ammonia: absorbed * config.foodNitrogenFraction * NH3_MG_PER_G_N,
     minerals: Object.fromEntries(
       WASTE_NUTRIENTS.map((n) => [n, absorbed * foodMineralContent[n]])
@@ -62,12 +70,6 @@ export interface MetabolismResult {
   metabolicFactor: number;
   /** Grams of food eaten from the tank. */
   foodConsumed: number;
-  /** Grams of feces. */
-  wasteProduced: number;
-  /** mg of NH3 through the gills. */
-  ammoniaProduced: number;
-  /** mg of each mineral beside the gill NH3. */
-  mineralsExcreted: MineralVector;
   /** mg of O2 drawn — the caller divides by water volume. */
   oxygenConsumedMg: number;
   /** mg of CO2 exhaled — the caller divides by water volume. */
@@ -94,12 +96,7 @@ export function metabolicFactorOf(water: Pick<Resources, 'oxygen' | 'temperature
  * then every fish eats at once, each taking its appetite in full, or the same
  * share of it as every other fish when there is not enough food to go round.
  */
-export function processMetabolism(
-  fish: Fish[],
-  water: MetabolismWater,
-  config: LivestockConfig,
-  foodMineralContent: MineralVector = nutrientsDefaults.foodMineralContent
-): MetabolismResult {
+export function processMetabolism(fish: Fish[], water: MetabolismWater, config: LivestockConfig): MetabolismResult {
   const factor = metabolicFactorOf(water, config);
 
   const digested = fish.map((f) => digest(f.gut, factor, config));
@@ -108,7 +105,6 @@ export function processMetabolism(
   const eaten = shareCapped(appetites, appetites, water.food).taken;
   const updatedFish = digestedFish.map((f, i) => ({ ...f, gut: f.gut + eaten[i], age: f.age + 1 }));
 
-  const out = excretion(sum(digested), config, foodMineralContent);
   const oxygenConsumedMg = config.baseRespirationRate * sum(fish.map((f) => f.mass)) * factor;
 
   return {
@@ -116,9 +112,6 @@ export function processMetabolism(
     digested,
     metabolicFactor: factor,
     foodConsumed: sum(eaten),
-    wasteProduced: out.waste,
-    ammoniaProduced: out.ammonia,
-    mineralsExcreted: out.minerals,
     oxygenConsumedMg,
     co2ProducedMg: oxygenConsumedMg * config.respiratoryQuotient * O2_TO_CO2_MASS_RATIO,
   };

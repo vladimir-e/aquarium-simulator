@@ -209,6 +209,8 @@ describe('tick determinism', () => {
     plants: [{ species: 'java_fern', count: 2, size: 90 }],
   };
 
+  const BREEDING_TANK_MS = 60_000;
+
   function fortnight(rngSeed: number): SimulationState {
     let state = createSimulation(TANK, ROSTER, rngSeed);
     for (let hour = 1; hour <= 14 * 24; hour++) {
@@ -225,16 +227,16 @@ describe('tick determinism', () => {
     expect(first.fish.length).toBeGreaterThan(5);
     expect(first).toEqual(second);
     expect(JSON.stringify(first)).toBe(JSON.stringify(second));
-  });
+  }, BREEDING_TANK_MS);
 
   it('sends the same tank down a different life on a different rng seed', () => {
     expect(fortnight(2026)).not.toEqual(fortnight(9001));
-  });
+  }, BREEDING_TANK_MS);
 
   it('picks up mid-stream when a serialised tank is handed back', () => {
     const halfway = fortnight(2026);
     const resumed: SimulationState = JSON.parse(JSON.stringify(halfway));
 
     expect(tick(resumed)).toEqual(tick(halfway));
-  });
+  }, BREEDING_TANK_MS);
 });

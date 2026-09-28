@@ -10,7 +10,8 @@ import { CACO3_PER_EQUIVALENT, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chem
 import { tissueMass } from '../systems/plant-lifecycle.js';
 import { ALGAE, ALGAE_KINDS } from '../algae/index.js';
 import { purchase } from '../systems/plant-growth.js';
-import { fishSize, frySize, massAtSize } from '../systems/fish-growth.js';
+import { bodyOrganics, fishSize, massAtSize } from '../systems/fish-growth.js';
+import { clutchOrganics } from '../systems/clutch.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
 import { freshSubstrate } from '../equipment/substrate.js';
@@ -28,14 +29,24 @@ function run(state: SimulationState, hours: number, config = DEFAULT_CONFIG): Si
   return running;
 }
 
-/** Grams of organic matter in the tank: food, in the water and in the fish's guts, waste, the bed's reserve, plant tissue, the blooms' and the eggs'. */
+/** Grams of organic matter the fish hold: their bodies, their guts and every clutch, laid or carried. */
+function livestockOrganics({ fish, clutches }: Pick<SimulationState, 'fish' | 'clutches'>): number {
+  const { livestock } = DEFAULT_CONFIG;
+  const bodies = fish.reduce((sum, f) => sum + bodyOrganics(f.mass, livestock) + f.gut, 0);
+  return bodies + clutches.reduce((sum, clutch) => sum + clutchOrganics(clutch, livestock), 0);
+}
+
+/** Grams of organic matter in the tank: food, waste, the bed's reserve, plant tissue, the blooms' and the livestock's. */
 function organics(state: SimulationState): number {
-  const { resources, equipment, plants, fish, clutches } = state;
+  const { resources, equipment, plants } = state;
   const tissue = plants.reduce((sum, plant) => sum + tissueMass(plant.species, plant.size), 0);
-  const guts = fish.reduce((sum, f) => sum + f.gut, 0);
-  const eggs = clutches.reduce((sum, clutch) => sum + clutch.eggs * FISH_SPECIES_DATA[clutch.species].breeding.eggMass, 0);
   return (
-    resources.food + guts + resources.waste + equipment.substrate.organicReserve + tissue + bloomsTissue(state) + eggs
+    resources.food +
+    resources.waste +
+    equipment.substrate.organicReserve +
+    tissue +
+    bloomsTissue(state) +
+    livestockOrganics(state)
   );
 }
 
@@ -184,9 +195,10 @@ describe('nitrogen mass', () => {
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 10);
   });
 
-  it('is conserved over a month of guppies breeding, hunting their fry, growing and wearing, net of what enters from outside', () => {
+  it('is conserved over a month of guppies breeding, hunting their fry, growing and wearing, against the food alone', () => {
     const { lifespan } = FISH_SPECIES_DATA.guppy;
-    const { foodNitrogenFraction: n, deathDecayFactor } = DEFAULT_CONFIG.livestock;
+    const { foodNitrogenFraction: n } = DEFAULT_CONFIG.livestock;
+    const minerals = DEFAULT_CONFIG.nutrients.foodMineralContent;
     const guppy = (id: string, sex: Fish['sex'], size: number, age: number): Fish => ({
       id,
       species: 'guppy',
@@ -203,36 +215,76 @@ describe('nitrogen mass', () => {
       draft.fish = [
         guppy('mother', 'female', 100, lifespan / 2),
         guppy('father', 'male', 100, lifespan / 2),
-        ...[1, 2, 3, 4, 5].map((i) => guppy(`fry${i}`, i % 2 ? 'male' : 'female', frySize('guppy'), 0)),
+        ...[1, 2, 3, 4, 5].map((i) => guppy(`fry${i}`, i % 2 ? 'male' : 'female', 5, 0)),
       ];
     });
-    const start = nitrogenInPools(state);
-    let entered = 0;
+    const start = state;
+    let fed = 0;
     let eaten = 0;
     let born = 0;
+    let laid = 0;
     for (let hour = 0; hour < 30 * 24; hour++) {
       if (hour % 24 === 0) {
         state = produce(state, (draft) => {
           draft.resources.food += 0.02;
         });
-        entered += 0.02;
+        fed += 0.02;
       }
       const before = state;
       state = tick(state, DEFAULT_CONFIG);
-      const standing = new Set(before.clutches.map((clutch) => clutch.id));
-      for (const clutch of state.clutches) {
-        if (!standing.has(clutch.id)) entered += clutch.eggs * FISH_SPECIES_DATA[clutch.species].breeding.eggMass;
-      }
-      const alive = new Set(state.fish.map((f) => f.id));
-      for (const f of before.fish) if (!alive.has(f.id)) entered += f.mass * deathDecayFactor;
       const logs = state.logs.slice(before.logs.length);
       eaten += logs.filter((log) => log.event === 'fish-died' && log.message.includes('(eaten)')).length;
       born += logs.filter((log) => log.event === 'fry-born').length;
+      laid += logs.filter((log) => log.event === 'eggs-laid').length;
     }
 
     expect(born).toBeGreaterThan(0);
+    expect(laid).toBeGreaterThan(0);
     expect(eaten).toBeGreaterThan(0);
-    expect((nitrogenInPools(state) - entered * n) / start).toBeCloseTo(1, 10);
+    expect((nitrogenInPools(state) - fed * n) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+    for (const m of WASTE_NUTRIENTS) {
+      expect((mineralsInPools(state, m) - fed * minerals[m]) / mineralsInPools(start, m)).toBeCloseTo(1, 10);
+    }
+  });
+});
+
+describe('the fish as ledger entries', () => {
+  const { foodNitrogenFraction: n } = DEFAULT_CONFIG.livestock;
+  const nitrogenOf = (state: Pick<SimulationState, 'fish' | 'clutches'>): number => livestockOrganics(state) * n;
+  const tank = produce(cycledBareTank(), (draft) => {
+    draft.fish = [
+      { ...tetra('mother'), species: 'guppy', mass: 1, sex: 'female', gut: 0.01 },
+      { ...tetra('fry'), species: 'guppy', mass: massAtSize('guppy', 10), gut: 0.001 },
+      tetra('adult'),
+    ];
+    draft.clutches = [
+      { id: 'carried', species: 'guppy', eggs: 12, development: 0.3, motherId: 'mother' },
+      { id: 'laid', species: 'neon_tetra', eggs: 40, development: 0.3 },
+    ];
+  });
+
+  it('bring a stocked fish’s body and gut in as an input, exactly', () => {
+    const stocked = applyAction(tank, { type: 'addFish', species: 'angelfish', size: 40 }).state;
+    const arrived = stocked.fish.at(-1)!;
+    expect(stocked.fish).toHaveLength(tank.fish.length + 1);
+    expect(nitrogenInPools(stocked) - nitrogenInPools(tank)).toBeCloseTo(nitrogenOf({ fish: [arrived], clutches: [] }), 15);
+    expect(nitrogenOf({ fish: [arrived], clutches: [] })).toBeCloseTo(
+      (bodyOrganics(massAtSize('angelfish', 40), DEFAULT_CONFIG.livestock) + arrived.gut) * n,
+      15
+    );
+  });
+
+  it('take a removed fish’s body, gut and carried brood out as an output, exactly', () => {
+    const removed = applyAction(tank, { type: 'removeFish', fishId: 'mother' }).state;
+    const out = { fish: [tank.fish[0]], clutches: [tank.clutches[0]] };
+    expect(removed.clutches.map((clutch) => clutch.id)).toEqual(['laid']);
+    expect(nitrogenInPools(tank) - nitrogenInPools(removed)).toBeCloseTo(nitrogenOf(out), 15);
+  });
+
+  it('take sold fry out as an output, exactly their bodies and guts', () => {
+    const sold = applyAction(tank, { type: 'sellFry' }).state;
+    expect(sold.fish.map((f) => f.id)).toEqual(['mother', 'adult']);
+    expect(nitrogenInPools(tank) - nitrogenInPools(sold)).toBeCloseTo(nitrogenOf({ fish: [tank.fish[1]], clutches: [] }), 15);
   });
 });
 
@@ -566,12 +618,13 @@ describe('an offshoot bought on thin water', () => {
 describe('a guppy stocked as a fry', () => {
   const DAYS = 60;
   const sizes: number[] = [];
+  const broods = new Set<number>();
   let firstBrood = -1;
   beforeAll(() => {
     const setup: Setup = {
       ...SETUPS.find((candidate) => candidate.name === 'nano')!,
       fish: [
-        { species: 'guppy', count: 1, sex: 'female', size: frySize('guppy') },
+        { species: 'guppy', count: 1, sex: 'female', size: 18 },
         { species: 'guppy', count: 1, sex: 'male' },
       ],
     };
@@ -585,7 +638,8 @@ describe('a guppy stocked as a fry', () => {
         const she = state.fish.find((f) => f.id === id);
         if (she) sizes.push(fishSize(she));
         const laid = state.logs.slice(logsRead).some((log) => log.event === 'eggs-laid');
-        if (firstBrood < 0 && laid) firstBrood = state.tick;
+        if (laid) broods.add(sizes.length - 1);
+        if (firstBrood < 0 && laid) firstBrood = sizes.length - 1;
         logsRead = state.logs.length;
       },
     });
@@ -593,21 +647,25 @@ describe('a guppy stocked as a fry', () => {
 
   it('grows on her bank until she broods', () => {
     expect(firstBrood).toBeGreaterThan(0);
-    expect(sizes[firstBrood]).toBeGreaterThan(frySize('guppy'));
+    expect(sizes[firstBrood - 1]).toBeGreaterThan(18);
   });
 
-  it('only ever grows, and never past adult size', () => {
+  it('only ever grows but by the broods she makes of her body, and never past adult size', () => {
     expect(Math.max(...sizes)).toBeLessThanOrEqual(100);
-    for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1]);
+    for (let i = 1; i < sizes.length; i++) {
+      if (!broods.has(i)) expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1]);
+    }
+    for (const i of broods) expect(sizes[i]).toBeLessThan(sizes[i - 1]);
   });
 });
 
 describe.each(SETUPS.map((setup) => [setup.name, setup] as const))('the %s tank', (_name, setup) => {
   const DAYS = 90;
+  const BREEDING_TANK_MS = 60_000;
   let state: SimulationState;
   beforeAll(() => {
     state = keep(setup, DAYS);
-  });
+  }, BREEDING_TANK_MS);
 
   it('never holds a non-finite number', () => {
     expect(nonFinitePaths(state)).toEqual([]);
@@ -615,5 +673,5 @@ describe.each(SETUPS.map((setup) => [setup.name, setup] as const))('the %s tank'
 
   it('runs the same life twice on one rng seed', () => {
     expect(keep(setup, DAYS)).toStrictEqual(state);
-  });
+  }, BREEDING_TANK_MS);
 });

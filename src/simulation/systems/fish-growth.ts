@@ -1,14 +1,17 @@
 /**
- * Fish growth and broods — the bank buys mass, and a full bank buys a brood.
+ * Fish growth and broods — the bank sets the pace, and the fish's own food
+ * and body supply the material.
  *
  * A fish's size is its mass in % of its species' adult mass, and it splits
  * the bank: `size / 100` of it is the brood share, the rest goes to growth.
  * Every hour the bank draws `1 − e^−growthDrawRate` of itself toward growth
  * through the growth share, so a fry spends nearly all of its draw on mass and
  * a fish near adult size almost none, and size approaches 100 without a clamp.
- * What growth leaves banks; a female whose bank is full lays the eggs her
- * brood share buys, and the males of her species pay their share of them from
- * their own brood shares.
+ * That draw asks for mass; the share of what the fish assimilated that hour
+ * growth can use builds it, on a Monod curve against the asking, and the bank
+ * pays only for what was built. A female whose bank is full lays the eggs her
+ * brood share buys out of her own body, and the males of her species pay their
+ * share of them from their own brood shares.
  */
 
 import type { Clutch, Fish } from '../state.js';
@@ -16,8 +19,9 @@ import type { FishLifeStage, FishSpecies } from '../livestock/species.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { bankFull } from './vitality.js';
-import { hourlyDraw } from '../core/kinetics.js';
+import { hourlyDraw, monodFactor } from '../core/kinetics.js';
 import { sum } from '../core/sum.js';
+import { arrivalGut } from './digestion.js';
 
 /** The size past which a fish reads as an adult: where its brood share passes its growth share. */
 export const ADULT_SIZE = 50;
@@ -32,9 +36,20 @@ export function massAtSize(species: FishSpecies, size: number): number {
   return (size / 100) * FISH_SPECIES_DATA[species].adultMass;
 }
 
-/** The size a fry is born or hatches at. */
+/** The size a fry is born or hatches at: its egg's. */
 export function frySize(species: FishSpecies): number {
-  return 100 * FISH_SPECIES_DATA[species].breeding.fryMassFraction;
+  return (100 * FISH_SPECIES_DATA[species].breeding.eggMass) / FISH_SPECIES_DATA[species].adultMass;
+}
+
+/** Grams of organic matter a body of this many grams is made of. */
+export function bodyOrganics(mass: number, config: LivestockConfig): number {
+  return mass * config.bodyOrganicShare;
+}
+
+/** Grams of organic matter one egg holds: its hatchling's body and the yolk it arrives with. */
+export function eggOrganics(species: FishSpecies, config: LivestockConfig): number {
+  const { eggMass } = FISH_SPECIES_DATA[species].breeding;
+  return bodyOrganics(eggMass, config) + arrivalGut(eggMass, config);
 }
 
 export function fishLifeStage(fish: Sized): FishLifeStage {
@@ -50,24 +65,40 @@ export function broodShare(size: number): number {
   return Math.min(1, Math.max(0, size / 100));
 }
 
-/** The hour's growth: the bank's draw through the growth share, bought as mass. */
-export function growFish(fish: Fish, config: LivestockConfig): Fish {
+export interface Growth {
+  fish: Fish;
+  /** Grams of assimilated food built into its body. */
+  retained: number;
+}
+
+/**
+ * The hour's growth. The bank's draw through the growth share asks for mass;
+ * `growthEfficiency` of the `assimilated` grams of food is the supply, and it
+ * builds `monodFactor(supply, asked)` of the asking, so a fish never builds
+ * more than its supply, and the bank pays for the share it built.
+ */
+export function growFish(fish: Fish, assimilated: number, config: LivestockConfig): Growth {
   const drawn =
     Math.max(0, fish.surplus) * hourlyDraw(config.growthDrawRate) * (1 - broodShare(fishSize(fish)));
-  if (drawn <= 0) return fish;
-
   const { growthRate } = FISH_SPECIES_DATA[fish.species];
+  const asked = bodyOrganics(massAtSize(fish.species, drawn * growthRate * config.sizePerSurplus), config);
+  if (asked <= 0) return { fish, retained: 0 };
+
+  const built = monodFactor(assimilated * config.growthEfficiency, asked);
+  const retained = asked * built;
   return {
-    ...fish,
-    mass: fish.mass + massAtSize(fish.species, drawn * growthRate * config.sizePerSurplus),
-    surplus: fish.surplus - drawn,
+    fish: {
+      ...fish,
+      mass: fish.mass + retained / config.bodyOrganicShare,
+      surplus: fish.surplus - drawn * built,
+    },
+    retained,
   };
 }
 
 /** Offspring one bank point buys this parent: `broodCost` buys a brood of its own weight. */
 function offspringPerPoint(fish: Fish, config: LivestockConfig): number {
-  const fryMass = massAtSize(fish.species, frySize(fish.species));
-  return fish.mass / (config.broodCost * fryMass);
+  return fish.mass / (config.broodCost * FISH_SPECIES_DATA[fish.species].breeding.eggMass);
 }
 
 /** The bank a fish's brood share holds. */
@@ -130,7 +161,8 @@ function apportion(females: readonly Fish[], eggs: readonly number[], fathered: 
  * her brood share buys and pays for exactly those; the males father as many
  * as their brood shares pay for between them, shared back to each female in
  * proportion to her eggs, each male paying the same share of what his could.
- * Eggs nobody fathers are lost with what she paid for them.
+ * Eggs nobody fathers are lost with the bank she paid for them; the fathered
+ * ones are made of her body.
  */
 export function brood(females: readonly Fish[], males: readonly Fish[], config: LivestockConfig): Brood {
   const eggs = females.map((female) => Math.floor(eggsLaid(female, config)));
@@ -142,6 +174,7 @@ export function brood(females: readonly Fish[], males: readonly Fish[], config: 
     offspring,
     females: females.map((female, i) => ({
       ...female,
+      mass: female.mass - (offspring[i] * eggOrganics(female.species, config)) / config.bodyOrganicShare,
       surplus: female.surplus - Math.min(broodBank(female), eggs[i] / offspringPerPoint(female, config)),
     })),
     males: males.map((male) => ({ ...male, surplus: male.surplus - paid * broodBank(male) })),

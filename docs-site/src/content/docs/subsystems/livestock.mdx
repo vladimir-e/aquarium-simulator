@@ -22,15 +22,16 @@ fish hunt the young that hatch.
 |---|---|---|
 | Metabolism | <Badge text="settled" variant="success" /> | Digestion, maintenance, oxygen draw and CO₂ on one metabolic factor. |
 | The gut | <Badge text="settled" variant="success" /> | One stock for hunger, digested first order. |
-| Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces come out of what the gut digests; none is lost. |
+| Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces come out of what the gut digests, less what growth builds in; none is lost. |
+| Body composition | <Badge text="settled" variant="success" /> | A body, egg or embryo is organic matter of the food's recipe and water; it enters and leaves the tank's ledger whole. |
 | Nourishment | <Badge text="settled" variant="success" /> | Benefits on a Monod curve of digestion, half at the maintenance ration; hunger below it. |
 | Serving | <Badge text="settled" variant="success" /> | Every fish eats at once; short food splits in proportion to appetite. |
 | Water quality | <Badge text="settled" variant="success" /> | Log-dose harm from each fish's own edge. Chloride, which blunts nitrite, is not modelled. |
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits. |
 | Old age | <Badge text="settled" variant="success" /> | Gompertz wear and healing that falls with age. |
-| Growth | <Badge text="settled" variant="success" /> | Mass is a stock the bank buys. Fry and adult are readouts of size, not states. |
+| Growth | <Badge text="settled" variant="success" /> | The bank sets the pace; digested food supplies the mass. Fry and adult are readouts of size, not states. |
 | Healing | <Badge text="settled" variant="success" /> | The bank heals at a rate falling with adult mass to the −¼ and with age. |
-| Broods | <Badge text="settled" variant="success" /> | A female broods on a full bank; males pay their share. No timers or husbandry re-tests. |
+| Broods | <Badge text="settled" variant="success" /> | A female broods on a full bank, out of her body; males pay their share. No timers or husbandry re-tests. |
 | Death | <Badge text="settled" variant="success" /> | Health reaching zero. A death mostly of wear is logged as old age. |
 | Low health | <Badge text="settled" variant="success" /> | Only death reads it. |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge; damage starts at the edge. |
@@ -69,13 +70,16 @@ tank, so fish feel a shortage before the bacteria do.
 | Eaten | the room left in the gut, `gutCapacity × mass − gut`, or its share of short food | no |
 | Oxygen drawn | `baseRespirationRate × mass × metabolic factor` | yes |
 | CO₂ exhaled | the oxygen drawn × `respiratoryQuotient`, through the molar mass step | yes — it derives from the draw |
-| Gill ammonia | digested × `foodNitrogenFraction` × `gillNFraction`, as NH₃ | through digestion |
+| Gill ammonia | (digested × `gillNFraction` − retained) × `foodNitrogenFraction`, as NH₃ | through digestion |
 | Feces | digested × `(1 − gillNFraction)` | through digestion |
-| Minerals, beside the gill ammonia | digested × `gillNFraction` × `foodMineralContent` | through digestion |
+| Minerals, beside the gill ammonia | (digested × `gillNFraction` − retained) × `foodMineralContent` | through digestion |
 
-Every milligram fed returns to the water — digested, through the gills or
-feces; uneaten, as it decays; in a dead fish, from its gut. A body is outside
-that ledger: the bank buys it, and a death returns only `deathDecayFactor` of it.
+A gram of fish, egg or embryo is `bodyOrganicShare` grams of organic matter
+of the food's recipe — 2.75 % N and 0.36 % P by wet mass — and water. Every
+milligram fed returns to the water or stays in a body: digested, through the
+gills or feces, less what growth retains; uneaten, as it decays; at death, the
+whole body, gut and brood. A stocked fish brings its body and gut in; a removed
+or sold one takes them out.
 The oxygen stressor is a separate reading, so a suffocating fish draws less
 *and* suffers more.
 
@@ -91,7 +95,7 @@ The fish's own stocks; what it reads and writes in the tank is under [Seams](#se
 | clutch `eggs` | A brood | Water harm and predation, first order; hatching | eggs |
 | clutch `development` | The metabolic factor over the species' development time | Hatching, at 1 | share of the way to hatching |
 | `age` | One tick per hour, always | — | ticks |
-| `mass` | Growth, out of the bank | — | g |
+| `mass` | Growth, at the bank's pace out of digested food | A female's brood | g |
 
 ### Feeding and the gut
 
@@ -198,22 +202,29 @@ after vitality, clutches advance, females on full banks brood, then every bank
 draws toward growth:
 
 ```
-drawn  = bank × (1 − e^−growthDrawRate) × (1 − size / 100)
-size  += drawn × growthRate × sizePerSurplus
-bank  −= drawn
+drawn    = bank × (1 − e^−growthDrawRate) × (1 − size / 100)
+asked    = bodyOrganicShare × mass of (drawn × growthRate × sizePerSurplus) % of adult
+supply   = digested × gillNFraction × growthEfficiency
+retained = asked × supply / (supply + asked)
+mass    += retained / bodyOrganicShare
+bank    −= drawn × retained / asked
 ```
 
-Size approaches 100 without a clamp. Fry and adult split at 50 %, where the
+Growth never builds more than its supply, and slows smoothly when digestion is
+short. What it retains leaves the gill stream, so a growing fish excretes less
+ammonia per gram of food; a grown one retains none. Size approaches 100 without
+a clamp. Fry and adult split at 50 %, where the
 brood share passes the growth share.
 
 A brood costs a parent `broodCost` bank points per its own body mass of
 offspring:
 
 ```
-eggs = brood share × bank × mass / (broodCost × fry mass)
+eggs = brood share × bank × mass / (broodCost × egg mass)
 ```
 
-A female lays the whole eggs her share buys and pays for those. Each male of her
+A female lays the whole eggs her share buys and pays for those; the fathered
+ones are made of her body, which loses what they hold. Each male of her
 species fathers what his brood share pays for at his species' `maleShare` of the
 price. Ready females of a species brood together: the males father up to all
 eggs laid, shared back in proportion, each paying the same share of what he
@@ -226,7 +237,8 @@ keeper's hand.
 
 ### Clutches
 
-A clutch is a count of eggs, each weighing what a real egg of its species does.
+A clutch is a count of eggs, each weighing what a real egg of its species does
+and holding its hatchling's body and a day's maintenance ration of yolk.
 Every hour two competing first-order losses thin it and one rate develops it:
 
 | Rate | Per hour |
@@ -235,18 +247,17 @@ Every hour two competing first-order losses thin it and one rate develops it:
 | Predation | `eggPredationRate × exposure × predator mass / water`, every fish by the grams it outweighs an egg; none on a carried brood |
 | Development | `metabolic factor / developmentTime` |
 
-At development 1 the whole eggs left hatch as fry at the species' fry size, each
-with a day's maintenance ration of yolk out of its egg's mass; the rest goes to
-waste. Eggs the water kills go to waste; eaten eggs go into the eaters' guts by
+At development 1 each whole egg left hatches into a fry of the egg's mass with
+its yolk in its gut; the part egg goes to waste. Eggs the water kills go to waste; eaten eggs go into the eaters' guts by
 the grams each outweighs an egg, as room allows, the rest to waste.
 
-| Species | Mode | Hatches in, at 25 °C | Exposure | Egg | Fry mass | Male share | Grown brood |
-|---|---|---|---|---|---|---|---|
-| Guppy | livebearer | 4 weeks, carried | 0 | 5 mg | 5 % | 0.2 | 20 fry |
-| Neon Tetra | egg-scatterer | 27 h | 1 | 0.4 mg | 5 % | 0.2 | 20 eggs |
-| Betta | bubble-nester | 36 h | 0.3 | 0.5 mg | 3 % | 0.6 | 33 eggs |
-| Corydoras | egg-depositor | 4 days | 1 | 4 mg | 4 % | 0.2 | 25 eggs |
-| Angelfish | substrate-spawner | 2½ days | 0.5 | 2 mg | 2 % | 0.5 | 50 eggs |
+| Species | Mode | Hatches in, at 25 °C | Exposure | Egg and fry | Male share | Grown brood |
+|---|---|---|---|---|---|---|
+| Guppy | livebearer | 4 weeks, carried | 0 | 5 mg | 0.2 | 20 fry |
+| Neon Tetra | egg-scatterer | 27 h | 1 | 0.4 mg | 0.2 | 125 eggs |
+| Betta | bubble-nester | 36 h | 0.3 | 0.5 mg | 0.6 | 600 eggs |
+| Corydoras | egg-depositor | 4 days | 1 | 4 mg | 0.2 | 100 eggs |
+| Angelfish | substrate-spawner | 2½ days | 0.5 | 2 mg | 0.5 | 750 eggs |
 
 Exposure is how much of the tank's predation reaches a laid clutch. A
 livebearer carries one brood at a time through gestation — a gestating female
@@ -254,8 +265,8 @@ doesn't brood — and it dies or leaves the tank with her.
 
 ### Death
 
-Health reaching zero removes the fish. Its remains — `deathDecayFactor` of its
-body, its gut and any carried brood — rot to waste, less the share its
+Health reaching zero removes the fish. Its remains — its whole body, its gut
+and any carried brood — rot to waste, less the share its
 surviving predators eat: their share of its dying hour's damage, into their guts
 by weight as room allows.
 
@@ -284,18 +295,19 @@ by weight as room allows.
 | `wearAtLifespan` | Wear at the species lifespan, at species hardiness | `0.6` %/hr |
 | `wearDoublingShare` | Span wear doubles over, as a share of lifespan | `0.125` × lifespan |
 | `healingHalvingShare` | Age healing halves over, as a share of lifespan | `1` × lifespan |
-| `broodCost` | Bank points a brood of its parent's own weight costs — the female in full, the male at his share | `50` pts |
+| `broodCost` | Bank points a brood of its parent's own weight costs — the female in full, the male at his share | `500` pts |
+| `bodyOrganicShare` | Organic matter, of the food's recipe, in a gram of fish, egg or embryo | `0.55` g/g |
+| `growthEfficiency` | Share of what a fish assimilates that growth can build into its body | `0.45` |
 | `eggSensitivity` | How many times harder the water harms a laid egg than a fish | `3` × |
 | `eggPredationRate` | Share of a laid clutch eaten an hour per g/L of predator mass, before exposure | `2` L/g/hr |
 | `predationRate` | Damage an hour, before hardiness, per g/L of predator mass on a fish at no size | `20` %/hr per g/L |
 | `preyVulnerabilityExponent` | How steeply a growing fish outgrows its predators | `4` |
-| `deathDecayFactor` | Share of body mass that becomes waste on death | `0.5` |
 
 ## Seams
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, each past its tolerance edge, for fish and clutches | `ammonia`, `phosphate`, `potassium` and `iron` through the gills; `waste` as feces, death mass and dead eggs |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, each past its tolerance edge, for fish and clutches | `ammonia`, `phosphate`, `potassium` and `iron` through the gills; `waste` as feces, dead bodies and dead eggs |
 | [Water & gases](/subsystems/water-and-gases/) | `oxygen` as the metabolic Monod factor, a stressor and a benefit; pH, from `co2` and `kh`, and `gh`, as tolerance bands | `oxygen` drawn, `co2` exhaled, `kh` returned on the gill ammonia |
 | [Environment](/subsystems/environment/) | `temperature` as a tolerance band and through the Q10; `water` for every ppm and the water-level stressor | — |
 | [Equipment](/subsystems/equipment/) | `flow`, divided by standing water into a turnover; `food` the feeder drops | — |

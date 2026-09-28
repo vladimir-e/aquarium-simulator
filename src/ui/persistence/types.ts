@@ -38,7 +38,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      `LivestockConfig` gains `eggSensitivity`, `eggPredationRate`,
  *      `predationRate` and `preyVulnerabilityExponent`. Old age is wear:
  *      `ageStressSeverity` gives way to `wearAtLifespan`,
- *      `wearDoublingShare` and `healingHalvingShare`.
+ *      `wearDoublingShare` and `healingHalvingShare`. A fish is made of what
+ *      it ate: `deathDecayFactor` gives way to `bodyOrganicShare` and
+ *      `growthEfficiency`.
  * v33: Algae runs on the plants' vitality model, as two kinds. `state.algae`
  *      holds a bloom per kind — `greenWater` and `film` — and `AlgaeState`
  *      gains `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`,

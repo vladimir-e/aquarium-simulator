@@ -12,6 +12,7 @@ import { draw, drawId, type RngState } from '../core/rng.js';
 import type { FishSex, FishSpecies } from './species.js';
 import { FISH_SPECIES_DATA } from './species.js';
 import { frySize, massAtSize } from '../systems/fish-growth.js';
+import { arrivalGut } from '../systems/digestion.js';
 
 /** Per-fish hardiness offset span as a fraction of species baseline. */
 export const HARDINESS_OFFSET_SPAN = 0.15;
@@ -26,7 +27,7 @@ export function isStockableSize(species: FishSpecies, size: number): boolean {
 }
 
 export function unstockableSizeMessage(species: FishSpecies): string {
-  return `A ${FISH_SPECIES_DATA[species].name} is stocked from ${frySize(species)}% to 100% of adult size`;
+  return `A ${FISH_SPECIES_DATA[species].name} is stocked from ${Number(frySize(species).toPrecision(2))}% to 100% of adult size`;
 }
 
 export interface CreateFishParams {
@@ -45,11 +46,6 @@ export interface CreateFishParams {
   /** The tank's draw stream — both the variation and the id come off it. */
   rng: RngState;
   config: LivestockConfig;
-}
-
-/** A day's maintenance ration: what a fish of this mass brings in its gut from the shop. */
-export function arrivalGut(mass: number, config: LivestockConfig): number {
-  return mass * config.maintenanceRation;
 }
 
 /** Build a fish with sampled individual variation. */
