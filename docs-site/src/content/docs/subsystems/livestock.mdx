@@ -47,11 +47,11 @@ fish hunt the young that hatch.
 
 | Species | Adult mass | Growth rate | Lifespan | Hardiness | Temperature | pH | GH | Max turnover |
 |---|---|---|---|---|---|---|---|---|
-| Neon Tetra | 0.5 g | 0.65 | 5 y | 0.5 | 22–28 °C | 5.0–7.8 | 1–12 dGH | 10 ×/h |
+| Neon Tetra | 0.5 g | 0.45 | 5 y | 0.5 | 22–28 °C | 5.0–7.8 | 1–12 dGH | 10 ×/h |
 | Guppy | 1.0 g | 1 | 3 y | 0.8 | 22–28 °C | 6.5–8.5 | 6–25 dGH | 13 ×/h |
-| Betta | 3.0 g | 1.2 | 3 y | 0.6 | 24–30 °C | 6.0–8.0 | 3–15 dGH | 5 ×/h |
-| Corydoras | 4.0 g | 0.6 | 5 y | 0.7 | 22–26 °C | 6.0–8.0 | 2–15 dGH | 15 ×/h |
-| Angelfish | 15.0 g | 0.6 | 10 y | 0.4 | 24–30 °C | 6.0–8.0 | 3–15 dGH | 10 ×/h |
+| Betta | 3.0 g | 1 | 3 y | 0.6 | 24–30 °C | 6.0–8.0 | 3–15 dGH | 5 ×/h |
+| Corydoras | 4.0 g | 0.25 | 5 y | 0.7 | 22–26 °C | 6.0–8.0 | 2–15 dGH | 15 ×/h |
+| Angelfish | 15.0 g | 0.2 | 10 y | 0.4 | 24–30 °C | 6.0–8.0 | 3–15 dGH | 10 ×/h |
 
 pH and GH bands are generous hobby care-sheet ranges. Flow tolerance is a
 turnover — flow divided by standing water — so a fixed-output powerhead is harsher
@@ -67,7 +67,7 @@ A fish's rates run on its metabolic mass, not its mass: Kleiber's law puts a
 body's metabolism on mass to the ¾, so per gram it runs on mass to the −¼.
 Against a grown fish of its own species, `M = adultMass × (mass / adultMass)^(1 + massScalingExponent)`,
 so a grown fish sits at the per-gram constants and a guppy fry at 1 % of adult
-mass holds, needs and breathes 3.2× as much per gram.
+mass holds, needs, breathes and asks to grow 3.2× as much per gram.
 
 | Flow | Per hour | Scaled by the metabolic factor |
 |---|---|---|
@@ -179,9 +179,10 @@ predator mass = Σ over every fish of max(0, its mass − prey mass)
 hunted        = predationRate × predator mass / water × (1 − size / 100)^preyVulnerabilityExponent
 ```
 
-hardened by `1 − hardiness`. A fed fry earning past it grows out of reach; a
-hungry or crowded one dies — so a tank breeds until its own fish hold the fry
-back.
+hardened by `1 − hardiness`. A grown neon pair in 30 gal costs a newborn neon
+0.45 %/h and a guppy pair a newborn guppy 0.35 %/h, about half what a fed fry
+earns. A fed fry earning past it grows out of reach; a hungry or crowded one
+dies — so a tank breeds until its own fish hold the fry back.
 
 #### Ageing
 
@@ -209,18 +210,20 @@ draws toward growth:
 
 ```
 drawn    = bank × (1 − e^−growthDrawRate) × (1 − size / 100)
-asked    = bodyOrganicShare × mass × drawn × growthRate × growthPerSurplus / 100
+asked    = bodyOrganicShare × M × drawn × growthRate × growthPerSurplus / 100
 supply   = digested × assimilatedFraction × growthEfficiency
 retained = asked × supply / (supply + asked)
 mass    += retained / bodyOrganicShare
 bank    −= drawn × retained / asked
 ```
 
-The asking is a share of the fish's own mass, so growth is a specific rate
-that tapers logistically: on a full bank a hatchling grows at the species' full
-rate — a guppy doubling in about ten days, grown in two and a half months from
-birth weight — and a fish near adult size barely at all. Supply scales with
-mass too, so a fry on a thin ration stunts at any size: growth never builds more
+The asking is a share of the fish's metabolic mass `M` — anabolism runs on
+mass to the ¾ like the rest of its metabolism — so growth is a specific rate on
+mass to the −¼ that tapers logistically: on a full bank a hatchling grows
+fastest, and a fish near adult size barely at all. Fed all it can eat, a
+newborn reaches adult size in about two and a half months as a guppy, three as
+a betta, four as a neon, five as a corydoras and seven as an angelfish. Supply scales with `M` too,
+so a fry on a thin ration stunts at any size: growth never builds more
 than its supply, and slows smoothly when digestion is short, the bank paying
 only for what was built. What it retains leaves the gill stream, so a growing
 fish excretes less ammonia per gram of food; a grown one retains none. Size
@@ -271,7 +274,9 @@ the grams each outweighs an egg, as room allows, the rest to waste.
 | Corydoras | egg-depositor | 4 days | 1 | 4 mg | 0.2 | 100 eggs |
 | Angelfish | substrate-spawner | 2½ days | 0.5 | 2 mg | 0.5 | 750 eggs |
 
-Exposure is how much of the tank's predation reaches a laid clutch. A
+Exposure is how much of the tank's predation reaches a laid clutch: a grown
+neon pair in 30 gal finds an eighth of an open clutch an hour, so one egg in
+twenty-five hatches, and every fry already swimming finds more. A
 livebearer carries one brood at a time through gestation — a gestating female
 doesn't brood — and it dies or leaves the tank with her.
 
@@ -304,7 +309,7 @@ by weight as room allows.
 | `surplusCap` | Ceiling on the bank; a female broods on a full one | `50` condition points |
 | `healingDrawRate` | First-order rate a young 1 g fish's bank heals it | `0.05` /hr |
 | `growthDrawRate` | First-order rate the bank draws toward growth, before the growth share | `0.02` /hr |
-| `growthPerSurplus` | New mass, in % of the fish's own, a bank point buys at growth rate 1 | `0.3` %/pt |
+| `growthPerSurplus` | New mass, in % of the fish's metabolic mass, a bank point buys at growth rate 1 | `0.6` %/pt |
 | `wearAtLifespan` | Wear at the species lifespan, at species hardiness | `0.6` %/hr |
 | `wearDoublingShare` | Span wear doubles over, as a share of lifespan | `0.125` × lifespan |
 | `healingHalvingShare` | Age healing halves over, as a share of lifespan | `1` × lifespan |
@@ -312,8 +317,8 @@ by weight as room allows.
 | `bodyOrganicShare` | Organic matter, of the food's recipe, in a gram of fish, egg or embryo | `0.55` g/g |
 | `growthEfficiency` | Share of what a fish assimilates that growth can build into its body | `0.45` |
 | `eggSensitivity` | How many times harder the water harms a laid egg than a fish | `3` × |
-| `eggPredationRate` | Share of a laid clutch eaten an hour per g/L of predator mass, before exposure | `2` L/g/hr |
-| `predationRate` | Damage an hour, before hardiness, per g/L of predator mass on a fish at no size | `20` %/hr per g/L |
+| `eggPredationRate` | Share of a laid clutch eaten an hour per g/L of predator mass, before exposure | `15` L/g/hr |
+| `predationRate` | Damage an hour, before hardiness, per g/L of predator mass on a fish at no size | `100` %/hr per g/L |
 | `preyVulnerabilityExponent` | How steeply a growing fish outgrows its predators | `4` |
 
 ## Seams

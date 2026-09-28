@@ -6,9 +6,10 @@
  * the bank: `size / 100` of it is the brood share, the rest goes to growth.
  * Every hour the bank draws `1 − e^−growthDrawRate` of itself toward growth
  * through the growth share, and each point drawn asks for new mass in
- * proportion to the fish's own, so growth is a specific rate that tapers
- * logistically: a hatchling doubles fast, a fish near adult size gains almost
- * nothing, and size approaches 100 without a clamp. The share of what the
+ * proportion to the fish's metabolic mass — anabolism runs on mass to the ¾
+ * like the rest of its metabolism — so growth is a specific rate on mass to
+ * the −¼ that tapers logistically: a hatchling doubles fast, a fish near
+ * adult size gains almost nothing, and size approaches 100 without a clamp. The share of what the
  * fish assimilated that hour growth can use builds the asking, on a Monod
  * curve against it, and the bank pays only for what was built. A female whose
  * bank is full lays the eggs her brood share buys out of her own body, and the
@@ -22,7 +23,7 @@ import type { LivestockConfig } from '../config/livestock.js';
 import { bankFull } from './vitality.js';
 import { hourlyDraw, monodFactor } from '../core/kinetics.js';
 import { sum } from '../core/sum.js';
-import { arrivalGut } from './digestion.js';
+import { arrivalGut, metabolicMass } from './digestion.js';
 
 /** The size past which a fish reads as an adult: where its brood share passes its growth share. */
 export const ADULT_SIZE = 50;
@@ -74,7 +75,7 @@ export interface Growth {
 
 /**
  * The hour's growth. The bank's draw through the growth share asks for
- * `growthRate × growthPerSurplus` % of the fish's own mass a point;
+ * `growthRate × growthPerSurplus` % of the fish's metabolic mass a point;
  * `growthEfficiency` of the `assimilated` grams of food is the supply, and it
  * builds `monodFactor(supply, asked)` of the asking, so a fish never builds
  * more than its supply, and the bank pays for the share it built.
@@ -83,7 +84,7 @@ export function growFish(fish: Fish, assimilated: number, config: LivestockConfi
   const drawn =
     Math.max(0, fish.surplus) * hourlyDraw(config.growthDrawRate) * (1 - broodShare(fishSize(fish)));
   const { growthRate } = FISH_SPECIES_DATA[fish.species];
-  const asked = bodyOrganics((fish.mass * drawn * growthRate * config.growthPerSurplus) / 100, config);
+  const asked = bodyOrganics((metabolicMass(fish, config) * drawn * growthRate * config.growthPerSurplus) / 100, config);
   if (asked <= 0) return { fish, retained: 0 };
 
   const built = monodFactor(assimilated * config.growthEfficiency, asked);

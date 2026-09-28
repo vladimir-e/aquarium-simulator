@@ -18,6 +18,7 @@ import {
   paysTowardBrood,
   readyToBrood,
 } from './fish-growth.js';
+import { metabolicMass } from './digestion.js';
 
 const SPECIES = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
 
@@ -77,7 +78,7 @@ describe('growFish', () => {
     for (const species of SPECIES) {
       let f = fish({ species, size: frySize(species) });
       let lastRate = Infinity;
-      for (let hour = 0; hour < 24 * 365; hour++) {
+      while (fishSize(f) < 99) {
         const before = f.mass;
         f = growFish({ ...f, surplus: config.surplusCap }, PLENTY, config).fish;
         const rate = f.mass / before - 1;
@@ -86,24 +87,24 @@ describe('growFish', () => {
         lastRate = rate;
       }
       expect(fishSize(f)).toBeLessThan(100);
-      expect(fishSize(f)).toBeGreaterThan(90);
     }
   });
 
-  it('asks for mass in proportion to its own at small size, tapering to nothing at adult size', () => {
-    const tiny = specificGain(fish({ size: 0.01 }));
-    expect(specificGain(fish({ size: 0.02 }))).toBeCloseTo(tiny, 6);
-    expect(specificGain(fish({ size: 1 })) / tiny).toBeCloseTo(0.99, 3);
-    expect(specificGain(fish({ size: 50 })) / tiny).toBeCloseTo(0.5, 3);
-    expect(specificGain(fish({ size: 95 })) / tiny).toBeCloseTo(0.05, 3);
+  it('asks, per gram, on mass to the −¼ at small size, tapering to nothing at adult size', () => {
+    const unlimited = (size: number): number => specificGain(fish({ size }), 1e9);
+    const tiny = unlimited(0.01);
+    const kleiber = (size: number): number => (size / 0.01) ** config.massScalingExponent;
+    for (const size of [0.02, 0.16, 1, 50, 95]) {
+      expect(unlimited(size) / (tiny * kleiber(size))).toBeCloseTo((1 - size / 100) / 0.9999, 3);
+    }
   });
 
-  it('grows a thin-fed fry at the same specific rate at any small size, its food and its asking both scaling with its mass', () => {
+  it('grows a thin-fed fry on the same mass scaling, its food and its asking both running on its metabolic mass', () => {
     const thin = (size: number): number => {
       const f = fish({ size });
-      return specificGain(f, f.mass * 1e-4);
+      return specificGain(f, metabolicMass(f, config) * 1e-4);
     };
-    expect(thin(0.02) / thin(0.01)).toBeCloseTo(1, 4);
+    expect(thin(0.02) / thin(0.01)).toBeCloseTo(2 ** config.massScalingExponent, 4);
     expect(thin(0.02)).toBeLessThan(specificGain(fish({ size: 0.02 })) / 2);
   });
 
@@ -115,7 +116,8 @@ describe('growFish', () => {
       const { growthRate } = FISH_SPECIES_DATA.guppy;
 
       expect(drawn).toBeGreaterThan(0);
-      expect(grown.mass / f.mass - 1).toBeCloseTo((drawn * growthRate * config.growthPerSurplus) / 100, 12);
+      const perGram = metabolicMass(f, config) / f.mass;
+      expect(grown.mass / f.mass - 1).toBeCloseTo((drawn * growthRate * config.growthPerSurplus * perGram) / 100, 12);
     }
   });
 

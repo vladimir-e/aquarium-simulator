@@ -46,7 +46,7 @@ export interface Fish {
   health: number;
   /** Age in ticks (hours) */
   age: number;
-  /** Grams of food in its gut, up to `gutCapacity × mass`. */
+  /** Grams of food in its gut, up to `gutCapacity` × its metabolic mass. */
   gut: number;
   /** Sex, used for reproduction */
   sex: FishSex;

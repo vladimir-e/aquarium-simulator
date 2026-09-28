@@ -136,7 +136,7 @@ export interface LivestockConfig {
    * brood share `size / 100` holds part of it back.
    */
   growthDrawRate: number;
-  /** New mass, in % of the fish's own, a bank point buys at species growth rate 1. */
+  /** New mass, in % of the fish's metabolic mass, a bank point buys at species growth rate 1. */
   growthPerSurplus: number;
   /**
    * Bank points a brood weighing as much as its parent costs that parent —
@@ -255,11 +255,11 @@ export const livestockDefaults: LivestockConfig = {
   // its whole benefit budget, and runs out with a 20 h time constant under a
   // steady insult. A neon heals at 0.06 /h, an angelfish at 0.025.
   healingDrawRate: 0.05,
-  // On a full bank, a guppy fry's asking doubles its mass in about ten days
-  // and brings a newborn to adult size in two and a half months; food that
-  // falls short of the asking stunts it.
+  // On a full bank and all it can eat, a newborn guppy reaches adult size in
+  // two and a half months and a neon in four; food that falls short of the
+  // asking stunts it.
   growthDrawRate: 0.02,
-  growthPerSurplus: 0.3,
+  growthPerSurplus: 0.6,
   // A full bank buys a grown female a brood a tenth her weight, out of her
   // body: twenty guppy fry, 125 neon eggs, several hundred
   // angelfish eggs.
@@ -283,11 +283,15 @@ export const livestockDefaults: LivestockConfig = {
   // Water at a fish's 96-hour LC50 costs a clutch about 5 %/h — most of a
   // neon clutch before it hatches — while the adults ride it out on their banks.
   eggSensitivity: 3,
-  // A grown neon pair in 40 L finds about 5 % of an open clutch an hour, so a
-  // fifth of it hatches; ten neons leave next to none.
-  eggPredationRate: 2,
-
-  predationRate: 20,
+  // A grown neon pair in 30 gal finds an eighth of an open clutch an hour, so
+  // one egg in twenty-five hatches — five of a 125-egg spawn — and every fry
+  // already swimming finds more.
+  eggPredationRate: 15,
+  // The same pair costs a newborn neon 0.45 %/h and a grown guppy pair a
+  // newborn guppy 0.35 %/h, about half what a fed fry earns: a fed fry
+  // outlasts it, a hungry one does not, and every fry that grows joins the
+  // hunt.
+  predationRate: 100,
   preyVulnerabilityExponent: 4,
 };
 
@@ -403,8 +407,8 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'healingHalvingShare', label: 'Healing Halving Age', unit: '× lifespan', min: 0.25, max: 10, step: 0.25 },
   // Clutches
   { key: 'eggSensitivity', label: 'Egg Sensitivity', unit: '× fish', min: 0, max: 10, step: 0.5 },
-  { key: 'eggPredationRate', label: 'Egg Predation Rate', unit: 'L/g/hr', min: 0, max: 20, step: 0.5 },
+  { key: 'eggPredationRate', label: 'Egg Predation Rate', unit: 'L/g/hr', min: 0, max: 50, step: 0.5 },
   // Predation
-  { key: 'predationRate', label: 'Predation Rate', unit: '%/hr per g/L', min: 0, max: 200, step: 1 },
+  { key: 'predationRate', label: 'Predation Rate', unit: '%/hr per g/L', min: 0, max: 500, step: 5 },
   { key: 'preyVulnerabilityExponent', label: 'Prey Vulnerability Exponent', unit: '', min: 1, max: 10, step: 0.5 },
 ];

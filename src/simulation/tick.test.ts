@@ -210,11 +210,16 @@ describe('tick determinism', () => {
     plants: [{ species: 'java_fern', count: 2, size: 90 }],
   };
 
+  const UNEATEN_EGGS: TunableConfig = {
+    ...DEFAULT_CONFIG,
+    livestock: { ...DEFAULT_CONFIG.livestock, eggPredationRate: 0 },
+  };
+
   function fortnight(rngSeed: number): SimulationState {
     let state = createSimulation(TANK, ROSTER, rngSeed);
     for (let hour = 1; hour <= 14 * 24; hour++) {
       if (hour % 24 === 9) state = applyAction(state, { type: 'feed', amount: 0.15 }).state;
-      state = tick(state);
+      state = tick(state, UNEATEN_EGGS);
     }
     return state;
   }

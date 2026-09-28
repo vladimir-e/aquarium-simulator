@@ -15,7 +15,7 @@ npm run scenarios -- --json=/tmp/before.json       # machine-readable results
 npm run scenarios -- --feed=1g --diff=/tmp/before.json  # only readings that moved against a saved run
 ```
 
-Setups: `nano`, `low-tech`, `high-tech`, `community`, `sword-gravel`, `low-flow`, `cold`.
+Setups: `nano`, `low-tech`, `high-tech`, `community`, `sword-gravel`, `low-flow`, `cold`, `guppy-pair`, `neon-pair`.
 
 Tweaks apply to every setup in the run:
 
@@ -42,7 +42,7 @@ Tweaks apply to every setup in the run:
 
 Periods are `<n>d` or `<n>w`; without one, feeding and top-off are daily, root tabs monthly and every other chore weekly.
 
-`--diff` prints, per setup, only the readings whose grade changed or whose value moved past display rounding and 5 %, or `no change`. Baselines match on setup name, so a tweaked run diffs against a plain one. A chore the engine refuses (a root tab over a bare bottom, say) warns once on stderr.
+`--diff` prints, per setup, only the readings whose grade changed or whose value moved past display rounding and 5 %, or `no change`; sample days only one side has are named, so run as many `--days` as the baseline to compare its last column. Baselines match on setup name, so a tweaked run diffs against a plain one. A chore the engine refuses (a root tab over a bare bottom, say) warns once on stderr.
 
 ## Interactive session
 

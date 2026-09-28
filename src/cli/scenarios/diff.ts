@@ -43,9 +43,12 @@ export function renderDiff(before: Snapshot, after: Snapshot): string {
       });
       return changes.length === 0 ? [] : [`  ${reading.label.padEnd(14)} ${changes.join('   ')}`];
     });
-    const compared = sampleDays(old);
-    const unseen = [...sampleDays(readings)].filter((day) => !compared.has(day));
+    const baselineDays = sampleDays(old);
+    const runDays = sampleDays(readings);
+    const unseen = [...runDays].filter((day) => !baselineDays.has(day));
+    const unrun = [...baselineDays].filter((day) => !runDays.has(day));
     if (unseen.length > 0) lines.push(`  ${unseen.join(' ')}: not in the baseline`);
+    if (unrun.length > 0) lines.push(`  ${unrun.join(' ')}: not in this run`);
     return lines.length === 0 ? [] : [[label, ...lines].join('\n')];
   });
   return groups.length === 0 ? 'no change' : groups.join('\n\n');

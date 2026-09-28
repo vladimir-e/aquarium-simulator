@@ -222,7 +222,7 @@ describe('processBodies', () => {
   });
 
   it('feeds the eggs eaten in a clutch’s hatching hour to the fish that ate them, none to the hatchlings', () => {
-    const adults = [mkFish({ id: 'a', species: 'angelfish', sex: 'male' }), mkFish({ id: 'b', species: 'angelfish', sex: 'male' })];
+    const adults = [mkFish({ id: 'a', species: 'neon_tetra', sex: 'male' }), mkFish({ id: 'b', species: 'neon_tetra', sex: 'male' })];
     const clutch: Clutch = { id: 'c', species: 'neon_tetra', eggs: 40, development: 0.9999 };
     const out = breed(withTank(adults, [clutch]), DEFAULT_CONFIG);
 

@@ -198,7 +198,7 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `surplusCap` | Ceiling on the fish's bank; a female broods on a full one | pts |
 | `healingDrawRate` | First-order rate a young 1 g fish's bank heals it at, scaled by its mass to `massScalingExponent` and halving with age | /hr at 1 g |
 | `growthDrawRate` | First-order rate the bank draws toward growth at, before the growth share `1 − size / 100` | /hr |
-| `growthPerSurplus` | New mass, in % of the fish's own, a bank point buys at species growth rate 1 | %/pt |
+| `growthPerSurplus` | New mass, in % of the fish's metabolic mass, a bank point buys at species growth rate 1 | %/pt |
 | `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his species' share | pts per body mass |
 | `bodyOrganicShare` | Organic matter, of the food's recipe, in a gram of fish, egg or embryo; the rest is water | g/g |
 | `growthEfficiency` | Share of what a fish assimilates that growth can build into its body; the rest it burns | — |

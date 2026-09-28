@@ -57,7 +57,7 @@ export interface FishSpeciesData {
   ghRange: [number, number];
   /** Maximum tolerable circulation in tank volumes per hour */
   maxTurnover: number;
-  /** Relative growth rate: the share of its own mass a bank point buys, against a guppy at 1. */
+  /** Relative growth rate: the share of its metabolic mass a bank point buys, against a guppy at 1. */
   growthRate: number;
   /** Reproduction parameters */
   breeding: FishBreedingData;
@@ -76,7 +76,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     phRange: [5.0, 7.8],
     ghRange: [1, 12],
     maxTurnover: 10, // Slow tributaries, but fine on a community canister
-    growthRate: 0.65,
+    growthRate: 0.45,
     // Egg-scatterer: sheds adhesive eggs over plants and leaves them to be
     // eaten. Hatches in a day or so; grown in four to six months.
     breeding: {
@@ -96,7 +96,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     phRange: [6.0, 8.0],
     ghRange: [3, 15],
     maxTurnover: 5, // Still blackwater, long fins - a sponge filter and no more
-    growthRate: 1.2,
+    growthRate: 1.0,
     // Bubble-nester: the male builds the nest and guards the eggs, so he
     // pays most of the brood and few are eaten. Hatches in a day and a half;
     // grown in three to four months.
@@ -138,7 +138,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     phRange: [6.0, 8.0],
     ghRange: [3, 15],
     maxTurnover: 10, // Tall body catches current, but its canonical home is a big canister tank
-    growthRate: 0.6,
+    growthRate: 0.2,
     // Substrate-spawner: a pair cleans a leaf and fans and guards the eggs
     // together. Hatches in two and a half days; big fish, tiny fry, grown in
     // six to eight months.
@@ -159,7 +159,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     phRange: [6.0, 8.0],
     ghRange: [2, 15],
     maxTurnover: 15, // Bottom dweller, appreciates current
-    growthRate: 0.6,
+    growthRate: 0.25,
     // Egg-depositor: presses eggs onto glass and leaves them. Slow hatch,
     // three to five days; grown in five to six months.
     breeding: {
