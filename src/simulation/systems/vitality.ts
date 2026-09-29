@@ -12,6 +12,16 @@
  * Pure / framework-free — no Immer, no state mutation.
  */
 
+import { hourlyDraw } from '../core/kinetics.js';
+
+/**
+ * Whether a bank is full, the moment it buys a plant an offshoot or a female a
+ * brood. Never at a cap of 0, where every bank would read full.
+ */
+export function bankFull(surplus: number, cap: number): boolean {
+  return cap > 0 && surplus >= cap;
+}
+
 /**
  * A single contribution to either damage or benefit, kept for UI display.
  *
@@ -80,11 +90,6 @@ export interface VitalityResult {
 export function hardened(factors: VitalityFactor[], hardiness: number): VitalityFactor[] {
   const factor = 1 - Math.max(0, Math.min(1, hardiness));
   return factors.map((f) => ({ ...f, amount: f.amount * factor }));
-}
-
-/** Share of the bank a first-order draw at `rate` per hour takes over the hour: `1 − e^−rate`. */
-export function hourlyDraw(rate: number): number {
-  return -Math.expm1(-rate);
 }
 
 /**

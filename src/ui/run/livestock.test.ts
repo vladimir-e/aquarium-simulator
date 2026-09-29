@@ -1,19 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import type { Clutch, Fish, SimulationState } from '../../simulation/index.js';
 import {
-  applyAction,
   createSimulation,
   FISH_SPECIES_DATA,
   tick,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
+import type { VitalityBreakdown } from '../../simulation/index.js';
 import {
-  bandStatus,
   groupBySpecies,
+  gutBand,
+  gutStatus,
   groupFry,
-  hungerOf,
-  isHungryBand,
   readFish,
   rosterSummary,
   type FryBatch,
@@ -21,20 +20,11 @@ import {
 } from './livestock';
 import { readHourAhead } from './ahead';
 import { projectedTrend } from './status';
+import { FED, HUNGRY, STARVING, gutAt } from '../test/gut';
+import { fishRecord } from '../../simulation/tests/fish.js';
 
-function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
-  return {
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 0,
-    satiation: 90,
-    sex: 'male',
-    stage: 'adult',
-    hardinessOffset: 0,
-    surplus: 0,
-    ...overrides,
-  };
+function makeFish(overrides: Partial<Fish> = {}): Fish {
+  return fishRecord({ gut: FED, ...overrides });
 }
 
 function tank(fish: Fish[], clutches: Clutch[] = [], hour = 0): SimulationState {
@@ -42,85 +32,88 @@ function tank(fish: Fish[], clutches: Clutch[] = [], hour = 0): SimulationState 
 }
 
 function species(state: SimulationState, config: TunableConfig = DEFAULT_CONFIG): SpeciesGroup[] {
-  return groupBySpecies(readFish(state, config, readHourAhead(state, config)), config.livestock);
+  return groupBySpecies(readFish(state, config, readHourAhead(state, config)));
 }
 
 function fry(state: SimulationState): FryBatch | null {
-  return groupFry(readFish(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG)), livestockDefaults);
+  return groupFry(readFish(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG)));
 }
 
-describe('bandStatus / isHungryBand', () => {
-  it('maps bands onto the status vocabulary', () => {
-    expect(bandStatus('wellFed')).toBe('ok');
-    expect(bandStatus('peckish')).toBe('neutral');
-    expect(bandStatus('hungry')).toBe('warn');
-    expect(bandStatus('overfed')).toBe('warn');
-    expect(bandStatus('starving')).toBe('alert');
-  });
-
-  it('counts only hungry and starving as hungry', () => {
-    expect(isHungryBand('hungry')).toBe(true);
-    expect(isHungryBand('starving')).toBe(true);
-    expect(isHungryBand('peckish')).toBe(false);
-    expect(isHungryBand('wellFed')).toBe(false);
+describe('gutStatus', () => {
+  it('maps bands onto the status vocabulary, starving at alert only once it makes the fish sick', () => {
+    expect(gutStatus('fed', false)).toBe('ok');
+    expect(gutStatus('hungry', true)).toBe('warn');
+    expect(gutStatus('starving', false)).toBe('warn');
+    expect(gutStatus('starving', true)).toBe('alert');
   });
 });
 
-describe('hungerOf', () => {
-  it('tallies fish in the hungry and starving bands, fry included', () => {
-    const fish = [
-      makeFish({ id: 'a', satiation: 90 }),
-      makeFish({ id: 'b', satiation: 60 }),
-      makeFish({ id: 'c', satiation: 40 }),
-      makeFish({ id: 'd', satiation: 10, stage: 'fry', age: 24 }),
-    ];
-    expect(hungerOf(fish, livestockDefaults)).toEqual({ count: 2, band: 'starving' });
+describe('gutBand', () => {
+  const breakdown = (hunger: number | null, benefitRate: number): VitalityBreakdown => ({
+    stressors: hunger === null ? [] : [{ key: 'hunger', label: 'Hunger', amount: hunger }],
+    benefits: [],
+    damageRate: hunger ?? 0,
+    benefitRate,
+    net: benefitRate - (hunger ?? 0),
+    healed: 0,
+    banked: 0,
   });
 
-  it('reads the worst band present, not the first one found', () => {
-    const fish = [makeFish({ id: 'a', satiation: 40 }), makeFish({ id: 'b', satiation: 40 })];
-    expect(hungerOf(fish, livestockDefaults)).toEqual({ count: 2, band: 'hungry' });
+  it('reads fed while hunger charges nothing', () => {
+    expect(gutBand(breakdown(0, 0.5))).toBe('fed');
+    expect(gutBand(breakdown(null, 0))).toBe('fed');
   });
 
-  it('is null when nothing is hungry', () => {
-    expect(hungerOf([makeFish({ id: 'a', satiation: 90 })], livestockDefaults)).toBeNull();
+  it('reads hungry once hunger charges, and starving once it alone outruns what the fish earns', () => {
+    expect(gutBand(breakdown(0.1, 0.5))).toBe('hungry');
+    expect(gutBand(breakdown(0.5, 0.5))).toBe('starving');
+    expect(gutBand(breakdown(0.1, 0))).toBe('starving');
+  });
+
+  it('reads the engine: an empty gut starves, a full one is fed, and a fish with no mass needs nothing', () => {
+    const state = tank([
+      makeFish({ id: 'a', gut: FED }),
+      makeFish({ id: 'b', gut: STARVING }),
+      makeFish({ id: 'c', gut: 0, mass: 0 }),
+    ]);
+    const bands = readFish(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG)).map((read) => read.gut.word);
+    expect(bands).toEqual(['fed', 'starving', 'fed']);
   });
 });
 
 describe('groupBySpecies', () => {
   it('folds adults into per-species rows and excludes fry', () => {
     const fish = [
-      makeFish({ id: 'n1', species: 'neon_tetra', satiation: 80 }),
-      makeFish({ id: 'n2', species: 'neon_tetra', satiation: 40 }),
-      makeFish({ id: 'g1', species: 'guppy', satiation: 90 }),
-      makeFish({ id: 'f1', species: 'neon_tetra', stage: 'fry', age: 24 }),
+      makeFish({ id: 'n1', species: 'neon_tetra', gut: gutAt(0.8) }),
+      makeFish({ id: 'n2', species: 'neon_tetra', gut: HUNGRY }),
+      makeFish({ id: 'g1', species: 'guppy', gut: FED }),
+      makeFish({ id: 'f1', species: 'neon_tetra', mass: 0.01, age: 24 }),
     ];
     const groups = species(tank(fish));
     expect(groups.map((g) => g.species)).toEqual(['neon_tetra', 'guppy']);
     const neon = groups[0];
     expect(neon.count).toBe(2);
-    expect(neon.satiation).toBe(60);
-    expect(neon.hunger).toEqual({ count: 1, band: 'hungry' });
+    expect(neon.gut.at).toBeCloseTo((0.8 + HUNGRY / gutAt(1)) / 2, 12);
+    expect(neon.gut).toMatchObject({ word: '1 hungry', status: 'warn' });
     expect(neon.name).toBe(FISH_SPECIES_DATA.neon_tetra.name);
   });
 
   it('keeps a starving fish visible behind a calm average', () => {
     const fish = [
-      makeFish({ id: 'a', satiation: 100 }),
-      makeFish({ id: 'b', satiation: 0 }),
+      makeFish({ id: 'a', gut: FED }),
+      makeFish({ id: 'b', gut: STARVING }),
     ];
     const [neon] = species(tank(fish));
 
-    expect(neon.satiation).toBe(50);
-    expect(bandStatus(neon.band)).toBe('neutral');
-    expect(neon.hunger).toEqual({ count: 1, band: 'starving' });
+    expect(neon.gut.at).toBeCloseTo(0.5, 12);
+    expect(neon.gut).toMatchObject({ word: '1 starving', status: 'alert' });
   });
 
   it('sums the group’s mass but averages its age and condition', () => {
     const fish = [
-      makeFish({ id: 'a', mass: 0.4, age: 24 * 10, health: 90, satiation: 80 }),
-      makeFish({ id: 'b', mass: 0.9, age: 24 * 20, health: 60, satiation: 80 }),
-      makeFish({ id: 'c', mass: 1.1, age: 24 * 33, health: 30, satiation: 80 }),
+      makeFish({ id: 'a', mass: 0.4, age: 24 * 10, health: 90, gut: FED }),
+      makeFish({ id: 'b', mass: 0.9, age: 24 * 20, health: 60, gut: FED }),
+      makeFish({ id: 'c', mass: 1.1, age: 24 * 33, health: 30, gut: FED }),
     ];
     const [neon] = species(tank(fish));
 
@@ -128,25 +121,14 @@ describe('groupBySpecies', () => {
     expect(neon.ageDays).toBe(21);
     expect(neon.condition).toBeCloseTo(60, 10);
   });
-
-  it('reads a bought fish at the age it arrives, which is not day zero', () => {
-    const bought = applyAction(createSimulation({ tankCapacity: 200 }), {
-      type: 'addFish',
-      species: 'neon_tetra',
-    }).state;
-    const [neon] = species(bought);
-
-    expect(neon.ageDays).toBeGreaterThan(0);
-    expect(neon.ageDays).toBe(FISH_SPECIES_DATA.neon_tetra.breeding.maturityAge / 24);
-  });
 });
 
 describe('groupFry', () => {
   it('folds every fry in the tank into one batch, whatever they are', () => {
     const fish = [
-      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', age: 24, mass: 0.03 }),
-      makeFish({ id: 'f2', species: 'betta', stage: 'fry', age: 72, mass: 0.09 }),
-      makeFish({ id: 'a1', species: 'guppy', stage: 'adult', mass: 1 }),
+      makeFish({ id: 'f1', species: 'guppy', age: 24, mass: 0.03 }),
+      makeFish({ id: 'f2', species: 'betta', age: 72, mass: 0.09 }),
+      makeFish({ id: 'a1', species: 'guppy', mass: 1 }),
     ];
     const batch = fry(tank(fish))!;
 
@@ -156,16 +138,16 @@ describe('groupFry', () => {
     expect(batch.ageDays).toBe(2);
   });
 
-  it('gives the batch the same satiation and condition figures a species row gets', () => {
+  it('gives the batch the same gut and condition figures a species row gets', () => {
     const fish = [
-      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', satiation: 80, health: 90 }),
-      makeFish({ id: 'f2', species: 'guppy', stage: 'fry', satiation: 10, health: 50 }),
+      makeFish({ id: 'f1', species: 'guppy', mass: 0.1, gut: gutAt(1, { species: 'guppy', mass: 0.1 }), health: 90 }),
+      makeFish({ id: 'f2', species: 'guppy', mass: 0.1, gut: STARVING, health: 50 }),
     ];
     const batch = fry(tank(fish))!;
 
-    expect(batch.satiation).toBe(45);
+    expect(batch.gut.at).toBeCloseTo(0.5, 12);
     expect(batch.condition).toBe(70);
-    expect(batch.hunger).toEqual({ count: 1, band: 'starving' });
+    expect(batch.gut).toMatchObject({ word: '1 starving', status: 'alert' });
   });
 
   it('has nothing to sell where nothing is growing out', () => {
@@ -180,10 +162,18 @@ describe('the reading behind a fish', () => {
   }
 
   it('reads a fish across every channel it keeps, not just its condition', () => {
-    const state = tank([makeFish({ id: 'a', health: 100, satiation: 5 })]);
+    const state = tank([makeFish({ id: 'a', health: 100, gut: STARVING })]);
     const [group] = species(state);
 
     expect(group.members[0].reading).toEqual({ status: 'alert', word: 'starving' });
+  });
+
+  it('reads a starving fish its bank still holds up at the tone the need asks in', () => {
+    const state = tank([makeFish({ id: 'a', health: 100, gut: STARVING, surplus: livestockDefaults.surplusCap })]);
+    const [member] = species(state)[0].members;
+
+    expect(member.sick).toBe(false);
+    expect(member.reading).toEqual({ status: 'warn', word: 'starving' });
   });
 
   it('leaves a thriving fish alone, bank or no bank', () => {
@@ -196,8 +186,8 @@ describe('the reading behind a fish', () => {
   it('gives every member its own reading, so the group cannot hide one', () => {
     const state = poisoned(
       [
-        makeFish({ id: 'fish_a_1', health: 100, satiation: 90 }),
-        makeFish({ id: 'fish_a_2', health: 100, satiation: 2 }),
+        makeFish({ id: 'fish_a_1', health: 100, gut: FED }),
+        makeFish({ id: 'fish_a_2', health: 100, gut: STARVING }),
       ],
       20
     );
@@ -209,7 +199,7 @@ describe('the reading behind a fish', () => {
 
   it('calls a fish sick exactly while the next tick takes condition off it, as the trend shows', () => {
     for (const surplus of [0, livestockDefaults.surplusCap]) {
-      const state = poisoned([makeFish({ id: 'a', health: 100, satiation: 90, surplus })], 10);
+      const state = poisoned([makeFish({ id: 'a', health: 100, gut: FED, surplus })], 10);
       const [read] = readFish(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG));
       const next = tick(state, DEFAULT_CONFIG).fish[0];
 
@@ -223,7 +213,7 @@ describe('the reading behind a fish', () => {
       ...DEFAULT_CONFIG,
       livestock: { ...livestockDefaults, healingDrawRate: 1e6 },
     };
-    const banked = poisoned([makeFish({ id: 'a', health: 100, satiation: 90, surplus: 50 })], 10);
+    const banked = poisoned([makeFish({ id: 'a', health: 100, gut: FED, surplus: 50 })], 10);
 
     expect(species(banked, config)[0].members[0].reading.word).toBe('thriving');
   });
@@ -242,7 +232,7 @@ describe('rosterSummary', () => {
   });
 
   it('holds the adult count at zero for a tank that is all fry', () => {
-    const fish = [makeFish({ id: 'a', species: 'guppy', stage: 'fry', age: 24 })];
+    const fish = [makeFish({ id: 'a', species: 'guppy', mass: 0.01, age: 24 })];
     expect(rosterSummary(tank(fish))).toBe('0 fish · 1 species · 1 fry');
   });
 
@@ -250,17 +240,17 @@ describe('rosterSummary', () => {
     const fish = [
       makeFish({ id: 'a', species: 'neon_tetra' }),
       makeFish({ id: 'b', species: 'neon_tetra' }),
-      makeFish({ id: 'c', species: 'guppy', stage: 'fry', age: 24 }),
-      makeFish({ id: 'd', species: 'guppy', stage: 'fry', age: 24 }),
-      makeFish({ id: 'e', species: 'guppy', stage: 'fry', age: 24 }),
+      makeFish({ id: 'c', species: 'guppy', mass: 0.01, age: 24 }),
+      makeFish({ id: 'd', species: 'guppy', mass: 0.01, age: 24 }),
+      makeFish({ id: 'e', species: 'guppy', mass: 0.01, age: 24 }),
     ];
     expect(rosterSummary(tank(fish))).toBe('2 fish · 2 species · 3 fry');
   });
 
   it('pluralises the clutch clause on the count, and keeps clause order', () => {
     const fish = [makeFish({ id: 'a' })];
-    const one: Clutch = { id: 'c1', species: 'neon_tetra', eggCount: 25, laidTick: 0 };
-    const two: Clutch = { id: 'c2', species: 'neon_tetra', eggCount: 25, laidTick: 4 };
+    const one: Clutch = { id: 'c1', species: 'neon_tetra', eggs: 25, development: 0 };
+    const two: Clutch = { id: 'c2', species: 'neon_tetra', eggs: 25, development: 0.1 };
 
     expect(rosterSummary(tank(fish, [one]))).toBe('1 fish · 1 species · 1 clutch');
     expect(rosterSummary(tank(fish, [one, two]))).toBe('1 fish · 1 species · 2 clutches');

@@ -19,6 +19,7 @@ import type { PlantSpecies } from '../plants/species.js';
 import { PLANT_SPECIES_DATA, plantTraits } from '../plants/species.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
+import { bankFull } from './vitality.js';
 import { bankConversion, bankDraw } from './flora.js';
 
 /**
@@ -53,11 +54,10 @@ export interface Propagation {
 /**
  * A full bank buys an offshoot, as a full bank buys a fish a brood. The offshoot
  * is the bank at the growth conversion, untapered, one full unit at most, and
- * the parent pays for exactly what it bought. Null while the bank is short of
- * the cap, and at a cap of 0, where every bank would read full.
+ * the parent pays for exactly what it bought. Null while the bank is short of full.
  */
 export function propagate(plant: Plant, config: PlantsConfig = plantsDefaults): Propagation | null {
-  if (!(config.surplusCap > 0 && plant.surplus >= config.surplusCap)) return null;
+  if (!bankFull(plant.surplus, config.surplusCap)) return null;
 
   const conversion = sizePerBank(plant, config);
   const spent = Math.min(plant.surplus, 100 / conversion);

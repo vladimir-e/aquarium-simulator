@@ -198,14 +198,17 @@ describe('waterLevelAlert', () => {
       const at = tuned(line);
       for (const percent of [line - 5, line, line + 5]) {
         const state = tank(CASES[0]!, percent);
-        const fish = createFish({ species: 'neon_tetra', stage: 'adult', rng: { ...state.rng } });
+        const fish = createFish({ species: 'neon_tetra', size: 100, rng: { ...state.rng }, config: at.livestock });
         const { stressors } = computeFishVitality(
           fish,
           state.resources,
           [],
           state.resources.water,
           CAPACITY,
-          at.livestock
+          at.livestock,
+          0,
+          1,
+          0
         ).breakdown;
         const harmed = stressors.find((s) => s.key === 'waterLevel')!.amount > 0;
 

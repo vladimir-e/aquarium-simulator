@@ -78,13 +78,20 @@ import {
 } from './air-pump.js';
 import {
   autoDoserUpdate,
-  applyAutoDoserSettings,
   shouldDose,
   type AutoDoser,
   DEFAULT_AUTO_DOSER,
   DOSE_AMOUNT_OPTIONS,
   type DoseAmount,
 } from './auto-doser.js';
+import {
+  autoFeederUpdate,
+  type AutoFeeder,
+  DEFAULT_AUTO_FEEDER,
+  FEED_AMOUNT_OPTIONS,
+  MIN_FEED_G,
+  MAX_FEED_G,
+} from './auto-feeder.js';
 
 // Re-export equipment modules
 export { heaterUpdate, applyHeaterStateChange, calculateHeatingRate, HEATER_WATTAGE_OPTIONS };
@@ -148,12 +155,19 @@ export {
 };
 export {
   autoDoserUpdate,
-  applyAutoDoserSettings,
   shouldDose,
   type AutoDoser,
   DEFAULT_AUTO_DOSER,
   DOSE_AMOUNT_OPTIONS,
   type DoseAmount,
+};
+export {
+  autoFeederUpdate,
+  type AutoFeeder,
+  DEFAULT_AUTO_FEEDER,
+  FEED_AMOUNT_OPTIONS,
+  MIN_FEED_G,
+  MAX_FEED_G,
 };
 
 /**
@@ -196,6 +210,8 @@ export function processEquipment(
   const autoDoserResult = autoDoserUpdate(updatedState, config.nutrients.fertilizerFormula);
   effects.push(...autoDoserResult.effects);
   updatedState = autoDoserResult.state;
+
+  effects.push(...autoFeederUpdate(updatedState));
 
   return { state: updatedState, effects };
 }

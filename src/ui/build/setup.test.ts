@@ -108,16 +108,6 @@ describe('resetConsequence', () => {
     expect(resetConsequence(state)).toContain('— 1 day.');
     expect(resetConsequence({ ...state, tick: 48 })).toContain('— 2 days.');
   });
-
-  it('warns about clutches, which reset destroys and the kept list does not cover', () => {
-    const state = presetTank('planted');
-    const one = { ...state, clutches: [{ id: 'c1' }] as never };
-    const two = { ...state, clutches: [{ id: 'c1' }, { id: 'c2' }] as never };
-
-    expect(resetConsequence(state)).not.toContain('clutch');
-    expect(resetConsequence(one)).toContain('1 clutch in the water is lost.');
-    expect(resetConsequence(two)).toContain('2 clutches in the water are lost.');
-  });
 });
 
 describe('presetLoadMessage', () => {

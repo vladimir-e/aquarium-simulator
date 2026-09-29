@@ -1,4 +1,5 @@
-import { FISH_SPECIES_DATA } from '../../simulation/livestock/species.js';
+import { FISH_SPECIES_DATA, type FishSpecies } from '../../simulation/livestock/species.js';
+import { isStockableSize, unstockableSizeMessage } from '../../simulation/livestock/create-fish.js';
 import { PLANT_SPECIES_DATA } from '../../simulation/plants/species.js';
 import { HARDSCAPE_SURFACE } from '../../simulation/equipment/hardscape.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
@@ -37,6 +38,14 @@ function positive(raw: string | undefined, what: string): number {
     throw new Error(`${what} must be a positive number, got "${raw ?? ''}".`);
   }
   return value;
+}
+
+function stockable(species: FishSpecies, raw: string): number {
+  const size = Number(raw);
+  if (!isStockableSize(species, size)) {
+    throw new Error(`${unstockableSizeMessage(species)}, got "${raw}".`);
+  }
+  return size;
 }
 
 function count(raw: string | undefined, what: string): number {
@@ -87,11 +96,13 @@ function tweakApply(flag: string, value: string | undefined): Tweak['apply'] {
       return onSetup((setup) => ({ ...setup, plants: [...setup.plants, group] }));
     }
     case 'fish': {
-      const [name = '', n] = (value ?? '').split(':');
+      const [name = '', n, size] = (value ?? '').split(':');
+      const species = oneOf(name, FISH_SPECIES_DATA, 'fish species');
       const group = {
-        species: oneOf(name, FISH_SPECIES_DATA, 'fish species'),
+        species,
         count: count(n, 'fish count'),
         sex: 'female' as const,
+        ...(size === undefined ? {} : { size: stockable(species, size) }),
       };
       return onSetup((setup) => ({ ...setup, fish: [...setup.fish, group] }));
     }

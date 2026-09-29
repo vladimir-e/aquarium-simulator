@@ -25,6 +25,24 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v34: Feeding runs through a gut. `Fish.satiation` becomes `Fish.gut`,
+ *      grams of food in it; `LivestockConfig` drops `baseFoodRate`,
+ *      `satiationDecayRate` and the eight satiation band knobs, and gains
+ *      `gutCapacity`, `digestionRate`, `metabolicQ10`,
+ *      `metabolicReferenceTemp`, `maintenanceRation` and `hungerSeverity`.
+ *      `Equipment` gains `autoFeeder`, and `AutoDoser.schedule` becomes
+ *      `startHour`. Fish grow on their banks: `Fish.stage` goes, and
+ *      `LivestockConfig` gains `growthDrawRate`, `growthPerSurplus` and
+ *      `broodCost`. A `Clutch` is a stock: `eggs` and `development` replace
+ *      `eggCount` and `laidTick`, a carried one names its `motherId`, and
+ *      `LivestockConfig` gains `eggSensitivity`, `eggPredationRate`,
+ *      `predationRate` and `preyVulnerabilityExponent`. Old age is wear:
+ *      `ageStressSeverity` gives way to `wearAtLifespan`,
+ *      `wearDoublingShare` and `healingHalvingShare`. A fish is made of what
+ *      it ate: `deathDecayFactor` gives way to `bodyOrganicShare` and
+ *      `growthEfficiency`, and `gillNFraction` becomes `assimilatedFraction`.
+ *      Metabolism scales with mass: `massScalingExponent`. A female
+ *      builds her eggs from her food: `Fish.ovary`.
  * v33: Algae runs on the plants' vitality model, as two kinds. `state.algae`
  *      holds a bloom per kind — `greenWater` and `film` — and `AlgaeState`
  *      gains `condition`; `AlgaeConfig` replaces `AlgaeVitalityConfig`,
@@ -250,7 +268,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 33;
+export const PERSISTENCE_VERSION = 34;
 
 /**
  * Storage key for the unified persisted state.

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   computeFishVitality,
   createSimulation,
+  dailyMaintenance,
   FILTER_SPECS,
   FILTER_TYPES,
   FISH_SPECIES_DATA,
@@ -26,23 +27,23 @@ import {
   turnoverShort,
   type DeviceHint,
   type DeviceReading,
+  type DeviceReadingInput,
 } from './readings';
 
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
 
 const UNITS = ['metric', 'imperial'] as const;
 
+function input(state: SimulationState, units: UnitSystem): DeviceReadingInput {
+  return { state, config: DEFAULT_CONFIG, ahead: readHourAhead(state, DEFAULT_CONFIG), units };
+}
+
 function read(
   id: EquipmentId,
   state: SimulationState = base,
   units: UnitSystem = 'metric'
 ): DeviceReading[] {
-  return deviceReadings(id, {
-    state,
-    config: DEFAULT_CONFIG,
-    ahead: readHourAhead(state, DEFAULT_CONFIG),
-    units,
-  });
+  return deviceReadings(id, input(state, units));
 }
 
 function hint(
@@ -50,7 +51,7 @@ function hint(
   state: SimulationState = base,
   units: UnitSystem = 'metric'
 ): DeviceHint | null {
-  return deviceHint(id, state, DEFAULT_CONFIG, units);
+  return deviceHint(id, input(state, units));
 }
 
 function value(readings: DeviceReading[], label: string): DeviceReading {
@@ -281,7 +282,10 @@ describe('filter readings', () => {
         state.plants,
         water,
         state.tank.capacity,
-        DEFAULT_CONFIG.livestock
+        DEFAULT_CONFIG.livestock,
+        0,
+        1,
+        0
       );
       const charged = breakdown.stressors.find((s) => s.key === 'flow')?.amount ?? 0;
       const warning = hint('filter', state);
@@ -443,12 +447,42 @@ describe('auto doser readings', () => {
     expect(value(read('autoDoser', dosed), 'Next dose').note).toBe('dosed today');
   });
 
+  it('counts a full day, not this hour, from a midnight dose at the first hour', () => {
+    const midnight = {
+      ...dosing,
+      equipment: { ...dosing.equipment, autoDoser: { ...dosing.equipment.autoDoser, startHour: 0 } },
+    };
+    expect(value(read('autoDoser', midnight), 'Next dose').note).toBe('in 24 h');
+  });
+
   it('offers what it would do while off', () => {
     expect(value(read('autoDoser'), 'Next dose')).toEqual({
       label: 'Next dose',
       value: 'off',
       note: 'would dose at 08:00',
     });
+  });
+});
+
+describe('auto feeder readings', () => {
+  const feeding = (startHour: number, ticks: number): SimulationState => {
+    let state: SimulationState = {
+      ...base,
+      equipment: { ...base.equipment, autoFeeder: { ...base.equipment.autoFeeder, enabled: true, startHour } },
+    };
+    for (let i = 0; i < ticks; i++) state = tick(state, DEFAULT_CONFIG);
+    return state;
+  };
+  const next = (state: SimulationState): string | undefined => value(read('autoFeeder', state), 'Next feeding').note;
+
+  it('counts the hours to the next tick that feeds', () => {
+    expect(next(feeding(9, 0))).toBe('in 9 h');
+    expect(next(feeding(9, 8))).toBe('in 1 h');
+  });
+
+  it('counts a full day once the feeding hour has run, and from midnight at the first hour', () => {
+    expect(next(feeding(9, 9))).toBe('in 24 h');
+    expect(next(feeding(0, 0))).toBe('in 24 h');
   });
 });
 
@@ -798,6 +832,25 @@ describe('deviceHint', () => {
     expect(hint('autoDoser', base)?.text).toMatch(
       /^Each dose adds \+[\d.]+ NO₃ · \+[\d.]+ PO₄ · \+[\d.]+ K · \+[\d.]+ Fe ppm\.$/
     );
+  });
+
+  it('weighs the feeder’s ration against what the fish burn in the water they are in', () => {
+    const warm = applyAction(base, { type: 'addFish', species: 'neon_tetra' }).state;
+    const cold = { ...warm, resources: { ...warm.resources, temperature: warm.resources.temperature - 10 } };
+    const { metabolicFactor } = readHourAhead(cold, DEFAULT_CONFIG);
+    const need = dailyMaintenance(cold.fish, metabolicFactor, DEFAULT_CONFIG.livestock);
+    const multiple = cold.equipment.autoFeeder.amount / need;
+
+    expect(metabolicFactor).toBeLessThan(readHourAhead(warm, DEFAULT_CONFIG).metabolicFactor);
+    expect(hint('autoFeeder', cold)?.text).toContain(`is ${multiple.toFixed(1)}× what the fish need`);
+  });
+
+  it('tells a roster that cannot digest for want of oxygen from an empty one', () => {
+    expect(hint('autoFeeder', base)?.text).toMatch(/^No fish to eat it/);
+    const stocked = applyAction(base, { type: 'addFish', species: 'neon_tetra' }).state;
+    const anoxic = { ...stocked, resources: { ...stocked.resources, oxygen: 0 } };
+    expect(readHourAhead(anoxic, DEFAULT_CONFIG).ration).toBe(0);
+    expect(hint('autoFeeder', anoxic)?.text).toMatch(/^Without oxygen the fish cannot digest — what they eat sits in their guts/);
   });
 });
 

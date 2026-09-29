@@ -3,9 +3,6 @@ import {
   shouldDose,
   shouldResetDosedToday,
   autoDoserUpdate,
-  applyAutoDoserSettings,
-  MIN_DOSE_ML,
-  MAX_DOSE_ML,
   type AutoDoser,
 } from './auto-doser.js';
 import { createSimulation, type SimulationState } from '../state.js';
@@ -23,7 +20,7 @@ function tankAt(tick: number, doser: Partial<AutoDoser> = {}): SimulationState {
       autoDoser: {
         enabled: true,
         doseAmountMl: 2,
-        schedule: { startHour: 8, duration: 1 },
+        startHour: 8,
         dosedToday: false,
         ...doser,
       },
@@ -32,12 +29,10 @@ function tankAt(tick: number, doser: Partial<AutoDoser> = {}): SimulationState {
 }
 
 describe('shouldDose', () => {
-  it('fires only at the scheduled hour, once a day', () => {
-    const schedule = { startHour: 8, duration: 1 };
-
-    expect(shouldDose(8, schedule, false)).toBe(true);
-    expect(shouldDose(8, schedule, true)).toBe(false);
-    for (const hour of [0, 7, 9, 23]) expect(shouldDose(hour, schedule, false)).toBe(false);
+  it('fires only at its hour, once a day', () => {
+    expect(shouldDose(8, 8, false)).toBe(true);
+    expect(shouldDose(8, 8, true)).toBe(false);
+    for (const hour of [0, 7, 9, 23]) expect(shouldDose(hour, 8, false)).toBe(false);
   });
 });
 
@@ -76,33 +71,5 @@ describe('autoDoserUpdate', () => {
   it('clears the dosed flag at midnight', () => {
     const result = autoDoserUpdate(tankAt(24, { dosedToday: true }), FORMULA);
     expect(result.state.equipment.autoDoser.dosedToday).toBe(false);
-  });
-});
-
-describe('applyAutoDoserSettings', () => {
-  it('applies the settings it is given and keeps the dosed flag', () => {
-    const state = tankAt(0, { enabled: false, dosedToday: true });
-    const result = applyAutoDoserSettings(state, {
-      enabled: true,
-      doseAmountMl: 3,
-      schedule: { startHour: 6, duration: 1 },
-    });
-
-    expect(result.equipment.autoDoser).toMatchObject({
-      enabled: true,
-      doseAmountMl: 3,
-      schedule: { startHour: 6, duration: 1 },
-      dosedToday: true,
-    });
-  });
-
-  it('clamps the dose to its range', () => {
-    const state = tankAt(0);
-    expect(applyAutoDoserSettings(state, { doseAmountMl: 0.01 }).equipment.autoDoser.doseAmountMl).toBe(
-      MIN_DOSE_ML
-    );
-    expect(applyAutoDoserSettings(state, { doseAmountMl: 500 }).equipment.autoDoser.doseAmountMl).toBe(
-      MAX_DOSE_ML
-    );
   });
 });

@@ -7,13 +7,14 @@ import {
   createSimulation,
   dailyLightIntegral,
   getPresetById,
-  processBreeding,
+  processBodies,
   processFlora,
   processLivestock,
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
 import { settleEnvironment } from '../../simulation/tick.js';
+import { eggsLaid } from '../../simulation/systems/fish-growth.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
 
@@ -43,6 +44,7 @@ function recovering(): SimulationState {
       fish.surplus = config.livestock.surplusCap / 2;
     }
     Object.assign(draft.fish[0], { sex: 'female', health: 100, surplus: config.livestock.surplusCap });
+    draft.fish[0].ovary = eggsLaid(draft.fish[0], config.livestock);
     draft.fish[1].sex = 'male';
     for (const kind of ALGAE_KINDS) draft.algae[kind].mass = 20;
     draft.resources.food = 1;
@@ -62,6 +64,19 @@ function day(): { state: SimulationState; next: SimulationState }[] {
 }
 
 const hours = day();
+
+/** The bodies pass the next tick runs, and the grams it moves into a resource from a source. */
+function bodiesOf(state: SimulationState): {
+  bodies: ReturnType<typeof processBodies>;
+  delta: (resource: string, source: string) => number;
+} {
+  const flora = processFlora(settleEnvironment(state, config), config);
+  const livestock = processLivestock(applyEffects(flora.state, flora.effects, config), config);
+  const bodies = processBodies(applyEffects(livestock.state, livestock.effects, config), config, livestock.metabolism);
+  const delta = (resource: string, source: string): number =>
+    bodies.effects.filter((e) => e.resource === resource && e.source === source).reduce((sum, e) => sum + e.delta, 0);
+  return { bodies, delta };
+}
 
 describe('readHourAhead', () => {
   it('reads each plant exactly as the next tick runs it, at every hour of the day', () => {
@@ -155,23 +170,27 @@ describe('readHourAhead', () => {
 
     for (const { state } of hours) {
       const ahead = readHourAhead(state, config);
-      const settled = settleEnvironment(state, config);
-      const flora = processFlora(settled, config);
-      const livestock = processLivestock(applyEffects(flora.state, flora.effects, config), config);
-      const delta = (resource: string, source: string): number =>
-        livestock.effects
-          .filter((e) => e.resource === resource && e.source === source)
-          .reduce((sum, e) => sum + e.delta, 0);
-      const left = processBreeding(applyEffects(livestock.state, livestock.effects, config), config)
-        .state.resources;
+      const { bodies, delta } = bodiesOf(state);
+      const left = bodies.state.resources;
 
-      expect(ahead.fishWaste).toBeCloseTo(delta('waste', 'fish-metabolism'), 12);
+      expect(ahead.fishWaste).toBeCloseTo(delta('waste', 'fish-metabolism') + delta('waste', 'dead-eggs'), 12);
       expect(ahead.gillAmmonia).toBeCloseTo(delta('ammonia', 'fish-gill-excretion'), 12);
       expect(ahead.foodWaste).toBe(
         calculateDecay(left.food, left.temperature, left.oxygen, config.decay) *
           config.decay.wasteConversionRatio
       );
     }
+  });
+
+  it('reads the eggs a clutch loses as waste the same hour', () => {
+    const stocked = createSimulation({ tankCapacity: 100 }, { fish: [{ species: 'neon_tetra', count: 2 }] });
+    const hatching = produce(stocked, (draft) => {
+      draft.clutches = [{ id: 'scattered', species: 'neon_tetra', eggs: 40.5, development: 0.9999 }];
+    });
+    const { bodies, delta } = bodiesOf(hatching);
+
+    expect(delta('waste', 'dead-eggs')).toBeGreaterThan(0);
+    expect(readHourAhead(hatching, config).fishWaste).toBeCloseTo(bodies.excreted.waste + delta('waste', 'dead-eggs'), 12);
   });
 
   it('reads every bloom exactly as the next tick runs it, at every hour of the day', () => {
@@ -197,5 +216,20 @@ describe('readHourAhead', () => {
       expect(ahead.algae[kind].surplus).toBe(0);
       expect(tick(empty, config).algae[kind].surplus).toBe(0);
     }
+  });
+
+  it('reads a livebearer as brooding in the hour she gives birth', () => {
+    const cap = config.livestock.surplusCap;
+    const stocked = createSimulation({ tankCapacity: 100 }, { fish: [{ species: 'guppy', count: 2 }] });
+    const due = produce(stocked, (draft) => {
+      Object.assign(draft.fish[0], { sex: 'female', health: 100, surplus: cap });
+      draft.fish[0].ovary = eggsLaid(draft.fish[0], config.livestock);
+      Object.assign(draft.fish[1], { sex: 'male', health: 100, surplus: cap });
+      draft.clutches = [{ id: 'due', species: 'guppy', eggs: 10, development: 0.9999, motherId: draft.fish[0].id }];
+    });
+    const next = tick(due, config);
+
+    expect(next.clutches.some((c) => c.motherId === due.fish[0].id && c.id !== 'due')).toBe(true);
+    expect(readHourAhead(due, config).fish.map((fish) => fish.broods)).toEqual([true, true]);
   });
 });

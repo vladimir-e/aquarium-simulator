@@ -5,6 +5,7 @@ export {
   type EquipmentRow,
   DEVICE_ORDER,
   FILTER_LABEL,
+  formatFeed,
   isDeviceId,
   equipmentRows,
   equipmentSummary,

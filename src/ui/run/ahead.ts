@@ -1,7 +1,7 @@
 /**
  * The hour the next tick runs, settled in the tick's own order: the
  * environment, the flora pass — plants and the blooms — with its effects
- * applied, the livestock, then breeding. Every readout that says what the next
+ * applied, the livestock, then their bodies. Every readout that says what the next
  * tick will do reads it here, so a plant, a fish and a bloom are read on the
  * same hour.
  */
@@ -9,11 +9,14 @@
 import {
   applyEffects,
   calculateDecay,
+  dailyMaintenance,
   dailyLightIntegral,
   mapKinds,
-  processBreeding,
+  processBodies,
   processFlora,
+  paysTowardBrood,
   processLivestock,
+  readyToBrood,
   type AlgaeKind,
   type BloomLight,
   type PlantLight,
@@ -27,7 +30,7 @@ import { ammoniaPerGramOfFood } from '../../simulation/config/livestock.js';
 /** One organism on the hour ahead. */
 export interface OrganismAhead {
   vitality: VitalityResult;
-  /** What its bank buys over the hour — a plant's growth and offshoot, a bloom's mass, a fish's brood; nothing where it dies. */
+  /** What its bank buys over the hour — a plant's growth and offshoot, a bloom's mass, a fish's growth and brood; nothing where it dies. */
   spent: number;
 }
 
@@ -35,6 +38,11 @@ export interface PlantAhead extends OrganismAhead {
   light: PlantLight;
   /** Whether what it buys includes an offshoot. */
   buds: boolean;
+}
+
+export interface FishAhead extends OrganismAhead {
+  /** Whether what it buys includes a brood — its own, or one it fathers. */
+  broods: boolean;
 }
 
 export interface BloomAhead extends OrganismAhead {
@@ -55,16 +63,20 @@ export interface HourAhead {
   /** In `state.plants` order. */
   plants: PlantAhead[];
   /** In `state.fish` order. */
-  fish: OrganismAhead[];
+  fish: FishAhead[];
   algae: Record<AlgaeKind, BloomAhead>;
   /** The substrate's day of light the tick reads, mol/m²/d. */
   dailyLight: number;
   /** Grams of waste the plants shed — their steady rate, apart from a death's one-off lump. */
   shedding: number;
-  /** Grams of waste the fish pass. */
+  /** Grams of waste the fish pass and their clutches leave. */
   fishWaste: number;
   /** mg of NH₃ the fish excrete through their gills. */
   gillAmmonia: number;
+  /** The pace every fish digests and needs at over the hour, against reference water. */
+  metabolicFactor: number;
+  /** Grams a day the fish must digest to hold their condition at that pace. */
+  ration: number;
   /** Grams of waste decaying food leaves, off what the fish have not eaten. */
   foodWaste: number;
   /** mg of NH₃ the oxidised share of that food releases straight into the water. */
@@ -93,14 +105,21 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
   const flora = processFlora(settled, config);
   const planted = applyEffects(flora.state, flora.effects, config);
   const livestock = processLivestock(planted, config);
-  const bred = processBreeding(applyEffects(livestock.state, livestock.effects, config), config).state;
+  const { metabolicFactor } = livestock.metabolism;
+  const bodies = processBodies(applyEffects(livestock.state, livestock.effects, config), config, livestock.metabolism);
   const plantSpent = spentBy(planted.plants);
-  const fishSpent = spentBy(bred.fish);
+  const fishSpent = spentBy(bodies.state.fish);
+  const standingClutches = new Set(livestock.state.clutches.map((clutch) => clutch.id));
+  const tended = bodies.state.clutches.filter((clutch) => standingClutches.has(clutch.id));
+  const layers = livestock.state.fish.filter((fish) => readyToBrood(fish, tended, config.livestock));
+  const brooding = new Set(layers.map((fish) => fish.species));
+  const fathers = livestock.state.fish.filter((fish) => brooding.has(fish.species) && paysTowardBrood(fish));
+  const broods = new Set([...layers, ...fathers].map((fish) => fish.id));
   const standing = new Set(state.plants.map((plant) => plant.id));
   const budded = new Set(
     planted.plants.filter((plant) => !standing.has(plant.id)).map((plant) => plant.parentId)
   );
-  const food = bred.resources;
+  const food = bodies.state.resources;
   const decayed = calculateDecay(food.food, food.temperature, food.oxygen, config.decay);
   const wasteShare = config.decay.wasteConversionRatio;
 
@@ -114,12 +133,15 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     fish: state.fish.map((fish, i) => ({
       vitality: livestock.vitalities[i],
       spent: fishSpent(fish.id, livestock.vitalities[i]),
+      broods: broods.has(fish.id),
     })),
     algae: mapKinds((kind) => ({ ...flora.algae[kind], ...planted.algae[kind] })),
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),
     shedding: flora.shedding,
-    fishWaste: livestock.metabolism.wasteProduced,
-    gillAmmonia: livestock.metabolism.ammoniaProduced,
+    fishWaste: bodies.effects.reduce((grams, e) => (e.resource === 'waste' ? grams + e.delta : grams), 0),
+    gillAmmonia: bodies.excreted.ammonia,
+    metabolicFactor,
+    ration: dailyMaintenance(state.fish, metabolicFactor, config.livestock),
     foodWaste: decayed * wasteShare,
     foodAmmonia: decayed * (1 - wasteShare) * ammoniaPerGramOfFood(config.livestock),
     waterUptake: flora.waterUptake,

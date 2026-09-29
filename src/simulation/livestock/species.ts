@@ -13,20 +13,10 @@ export type FishSpecies =
  */
 export type FishSex = 'male' | 'female';
 
-/**
- * Life stage of a fish. Fry grow toward adult mass and become adults at
- * their species `maturityAge`; the spawn gate asks the age as well as the
- * stage, since a seed may name an adult younger than that.
- */
+/** What a fish's size reads as — a word for the keeper, never a switch. */
 export type FishLifeStage = 'fry' | 'adult';
 
-/**
- * How a species reproduces. Livebearers release free-swimming fry
- * directly; every egg-laying mode deposits an inert clutch that hatches
- * into fry after `hatchTime`. The mode is the anchor for the future
- * predation/guarding layer — nothing downstream branches on it yet
- * beyond livebearer-vs-clutch.
- */
+/** How a species reproduces: a livebearer carries its clutch, every other mode lays it. */
 export type BreedingMode =
   | 'livebearer'
   | 'egg-scatterer'
@@ -34,23 +24,17 @@ export type BreedingMode =
   | 'substrate-spawner'
   | 'bubble-nester';
 
-/**
- * Per-species reproduction parameters, in sim units (ticks = hours,
- * individuals). What a spawn costs is the female's whole bank.
- */
+/** Per-species reproduction parameters, in sim units (ticks = hours). */
 export interface FishBreedingData {
   mode: BreedingMode;
-  /**
-   * Ticks from clutch laid to hatch. Unused by livebearers (they skip
-   * the clutch stage — gestation is already paid for by accrual).
-   */
-  hatchTime: number;
-  /** Offspring per spawn: fry for livebearers, eggs for egg-layers. */
-  clutchSize: number;
-  /** Fry starting mass as a fraction of `adultMass`. */
-  fryMassFraction: number;
-  /** Age (ticks) at which fry mature into breeding adults. */
-  maturityAge: number;
+  /** Hours a clutch takes to develop at the metabolic reference temperature in unlimited oxygen. */
+  developmentTime: number;
+  /** Share of the tank's egg predation that reaches its clutch: 1 left in the open, 0 carried. */
+  clutchExposure: number;
+  /** Grams one egg weighs, and the fry it hatches — a livebearer's, one embryo late in gestation. */
+  eggMass: number;
+  /** The male's share of a brood's cost, paid from his own bank. */
+  maleShare: number;
 }
 
 /**
@@ -61,8 +45,8 @@ export interface FishSpeciesData {
   name: string;
   /** Adult body mass in grams */
   adultMass: number;
-  /** Maximum lifespan in ticks (hours) */
-  maxAge: number;
+  /** Median age, in ticks, a well-kept fish dies of wear at. */
+  lifespan: number;
   /** Hardiness factor 0-1 (higher = more tolerant of stressors) */
   hardiness: number;
   /** Preferred temperature range [min, max] in °C */
@@ -73,6 +57,8 @@ export interface FishSpeciesData {
   ghRange: [number, number];
   /** Maximum tolerable circulation in tank volumes per hour */
   maxTurnover: number;
+  /** Relative growth rate: the share of its metabolic mass a bank point buys, against a guppy at 1. */
+  growthRate: number;
   /** Reproduction parameters */
   breeding: FishBreedingData;
 }
@@ -84,98 +70,104 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
   neon_tetra: {
     name: 'Neon Tetra',
     adultMass: 0.5,
-    maxAge: 24 * 365 * 5, // ~5 years
+    lifespan: 24 * 365 * 5,
     hardiness: 0.5,
     temperatureRange: [22, 28],
     phRange: [5.0, 7.8],
     ghRange: [1, 12],
     maxTurnover: 10, // Slow tributaries, but fine on a community canister
-    // Egg-scatterer: sheds adhesive eggs over plants/substrate, no
-    // parental care. Fast incubation (~24 h in the wild), large broods,
-    // slow to sexual maturity (~4 months here).
+    growthRate: 0.45,
+    // Egg-scatterer: sheds adhesive eggs over plants and leaves them to be
+    // eaten. Hatches in a day or so; grown in four to six months.
     breeding: {
       mode: 'egg-scatterer',
-      hatchTime: 24,
-      clutchSize: 25,
-      fryMassFraction: 0.05,
-      maturityAge: 24 * 120,
+      developmentTime: 24,
+      clutchExposure: 1,
+      eggMass: 0.0004,
+      maleShare: 0.2,
     },
   },
   betta: {
     name: 'Betta',
     adultMass: 3.0,
-    maxAge: 24 * 365 * 3, // ~3 years
+    lifespan: 24 * 365 * 3,
     hardiness: 0.6,
     temperatureRange: [24, 30],
     phRange: [6.0, 8.0],
     ghRange: [3, 15],
     maxTurnover: 5, // Still blackwater, long fins - a sponge filter and no more
-    // Bubble-nester: male wraps eggs into a surface foam nest. Small
-    // clutch, quick hatch (~36 h), matures in ~3 months.
+    growthRate: 1.0,
+    // Bubble-nester: the male builds the nest and guards the eggs, so he
+    // pays most of the brood and few are eaten. Hatches in a day and a half;
+    // grown in three to four months.
     breeding: {
       mode: 'bubble-nester',
-      hatchTime: 36,
-      clutchSize: 30,
-      fryMassFraction: 0.03,
-      maturityAge: 24 * 90,
+      developmentTime: 32,
+      clutchExposure: 0.3,
+      eggMass: 0.0005,
+      maleShare: 0.6,
     },
   },
   guppy: {
     name: 'Guppy',
     adultMass: 1.0,
-    maxAge: 24 * 365 * 3, // ~3 years
+    lifespan: 24 * 365 * 3,
     hardiness: 0.8,
     temperatureRange: [22, 28],
     phRange: [6.5, 8.5],
     ghRange: [6, 25],
     maxTurnover: 13, // Hardy, tolerates a lot
-    // Livebearer: internal gestation, drops free-swimming fry directly
-    // (no clutch stage, so `hatchTime` is unused). Prolific and quick to
-    // mature (~2 months).
+    growthRate: 1.0,
+    // Livebearer: the female carries the clutch through a four-week
+    // gestation, out of reach, and drops free-swimming fry. Grown in two to
+    // three months.
     breeding: {
       mode: 'livebearer',
-      hatchTime: 0,
-      clutchSize: 20,
-      fryMassFraction: 0.05,
-      maturityAge: 24 * 60,
+      developmentTime: 600,
+      clutchExposure: 0,
+      eggMass: 0.005,
+      maleShare: 0.2,
     },
   },
   angelfish: {
     name: 'Angelfish',
     adultMass: 15.0,
-    maxAge: 24 * 365 * 10, // ~10 years
+    lifespan: 24 * 365 * 10,
     hardiness: 0.4,
     temperatureRange: [24, 30],
     phRange: [6.0, 8.0],
     ghRange: [3, 15],
     maxTurnover: 10, // Tall body catches current, but its canonical home is a big canister tank
-    // Substrate-spawner: lays a large clutch on a vertical surface,
-    // hatches in ~2.5 days. Big fish, tiny fry, slow to mature (~6 months).
+    growthRate: 0.2,
+    // Substrate-spawner: a pair cleans a leaf and fans and guards the eggs
+    // together. Hatches in two and a half days; big fish, tiny fry, grown in
+    // six to eight months.
     breeding: {
       mode: 'substrate-spawner',
-      hatchTime: 60,
-      clutchSize: 40,
-      fryMassFraction: 0.02,
-      maturityAge: 24 * 180,
+      developmentTime: 54,
+      clutchExposure: 0.5,
+      eggMass: 0.002,
+      maleShare: 0.5,
     },
   },
   corydoras: {
     name: 'Corydoras',
     adultMass: 4.0,
-    maxAge: 24 * 365 * 5, // ~5 years
+    lifespan: 24 * 365 * 5,
     hardiness: 0.7,
     temperatureRange: [22, 26],
     phRange: [6.0, 8.0],
     ghRange: [2, 15],
     maxTurnover: 15, // Bottom dweller, appreciates current
-    // Egg-depositor: presses small batches of eggs onto glass and leaves.
-    // Slow hatch (~4 days), modest clutch, matures in ~5 months.
+    growthRate: 0.25,
+    // Egg-depositor: presses eggs onto glass and leaves them. Slow hatch,
+    // three to five days; grown in five to six months.
     breeding: {
       mode: 'egg-depositor',
-      hatchTime: 96,
-      clutchSize: 15,
-      fryMassFraction: 0.04,
-      maturityAge: 24 * 150,
+      developmentTime: 90,
+      clutchExposure: 1,
+      eggMass: 0.004,
+      maleShare: 0.2,
     },
   },
 };

@@ -171,7 +171,7 @@ export function buildAction(type: string, args: string[]): Action {
 /** Every flag each command takes, `add` down to its target. */
 const COMMAND_FLAGS: Record<string, readonly string[]> = {
   new: ['preset', 'tank-gal', 'tank-liters', 'name', 'no-seed'],
-  'add fish': ['species', 'count'],
+  'add fish': ['species', 'count', 'size'],
   'add plant': ['species', 'size'],
   remove: [],
   tick: [],
@@ -216,7 +216,7 @@ function printHelp(): void {
       '  new --preset=<id> [--tank-gal=<n>|--tank-liters=<n>] [--name=<label>]',
       '      [--no-seed]           (every preset but bare opens a month into',
       '                             its life; --no-seed starts it brand new)',
-      '  add fish --species=<id> --count=<n>',
+      '  add fish --species=<id> --count=<n> [--size=<%>]',
       '  add plant --species=<id> [--size=<%>]',
       '  remove fish <id>',
       '  tick <duration>           (e.g. 5d, 48h, 1)',
@@ -272,6 +272,7 @@ function cmdAdd(sub: string, flags: Record<string, string>): void {
     if (!Number.isFinite(count) || count <= 0) {
       throw new Error('add fish count must be a positive integer.');
     }
+    const size = flags.size !== undefined ? Number(flags.size) : undefined;
     let working = session;
     let added = 0;
     let rejection = '';
@@ -280,11 +281,12 @@ function cmdAdd(sub: string, flags: Record<string, string>): void {
       const res = applyAndRecord(working, {
         type: 'addFish',
         species: species as Action extends { type: 'addFish'; species: infer S } ? S : never,
+        size,
       } as Action);
       // addFish returns the state unchanged (no fish appended) when it
-      // rejects — species unknown or the tank at its physical stocking
-      // ceiling. Stop on the first rejection rather than spinning no-ops
-      // and overstating the count.
+      // rejects — species unknown, size out of range, or the tank at its
+      // physical stocking ceiling. Stop on the first rejection rather than
+      // spinning no-ops and overstating the count.
       if (res.session.state.fish.length === before) {
         rejection = res.message;
         break;

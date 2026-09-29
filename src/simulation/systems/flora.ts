@@ -9,10 +9,10 @@
 import type { Resources } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { getPh } from '../core/carbonate.js';
-import { lightSaturationFactor, monodFactor } from '../core/kinetics.js';
+import { hourlyDraw, lightSaturationFactor, monodFactor } from '../core/kinetics.js';
 import { parHoursToDli } from '../equipment/light.js';
 import { getRespirationTemperatureFactor } from './respiration.js';
-import { bandComfort, hourlyDraw, outsideBand, shortfall, type VitalityFactor } from './vitality.js';
+import { bandComfort, outsideBand, shortfall, type VitalityFactor } from './vitality.js';
 
 /** Hours a day the care-sheet PAR bands assume the lamps are on. */
 export const CARE_SHEET_PHOTOPERIOD = 8;

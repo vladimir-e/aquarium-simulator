@@ -13,22 +13,13 @@ import {
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
 import { LEDGER_DECIMALS, readLedger, type Ledger, type LedgerTarget } from './ledger.js';
+import { FED, STARVING } from '../test/gut';
 import { printsAsZero, projectedTrend } from './status.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
+import { fishRecord } from '../../simulation/tests/fish.js';
 
-function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
-  return {
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 24 * 120,
-    satiation: 90,
-    sex: 'male',
-    stage: 'adult',
-    hardinessOffset: 0,
-    surplus: 0,
-    ...overrides,
-  };
+function makeFish(overrides: Partial<Fish> = {}): Fish {
+  return fishRecord({ age: 24 * 120, gut: FED, ...overrides });
 }
 
 function tank(fish: Fish[], ppm = 0): SimulationState {
@@ -52,7 +43,7 @@ function fishLedger(state: SimulationState, id = 'fish_a_1', config = DEFAULT_CO
 
 describe('readLedger', () => {
   it('quotes every factor that prints at the rate the reader’s day is measured in, and no other', () => {
-    const state = tank([makeFish({ id: 'fish_a_1', satiation: 5 })], 20);
+    const state = tank([makeFish({ id: 'fish_a_1', gut: STARVING })], 20);
     const ledger = fishLedger(state);
     const { breakdown } = readHourAhead(state, DEFAULT_CONFIG).fish[0].vitality;
     const shows = (perDay: number): boolean => Number(perDay.toFixed(LEDGER_DECIMALS)) > 0;
@@ -72,7 +63,7 @@ describe('readLedger', () => {
   it('balances: what helps less what hurts is the number it prints', () => {
     for (const state of [
       tank([makeFish({ id: 'fish_a_1' })]),
-      tank([makeFish({ id: 'fish_a_1', satiation: 5 })], 20),
+      tank([makeFish({ id: 'fish_a_1', gut: STARVING })], 20),
     ]) {
       const ledger = fishLedger(state);
       expect(ledger.helps - ledger.hurts).toBeCloseTo(ledger.net, 6);
@@ -80,7 +71,7 @@ describe('readLedger', () => {
   });
 
   it('sorts each column worst-first, so the reason is the top line', () => {
-    const ledger = fishLedger(tank([makeFish({ id: 'fish_a_1', satiation: 5 })], 20));
+    const ledger = fishLedger(tank([makeFish({ id: 'fish_a_1', gut: STARVING })], 20));
     const rates = ledger.hurting.map((factor) => factor.perDay);
 
     expect(rates).toEqual([...rates].sort((a, b) => b - a));
@@ -144,13 +135,18 @@ describe('readLedger', () => {
     const cap = DEFAULT_CONFIG.livestock.surplusCap;
     const pair = tank([
       makeFish({ id: 'fish_a_1', sex: 'female', surplus: cap }),
-      makeFish({ id: 'fish_a_2', sex: 'male' }),
+      makeFish({ id: 'fish_a_2', sex: 'male', surplus: cap }),
     ]);
     const next = tick(pair, DEFAULT_CONFIG);
 
     expect(next.clutches.length).toBeGreaterThan(pair.clutches.length);
     expect(next.fish.find((fish) => fish.id === 'fish_a_1')!.surplus).toBe(0);
     expect(fishLedger(pair).bank!.note).toBe('buying a brood');
+  });
+
+  it('reads a growing fry’s bank as buying growth', () => {
+    const fry = tank([makeFish({ id: 'fish_a_1', mass: 0.05, surplus: DEFAULT_CONFIG.livestock.surplusCap })]);
+    expect(ledgerOf(fry, { kind: 'fish', id: 'fish_a_1' })!.bank!.note).toBe('buying growth');
   });
 
   describe('for a plant', () => {

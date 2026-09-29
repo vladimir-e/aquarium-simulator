@@ -11,6 +11,14 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **A fish is made of what it ate** - fish grow and lay from digested food, small ones eat and burn more per gram, and the dead return their whole body; breaking: `processBodies` replaces `processBreeding`, `Fish.ovary`, `assimilatedFraction` replaces `gillNFraction` (v34).
+- **Old age is wear** - fish age by a rising damage rate and heal slower, a cohort dying over a few months near the species lifespan; breaking: `lifespan` replaces `maxAge`, `fishHealingRate` needs `mass` (v34).
+- **Predation** - larger fish hunt the young by the grams they outweigh them and eat what they kill; breaking: `computeFishVitality`, `readyToBrood` args (v34).
+- **Eggs are a stock** - water and fish thin a clutch as it develops, livebearers carry theirs; breaking: `Clutch` holds `eggs`, `development`; `createFish`, `processMetabolism`, `processHealth` leave the barrel (v34).
+- **Fish grow on their banks** - mass and broods are bought by the bank, both parents pay, stocking names a size; breaking: `Fish.stage` goes (v34).
+- **Feeding through a gut** - fish digest over hours, slower cold, and earn on what they digest; breaking: `Fish.gut` replaces `satiation`, `gutCapacity`/`dailyMaintenance` need `species` (v34).
+- **Auto feeder** - drops a set ration once a day at its hour (v34).
+- **Auto doser keeps an hour** - breaking: `AutoDoser.startHour` replaces `schedule` (v34).
 - **Actions settle the passive readings** (#73) - a verb re-reads light, flow, surface and aeration off the tank it leaves, and hosts settle after writing equipment or optics; breaking: `settlePassiveResources` replaces `relight`.
 - **Nitrogen moves KH by its charge** (#73) - minted ammonia takes up a proton, so the cycle drains KH half as fast, and a cycled seed's KH pays for its nitrate while it lasts.
 - **Flora take ammonia before nitrate** (#73) - plants and the blooms take their nitrogen as ammonia before nitrate, moving KH as they do; breaking: pools and `halfSaturation` are per form, `formShares` replaces `nutrientShares` (v33).

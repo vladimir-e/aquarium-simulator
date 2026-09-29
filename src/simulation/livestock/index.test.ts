@@ -4,23 +4,12 @@ import { createSimulation, type SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { produce } from 'immer';
 import { monodFactor } from '../core/kinetics.js';
-import { WASTE_NUTRIENTS } from '../config/nutrients.js';
+import { metabolicMass } from '../systems/digestion.js';
 import type { Fish } from '../state.js';
+import { fishRecord } from '../tests/fish.js';
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
-  return {
-    id: 'fish_1',
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 0,
-    satiation: 50,
-    sex: 'male',
-    stage: 'adult',
-    hardinessOffset: 0,
-    surplus: 0,
-    ...overrides,
-  };
+  return fishRecord({ gut: 0.01, ...overrides });
 }
 
 function makeState(fish: Fish[] = []): SimulationState {
@@ -41,28 +30,16 @@ describe('processLivestock', () => {
     expect(result.effects).toHaveLength(0);
   });
 
-  it('processes metabolism: food consumed, waste and gill NH3 produced', () => {
-    const state = makeState([makeFish({ satiation: 50, mass: 1.0 })]);
+  it('eats, and leaves the hour’s digestion to be excreted once growth has built from it', () => {
+    const state = makeState([makeFish({ mass: 1.0 })]);
     const result = processLivestock(state, DEFAULT_CONFIG);
 
-    const foodEffect = result.effects.find((e) => e.resource === 'food');
-    expect(foodEffect).toBeDefined();
-    expect(foodEffect!.delta).toBeLessThan(0);
-
-    const wasteEffect = result.effects.find(
-      (e) => e.resource === 'waste' && e.source === 'fish-metabolism'
-    );
-    expect(wasteEffect).toBeDefined();
-    expect(wasteEffect!.delta).toBeGreaterThan(0);
-
-    const ammoniaEffect = result.effects.find(
-      (e) => e.resource === 'ammonia' && e.source === 'fish-gill-excretion'
-    );
-    expect(ammoniaEffect).toBeDefined();
-    expect(ammoniaEffect!.delta).toBeGreaterThan(0);
+    expect(result.effects.find((e) => e.resource === 'food')!.delta).toBeLessThan(0);
+    expect(result.metabolism.digested[0]).toBeGreaterThan(0);
+    expect(result.effects.some((e) => e.resource === 'waste' || e.resource === 'ammonia')).toBe(false);
   });
 
-  it('returns the metabolism behind its effects, and a vitality per fish handed in, the dead included', () => {
+  it('returns the metabolism and a vitality per fish handed in, the dead included', () => {
     const state = produce(
       makeState([makeFish({ id: 'f1', mass: 1.0 }), makeFish({ id: 'f2', health: 1 })]),
       (draft) => {
@@ -70,32 +47,13 @@ describe('processLivestock', () => {
       }
     );
     const result = processLivestock(state, DEFAULT_CONFIG);
-    const effect = (resource: string, source: string): number =>
-      result.effects.find((e) => e.resource === resource && e.source === source)!.delta;
 
-    expect(result.metabolism.wasteProduced).toBe(effect('waste', 'fish-metabolism'));
-    expect(result.metabolism.ammoniaProduced).toBe(effect('ammonia', 'fish-gill-excretion'));
+    expect(result.metabolism.updatedFish.map((fish) => fish.id)).toEqual(['f1', 'f2']);
     expect(result.vitalities).toHaveLength(2);
     expect(result.vitalities[1].newCondition).toBe(0);
     expect(result.state.fish.map((fish) => [fish.id, fish.health, fish.surplus])).toEqual([
       ['f1', result.vitalities[0].newCondition, result.vitalities[0].surplus],
     ]);
-  });
-
-  it('excretes the minerals of the absorbed food beside the gill NH3', () => {
-    const state = makeState([makeFish({ satiation: 50, mass: 1.0 })]);
-    const result = processLivestock(state, DEFAULT_CONFIG);
-    const eaten = -result.effects.find((e) => e.resource === 'food')!.delta;
-
-    for (const nutrient of WASTE_NUTRIENTS) {
-      const excreted = result.effects.find(
-        (e) => e.resource === nutrient && e.source === 'fish-gill-excretion'
-      );
-      expect(excreted!.delta).toBeCloseTo(
-        eaten * DEFAULT_CONFIG.livestock.gillNFraction * DEFAULT_CONFIG.nutrients.foodMineralContent[nutrient],
-        12
-      );
-    }
   });
 
   it('processes respiration: O2 consumed and CO2 produced', () => {
@@ -111,12 +69,12 @@ describe('processLivestock', () => {
     expect(co2Effect!.delta).toBeGreaterThan(0);
   });
 
-  it('updates fish satiation and age', () => {
-    const state = makeState([makeFish({ satiation: 20, age: 100 })]);
+  it("moves each fish's gut and age on", () => {
+    const state = makeState([makeFish({ gut: 0.001, age: 100 })]);
     const result = processLivestock(state, DEFAULT_CONFIG);
 
     expect(result.state.fish[0].age).toBe(101);
-    expect(result.state.fish[0].satiation).not.toBe(20);
+    expect(result.state.fish[0].gut).toBeGreaterThan(0.001);
   });
 
   it('removes dead fish and logs death', () => {
@@ -161,7 +119,7 @@ describe('processLivestock', () => {
     const expectedDelta =
       -(
         DEFAULT_CONFIG.livestock.baseRespirationRate *
-        6.0 *
+        state.fish.reduce((total, fish) => total + metabolicMass(fish, DEFAULT_CONFIG.livestock), 0) *
         monodFactor(
           state.resources.oxygen,
           DEFAULT_CONFIG.livestock.respirationOxygenHalfSaturation

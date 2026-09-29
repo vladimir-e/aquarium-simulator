@@ -4,7 +4,7 @@
  */
 
 import type { Resources, SimulationState } from './state.js';
-import type { FishLifeStage, FishSex, FishSpecies } from './livestock/species.js';
+import type { FishSex, FishSpecies } from './livestock/species.js';
 import type { PlantSpecies } from './plants/species.js';
 import {
   calculateSubstrateLeach,
@@ -16,7 +16,8 @@ import {
 } from './equipment/substrate.js';
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
-import { processMetabolism } from './systems/metabolism.js';
+import { excretion, metabolicFactorOf } from './systems/metabolism.js';
+import { dailyMaintenance } from './systems/digestion.js';
 import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
 import { mapNutrients, nutrientsDefaults, type NutrientVector } from './config/nutrients.js';
@@ -24,7 +25,7 @@ import { organicNutrients } from './systems/nutrients.js';
 import { alkalinityMoved, MW_NO3, NH3_TO_NO2_MASS_RATIO, PROTONS_PER_N } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import { KhResource } from './resources/kh.js';
-import { createFish } from './livestock/create-fish.js';
+import { createFish, STOCKED_FISH_SIZE } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
 
 const SEEDABLE_BACTERIA = ['aob', 'nob'] as const;
@@ -72,18 +73,11 @@ export interface SeedFishGroup {
   species: FishSpecies;
   /** Defaults to 1. */
   count?: number;
-  /**
-   * Age in ticks. Defaults to the age its stage starts at — `maturityAge`
-   * for an adult, 0 for a fry — so a roster that names no age means grown
-   * fish. Only an age the author wrote stands as written.
-   */
+  /** % of adult mass, as stocking takes it. Defaults to grown. */
+  size?: number;
+  /** Ticks already lived, as `Fish.age`. Defaults to 0. */
   age?: number;
   sex?: FishSex;
-  /**
-   * Defaults to `adult`. Independent of `age`, so both a months-old
-   * juvenile and an adult too young to breed are expressible.
-   */
-  stage?: FishLifeStage;
 }
 
 export interface SeedPlantGroup {
@@ -136,25 +130,19 @@ type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
 
 /**
  * mg of ammonia a tick the tank's stock and bed put into the water at rest:
- * every fish fed to satiety, and the bed leaching what it holds. All the waste
+ * every fish digesting its maintenance ration in the water it is in, building
+ * none of it into its body, and the bed leaching what it holds. All the waste
  * either one makes is mineralised in the end, whether or not it settles on the
- * way. Food fed past satiety is left out — the engine has no ration to size it
- * by — so under a keeper whose surplus rots in the water the colony errs small
- * and grows on from the seed.
+ * way. Food fed past maintenance is left out — the engine has no ration to
+ * size it by — so under a keeper who feeds more the colony errs small and
+ * grows on from the seed.
  */
 function restingAmmoniaSupply(state: StockedTank): number {
-  const fed = state.fish.map((fish) => ({
-    ...fish,
-    satiation: 100 - livestockDefaults.satiationDecayRate,
-  }));
-  const { ammoniaProduced, wasteProduced } = processMetabolism(
-    fed,
-    Infinity,
-    state.resources.oxygen,
-    livestockDefaults
-  );
+  const factor = metabolicFactorOf(state.resources, livestockDefaults);
+  const digested = dailyMaintenance(state.fish, factor, livestockDefaults) / 24;
+  const { ammonia, waste } = excretion(digested, 0, livestockDefaults);
   const leached = calculateSubstrateLeach(state.equipment.substrate.organicReserve, decayDefaults);
-  return ammoniaProduced + (wasteProduced + leached) * ammoniaPerGramOfFood(livestockDefaults);
+  return ammonia + (waste + leached) * ammoniaPerGramOfFood(livestockDefaults);
 }
 
 /**
@@ -325,10 +313,11 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
       state.fish.push(
         createFish({
           species: group.species,
+          size: group.size ?? STOCKED_FISH_SIZE,
           age: group.age,
-          stage: group.stage ?? 'adult',
           sex: group.sex,
           rng: state.rng,
+          config: livestockDefaults,
         })
       );
     }

@@ -12,6 +12,7 @@ import {
 } from '../../actions';
 import { useUnits } from '../../hooks/useUnits';
 import { toneOf } from '../../readings';
+import type { HourAhead } from '../../run';
 import { Drawer, DRAWER_FOCUS } from '../ui/Drawer';
 import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
 import { Segmented } from '../ui/Segmented';
@@ -53,6 +54,7 @@ interface VerbDrawerProps {
   scope: VerbScope | null;
   state: SimulationState;
   config: TunableConfig;
+  ahead: HourAhead;
   settings: VerbSettings;
   onAmount: (verb: SettableVerb, value: number) => void;
   onCommit: (verb: VerbId) => void;
@@ -70,6 +72,7 @@ export function VerbDrawer({
   scope,
   state,
   config,
+  ahead,
   settings,
   onAmount,
   onCommit,
@@ -77,8 +80,8 @@ export function VerbDrawer({
 }: VerbDrawerProps): React.JSX.Element | null {
   const { unitSystem } = useUnits();
   const detail = useMemo(
-    () => (verb === null ? null : verbDetail(state, verb, settings, unitSystem, config, scope)),
-    [verb, scope, state, settings, unitSystem, config]
+    () => (verb === null ? null : verbDetail(verb, { state, settings, units: unitSystem, config, ahead, scope })),
+    [verb, scope, state, settings, unitSystem, config, ahead]
   );
 
   const commit = useCallback((): void => {

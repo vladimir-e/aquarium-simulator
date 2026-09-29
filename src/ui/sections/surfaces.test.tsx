@@ -106,7 +106,7 @@ describe('one rack, two surfaces', () => {
     );
     const inPlace = entries.flatMap((entry, i) => (shownInPlace(entry) ? [page[i]] : []));
 
-    expect(page).toHaveLength(8);
+    expect(page).toHaveLength(9);
     expect(widget.slice(0, -1)).toEqual(inPlace);
     expect(widget[widget.length - 1]).toMatch(/^Off — /);
   });

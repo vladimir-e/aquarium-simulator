@@ -4,14 +4,15 @@ import {
   removeFish,
   sellFry,
   canAddFish,
+  checkFishCapacity,
   getMaxFishMass,
   totalFishMass,
 } from './fish-management.js';
 import { createSimulation, type SimulationState, type Fish } from '../state.js';
-import { computeFishVitality } from '../systems/fish-health.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { produce } from 'immer';
+import { fishRecord } from '../tests/fish.js';
 
 function makeState(rngSeed = 31337): SimulationState {
   return createSimulation({ tankCapacity: 100 }, undefined, rngSeed);
@@ -20,37 +21,22 @@ function makeState(rngSeed = 31337): SimulationState {
 function stockedRoster(species: FishSpecies, count: number, rngSeed?: number): Fish[] {
   let state = makeState(rngSeed);
   for (let i = 0; i < count; i++) {
-    state = addFish(state, { type: 'addFish', species }).state;
+    state = addFish(state, { type: 'addFish', species }, livestockDefaults).state;
   }
   return state.fish;
-}
-
-function fish(overrides: Partial<Fish> & { id: string }): Fish {
-  return {
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 0,
-    satiation: 70,
-    sex: 'male',
-    stage: 'adult',
-    hardinessOffset: 0,
-    surplus: 0,
-    ...overrides,
-  };
 }
 
 function makeStateWithFish(): SimulationState {
   const state = makeState();
   return produce(state, (draft) => {
-    draft.fish.push(fish({ id: 'fish_existing' }));
+    draft.fish.push(fishRecord({ id: 'fish_existing' }));
   });
 }
 
 describe('addFish', () => {
   it('adds a fish to an empty tank', () => {
     const state = makeState();
-    const result = addFish(state, { type: 'addFish', species: 'neon_tetra' });
+    const result = addFish(state, { type: 'addFish', species: 'neon_tetra' }, livestockDefaults);
 
     expect(result.state.fish).toHaveLength(1);
     expect(result.state.fish[0].species).toBe('neon_tetra');
@@ -58,31 +44,17 @@ describe('addFish', () => {
     expect(result.message).toContain('Neon Tetra');
   });
 
-  it('stocks a fish already grown, at the age its species matures', () => {
-    const state = makeState();
-    const result = addFish(state, { type: 'addFish', species: 'guppy' });
+  it('stocks a fish at the size it names, as that share of adult mass', () => {
+    const result = addFish(makeState(), { type: 'addFish', species: 'guppy', size: 40 }, livestockDefaults);
 
-    expect(result.state.fish[0].stage).toBe('adult');
-    expect(result.state.fish[0].age).toBe(FISH_SPECIES_DATA.guppy.breeding.maturityAge);
+    expect(result.state.fish[0].mass).toBeCloseTo(0.4 * FISH_SPECIES_DATA.guppy.adultMass, 12);
   });
 
-  it('stocks it part-lived: old age is maxAge − maturityAge away, not maxAge', () => {
-    const { maxAge, breeding } = FISH_SPECIES_DATA.neon_tetra;
-    const state = addFish(makeState(), { type: 'addFish', species: 'neon_tetra' }).state;
-    const [bought] = state.fish;
-    const ageStressIn = (hours: number): number =>
-      computeFishVitality(
-        { ...bought, age: bought.age + hours },
-        state.resources,
-        state.plants,
-        state.resources.water,
-        state.tank.capacity,
-        livestockDefaults
-      ).breakdown.stressors.find((s) => s.key === 'age')?.amount ?? 0;
-
-    const left = maxAge - breeding.maturityAge;
-    expect(ageStressIn(left)).toBe(0);
-    expect(ageStressIn(left + 1)).toBeGreaterThan(0);
+  it('refuses a size smaller than a fry or bigger than grown', () => {
+    for (const size of [0.1, 101, Number.NaN]) {
+      const result = addFish(makeState(), { type: 'addFish', species: 'guppy', size }, livestockDefaults);
+      expect(result.state.fish).toHaveLength(0);
+    }
   });
 
   it('stocks the same fish from one rng seed, and a different one from another', () => {
@@ -92,7 +64,7 @@ describe('addFish', () => {
 
   it('spends the stream it draws from', () => {
     const state = makeState();
-    const stocked = addFish(state, { type: 'addFish', species: 'guppy' }).state;
+    const stocked = addFish(state, { type: 'addFish', species: 'guppy' }, livestockDefaults).state;
 
     expect(stocked.rng.seed).toBe(state.rng.seed);
     expect(stocked.rng.counter).toBeGreaterThan(state.rng.counter);
@@ -101,16 +73,16 @@ describe('addFish', () => {
   it('leaves the stream alone when it rejects the fish', () => {
     const state = makeState();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = addFish(state, { type: 'addFish', species: 'unknown' as unknown as any });
+    const result = addFish(state, { type: 'addFish', species: 'unknown' as unknown as any }, livestockDefaults);
 
     expect(result.state.rng).toEqual(state.rng);
   });
 
   it('generates unique IDs for each fish', () => {
     let state = makeState();
-    const result1 = addFish(state, { type: 'addFish', species: 'guppy' });
+    const result1 = addFish(state, { type: 'addFish', species: 'guppy' }, livestockDefaults);
     state = result1.state;
-    const result2 = addFish(state, { type: 'addFish', species: 'guppy' });
+    const result2 = addFish(state, { type: 'addFish', species: 'guppy' }, livestockDefaults);
 
     expect(result2.state.fish[0].id).not.toBe(result2.state.fish[1].id);
   });
@@ -123,7 +95,7 @@ describe('addFish', () => {
 
   it('logs the addition', () => {
     const state = makeState();
-    const result = addFish(state, { type: 'addFish', species: 'corydoras' });
+    const result = addFish(state, { type: 'addFish', species: 'corydoras' }, livestockDefaults);
 
     const addLogs = result.state.logs.filter((l) => l.message.includes('Added Corydoras'));
     expect(addLogs.length).toBeGreaterThan(0);
@@ -132,7 +104,7 @@ describe('addFish', () => {
   it('rejects unknown species', () => {
     const state = makeState();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = addFish(state, { type: 'addFish', species: 'unknown' as unknown as any });
+    const result = addFish(state, { type: 'addFish', species: 'unknown' as unknown as any }, livestockDefaults);
 
     expect(result.state.fish).toHaveLength(0);
     expect(result.message).toContain('Unknown');
@@ -158,6 +130,17 @@ describe('removeFish', () => {
     expect(result.message).toContain('not found');
   });
 
+  it('takes the brood she carries with her, and leaves the rest', () => {
+    const state = produce(makeStateWithFish(), (draft) => {
+      draft.clutches = [
+        { id: 'hers', species: 'guppy', eggs: 10, development: 0.4, motherId: 'fish_existing' },
+        { id: 'laid', species: 'neon_tetra', eggs: 20, development: 0.4 },
+      ];
+    });
+    const result = removeFish(state, { type: 'removeFish', fishId: 'fish_existing' });
+    expect(result.state.clutches.map((c) => c.id)).toEqual(['laid']);
+  });
+
   it('logs the removal', () => {
     const state = makeStateWithFish();
     const result = removeFish(state, { type: 'removeFish', fishId: 'fish_existing' });
@@ -181,20 +164,43 @@ describe('addFish stocking cap', () => {
     const { adultMass } = FISH_SPECIES_DATA.guppy;
     const filled = (mass: number): SimulationState =>
       produce(createSimulation({ tankCapacity: capacity }), (draft) => {
-        draft.fish.push(fish({ id: 'fry_1', species: 'angelfish', mass, stage: 'fry' }));
+        draft.fish.push(fishRecord({ id: 'fry_1', species: 'angelfish', mass }));
       });
 
     expect(totalFishMass(filled(3).fish)).toBe(3);
     expect(canAddFish(filled(ceiling - adultMass), 'guppy')).toBe(true);
     expect(canAddFish(filled(ceiling - adultMass + 0.01), 'guppy')).toBe(false);
-    expect(addFish(filled(ceiling), { type: 'addFish', species: 'guppy' }).state.fish).toHaveLength(1);
+    expect(addFish(filled(ceiling), { type: 'addFish', species: 'guppy' }, livestockDefaults).state.fish).toHaveLength(1);
+  });
+
+  it('weighs a small fish at its stocked size', () => {
+    const { adultMass } = FISH_SPECIES_DATA.guppy;
+    const roomFor = (mass: number): Fish[] => [
+      fishRecord({ id: 'resident', species: 'angelfish', mass: getMaxFishMass(1) - mass }),
+    ];
+
+    expect(checkFishCapacity(roomFor(adultMass / 2), 1, 'guppy').ok).toBe(false);
+    expect(checkFishCapacity(roomFor(adultMass / 2), 1, 'guppy', 50).ok).toBe(true);
+    expect(checkFishCapacity(roomFor(adultMass / 4), 1, 'guppy', 50).ok).toBe(false);
   });
 
   it('rejects a fish that would exceed the physical ceiling', () => {
     const state = createSimulation({ tankCapacity: 0.02 });
-    const result = addFish(state, { type: 'addFish', species: 'angelfish' });
+    const result = addFish(state, { type: 'addFish', species: 'angelfish' }, livestockDefaults);
     expect(result.state.fish).toHaveLength(0);
     expect(result.message).toContain('capacity');
+  });
+
+  it('refuses an unstockable size before weighing it, as addFish does', () => {
+    const state = makeState();
+    for (const size of [-50, 0.1, 101, Number.NaN]) {
+      const check = checkFishCapacity(state.fish, state.tank.capacity, 'guppy', size);
+      const added = addFish(state, { type: 'addFish', species: 'guppy', size }, livestockDefaults);
+
+      expect(canAddFish(state, 'guppy', size)).toBe(false);
+      expect(check.ok).toBe(false);
+      expect(check.message).toBe(added.message);
+    }
   });
 
   it('canAddFish rejects an unknown species', () => {
@@ -208,9 +214,9 @@ describe('sellFry', () => {
   function makeStateWithMixedStages(): SimulationState {
     return produce(makeState(), (draft) => {
       draft.fish.push(
-        fish({ id: 'adult_1', species: 'guppy', mass: 1.0, stage: 'adult' }),
-        fish({ id: 'fry_1', species: 'guppy', mass: 0.1, stage: 'fry' }),
-        fish({ id: 'fry_2', species: 'neon_tetra', mass: 0.05, stage: 'fry' })
+        fishRecord({ id: 'adult_1', species: 'guppy', mass: 1.0 }),
+        fishRecord({ id: 'fry_1', species: 'guppy', mass: 0.1 }),
+        fishRecord({ id: 'fry_2', species: 'neon_tetra', mass: 0.05 })
       );
     });
   }
@@ -222,6 +228,16 @@ describe('sellFry', () => {
     expect(result.state.fish).toHaveLength(1);
     expect(result.state.fish[0].id).toBe('adult_1');
     expect(result.message).toBe('Sold 2 fry');
+  });
+
+  it('takes out a sold mother’s brood with her, and leaves the adults’', () => {
+    const state = produce(makeStateWithMixedStages(), (draft) => {
+      draft.clutches = [
+        { id: 'fry-mother', species: 'guppy', eggs: 4, development: 0.3, motherId: 'fry_1' },
+        { id: 'adult-mother', species: 'guppy', eggs: 12, development: 0.3, motherId: 'adult_1' },
+      ];
+    });
+    expect(sellFry(state).state.clutches.map((c) => c.id)).toEqual(['adult-mother']);
   });
 
   it('logs a fry-sold event from the user', () => {

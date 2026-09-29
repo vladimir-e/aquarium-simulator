@@ -6,7 +6,7 @@ import { group, renderStage } from '../test/stage';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
 import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import type { Clutch, Fish, SimulationState } from '../../simulation/index.js';
+import { fishLifeStage, type Clutch, type Fish, type SimulationState } from '../../simulation/index.js';
 
 let media: MatchMediaStub;
 
@@ -25,19 +25,18 @@ function busy(): Run {
     ...run.state.fish[0],
     id,
     species,
-    stage: 'fry',
     mass: 0.05,
   });
   const clutch: Clutch = {
     id: 'clutch_a_1',
     species: 'neon_tetra',
-    eggCount: 20,
-    laidTick: run.state.tick,
+    eggs: 20,
+    development: 0,
   };
   const state: SimulationState = {
     ...run.state,
     fish: [
-      ...run.state.fish.filter((fish) => fish.stage === 'adult'),
+      ...run.state.fish.filter((fish) => fishLifeStage(fish) === 'adult'),
       fry('fish_z_1', 'guppy'),
       fry('fish_z_2', 'betta'),
     ],
@@ -97,7 +96,7 @@ describe('LifeSection (phone)', () => {
     const dropped = cells(headings)
       .filter((cell) => !onPhone(cell))
       .map((cell) => cell.textContent);
-    expect(dropped).toEqual(['mass', 'age', 'satiation']);
+    expect(dropped).toEqual(['mass', 'age', 'gut']);
   });
 
   it('still opens a row’s ledger, where there is no room to read it in the table', () => {

@@ -7,6 +7,7 @@ import { readHourAhead } from './ahead.js';
 import { groupBySpecies, groupFry, readFish } from './livestock.js';
 import { groupPlantsBySpecies, plantRows } from './flora.js';
 import { readLedger } from './ledger.js';
+import { FED, HUNGRY, STARVING } from '../test/gut';
 import { groupReading, worstMember, type Member } from './status.js';
 import {
   inspection,
@@ -19,24 +20,14 @@ import {
   type RosterRow,
   type SpeciesRosterRow,
 } from './roster.js';
+import { fishRecord } from '../../simulation/tests/fish.js';
 
-function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
-  return {
-    species: 'neon_tetra',
-    mass: 0.5,
-    health: 100,
-    age: 24 * 120,
-    satiation: 90,
-    sex: 'male',
-    stage: 'adult',
-    hardinessOffset: 0,
-    surplus: 0,
-    ...overrides,
-  };
+function makeFish(overrides: Partial<Fish> = {}): Fish {
+  return fishRecord({ age: 24 * 120, gut: FED, ...overrides });
 }
 
-function tank(fish: Fish[], clutches: Clutch[] = [], tick = 0): SimulationState {
-  return { ...createSimulation({ tankCapacity: 200 }), fish, clutches, tick };
+function tank(fish: Fish[], clutches: Clutch[] = []): SimulationState {
+  return { ...createSimulation({ tankCapacity: 200 }), fish, clutches };
 }
 
 /** A bank that heals whatever the hour charges, so only an empty one lets condition fall. */
@@ -48,11 +39,10 @@ const HEALED: TunableConfig = {
 function input(state: SimulationState, config: TunableConfig): RosterInput {
   const fish = readFish(state, config, readHourAhead(state, config));
   return {
-    fish: groupBySpecies(fish, config.livestock),
+    fish: groupBySpecies(fish),
     plants: groupPlantsBySpecies(plantRows(state, config, readHourAhead(state, config))),
-    fry: groupFry(fish, config.livestock),
+    fry: groupFry(fish),
     clutches: state.clutches,
-    tick: state.tick,
   };
 }
 
@@ -61,12 +51,12 @@ function tables(
   open: string[] = [],
   config: TunableConfig = DEFAULT_CONFIG
 ): ReturnType<typeof rosterTables> {
-  return rosterTables(input(state, config), config.livestock, new Set(open));
+  return rosterTables(input(state, config), new Set(open));
 }
 
 const roster = [
-  makeFish({ id: 'fish_a_1', species: 'neon_tetra', satiation: 80 }),
-  makeFish({ id: 'fish_a_2', species: 'neon_tetra', satiation: 40, sex: 'female' }),
+  makeFish({ id: 'fish_a_1', species: 'neon_tetra' }),
+  makeFish({ id: 'fish_a_2', species: 'neon_tetra', gut: HUNGRY, sex: 'female' }),
   makeFish({ id: 'fish_a_3', species: 'corydoras', mass: 4 }),
 ];
 
@@ -101,9 +91,9 @@ describe('rosterTables', () => {
   it('numbers fish within their species in the order they were stocked, never by id', () => {
     const stocked = [
       makeFish({ id: 'fish_1', species: 'neon_tetra' }),
-      makeFish({ id: 'fish_2', species: 'corydoras' }),
+      makeFish({ id: 'fish_2', species: 'corydoras', mass: 4 }),
       makeFish({ id: 'fish_a', species: 'neon_tetra' }),
-      makeFish({ id: 'fish_b', species: 'neon_tetra', stage: 'fry' }),
+      makeFish({ id: 'fish_b', species: 'neon_tetra', mass: 0.01 }),
     ];
     const { fish } = tables(tank(stocked), ['species-neon_tetra', 'species-corydoras']);
     const titles = fish
@@ -126,7 +116,7 @@ describe('rosterTables', () => {
   });
 
   it('reads a fish by its worst channel, so a full-condition fish can still be hungry', () => {
-    const starving = tables(tank([makeFish({ id: 'fish_a_1', satiation: 5 })]), ['species-neon_tetra']);
+    const starving = tables(tank([makeFish({ id: 'fish_a_1', gut: STARVING })]), ['species-neon_tetra']);
     const individual = starving.fish[1] as IndividualRosterRow;
 
     expect(individual.at).toBe(1);
@@ -154,30 +144,33 @@ describe('rosterTables', () => {
     expect(inspection('fish_gone', input(state, DEFAULT_CONFIG))).toBeNull();
   });
 
-  it('counts down to hatch from the current tick, not from when the clutch was laid', () => {
-    const clutch: Clutch = {
-      id: 'clutch_x_7',
-      species: 'angelfish',
-      eggCount: 24,
-      laidTick: 1602,
-    };
-    const [row] = tables(tank([], [clutch], 1622)).fish as ClutchRosterRow[];
+  it('reads a clutch as the whole eggs standing and how far it has developed', () => {
+    const clutch: Clutch = { id: 'clutch_x_7', species: 'angelfish', eggs: 24.7, development: 0.337 };
+    const [row] = tables(tank([], [clutch])).fish as ClutchRosterRow[];
 
     expect(row.kind).toBe('clutch');
     expect(row.name).toBe('Angelfish clutch');
     expect(row.figure).toBe('24 eggs');
-    expect(row.age).toBe('hatches in 40 h');
+    expect(row.progress).toBe('33 % developed');
+  });
+
+  it('reads a livebearer clutch as the brood its mother carries', () => {
+    const brood: Clutch = { id: 'clutch_x_8', species: 'guppy', eggs: 12, development: 0.5, motherId: 'fish_x_1' };
+    const [row] = tables(tank([], [brood])).fish as ClutchRosterRow[];
+
+    expect(row.name).toBe('Guppy brood');
+    expect(row.figure).toBe('12 fry');
   });
 
   it('puts every fry in one row after the adults and the clutches', () => {
     const fish = [
       ...roster,
-      makeFish({ id: 'fry1', species: 'guppy', stage: 'fry', age: 24 * 6, mass: 0.4 }),
-      makeFish({ id: 'fry2', species: 'guppy', stage: 'fry', age: 24 * 12, mass: 0.6 }),
-      makeFish({ id: 'fry3', species: 'betta', stage: 'fry', age: 24 * 9, mass: 0.5 }),
+      makeFish({ id: 'fry1', species: 'guppy', age: 24 * 6, mass: 0.4 }),
+      makeFish({ id: 'fry2', species: 'guppy', age: 24 * 12, mass: 0.3 }),
+      makeFish({ id: 'fry3', species: 'betta', age: 24 * 9, mass: 0.5 }),
     ];
-    const clutch: Clutch = { id: 'c_1', species: 'neon_tetra', eggCount: 25, laidTick: 0 };
-    const { fish: rows } = tables(tank(fish, [clutch], 12));
+    const clutch: Clutch = { id: 'c_1', species: 'neon_tetra', eggs: 25, development: 0 };
+    const { fish: rows } = tables(tank(fish, [clutch]));
 
     expect(rows.map((row) => row.kind)).toEqual(['species', 'species', 'clutch', 'fry']);
     const fry = rows[3] as FryRosterRow;
@@ -188,7 +181,7 @@ describe('rosterTables', () => {
   });
 
   it('names the one species where that is all there is', () => {
-    const fish = [makeFish({ id: 'fry1', species: 'guppy', stage: 'fry', mass: 0.4 })];
+    const fish = [makeFish({ id: 'fry1', species: 'guppy', mass: 0.4 })];
     const [fry] = tables(tank(fish)).fish as FryRosterRow[];
 
     expect(fry.caption).toBe('Guppy');
@@ -198,15 +191,15 @@ describe('rosterTables', () => {
   it('reads a group by its hungry members, even at full condition', () => {
     const banked = { surplus: livestockDefaults.surplusCap };
     const hungry = [
-      makeFish({ id: 'fish_a_1', satiation: 90, ...banked }),
-      makeFish({ id: 'fish_a_2', satiation: 40, ...banked }),
-      makeFish({ id: 'fish_a_3', satiation: 30, ...banked }),
+      makeFish({ id: 'fish_a_1', ...banked }),
+      makeFish({ id: 'fish_a_2', gut: HUNGRY, ...banked }),
+      makeFish({ id: 'fish_a_3', gut: HUNGRY, ...banked }),
     ];
     const [group] = tables(tank(hungry), [], HEALED).fish as SpeciesRosterRow[];
 
     expect(group.status).toBe('warn');
     expect(group.word).toBe('2 hungry');
-    expect(group.satiation!.word).toBe('2 hungry');
+    expect(group.gut!.word).toBe('2 hungry');
   });
 
   it('counts the members whose damage outruns their healing', () => {
@@ -223,19 +216,6 @@ describe('rosterTables', () => {
 
     expect(group.status).toBe('warn');
     expect(group.word).toBe('2 sick');
-  });
-
-  it('counts the overfed members the way it counts the hungry', () => {
-    const banked = { satiation: 100, surplus: livestockDefaults.surplusCap };
-    const fed = [
-      makeFish({ id: 'fish_a_1', ...banked }),
-      makeFish({ id: 'fish_a_2', ...banked }),
-      makeFish({ id: 'fish_a_3', ...banked }),
-    ];
-    const [group] = tables(tank(fed), [], HEALED).fish as SpeciesRosterRow[];
-
-    expect(group.dots).toEqual(['warn', 'warn', 'warn']);
-    expect(group).toMatchObject({ status: 'warn', word: '3 overfed' });
   });
 
   it('reads both tables by the one group rule, and opens the member it names', () => {

@@ -28,7 +28,7 @@ below 100:  the bank heals min(100 − condition, (1 − e^−healingRate) × ba
 
 | Term | Is |
 |---|---|
-| Benefits | Income from favourable conditions. Hardiness never scales them |
+| Benefits | Income from favourable conditions, earned on what the organism takes in — a plant's light and nutrients, a fish's digestion. Hardiness never scales them |
 | Stressors | Damage, hardened by each organism: `× (1 − hardiness)`, or by moving where harm starts |
 | Bank | Condition points banked at full condition, capped at `surplusCap` |
 | Healing rate | The first-order rate its bank drains at while it heals, per hour |
@@ -54,7 +54,7 @@ and it ends when the rates turn round.
 
 | Organism | Healing rate | Shipped |
 |---|---|---|
-| Fish | `healingDrawRate × adultMass^−¼`, the way mass-specific metabolism scales | 0.06 /h for a neon, 0.025 /h for an angelfish |
+| Fish | `healingDrawRate × mass^−¼`, the way mass-specific metabolism scales, halving with age | 0.06 /h for a young adult neon, 0.025 /h for a young adult angelfish |
 | Plant | `healingDrawRate × growthRate` — a plant repairs at the rate it grows | 0.09 /h for monte carlo, 0.015 /h for anubias |
 | Algae | The plants' law, at its kind's growth rate | 3 /h for green water — 95 % of its bank in an hour — and 1 /h for film, 63 % |
 
@@ -62,7 +62,7 @@ and it ends when the rates turn round.
 
 | Organism | Low condition | The bank buys |
 |---|---|---|
-| Fish | Dies at 0 | A brood: a full bank buys a spawn, and the spawn empties it — see [Breeding](/subsystems/livestock/#breeding) |
+| Fish | Dies at 0 | Its growth and its broods: growth draws on the bank through a share that closes as the fish nears adult size, and a full bank buys a female a brood with the rest, the males paying their share — see [Growth and broods](/subsystems/livestock/#growth-and-broods) |
 | Plant | Sheds tissue, with the square of the deficit; dies at 0 | Its growth and its offshoots: growth draws on the bank through a taper that closes as the unit fills, and a full bank buys a new unit of the family — see [Offshoots](/subsystems/plants/#offshoots) |
 | Algae | Sheds mass as a plant sheds tissue; dies back at 0 | Mass, in proportion to the mass standing, on the logistic its habitat sets — see [Algae](/subsystems/algae/#the-bank-buys-mass). Its spores are its offshoots: they land at condition 100 on an empty bank whatever the bloom is doing |
 

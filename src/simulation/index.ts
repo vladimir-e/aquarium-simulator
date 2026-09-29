@@ -226,12 +226,17 @@ export {
   DEFAULT_AIR_PUMP,
   AIR_PUMP_SPEC,
   autoDoserUpdate,
-  applyAutoDoserSettings,
   shouldDose,
   DEFAULT_AUTO_DOSER,
   DOSE_AMOUNT_OPTIONS,
   type DoseAmount,
   type AutoDoser,
+  autoFeederUpdate,
+  DEFAULT_AUTO_FEEDER,
+  FEED_AMOUNT_OPTIONS,
+  MIN_FEED_G,
+  MAX_FEED_G,
+  type AutoFeeder,
   getLightOutput,
   calculateParAtDepth,
   scheduledLightByHour,
@@ -446,25 +451,22 @@ export type {
 } from './plants/index.js';
 
 // Livestock
+export { processLivestock } from './livestock/index.js';
+export { processBodies, type Digestion } from './livestock/bodies.js';
+export { isStockableSize, STOCKED_FISH_SIZE } from './livestock/create-fish.js';
+export { computeFishVitality, fishHealingRate, fishWear, predationStress, predatorWeight, preyVulnerability } from './systems/fish-health.js';
 export {
-  processLivestock,
-  processMetabolism,
-  processHealth,
-  computeFishVitality,
-  fishHealingRate,
-  processBreeding,
-  createFish,
-  fishMassForAge,
-} from './livestock/index.js';
-export {
-  satiationContribution,
-  classifySatiationBand,
-  classifySatiationBandPosition,
-  SATIATION_BAND_LABEL,
-  type SatiationBand,
-  type SatiationContribution,
-  type SatiationBandPosition,
-} from './systems/satiation.js';
+  fishSize,
+  massAtSize,
+  frySize,
+  fishLifeStage,
+  countFry,
+  broodShare,
+  readyToBrood,
+  paysTowardBrood,
+} from './systems/fish-growth.js';
+export { clutchMass, clutchesWithMothers } from './systems/clutch.js';
+export { gutCapacity, dailyMaintenance, hungerLine } from './systems/digestion.js';
 
 // Vitality
 export {

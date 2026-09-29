@@ -38,6 +38,8 @@ Build out mechanics first; tune last. The bar for a mechanic is that it works an
 
 Whole-tank behaviour is checked with `npm run scenarios` — every preset tank headless, each reading banded green/amber/red, replayable under a different keeper; flags and defaults live in `docs/cli.md`. Amber or red is a question to reason about. Never tune a constant during build-out just to turn a cell green, and never add complexity to hit a number.
 
+**Fix the middle, not the ends.** When a number is off, or a mechanic seems to need bolting on downstream — a special rate, a patch, a cliff at a set age — look first at the transformation in between: how inputs become outputs. A downstream patch usually means that logic is missing a term or has the wrong shape, and the established science for that transformation usually has it. Fix the model; the patch dissolves.
+
 Tests pin formulas and invariants, never whole-tank outcomes or coefficient values. `expect(flow).toBe(160)` is a tripwire; "doubling capacity doubles flow" is a statement about the model. When a change breaks a test that pins a number rather than a behaviour, delete or rewrite it without ceremony.
 
 Verify your own mechanic change headless. Save a baseline first (`npm run scenarios -- --json=/tmp/before.json`); after the change, run `npm run scenarios -- --diff=/tmp/before.json`, plus one ad-hoc run built to push the mechanic hard at its favourable extreme — many plants and no CO₂ for a CO₂ mechanic. If the mechanic doesn't visibly fire there, it isn't done. Hand-back reports carry the diff and the targeted run's relevant lines, never full tables. Runs take seconds; don't build elaborate verification.

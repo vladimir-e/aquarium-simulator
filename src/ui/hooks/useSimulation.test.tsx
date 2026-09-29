@@ -64,7 +64,7 @@ function seedSession(
 function seedSessionWithClutch(presetId: PresetId): void {
   seedSession(createSimulation(getPresetById(presetId)!.config), presetId, {
     tick: 300,
-    clutches: [{ id: 'c1', species: 'neon_tetra', eggCount: 25, laidTick: 250 }],
+    clutches: [{ id: 'c1', species: 'neon_tetra', eggs: 25, development: 0.4 }],
   });
 }
 
@@ -483,16 +483,17 @@ describe('useSimulation', () => {
       expect(result.current.tankId).not.toBe(loaded);
     });
 
-    it('reset clears in-flight clutches (time-anchored)', () => {
+    it('reset keeps the clutches with the fish', () => {
       seedSessionWithClutch('planted');
       const { result } = renderHook(() => useSimulation(), { wrapper });
-      expect(result.current.state.clutches).toHaveLength(1);
+      const before = result.current.state.clutches;
+      expect(before).toHaveLength(1);
 
       act(() => {
         result.current.reset();
       });
 
-      expect(result.current.state.clutches).toHaveLength(0);
+      expect(result.current.state.clutches).toEqual(before);
       expect(result.current.state.tick).toBe(0);
     });
 

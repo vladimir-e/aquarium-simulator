@@ -12,8 +12,8 @@ a spinner step and, for everything but the derived nitrification rates, a
 `min`/`max`. Two writers consult that range: the CLI refuses a `config set`
 outside it, and the tunables drawer holds its field to it. The save path does
 not — its bounds are hand-written per leaf and mostly assert shape rather than
-range, so a stored `satiationDecayRate` of −1 loads without complaint against a
-declared minimum of `0.1`.
+range, so a stored `digestionRate` of −1 loads without complaint against a
+declared minimum of `0.01`.
 
 ## Sections
 
@@ -29,7 +29,7 @@ declared minimum of `0.1`.
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, respiration, vitality, growth and offshoots, lifecycle |
 | Nutrients | `nutrients.` | Fertilizer formula, root tab, the bed's leak, half-saturations, demand tiers, minerals in organic matter |
-| Livestock | `livestock.` | Metabolism, satiation, vitality, death |
+| Livestock | `livestock.` | Feeding, metabolism, vitality, growth and broods, death |
 
 The values themselves are not repeated here. They move when the model is
 recalibrated, and the file that holds each one carries the reference it was read
@@ -178,25 +178,42 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `baseFoodRate` | Food a fish ingests per gram of body mass per hour | g/g/hr |
-| `baseRespirationRate` | Oxygen a fish draws per gram per hour — a Monod maximum | mg O₂/g/hr |
-| `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales gill ammonia too | mg/L |
+| `gutCapacity` | Food a full gut holds, per gram of grown fish | g/g |
+| `digestionRate` | First-order rate a gut digests at, at the reference temperature in unlimited oxygen | /hr |
+| `massScalingExponent` | Power of mass a fish's per-gram gut, maintenance, respiration and healing scale with — against its species' adult mass, and 1 g for healing | — |
+| `metabolicQ10` · `metabolicReferenceTemp` | How the metabolism — digestion, respiration and the maintenance ration — scales with temperature, and where it reads their base values | — · °C |
+| `maintenanceRation` | Food a day, per gram of grown fish (metabolic mass), digested to hold condition at the reference temperature in unlimited oxygen — income at half rate, and where hunger starts | g/g/day |
+| `hungerSeverity` | Damage at an empty gut, before hardiness | %/hr |
+| `baseRespirationRate` | Oxygen a fish draws per gram of grown fish (metabolic mass) per hour at the reference temperature — a Monod maximum | mg O₂/g/hr |
+| `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales digestion and the maintenance ration too | mg/L |
 | `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, or mineralized as waste | g N/g food |
-| `gillNFraction` | Share of ingested nitrogen excreted straight through the gills; the rest leaves as feces | — |
+| `assimilatedFraction` | Share of digested food a fish assimilates — what growth builds from, the rest leaving through the gills; the remainder leaves as feces | — |
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |
-| `satiationDecayRate` | Satiation lost per hour, feeding or not | %/hr |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band | %/unit/hr |
 | `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own tolerance edge, which hardiness moves out — free NH₃, not total ammonia; oxygen counts e-folds under | %/e-fold/hr |
 | `waterLevelStressSeverity` · `flowStressSeverity` | Damage per unit of deviation | %/unit/hr |
-| `ageStressSeverity` | Damage per hour lived past the species' `maxAge`, climbing with the excess | %/(h past maxAge)/h |
 | `waterLevelStressThreshold` | Share of capacity the water-level stressor switches on under | % |
-| `satiationOverfedFloor` · `satiationWellFedFloor` · `satiationHungryCeiling` · `satiationStarvingCeiling` | The four edges dividing the satiation axis into overfed, well-fed, peckish, hungry and starving | % |
-| `satiationOverfedSeverity` · `satiationHungrySeverity` · `satiationStarvingSeverity` | Peak cost of each stressed band; the curve interpolates between the anchors | %/hr |
-| `satiationWellFedPeak` · `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor at its best | %/hr |
+| `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor at its best, at full nourishment | %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which the planted-tank benefit stops growing | power |
-| `surplusCap` | Ceiling on the fish's bank; a female spawns on a full one | pts |
-| `healingDrawRate` | First-order rate a 1 g fish's bank heals it at, scaled by adult mass to the −¼ | /hr at 1 g |
-| `deathDecayFactor` | Share of a dead fish's mass that becomes waste | — |
+| `surplusCap` | Ceiling on the fish's bank; a female broods on a full one | pts |
+| `healingDrawRate` | First-order rate a young 1 g fish's bank heals it at, scaled by its mass to `massScalingExponent` and halving with age | /hr at 1 g |
+| `growthDrawRate` | First-order rate the bank draws toward growth at, before the growth share `1 − size / 100` | /hr |
+| `growthPerSurplus` | New mass, in % of the fish's metabolic mass, a bank point buys at species growth rate 1 | %/pt |
+| `broodCost` | Bank points a brood of its parent's own weight costs the parent — the female in full, the male at his species' share | pts per body mass |
+| `bodyOrganicShare` | Organic matter, of the food's recipe, in a gram of fish, egg or embryo; the rest is water | g/g |
+| `growthEfficiency` | Share of what a fish assimilates that growth and eggs can build into its body and ovary; the rest it burns | — |
+| `wearAtLifespan` | Wear at the species lifespan, for a fish of its species' hardiness | %/hr |
+| `wearDoublingShare` | Span wear doubles over, as a share of the species lifespan | × lifespan |
+| `healingHalvingShare` | Age healing halves over, as a share of the species lifespan | × lifespan |
+| `eggSensitivity` | How many times harder the water harms a laid egg than a fish, as a share of the clutch an hour; a carried brood takes its mother's harm | × |
+| `eggPredationRate` | Share of a laid clutch an hour one gram of predator mass per litre — the grams each fish outweighs an egg — eats, before the clutch's exposure | L/g/hr |
+| `predationRate` | Damage an hour, before hardiness, one gram per litre of predator mass — the grams each larger fish outweighs the prey — does a fish at no size | %/hr per g/L |
+| `preyVulnerabilityExponent` | How steeply a growing fish outgrows its predators: exposure is `(1 − size / 100)` to this power | — |
+
+`bodyOrganicShare` weighs the organic matter in every body and egg standing,
+and `maintenanceRation` and `massScalingExponent` the yolk in every egg, laid
+or in an ovary, so moving any of them mid-run re-values what is already in the
+tank and the nitrogen ledger jumps with it — they are dev knobs.
 
 ## Fixed tables
 
@@ -206,7 +223,7 @@ can move them at runtime.
 
 | Table | Holds |
 |---|---|
-| Fish species | Per species: adult mass, lifespan, hardiness, temperature / pH / flow tolerance bands, and a full breeding block — mode, clutch size, hatch time, fry mass, maturity age |
+| Fish species | Per species: adult mass, growth rate, lifespan, hardiness, temperature / pH / flow tolerance bands, and a breeding block — mode, development time, clutch exposure, egg mass (a fry hatches at it), the male's share of a brood |
 | Plant species | Per species: growth rate, growth form, hardiness, CO₂ requirement, nutrient demand tier, and the PAR band it tolerates, whose low end sets the daily light it starves under |
 | Growth forms | Per form: what one full unit is — its height and how height grows with size, its footprint, its leaf area index — the share of its food it draws through its roots, and what its offshoot is called |
 | Filters | Per type: biological surface, target turnover, flow ceiling, tank-size ceiling, and whether it is air-driven |

@@ -9,6 +9,7 @@ import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { LEDGER_DECIMALS, readHourAhead } from '../run';
 import {
   applyAction,
+  fishLifeStage,
   type Action,
   type Fish,
   type FishSpecies,
@@ -154,7 +155,7 @@ describe('LifeSection', () => {
     const run = stocked();
     const state: SimulationState = {
       ...run.state,
-      fish: run.state.fish.map((fish, i) => (i === 0 ? { ...fish, satiation: 2 } : fish)),
+      fish: run.state.fish.map((fish, i) => (i === 0 ? { ...fish, gut: 0 } : fish)),
     };
     renderLife({ ...run, state });
 
@@ -206,7 +207,7 @@ describe('LifeSection', () => {
     expect(onAct.mock.calls).toEqual([['trimPlants', undefined, { familyId: first.familyId }]]);
   });
 
-  it('adds the fish the picker committed to, and the roster shows them', () => {
+  it('adds the fish the picker committed to, at the size it names, and the roster shows them', () => {
     renderLife(bare());
 
     const header = screen.getByRole('heading', { level: 1, name: 'Life' }).parentElement!;
@@ -214,10 +215,14 @@ describe('LifeSection', () => {
     fireEvent.click(within(header).getByRole('button', { name: 'Add fish' }));
 
     const drawer = within(screen.getByRole('dialog'));
-    fireEvent.click(drawer.getByRole('button', { name: 'increase' }));
+    fireEvent.click(within(drawer.getByRole('group', { name: 'How many' })).getByRole('button', { name: 'increase' }));
+    const size = within(drawer.getByRole('group', { name: 'Size' }));
+    for (let i = 0; i < 5; i++) fireEvent.click(size.getByRole('button', { name: 'decrease' }));
     fireEvent.click(drawer.getByRole('button', { name: 'Add 2 Neon Tetra' }));
 
-    expect(speciesRow('Fish', 'Neon Tetra').parentElement!.textContent).toContain('×2');
+    const row = speciesRow('Fish', 'Neon Tetra').parentElement!.textContent;
+    expect(row).toContain('×2');
+    expect(row).toContain('0.25 g each');
   });
 
   it('sells the whole tank’s fry from the one row they share', () => {
@@ -226,13 +231,12 @@ describe('LifeSection', () => {
       ...run.state.fish[0],
       id,
       species,
-      stage: 'fry',
       mass: 0.05,
     });
     const state: SimulationState = {
       ...run.state,
       fish: [
-        ...run.state.fish.filter((fish) => fish.stage === 'adult'),
+        ...run.state.fish.filter((fish) => fishLifeStage(fish) === 'adult'),
         fry('fish_z_1', 'guppy'),
         fry('fish_z_2', 'guppy'),
         fry('fish_z_3', 'betta'),

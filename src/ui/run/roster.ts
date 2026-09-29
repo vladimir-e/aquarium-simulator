@@ -15,16 +15,7 @@ import {
   type PlantSpecies,
   FISH_SPECIES_DATA,
 } from '../../simulation/index.js';
-import type { LivestockConfig } from '../../simulation/config/livestock.js';
-import {
-  bandStatus,
-  fishSatiation,
-  fishTitle,
-  type FryBatch,
-  type Hunger,
-  type Satiation,
-  type SpeciesGroup,
-} from './livestock.js';
+import { fishTitle, type FryBatch, type Gut, type SpeciesGroup } from './livestock.js';
 import {
   familyTitle,
   sharePercent,
@@ -57,7 +48,7 @@ interface Vital {
 
 export interface SpeciesRosterRow extends Vital {
   /** Present where the group eats: the mean, and how many are hungry. */
-  satiation: Satiation | null;
+  gut: Gut | null;
   /** Present for plants: the worst-lit unit's. */
   light: LightFigure | null;
   kind: 'species';
@@ -119,7 +110,7 @@ export interface IndividualRosterRow extends Vital {
   parent: string | null;
   figure: string;
   age: string;
-  satiation: Satiation | null;
+  gut: Gut | null;
   light: LightFigure | null;
   /** How far a plant's bank is toward its next offshoot. */
   bank: string | null;
@@ -138,7 +129,7 @@ export interface FryRosterRow extends Vital {
   caption: string;
   figure: string;
   age: string;
-  satiation: Satiation | null;
+  gut: Gut | null;
 }
 
 /**
@@ -163,9 +154,8 @@ export interface ClutchRosterRow {
   key: string;
   species: FishSpecies;
   name: string;
-  /** Eggs, and when they hatch. */
   figure: string;
-  age: string;
+  progress: string;
 }
 
 export type RosterRow =
@@ -184,28 +174,11 @@ function familyKey(familyId: string): string {
   return `family-${familyId}`;
 }
 
-interface Grouped {
-  satiation: number;
-  hunger: Hunger | null;
-}
-
-/** The group's mean, spoken for by its hungry members where it has any. */
-function groupSatiation(group: Grouped, config: LivestockConfig): Satiation {
-  const mean = fishSatiation(group.satiation, config);
-  return group.hunger
-    ? { ...mean, status: bandStatus(group.hunger.band), word: `${group.hunger.count} hungry` }
-    : mean;
-}
-
 function days(hours: number): string {
   return `${Math.floor(hours / 24)} d`;
 }
 
-function fishRows(
-  groups: SpeciesGroup[],
-  config: LivestockConfig,
-  expanded: ReadonlySet<string>
-): RosterRow[] {
+function fishRows(groups: SpeciesGroup[], expanded: ReadonlySet<string>): RosterRow[] {
   return groups.flatMap((group) => {
     const key = speciesKey(group.species);
     const open = expanded.has(key);
@@ -218,7 +191,7 @@ function fishRows(
       caption: null,
       figure: `${(group.massG / group.count).toFixed(2)} g each`,
       age: `${group.ageDays} d`,
-      satiation: groupSatiation(group, config),
+      gut: group.gut,
       light: null,
       dots: group.members.map((member) => member.reading.status),
       dot: 'individual',
@@ -227,7 +200,7 @@ function fishRows(
       expanded: open,
     };
     const fish = group.members.map(
-      ({ id, number, condition, fish, reading }): IndividualRosterRow => ({
+      ({ id, number, condition, fish, gut, reading }): IndividualRosterRow => ({
         kind: 'individual',
         key: id,
         id,
@@ -239,7 +212,7 @@ function fishRows(
         parent: null,
         figure: `${fish.mass.toFixed(2)} g`,
         age: days(fish.age),
-        satiation: fishSatiation(fish.satiation, config),
+        gut,
         light: null,
         bank: null,
         at: condition / 100,
@@ -276,7 +249,7 @@ function plantUnit(plant: PlantRow): IndividualRosterRow {
     parent: plant.label.parent === null ? null : `#${plant.label.parent}`,
     figure: `${Math.floor(plant.size)} %`,
     age: days(plant.age),
-    satiation: null,
+    gut: null,
     light: lightFigure(plant.light, plant.lightStatus),
     bank: `${sharePercent(plant.bank)} %`,
     at: plant.condition / 100,
@@ -324,7 +297,7 @@ function plantTable(groups: PlantSpeciesGroup[], expanded: ReadonlySet<string>):
       caption: families(group.families.length),
       figure: summedSize(group.size),
       age: days(group.oldest),
-      satiation: null,
+      gut: null,
       light: lightFigure(group.light, group.lightStatus),
       dots: group.families.map((family) => family.reading.status),
       dot: 'family',
@@ -338,7 +311,7 @@ function plantTable(groups: PlantSpeciesGroup[], expanded: ReadonlySet<string>):
   });
 }
 
-function fryRow(batch: FryBatch, config: LivestockConfig): FryRosterRow {
+function fryRow(batch: FryBatch): FryRosterRow {
   return {
     kind: 'fry',
     key: 'fry',
@@ -350,22 +323,22 @@ function fryRow(batch: FryBatch, config: LivestockConfig): FryRosterRow {
         : `${batch.species.length} species`,
     figure: `${(batch.massG / batch.count).toFixed(2)} g each`,
     age: `${batch.ageDays} d`,
-    satiation: groupSatiation(batch, config),
+    gut: batch.gut,
     at: batch.condition / 100,
     ...batch.reading,
   };
 }
 
-function clutchRow(clutch: Clutch, tick: number): ClutchRosterRow {
+function clutchRow(clutch: Clutch): ClutchRosterRow {
   const data = FISH_SPECIES_DATA[clutch.species];
-  const hatchTick = clutch.laidTick + data.breeding.hatchTime;
+  const carried = clutch.motherId !== undefined;
   return {
     kind: 'clutch',
     key: clutch.id,
     species: clutch.species,
-    name: `${data.name} clutch`,
-    figure: `${clutch.eggCount} eggs`,
-    age: `hatches in ${Math.max(0, hatchTick - tick)} h`,
+    name: `${data.name} ${carried ? 'brood' : 'clutch'}`,
+    figure: `${Math.floor(clutch.eggs)} ${carried ? 'fry' : 'eggs'}`,
+    progress: `${Math.floor(clutch.development * 100)} % developed`,
   };
 }
 
@@ -375,24 +348,22 @@ export interface RosterInput {
   /** Every fry in the tank, as the one row the sell action matches. */
   fry: FryBatch | null;
   clutches: Clutch[];
-  tick: number;
 }
 
 /**
  * The two tables, in render order: species rows with what is under them
- * directly beneath when open, then — under the fish — the clutches waiting to
- * hatch and the batches growing out.
+ * directly beneath when open, then — under the fish — the clutches
+ * developing and the batches growing out.
  */
 export function rosterTables(
   input: RosterInput,
-  config: LivestockConfig,
   expanded: ReadonlySet<string>
 ): { fish: RosterRow[]; plants: RosterRow[] } {
   return {
     fish: [
-      ...fishRows(input.fish, config, expanded),
-      ...input.clutches.map((clutch) => clutchRow(clutch, input.tick)),
-      ...(input.fry ? [fryRow(input.fry, config)] : []),
+      ...fishRows(input.fish, expanded),
+      ...input.clutches.map(clutchRow),
+      ...(input.fry ? [fryRow(input.fry)] : []),
     ],
     plants: plantTable(input.plants, expanded),
   };

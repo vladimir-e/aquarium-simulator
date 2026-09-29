@@ -3,8 +3,9 @@ import type { PresetSeed, SeedFishGroup, SeedPlantGroup } from '../../simulation
 import type { SubstrateType } from '../../simulation/equipment/substrate.js';
 import type { FilterType } from '../../simulation/equipment/filter.js';
 import type { HardscapeType } from '../../simulation/equipment/hardscape.js';
+import { FISH_SPECIES_DATA, type FishSpecies } from '../../simulation/livestock/species.js';
 import { DAILY, MONTHLY, TRIM_TARGET, WEEKLY, type Chore, type Schedule, type ScheduleEntry } from './keeper.js';
-import type { BandOverrides } from './readings.js';
+import type { Band, BandOverrides } from './readings.js';
 import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
 import { LITERS_PER_GALLON, toCelsius } from '../units.js';
 
@@ -77,7 +78,7 @@ export function toConfig(setup: Setup): SimulationConfig {
     autoDoser:
       setup.doser === null
         ? { enabled: false }
-        : { enabled: true, doseAmountMl: setup.doser, schedule: { startHour: LIGHTS_ON, duration: 1 } },
+        : { enabled: true, doseAmountMl: setup.doser, startHour: LIGHTS_ON },
     powerhead: { enabled: false },
     airPump: { enabled: false },
   };
@@ -108,6 +109,36 @@ const maintained: Schedule = [
 ];
 
 export const PLANTING_SIZE = 50;
+
+function breedingPair(name: string, species: FishSpecies, heads: Band): Setup {
+  return {
+    name,
+    about: `30 gal, a ${FISH_SPECIES_DATA[species].name.toLowerCase()} pair left to breed`,
+    gallons: 30,
+    substrate: 'gravel',
+    hardscape: [],
+    tapKh: 5,
+    tapGh: 7,
+    heaterF: 78,
+    roomF: 72,
+    filter: 'hob',
+    light: { par: 50, hours: 8 },
+    co2: null,
+    doser: null,
+    ato: false,
+    plants: [
+      { species: 'java_fern', count: 2, size: PLANTING_SIZE },
+      { species: 'anubias', count: 2, size: PLANTING_SIZE },
+    ],
+    fish: [
+      { species, count: 1, sex: 'female' },
+      { species, count: 1, sex: 'male' },
+    ],
+    cycled: true,
+    schedule: [...maintained, dose(2), trim],
+    bands: { fish: heads },
+  };
+}
 
 export const SETUPS: Setup[] = [
   {
@@ -294,6 +325,16 @@ export const SETUPS: Setup[] = [
       temp: { green: [62, 76], amber: [56, 80], why: 'unheated: room temperature is the point' },
     },
   },
+  breedingPair('guppy-pair', 'guppy', {
+    green: [5, 75],
+    amber: [1, 150],
+    why: 'a guppy pair left to breed fills a 30 gal with tens of fish within months, the adults eating most fry',
+  }),
+  breedingPair('neon-pair', 'neon_tetra', {
+    green: [1, 20],
+    amber: [0.5, 50],
+    why: 'a neon pair left to breed scatters eggs the adults mostly eat, adding a few fry at most',
+  }),
 ];
 
 export function findSetup(name: string): Setup {

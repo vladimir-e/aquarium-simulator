@@ -4,10 +4,9 @@
  * window; oldest entries drop past the cap. Session-scoped — not persisted.
  */
 
-import { getLightOutput, mapKinds, type AlgaeKind, type SimulationState } from '../../simulation/index.js';
+import { countFry, getLightOutput, mapKinds, type AlgaeKind, type SimulationState } from '../../simulation/index.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/index.js';
 import { getPh } from '../../simulation/core/carbonate.js';
-import { countFry } from './livestock.js';
 
 export const RUN_HISTORY_CAP = 720; // 30 days of hourly ticks
 

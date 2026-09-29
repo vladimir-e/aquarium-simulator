@@ -54,7 +54,7 @@ import {
   getTemperatureUnit,
   type UnitSystem,
 } from '../utils/units.js';
-import type { EquipmentId } from './devices.js';
+import { formatFeed, type EquipmentId } from './devices.js';
 import { hourLabel, scheduleRange } from './schedules.js';
 
 export interface DeviceReading {
@@ -284,22 +284,38 @@ function powerheadReadings({ state, units }: DeviceReadingInput): DeviceReading[
   ];
 }
 
+/** Hours, 1 to 24, until the next tick that runs `hour` of the day: this state has already run its own. */
+function hoursUntil(tick: number, hour: number): number {
+  return ((((hour - tick - 1) % 24) + 24) % 24) + 1;
+}
+
 function autoDoserReadings({ state }: DeviceReadingInput): DeviceReading[] {
   const { autoDoser } = state.equipment;
-  const hour = state.tick % 24;
-  const until = (autoDoser.schedule.startHour - hour + 24) % 24;
+  const until = hoursUntil(state.tick, autoDoser.startHour);
 
   return [
     {
       label: 'Next dose',
-      value: autoDoser.enabled ? hourLabel(autoDoser.schedule.startHour) : 'off',
+      value: autoDoser.enabled ? hourLabel(autoDoser.startHour) : 'off',
       note: !autoDoser.enabled
-        ? `would dose at ${hourLabel(autoDoser.schedule.startHour)}`
+        ? `would dose at ${hourLabel(autoDoser.startHour)}`
         : autoDoser.dosedToday
           ? 'dosed today'
-          : until === 0
-            ? 'this hour'
-            : `in ${until} h`,
+          : `in ${until} h`,
+    },
+  ];
+}
+
+function autoFeederReadings({ state }: DeviceReadingInput): DeviceReading[] {
+  const { autoFeeder } = state.equipment;
+  const at = hourLabel(autoFeeder.startHour);
+  const until = hoursUntil(state.tick, autoFeeder.startHour);
+
+  return [
+    {
+      label: 'Next feeding',
+      value: autoFeeder.enabled ? at : 'off',
+      note: autoFeeder.enabled ? `in ${until} h` : `would feed at ${at}`,
     },
   ];
 }
@@ -346,6 +362,7 @@ const READINGS: Record<EquipmentId, (input: DeviceReadingInput) => DeviceReading
   co2Generator: co2Readings,
   powerhead: powerheadReadings,
   autoDoser: autoDoserReadings,
+  autoFeeder: autoFeederReadings,
   biofilter: biofilterReadings,
 };
 
@@ -400,9 +417,7 @@ function tooMuchCurrent(id: EquipmentId, state: SimulationState): DeviceHint | n
 /** The one sentence worth saying about a device beyond its own figures. */
 export function deviceHint(
   id: EquipmentId,
-  state: SimulationState,
-  config: TunableConfig,
-  units: UnitSystem
+  { state, config, ahead, units }: DeviceReadingInput
 ): DeviceHint | null {
   const { equipment, tank, resources } = state;
   const muted = (text: string): DeviceHint => ({ text, tone: 'muted' });
@@ -460,6 +475,16 @@ export function deviceHint(
           )
         )} ppm.`
       );
+    case 'autoFeeder': {
+      const fed = equipment.autoFeeder.amount;
+      return muted(
+        state.fish.length === 0
+          ? 'No fish to eat it — what it drops rots in the water.'
+          : ahead.ration > 0
+            ? `A day's ration of ${formatFeed(fed)} is ${(fed / ahead.ration).toFixed(1)}× what the fish need to hold condition.`
+            : 'Without oxygen the fish cannot digest — what they eat sits in their guts.'
+      );
+    }
     case 'biofilter':
       return muted(
         'Colonies grow into whatever surface the filter, substrate, hardscape and glass offer — there is nothing to set here.'

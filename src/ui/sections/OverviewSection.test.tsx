@@ -45,6 +45,7 @@ const DEVICES = [
   'co2Generator',
   'powerhead',
   'autoDoser',
+  'autoFeeder',
 ] as const;
 
 const NAMES: Record<(typeof DEVICES)[number], string> = {
@@ -56,6 +57,7 @@ const NAMES: Record<(typeof DEVICES)[number], string> = {
   co2Generator: 'CO₂ injector power',
   powerhead: 'Powerhead power',
   autoDoser: 'Auto doser power',
+  autoFeeder: 'Auto feeder power',
 };
 
 function strip(): HTMLElement | null {

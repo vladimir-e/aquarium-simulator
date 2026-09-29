@@ -69,7 +69,7 @@ export function scheduleSpans(schedule: DailySchedule): DaySpan[] {
   ];
 }
 
-export type ScheduledDeviceId = 'light' | 'co2Generator' | 'autoDoser';
+export type ScheduledDeviceId = 'light' | 'co2Generator' | 'autoDoser' | 'autoFeeder';
 
 export interface ScheduleRow {
   id: ScheduledDeviceId;
@@ -90,9 +90,9 @@ export interface RackSchedules {
 
 export function rackSchedules(state: SimulationState): RackSchedules {
   const hour = state.tick % 24;
-  const { light, co2Generator, autoDoser } = state.equipment;
-  // The doser fires once, at its start hour: a one-hour span is what it occupies.
-  const doserSchedule: DailySchedule = { startHour: autoDoser.schedule.startHour, duration: 1 };
+  const { light, co2Generator, autoDoser, autoFeeder } = state.equipment;
+  // The doser and the feeder fire once, at their start hour: a one-hour span is what each occupies.
+  const onceAt = (startHour: number): DailySchedule => ({ startHour, duration: 1 });
 
   return {
     hour,
@@ -114,9 +114,16 @@ export function rackSchedules(state: SimulationState): RackSchedules {
       {
         id: 'autoDoser',
         enabled: autoDoser.enabled,
-        active: autoDoser.enabled && hour === autoDoser.schedule.startHour,
-        spans: autoDoser.enabled ? scheduleSpans(doserSchedule) : [],
-        hours: autoDoser.enabled ? hourLabel(autoDoser.schedule.startHour) : '',
+        active: autoDoser.enabled && hour === autoDoser.startHour,
+        spans: autoDoser.enabled ? scheduleSpans(onceAt(autoDoser.startHour)) : [],
+        hours: autoDoser.enabled ? hourLabel(autoDoser.startHour) : '',
+      },
+      {
+        id: 'autoFeeder',
+        enabled: autoFeeder.enabled,
+        active: autoFeeder.enabled && hour === autoFeeder.startHour,
+        spans: autoFeeder.enabled ? scheduleSpans(onceAt(autoFeeder.startHour)) : [],
+        hours: autoFeeder.enabled ? hourLabel(autoFeeder.startHour) : '',
       },
     ],
   };

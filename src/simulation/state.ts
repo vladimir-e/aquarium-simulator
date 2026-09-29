@@ -20,14 +20,17 @@ import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
+import type { AutoFeeder } from './equipment/auto-feeder.js';
+import { DEFAULT_AUTO_FEEDER } from './equipment/auto-feeder.js';
 import { applySeed, type PresetSeed, type TankSeed } from './seed.js';
 import { writePassiveResources } from './equipment/index.js';
 import type { AlgaeKind } from './algae/traits.js';
 import { emptyBlooms, mapKinds } from './algae/blooms.js';
 import { isPlantableSize, MIN_PLANTABLE_SIZE } from './plants/create-plant.js';
+import { isStockableSize, unstockableSizeMessage } from './livestock/create-fish.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
-import type { FishSpecies, FishSex, FishLifeStage } from './livestock/species.js';
+import type { FishSpecies, FishSex } from './livestock/species.js';
 
 /**
  * Individual fish in the tank.
@@ -37,25 +40,16 @@ export interface Fish {
   id: string;
   /** Fish species type */
   species: FishSpecies;
-  /** Body mass in grams — `adultMass` for adults, age-interpolated for fry. */
+  /** Body mass in grams, grown by the bank toward `adultMass`. */
   mass: number;
   /** Health percentage (0-100, fish dies at 0) */
   health: number;
   /** Age in ticks (hours) */
   age: number;
-  /** Satiation percentage (0-100, 0=starving, 100=stuffed). */
-  satiation: number;
+  /** Grams of food in its gut, up to `gutCapacity` × its metabolic mass. */
+  gut: number;
   /** Sex, used for reproduction */
   sex: FishSex;
-  /**
-   * Life stage. Fry grow from `fryMassFraction × adultMass` toward
-   * `adultMass`, interpolated by age, and flip to `adult` at the species
-   * `maturityAge`. A seed may name a stage the age wouldn't imply — an
-   * adult still short of `maturityAge`, say — so the stage can't be
-   * derived from age alone; it is stored, and breeding asks for both
-   * (see `livestock/breeding.ts`).
-   */
-  stage: FishLifeStage;
   /**
    * Per-individual hardiness offset applied on top of species hardiness.
    * Sampled once at `addFish` time (never re-rolled) so weaker fish fail
@@ -66,9 +60,11 @@ export interface Fish {
   /**
    * Vitality bank, in condition points. Fills with income at full health,
    * up to `LivestockConfig.surplusCap`, heals health below 100, and a full
-   * bank is what a female spawns on (see `livestock/breeding.ts`).
+   * bank is what a female broods on.
    */
   surplus: number;
+  /** Eggs she is building from her food, a part egg included, laid when her bank buys a brood; 0 in a male. */
+  ovary: number;
 }
 
 /**
@@ -90,23 +86,17 @@ export interface AlgaeState {
 export type Blooms = Record<AlgaeKind, AlgaeState>;
 
 /**
- * A batch of eggs waiting to hatch.
- *
- * Egg-laying species deposit a clutch on spawn; it sits inert until
- * `laidTick + species.breeding.hatchTime`, then hatches into `eggCount`
- * fry at 100 % survival. Eggs aren't guarded or eaten — the clutch is
- * the hook the future predation system attaches to. Livebearers never
- * produce a clutch (fry appear directly).
+ * A clutch: a stock of eggs, not individuals. Water harm and predators thin
+ * `eggs` as rates; `development` fills toward 1 on the parents' metabolic
+ * factor, and the whole eggs left then hatch as fry. A livebearer's clutch is
+ * the brood its mother carries, and dies with her.
  */
 export interface Clutch {
-  /** Unique identifier */
   id: string;
-  /** Species that laid the clutch — determines the fry produced. */
   species: FishSpecies;
-  /** Number of eggs, each of which hatches into one fry. */
-  eggCount: number;
-  /** Tick the clutch was laid; hatches at `laidTick + hatchTime`. */
-  laidTick: number;
+  eggs: number;
+  development: number;
+  motherId?: string;
 }
 
 /**
@@ -285,6 +275,8 @@ export interface Equipment {
   airPump: AirPump;
   /** Auto doser for scheduled fertilizer dosing */
   autoDoser: AutoDoser;
+  /** Auto feeder for a scheduled daily ration */
+  autoFeeder: AutoFeeder;
 }
 
 /**
@@ -335,7 +327,7 @@ export interface SimulationState {
   plants: Plant[];
   /** Fish in the tank */
   fish: Fish[];
-  /** Unhatched egg clutches from egg-laying species */
+  /** Clutches developing: eggs laid in the tank and broods their mothers carry */
   clutches: Clutch[];
   /** The tank's blooms, one of each kind */
   algae: Blooms;
@@ -384,6 +376,8 @@ export interface SimulationConfig {
   airPump?: Partial<AirPump>;
   /** Initial auto doser configuration */
   autoDoser?: Partial<AutoDoser>;
+  /** Initial auto feeder configuration */
+  autoFeeder?: Partial<AutoFeeder>;
   /** Optics the tank will run on, which its first day of light is read through (defaults to the shipped optics) */
   optics?: OpticsConfig;
 }
@@ -462,7 +456,7 @@ function refuseNonFinite(value: unknown, path: string): void {
  *
  * Throws on a number the tank could not survive: anything non-finite anywhere
  * in the config or seed, a capacity that isn't positive, a fixture rated
- * past {@link MAX_LIGHT_PAR}, or a seeded plant at a size it could not be planted at.
+ * past {@link MAX_LIGHT_PAR}, or a seeded fish or plant at a size it could not be stocked or planted at.
  */
 export function createSimulation(
   config: SimulationConfig,
@@ -478,6 +472,11 @@ export function createSimulation(
   if (par !== undefined && (par < 0 || par > MAX_LIGHT_PAR)) {
     throw new Error(`createSimulation: light.par must be within 0–${MAX_LIGHT_PAR}, got ${par}`);
   }
+  seed?.fish?.forEach(({ species, size }, i) => {
+    if (size !== undefined && !isStockableSize(species, size)) {
+      throw new Error(`createSimulation: seed.fish[${i}].size — ${unstockableSizeMessage(species)}, got ${size}`);
+    }
+  });
   seed?.plants?.forEach(({ size }, i) => {
     if (size !== undefined && !isPlantableSize(size)) {
       throw new Error(`createSimulation: seed.plants[${i}].size must be within ${MIN_PLANTABLE_SIZE}–100, got ${size}`);
@@ -502,6 +501,7 @@ export function createSimulation(
     co2Generator,
     airPump,
     autoDoser,
+    autoFeeder,
     optics,
   } = config;
 
@@ -561,14 +561,9 @@ export function createSimulation(
     ...airPump,
   };
 
-  const autoDoserConfig: AutoDoser = {
-    ...DEFAULT_AUTO_DOSER,
-    ...autoDoser,
-    schedule: {
-      ...DEFAULT_AUTO_DOSER.schedule,
-      ...autoDoser?.schedule,
-    },
-  };
+  const autoDoserConfig: AutoDoser = { ...DEFAULT_AUTO_DOSER, ...autoDoser };
+
+  const autoFeederConfig: AutoFeeder = { ...DEFAULT_AUTO_FEEDER, ...autoFeeder };
 
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
   const effectiveTapWaterTemp = tapWaterTemperature ?? DEFAULT_TAP_WATER_TEMPERATURE;
@@ -596,6 +591,7 @@ export function createSimulation(
     co2Generator: co2GeneratorConfig,
     airPump: airPumpConfig,
     autoDoser: autoDoserConfig,
+    autoFeeder: autoFeederConfig,
   };
 
   const state: SimulationState = {

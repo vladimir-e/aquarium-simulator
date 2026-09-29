@@ -15,7 +15,7 @@ npm run scenarios -- --json=/tmp/before.json       # machine-readable results
 npm run scenarios -- --feed=1g --diff=/tmp/before.json  # only readings that moved against a saved run
 ```
 
-Setups: `nano`, `low-tech`, `high-tech`, `community`, `sword-gravel`, `low-flow`, `cold`.
+Setups: `nano`, `low-tech`, `high-tech`, `community`, `sword-gravel`, `low-flow`, `cold`, `guppy-pair`, `neon-pair`.
 
 Tweaks apply to every setup in the run:
 
@@ -30,7 +30,7 @@ Tweaks apply to every setup in the run:
 | `--scrub[=1w]`, `--top-off[=1d]` | Maintenance chores, optional period |
 | `--<chore>=off` | Drop that chore from the schedule |
 | `--plant=java_fern:3:40` | Add a plant group (species:count:size, size a % of one full unit, from `MIN_PLANTABLE_SIZE` (1) to 100) |
-| `--fish=neon_tetra:6` | Add a fish group (species:count) |
+| `--fish=neon_tetra:6:40` | Add a group of females (species:count:size, size a % of adult mass, grown when left out) |
 | `--rock=calcite_rock:2` | Add hardscape pieces (type:count) |
 | `--tap-kh=8` | Tap water carbonate hardness, dKH |
 | `--tap-gh=10` | Tap water general hardness, dGH |
@@ -42,7 +42,7 @@ Tweaks apply to every setup in the run:
 
 Periods are `<n>d` or `<n>w`; without one, feeding and top-off are daily, root tabs monthly and every other chore weekly.
 
-`--diff` prints, per setup, only the readings whose grade changed or whose value moved past display rounding and 5 %, or `no change`. Baselines match on setup name, so a tweaked run diffs against a plain one. A chore the engine refuses (a root tab over a bare bottom, say) warns once on stderr.
+`--diff` prints, per setup, only the readings whose grade changed or whose value moved past display rounding and 5 %, or `no change`; sample days only one side has are named, so run as many `--days` as the baseline to compare its last column. Baselines match on setup name, so a tweaked run diffs against a plain one. A chore the engine refuses (a root tab over a bare bottom, say) warns once on stderr.
 
 ## Interactive session
 
@@ -53,7 +53,7 @@ The session lives in `.simstate/current.json`; every command acts on it until a 
 npx tsx src/cli/sim.ts new --preset=planted --tank-gal=10 --name=my-run [--no-seed]
 
 npx tsx src/cli/sim.ts add plant --species=amazon_sword --size=50
-npx tsx src/cli/sim.ts add fish --species=neon_tetra --count=6
+npx tsx src/cli/sim.ts add fish --species=neon_tetra --count=6 --size=40
 npx tsx src/cli/sim.ts tick 5d
 
 npx tsx src/cli/sim.ts observe

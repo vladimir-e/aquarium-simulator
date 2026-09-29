@@ -4,9 +4,19 @@
  */
 
 import { z } from 'zod';
-import { MAX_DOSE_ML, MAX_LIGHT_PAR, MAX_ROOT_TABS, VIGOUR_SPAN, mapKinds } from '../../simulation/index.js';
+import {
+  MAX_DOSE_ML,
+  MAX_FEED_G,
+  MAX_LIGHT_PAR,
+  MAX_ROOT_TABS,
+  MIN_FEED_G,
+  VIGOUR_SPAN,
+  clutchesWithMothers,
+  mapKinds,
+} from '../../simulation/index.js';
 import {
   MAX_ALGAE_ATTENUATION_PER_GRAM,
+  MAX_FISH_GROWTH_PER_SURPLUS,
   MAX_LEAF_ATTENUATION_PER_LAI,
   MAX_SIZE_PER_SURPLUS,
   MAX_SUFFICIENCY_EDGE,
@@ -197,8 +207,16 @@ const AutoDoserSchema = z
   .object({
     enabled: z.boolean(),
     doseAmountMl: z.number().min(0.5).max(10),
-    schedule: DailyScheduleSchema,
+    startHour: z.number().int().min(0).max(23),
     dosedToday: z.boolean(),
+  })
+  .strict();
+
+const AutoFeederSchema = z
+  .object({
+    enabled: z.boolean(),
+    amount: z.number().min(MIN_FEED_G).max(MAX_FEED_G),
+    startHour: z.number().int().min(0).max(23),
   })
   .strict();
 
@@ -215,6 +233,7 @@ const EquipmentSchema = z
     co2Generator: Co2GeneratorSchema,
     airPump: AirPumpSchema,
     autoDoser: AutoDoserSchema,
+    autoFeeder: AutoFeederSchema,
   })
   .strict();
 
@@ -249,11 +268,11 @@ const FishSchema = z
     mass: z.number().min(0),
     health: z.number().min(0).max(100),
     age: z.number().int().min(0),
-    satiation: z.number().min(0).max(100),
+    gut: z.number().min(0),
     sex: z.enum(['male', 'female']),
-    stage: z.enum(['fry', 'adult']),
     hardinessOffset: z.number(),
     surplus: z.number().min(0),
+    ovary: z.number().min(0),
   })
   .strict();
 
@@ -265,8 +284,9 @@ const ClutchSchema = z
   .object({
     id: z.string(),
     species: z.enum(FISH_SPECIES),
-    eggCount: z.number().int().min(0),
-    laidTick: z.number().int().min(0),
+    eggs: z.number().min(0),
+    development: z.number().min(0),
+    motherId: z.string().optional(),
   })
   .strict();
 
@@ -347,7 +367,8 @@ export const PersistedSimulationSchema = z
     seed: TankSeedSchema.optional(),
     currentPreset: z.string(),
   })
-  .strict();
+  .strict()
+  .transform((simulation) => ({ ...simulation, clutches: clutchesWithMothers(simulation.clutches, simulation.fish) }));
 
 // ============================================================================
 // Tunable Config Schemas
@@ -491,13 +512,18 @@ const NutrientsConfigSchema = z
 
 const LivestockConfigSchema = z
   .object({
-    baseFoodRate: z.number(),
+    gutCapacity: z.number(),
+    digestionRate: z.number(),
+    metabolicQ10: z.number(),
+    metabolicReferenceTemp: z.number(),
+    massScalingExponent: z.number().max(0).gt(-1),
+    maintenanceRation: z.number(),
+    hungerSeverity: z.number(),
     baseRespirationRate: z.number(),
     respirationOxygenHalfSaturation: z.number(),
     foodNitrogenFraction: z.number(),
-    gillNFraction: z.number(),
+    assimilatedFraction: z.number(),
     respiratoryQuotient: z.number(),
-    satiationDecayRate: z.number(),
     temperatureStressSeverity: z.number(),
     phStressSeverity: z.number(),
     ghStressSeverity: z.number(),
@@ -507,23 +533,25 @@ const LivestockConfigSchema = z
     oxygenStressSeverity: z.number(),
     waterLevelStressSeverity: z.number(),
     flowStressSeverity: z.number(),
-    ageStressSeverity: z.number(),
     waterLevelStressThreshold: z.number(),
-    satiationOverfedFloor: z.number(),
-    satiationWellFedFloor: z.number(),
-    satiationHungryCeiling: z.number(),
-    satiationStarvingCeiling: z.number(),
-    satiationOverfedSeverity: z.number(),
-    satiationWellFedPeak: z.number(),
-    satiationHungrySeverity: z.number(),
-    satiationStarvingSeverity: z.number(),
     phBenefitPeak: z.number(),
     oxygenBenefitPeak: z.number(),
     plantBenefitPeak: z.number(),
     plantBenefitSaturationPoint: z.number(),
     surplusCap: z.number().min(0).max(MAX_SURPLUS_CAP),
     healingDrawRate: z.number().min(0),
-    deathDecayFactor: z.number(),
+    growthDrawRate: z.number().min(0),
+    growthPerSurplus: z.number().positive().max(MAX_FISH_GROWTH_PER_SURPLUS),
+    broodCost: z.number().positive(),
+    bodyOrganicShare: z.number().positive(),
+    growthEfficiency: z.number().min(0).max(1),
+    wearAtLifespan: z.number().min(0),
+    wearDoublingShare: z.number().positive(),
+    healingHalvingShare: z.number().positive(),
+    eggSensitivity: z.number().min(0),
+    eggPredationRate: z.number().min(0),
+    predationRate: z.number().min(0),
+    preyVulnerabilityExponent: z.number().positive(),
   })
   .strict();
 

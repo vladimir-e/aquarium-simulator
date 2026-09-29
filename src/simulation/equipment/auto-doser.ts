@@ -3,8 +3,7 @@
  *
  * Auto dosing:
  * - Configurable dose amount (0.5-10.0 ml)
- * - Schedule-based operation (uses DailySchedule)
- * - Doses once per day at the schedule start hour
+ * - Doses once per day at its start hour
  * - Uses the same fertilizer formula as manual dosing
  *
  * Provides consistent daily nutrient replenishment for planted tanks.
@@ -13,7 +12,6 @@
 import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
-import type { DailySchedule } from '../core/schedule.js';
 import type { FertilizerFormula } from '../config/nutrients.js';
 import { calculateDoseNutrients } from '../actions/dose.js';
 
@@ -26,8 +24,8 @@ export interface AutoDoser {
   enabled: boolean;
   /** Dose amount in milliliters */
   doseAmountMl: number;
-  /** Schedule for dosing (doses at startHour, duration ignored) */
-  schedule: DailySchedule;
+  /** Hour of the day it doses at, 0–23. */
+  startHour: number;
   /** Whether the doser has already dosed today (resets at midnight) */
   dosedToday: boolean;
 }
@@ -42,10 +40,7 @@ export interface AutoDoser {
 export const DEFAULT_AUTO_DOSER: AutoDoser = {
   enabled: false,
   doseAmountMl: 2.0, // 2ml default dose
-  schedule: {
-    startHour: 8, // 8am (around lights on)
-    duration: 1, // Unused for doser, but required by DailySchedule
-  },
+  startHour: 8,
   dosedToday: false,
 };
 
@@ -56,35 +51,20 @@ export const DOSE_AMOUNT_OPTIONS = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 7.5,
 
 export type DoseAmount = (typeof DOSE_AMOUNT_OPTIONS)[number];
 
-/**
- * Minimum dose amount (ml)
- */
-export const MIN_DOSE_ML = 0.5;
-
-/**
- * Maximum dose amount (ml)
- */
-export const MAX_DOSE_ML = 10.0;
-
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
 /**
- * Check if it's time to dose (at schedule start hour).
+ * Check if it's time to dose: at its start hour, and only once per day.
  *
  * @param hourOfDay - Current hour (0-23)
- * @param schedule - Auto doser schedule
+ * @param startHour - Hour the doser doses at
  * @param dosedToday - Whether already dosed today
  * @returns Whether should dose now
  */
-export function shouldDose(
-  hourOfDay: number,
-  schedule: DailySchedule,
-  dosedToday: boolean
-): boolean {
-  // Only dose at the exact start hour, and only once per day
-  return hourOfDay === schedule.startHour && !dosedToday;
+export function shouldDose(hourOfDay: number, startHour: number, dosedToday: boolean): boolean {
+  return hourOfDay === startHour && !dosedToday;
 }
 
 /**
@@ -140,7 +120,7 @@ export function autoDoserUpdate(
 
   const currentDosedToday = newState.equipment.autoDoser.dosedToday;
 
-  if (!shouldDose(hourOfDay, autoDoser.schedule, currentDosedToday)) {
+  if (!shouldDose(hourOfDay, autoDoser.startHour, currentDosedToday)) {
     return { state: newState, effects, dosed: false };
   }
 
@@ -182,32 +162,4 @@ export function autoDoserUpdate(
   });
 
   return { state: newState, effects, dosed: true };
-}
-
-/**
- * Apply auto doser configuration changes.
- *
- * @param state - Current simulation state
- * @param updates - Partial updates to apply
- * @returns Updated state
- */
-export function applyAutoDoserSettings(
-  state: SimulationState,
-  updates: Partial<Omit<AutoDoser, 'dosedToday'>>
-): SimulationState {
-  return produce(state, (draft) => {
-    if (updates.enabled !== undefined) {
-      draft.equipment.autoDoser.enabled = updates.enabled;
-    }
-    if (updates.doseAmountMl !== undefined) {
-      // Clamp to valid range
-      draft.equipment.autoDoser.doseAmountMl = Math.max(
-        MIN_DOSE_ML,
-        Math.min(MAX_DOSE_ML, updates.doseAmountMl)
-      );
-    }
-    if (updates.schedule !== undefined) {
-      draft.equipment.autoDoser.schedule = updates.schedule;
-    }
-  });
 }

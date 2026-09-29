@@ -9,6 +9,7 @@ import { FILTER_SURFACE } from './equipment/filter.js';
 import { POWERHEAD_FLOW_LPH } from './equipment/powerhead.js';
 import type { HardscapeType } from './equipment/hardscape.js';
 import { dailyLightIntegral } from './equipment/light.js';
+import { BREEDING_TANK_MS } from './tests/breeding-tank.js';
 
 describe('tick', () => {
   const still = (): SimulationState =>
@@ -203,17 +204,22 @@ describe('tick determinism', () => {
   const ROSTER: PresetSeed = {
     bacteria: 'cycled',
     fish: [
-      { species: 'guppy', count: 3, sex: 'female' },
-      { species: 'guppy', count: 2, sex: 'male' },
+      { species: 'neon_tetra', count: 3, sex: 'female' },
+      { species: 'neon_tetra', count: 2, sex: 'male' },
     ],
     plants: [{ species: 'java_fern', count: 2, size: 90 }],
+  };
+
+  const UNEATEN_EGGS: TunableConfig = {
+    ...DEFAULT_CONFIG,
+    livestock: { ...DEFAULT_CONFIG.livestock, eggPredationRate: 0 },
   };
 
   function fortnight(rngSeed: number): SimulationState {
     let state = createSimulation(TANK, ROSTER, rngSeed);
     for (let hour = 1; hour <= 14 * 24; hour++) {
       if (hour % 24 === 9) state = applyAction(state, { type: 'feed', amount: 0.15 }).state;
-      state = tick(state);
+      state = tick(state, UNEATEN_EGGS);
     }
     return state;
   }
@@ -225,16 +231,16 @@ describe('tick determinism', () => {
     expect(first.fish.length).toBeGreaterThan(5);
     expect(first).toEqual(second);
     expect(JSON.stringify(first)).toBe(JSON.stringify(second));
-  });
+  }, BREEDING_TANK_MS);
 
   it('sends the same tank down a different life on a different rng seed', () => {
     expect(fortnight(2026)).not.toEqual(fortnight(9001));
-  });
+  }, BREEDING_TANK_MS);
 
   it('picks up mid-stream when a serialised tank is handed back', () => {
     const halfway = fortnight(2026);
     const resumed: SimulationState = JSON.parse(JSON.stringify(halfway));
 
     expect(tick(resumed)).toEqual(tick(halfway));
-  });
+  }, BREEDING_TANK_MS);
 });

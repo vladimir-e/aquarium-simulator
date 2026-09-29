@@ -31,7 +31,7 @@ describe('accrueLogs', () => {
 
   it('sums births from spawn and hatch counts', () => {
     const logs = [
-      createLog(1, 'simulation', 'info', 'gave birth to 4 fry', 'fish-spawned', 4),
+      createLog(1, 'simulation', 'info', 'gave birth to 4 fry', 'fry-born', 4),
       createLog(2, 'simulation', 'info', '25 eggs hatched', 'eggs-hatched', 25),
     ];
     expect(accrueLogs(emptyAggregates(), logs).births).toBe(29);
@@ -39,7 +39,7 @@ describe('accrueLogs', () => {
 
   it('counts every plant offshoot as a birth beside the fry', () => {
     const logs = [
-      createLog(1, 'simulation', 'info', 'gave birth to 4 fry', 'fish-spawned', 4),
+      createLog(1, 'simulation', 'info', 'gave birth to 4 fry', 'fry-born', 4),
       createLog(2, 'simulation', 'info', 'Amazon Sword threw a plantlet', 'plant-propagated'),
       createLog(2, 'simulation', 'info', 'Monte Carlo sent a runner', 'plant-propagated'),
     ];
@@ -47,7 +47,7 @@ describe('accrueLogs', () => {
   });
 
   it('falls back to one when a lifecycle entry omits a count', () => {
-    const logs = [createLog(1, 'simulation', 'info', 'gave birth', 'fish-spawned')];
+    const logs = [createLog(1, 'simulation', 'info', 'gave birth', 'fry-born')];
     expect(accrueLogs(emptyAggregates(), logs).births).toBe(1);
   });
 

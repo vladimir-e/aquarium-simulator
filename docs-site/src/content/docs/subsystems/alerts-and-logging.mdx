@@ -79,7 +79,7 @@ emitted per hour, and nothing is written unless something happened.
 
 | Source | Written when |
 |---|---|
-| `simulation` | The tank is built; a fish or plant dies; a spawn, a laying, a hatch or an offshoot |
+| `simulation` | The tank is built; a fish or plant dies; a brood laid, a hatch or a birth; an offshoot |
 | `user` | Any applied action — a refused one logs nothing |
 | `scrub` | The scrub action, filed under its own channel |
 | `evaporation` · `nitrogen-cycle` · `gas-exchange` · `algae` | The alert lines, each under the system whose reading tripped |
@@ -104,10 +104,10 @@ a run was created with, a heater's target — stays a quantity rather than text,
 each reader renders the line in its own units: `logText(entry, format)`, metric
 unless handed a format.
 
-Eight typed events exist: `fish-spawned`, `eggs-laid`, `eggs-hatched`,
+Eight typed events exist: `eggs-laid`, `eggs-hatched`, `fry-born`,
 `fish-died`, `plant-died`, `plant-propagated`, `algae-died` and `fry-sold`.
-Three of them carry a count — a live birth, a hatch and a fry sale — because the
-number is the point. Deaths, offshoots and a bloom's die-back are one entry per
+Four of them carry a count — a laying, a hatch, a live birth and a fry sale —
+because the number is the point. Deaths, offshoots and a bloom's die-back are one entry per
 organism, so they need none; a die-back states the coverage it took instead, so
 a reader can weigh a crash against spores dying back as dust.
 
@@ -156,7 +156,7 @@ the fish tolerance edges, defined with [livestock](/subsystems/livestock/).
 | [Plants](/subsystems/plants/) · [Light](/subsystems/light/) | The share of the planting's light each kind takes | — |
 | [Plants](/subsystems/plants/) | — | Receives a `plant-died` entry per plant lost and a `plant-propagated` entry per offshoot |
 | [Algae](/subsystems/algae/) | — | Receives an `algae-died` entry per die-back, naming the kind and stating the coverage it took |
-| [Livestock](/subsystems/livestock/) | — | Receives death, spawn, laying and hatch entries |
+| [Livestock](/subsystems/livestock/) | — | Receives death entries and one per brood laid, hatch or birth |
 | [Actions](/subsystems/actions/) | — | Receives one entry per applied action |
 | [State & persistence](/subsystems/state-and-persistence/) | — | `alertState` is persisted; `logs` are not |
 

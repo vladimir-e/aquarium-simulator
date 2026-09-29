@@ -4,6 +4,7 @@ import {
   calculateSurface,
   createHardscapeItem,
   createSimulation,
+  dailyMaintenance,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
   onTheGlass,
@@ -12,9 +13,9 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, mapNutrients, type Nutrient, type TunableConfig } from '../../simulation/config/index.js';
-import { getMassFromPpm } from '../../simulation/resources/index.js';
+import { FoodResource, getMassFromPpm } from '../../simulation/resources/index.js';
 import { produce } from 'immer';
-import { bedReading, doseToCover, nutrientProbe, nutrientReadings, TRIM_TARGETS } from '../run';
+import { bedReading, doseToCover, nutrientProbe, nutrientReadings, readHourAhead, TRIM_TARGETS } from '../run';
 import {
   DEFAULT_SETTINGS,
   DOSE_PRESETS,
@@ -53,7 +54,7 @@ function planted(sizes: number[]): SimulationState {
 }
 
 function detail(state: SimulationState, id: VerbId, settings: VerbSettings = DEFAULT_SETTINGS): VerbDetail {
-  return verbDetail(state, id, settings, 'metric', DEFAULT_CONFIG);
+  return verbDetail(id, { state, settings, units: 'metric', config: DEFAULT_CONFIG, ahead: readHourAhead(state, DEFAULT_CONFIG) });
 }
 
 function row(state: SimulationState, id: VerbId, settings: VerbSettings = DEFAULT_SETTINGS): VerbRow {
@@ -86,7 +87,7 @@ describe('the seven verbs', () => {
       draft.nutrients.fertilizerFormula.nitrate /= 5;
     });
     const rise = (config: TunableConfig): number => {
-      const hint = verbDetail(state, 'dose', DEFAULT_SETTINGS, 'metric', config).options.find(
+      const hint = verbDetail('dose', { state, settings: DEFAULT_SETTINGS, units: 'metric', config, ahead: readHourAhead(state, config) }).options.find(
         (option) => option.value === DEFAULT_SETTINGS.dose
       )?.hint;
       return Number(hint?.match(/[\d.]+/)?.[0]);
@@ -164,8 +165,13 @@ describe('the seven verbs', () => {
     it('counts, refuses and names its commit by what the family holds', () => {
       const { state, first, second } = families();
       const scoped = (familyId: string, trimPlants: number): VerbDetail =>
-        verbDetail(state, 'trimPlants', { ...DEFAULT_SETTINGS, trimPlants }, 'metric', DEFAULT_CONFIG, {
-          familyId,
+        verbDetail('trimPlants', {
+          state,
+          settings: { ...DEFAULT_SETTINGS, trimPlants },
+          units: 'metric',
+          config: DEFAULT_CONFIG,
+          ahead: readHourAhead(state, DEFAULT_CONFIG),
+          scope: { familyId },
         });
 
       expect(scoped(first, 75).options.map((o) => o.hint)).toEqual(['2 plants', '1 plant', 'none']);
@@ -180,8 +186,13 @@ describe('the seven verbs', () => {
 
     it('previews the shade the cut takes off the floor, though the largest plant stands elsewhere', () => {
       const { state, first } = families();
-      const preview = verbDetail(state, 'trimPlants', DEFAULT_SETTINGS, 'metric', DEFAULT_CONFIG, {
-        familyId: first,
+      const preview = verbDetail('trimPlants', {
+        state,
+        settings: DEFAULT_SETTINGS,
+        units: 'metric',
+        config: DEFAULT_CONFIG,
+        ahead: readHourAhead(state, DEFAULT_CONFIG),
+        scope: { familyId: first },
       }).preview;
 
       expect(preview.map((row) => row.key)).toEqual(['floorShade']);
@@ -394,7 +405,20 @@ describe('the seven verbs', () => {
     const days = (state: SimulationState): number =>
       parseFloat(detail(state, 'feed').options[1].hint);
     expect(days(stocked)).toBeLessThan(days(lean));
-    expect(detail(stocked, 'feed').meta).toMatch(/^8 fish eat \d+\.\d\d g a day$/);
+    expect(detail(stocked, 'feed').meta).toMatch(/^8 fish need \d+\.\d\d g a day$/);
+  });
+
+  it('prices a feed against the ration the fish burn in the water they are in', () => {
+    let warm = tank();
+    for (let i = 0; i < 8; i++) warm = applyAction(warm, { type: 'addFish', species: 'corydoras' }).state;
+    const cold = produce(warm, (draft) => {
+      draft.resources.temperature -= 10;
+    });
+    const { metabolicFactor } = readHourAhead(cold, DEFAULT_CONFIG);
+    const need = dailyMaintenance(cold.fish, metabolicFactor, DEFAULT_CONFIG.livestock);
+
+    expect(metabolicFactor).toBeLessThan(readHourAhead(warm, DEFAULT_CONFIG).metabolicFactor);
+    expect(detail(cold, 'feed').meta).toBe(`8 fish need ${need.toFixed(FoodResource.precision)} g a day`);
   });
 
   it('stops counting days once a ration would outlast the month', () => {
@@ -412,7 +436,7 @@ describe('the seven verbs', () => {
     const fry = applyAction(tank(), { type: 'addFish', species: 'neon_tetra' }).state;
     const tiny = { ...fry, fish: fry.fish.map((fish) => ({ ...fish, mass: 0.001 })) };
 
-    expect(detail(tiny, 'feed').meta).toBe('1 fish eats under 0.01 g a day');
+    expect(detail(tiny, 'feed').meta).toBe('1 fish needs under 0.01 g a day');
   });
 
   it('names the food already standing in the water, which left Livestock with the verb', () => {

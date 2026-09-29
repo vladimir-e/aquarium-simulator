@@ -36,6 +36,7 @@ import {
   plantLabels,
   printsAsZero,
   TRIM_TARGETS,
+  type HourAhead,
 } from '../run';
 import { COVERAGE_DECIMALS, formatVolume, logQuantityIn, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
@@ -173,18 +174,6 @@ export function verbAction(
 
 function headroom(state: SimulationState): number {
   return Math.max(0, state.tank.capacity - state.resources.water);
-}
-
-/**
- * Grams that hold the roster's satiation level for a day: what a day's decay
- * costs, priced by the engine's own intake rule. A ration, not a projection —
- * the fish can only swallow an hour's worth at a time, which is why the rest of
- * a big feed shows up in the preview as food left standing in the water.
- */
-function dailyRation(state: SimulationState, config: TunableConfig): number {
-  const { baseFoodRate, satiationDecayRate } = config.livestock;
-  const dayOfDecay = Math.min(100, satiationDecayRate * 24) / 100;
-  return state.fish.reduce((total, fish) => total + dayOfDecay * fish.mass * baseFoodRate, 0);
 }
 
 /** A ration that outlasts a month says so rather than counting the years. */
@@ -346,13 +335,14 @@ function rungsFor(
   id: SettableVerb,
   units: UnitSystem,
   config: TunableConfig,
+  ahead: HourAhead,
   scope: VerbScope | null
 ): Rungs {
   const water = state.resources.water;
 
   switch (id) {
     case 'feed': {
-      const ration = dailyRation(state, config);
+      const { ration } = ahead;
       return {
         values: FEED_PRESETS,
         rung: (amount) => ({
@@ -465,6 +455,7 @@ function meta(
   settings: VerbSettings,
   units: UnitSystem,
   config: TunableConfig,
+  ahead: HourAhead,
   scope: VerbScope | null
 ): string {
   const water = state.resources.water;
@@ -474,7 +465,7 @@ function meta(
       const mouths =
         state.fish.length === 0
           ? 'no fish to feed'
-          : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'eats' : 'eat'} ${grams(dailyRation(state, config))} a day`;
+          : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'needs' : 'need'} ${grams(ahead.ration)} a day`;
       return state.resources.food > 0
         ? `${mouths} · ${grams(state.resources.food)} still in the water`
         : mouths;
@@ -591,13 +582,23 @@ function rungs(
   setting: NonNullable<VerbDetail['setting']>,
   units: UnitSystem,
   config: TunableConfig,
+  ahead: HourAhead,
   scope: VerbScope | null
 ): VerbOption[] {
-  const { values, rung } = rungsFor(state, setting.verb, units, config, scope);
+  const { values, rung } = rungsFor(state, setting.verb, units, config, ahead, scope);
   const all = values.includes(setting.value)
     ? values
     : [...values, setting.value].sort((a, b) => a - b);
   return all.map(rung);
+}
+
+export interface VerbInput {
+  state: SimulationState;
+  settings: VerbSettings;
+  units: UnitSystem;
+  config: TunableConfig;
+  ahead: HourAhead;
+  scope?: VerbScope | null;
 }
 
 /**
@@ -605,21 +606,18 @@ function rungs(
  * the selected verb is read this far: the preview applies the action to find
  * its rows.
  */
+
 export function verbDetail(
-  state: SimulationState,
   id: VerbId,
-  settings: VerbSettings,
-  units: UnitSystem,
-  config: TunableConfig,
-  scope: VerbScope | null = null
+  { state, settings, units, config, ahead, scope = null }: VerbInput
 ): VerbDetail {
   const setting = settingOf(id, settings);
   return {
     id,
     title: (id === 'trimPlants' && scope && scopeTitle(state, scope)) || VERB[id].title,
-    meta: meta(state, id, settings, units, config, scope),
+    meta: meta(state, id, settings, units, config, ahead, scope),
     setting,
-    options: setting === null ? [] : rungs(state, setting, units, config, scope),
+    options: setting === null ? [] : rungs(state, setting, units, config, ahead, scope),
     note: BARE_NOTE[id]?.(state) ?? null,
     preview: previewRows({
       before: state,

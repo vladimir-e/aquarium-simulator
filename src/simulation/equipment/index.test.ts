@@ -381,7 +381,7 @@ describe('processEquipment', () => {
       draft.nutrients.fertilizerFormula.nitrate = 10;
     });
     const state = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
-      draft.tick = draft.equipment.autoDoser.schedule.startHour;
+      draft.tick = draft.equipment.autoDoser.startHour;
       draft.equipment.autoDoser.enabled = true;
       draft.equipment.autoDoser.doseAmountMl = 2;
     });

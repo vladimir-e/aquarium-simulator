@@ -189,6 +189,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
               scope={acts.scope}
               state={sim.state}
               config={config}
+              ahead={book.ahead}
               settings={acts.settings}
               onAmount={acts.setAmount}
               onCommit={acts.commit}

@@ -8,7 +8,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import type { SimulationState } from '../simulation/index.js';
+import { clutchesWithMothers, type SimulationState } from '../simulation/index.js';
 import { type TunableConfig, DEFAULT_CONFIG } from '../simulation/config/index.js';
 import type { HistorySnapshot } from './history.js';
 
@@ -18,6 +18,24 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v19 made a clutch a stock that rates drain. `Clutch` trades `eggCount` and
+ *    `laidTick` for `eggs` and `development`, a carried one names its
+ *    `motherId`, and `LivestockConfig` gains `eggSensitivity`,
+ *    `eggPredationRate`, `predationRate` and `preyVulnerabilityExponent`. Old
+ *    age is wear: `ageStressSeverity` gives way to `wearAtLifespan`,
+ *    `wearDoublingShare` and `healingHalvingShare`. A fish is made of what it
+ *    ate: `deathDecayFactor` gives way to `bodyOrganicShare` and
+ *    `growthEfficiency`, `gillNFraction` becomes `assimilatedFraction`, and
+ *    `Fish` gains `ovary`. Metabolism scales with mass: `massScalingExponent`.
+ *    A v18 session parses, the first tick with a clutch standing drains it by
+ *    keys it does not carry, and every fish's wear, healing and growth read
+ *    keys it does not carry.
+ * v18 fed fish through a gut and let their banks buy their growth and broods.
+ *    `Fish.satiation` becomes `Fish.gut` and `Fish.stage` goes — mass is a
+ *    stock the bank grows; `LivestockConfig` trades its satiation knobs for
+ *    the gut's and gains `growthDrawRate`, `growthPerSurplus` and `broodCost`,
+ *    and `Equipment` gains `autoFeeder`. A v17 session parses, and the first
+ *    tick digests a gut and grows a fish off keys it does not carry.
  * v17 put algae on the plants' vitality model as two kinds and fed every
  *    flora ammonia before nitrate. `state.algae` holds a bloom per kind,
  *    `AlgaeState` gains `condition`, the `algae` config section is rebuilt as
@@ -142,7 +160,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 17;
+export const SESSION_VERSION = 19;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {
@@ -180,7 +198,10 @@ export function loadSession(options: LoadOptions = {}): Session {
       `Unsupported session version ${parsed.version} (expected ${SESSION_VERSION}).`
     );
   }
-  return parsed;
+  return {
+    ...parsed,
+    state: { ...parsed.state, clutches: clutchesWithMothers(parsed.state.clutches, parsed.state.fish) },
+  };
 }
 
 export function saveSession(session: Session, options: LoadOptions = {}): void {

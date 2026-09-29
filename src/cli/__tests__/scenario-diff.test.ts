@@ -35,6 +35,17 @@ describe('renderDiff', () => {
     const after: Snapshot = { nano: { no3: { d90: [10, 'G'], d300: [12, 'G'] } } };
     expect(renderDiff(snapshot('nano', 10), after)).toBe('nano\n  d300: not in the baseline');
   });
+
+  it('reports baseline days this run never reached', () => {
+    const before: Snapshot = { nano: { no3: { d90: [10, 'G'], d300: [12, 'G'] } } };
+    expect(renderDiff(before, snapshot('nano', 10))).toBe('nano\n  d300: not in this run');
+  });
+
+  it('shows a move of more than 5 % on the final day', () => {
+    const before: Snapshot = { pair: { fish: { d90: [57, 'G'], d300: [186, 'A'] } } };
+    const after: Snapshot = { pair: { fish: { d90: [57, 'G'], d300: [169, 'A'] } } };
+    expect(renderDiff(before, after)).toContain('d300 186 A → 169 A');
+  });
 });
 
 describe('--diff against the file --json overwrites', () => {

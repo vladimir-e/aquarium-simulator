@@ -3,7 +3,7 @@ import { pickerOptions, type PickerKind, type PickerOption } from '../../build';
 import { toneOf } from '../../readings';
 import type { BedReading } from '../../run';
 import { useUnits } from '../../hooks/useUnits';
-import type { FishSpecies, PlantSpecies, SimulationState } from '../../../simulation/index.js';
+import { STOCKED_FISH_SIZE, type FishSpecies, type PlantSpecies, type SimulationState } from '../../../simulation/index.js';
 import { Drawer } from '../ui/Drawer';
 import { SpeciesGlyph, type SpeciesKey } from '../ui/SpeciesGlyph';
 import { Stepper } from '../ui/Stepper';
@@ -11,6 +11,9 @@ import { TONE_TEXT } from '../ui/RangeStrip';
 import { CONTROL_FOCUS, INSET_FOCUS } from '../ui/focus';
 
 const TITLE: Record<PickerKind, string> = { fish: 'Add fish', plant: 'Add plant' };
+
+const FISH_SIZE_STEP = 10;
+const FISH_SIZE_MIN = 10;
 
 function Option({
   option,
@@ -58,15 +61,16 @@ export function AddDrawer({
   state: SimulationState;
   bed: BedReading;
   onClose: () => void;
-  onAdd: (species: FishSpecies | PlantSpecies, count: number) => void;
+  onAdd: (species: FishSpecies | PlantSpecies, count: number, size: number) => void;
 }): React.JSX.Element | null {
   const { unitSystem } = useUnits();
   const [count, setCount] = useState(1);
+  const [size, setSize] = useState(STOCKED_FISH_SIZE);
   const [picked, setPicked] = useState<string | null>(null);
 
   if (kind === null) return null;
 
-  const options = pickerOptions(kind, state, count, unitSystem, bed);
+  const options = pickerOptions(kind, state, unitSystem, bed, { count, size });
   const option = options.find((o) => o.species === picked) ?? options[0];
   const refusal = count > option.headroom ? (option.refusal ?? `Only ${option.headroom} fit`) : null;
 
@@ -96,6 +100,21 @@ export function AddDrawer({
             />
           </div>
 
+          {kind === 'fish' && (
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] text-ink-2">Size</span>
+              <Stepper
+                value={size}
+                onChange={setSize}
+                min={FISH_SIZE_MIN}
+                max={STOCKED_FISH_SIZE}
+                step={FISH_SIZE_STEP}
+                display={`${size}%`}
+                ariaLabel="Size"
+              />
+            </div>
+          )}
+
           {option.note && <p className="text-[12px] text-ink-3">{option.note}</p>}
 
           {refusal ? (
@@ -103,7 +122,7 @@ export function AddDrawer({
           ) : (
             <button
               type="button"
-              onClick={() => onAdd(option.species, count)}
+              onClick={() => onAdd(option.species, count, size)}
               className={`h-9 w-full rounded-control bg-accent-tint text-[14px] font-medium text-accent transition-colors hover:brightness-110 ${CONTROL_FOCUS}`}
             >
               Add {count} {option.name}

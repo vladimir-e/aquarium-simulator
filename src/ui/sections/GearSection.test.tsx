@@ -91,7 +91,7 @@ function rowNamed(name: string): HTMLElement {
 }
 
 describe('GearSection', () => {
-  it('racks the eight devices, and nothing the engine cannot install', () => {
+  it('racks the nine devices, and nothing the engine cannot install', () => {
     renderGear();
     expect(rackRows().map((label) => label.split(' — ')[0])).toEqual([
       'Filter',
@@ -102,6 +102,7 @@ describe('GearSection', () => {
       'CO₂ injector',
       'Powerhead',
       'Auto doser',
+      'Auto feeder',
     ]);
   });
 

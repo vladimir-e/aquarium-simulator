@@ -77,12 +77,10 @@ export function LifeSection({
           plants: book.roster.plants,
           fry: book.roster.fry,
           clutches: state.clutches,
-          tick: state.tick,
         },
-        config.livestock,
         expanded
       ),
-    [book.roster, state, config.livestock, expanded]
+    [book.roster, state, expanded]
   );
 
   const load = useMemo(() => bioload(state.fish, state.tank.capacity), [state]);
@@ -105,11 +103,11 @@ export function LifeSection({
     onTrimFamily: (familyId) => onAct('trimPlants', undefined, { familyId }),
   });
 
-  const add = (species: FishSpecies | PlantSpecies, count: number): void => {
+  const add = (species: FishSpecies | PlantSpecies, count: number, size: number): void => {
     for (let i = 0; i < count; i++) {
       sim.executeAction(
         adding === 'fish'
-          ? { type: 'addFish', species: species as FishSpecies }
+          ? { type: 'addFish', species: species as FishSpecies, size }
           : { type: 'addPlant', species: species as PlantSpecies }
       );
     }

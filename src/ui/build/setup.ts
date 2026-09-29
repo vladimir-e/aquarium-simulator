@@ -58,7 +58,8 @@ function presetSettings(state: SimulationState): string {
     light: [e.light.enabled, e.light.par, ...schedule(e.light.schedule)],
     co2: [e.co2Generator.enabled, e.co2Generator.bubbleRate, ...schedule(e.co2Generator.schedule)],
     airPump: e.airPump.enabled,
-    autoDoser: [e.autoDoser.enabled, e.autoDoser.doseAmountMl, ...schedule(e.autoDoser.schedule)],
+    autoDoser: [e.autoDoser.enabled, e.autoDoser.doseAmountMl, e.autoDoser.startHour],
+    autoFeeder: [e.autoFeeder.enabled, e.autoFeeder.amount, e.autoFeeder.startHour],
   });
 }
 
@@ -120,13 +121,7 @@ export const RESET_CONFIRM_TICKS = 30 * TICKS_PER_DAY;
 export function resetConsequence(state: SimulationState): string {
   const days = Math.floor(state.tick / TICKS_PER_DAY);
   const elapsed = days > 0 ? ` — ${days} day${days === 1 ? '' : 's'}` : '';
-  const clutches = state.clutches.length;
-  const eggs =
-    clutches > 0
-      ? ` ${clutches} clutch${clutches === 1 ? '' : 'es'} in the water ${clutches === 1 ? 'is' : 'are'} lost.`
-      : '';
-
-  return `Reset clears the clock, water chemistry, alerts and this run's charts${elapsed}. Equipment, scape, plants and fish stay.${eggs}`;
+  return `Reset clears the clock, water chemistry, alerts and this run's charts${elapsed}. Equipment, scape, plants and fish stay.`;
 }
 
 /**

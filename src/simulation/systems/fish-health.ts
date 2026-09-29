@@ -5,45 +5,37 @@
  * factors, fed through {@link computeVitality}, and the result drives
  * `health` (the fish-side name for vitality's `condition`). Income at full
  * health banks on `Fish.surplus`; the bank heals health below 100 at
- * {@link fishHealingRate}, and a full one is what a female spawns on (see
- * `livestock/breeding.ts`).
+ * {@link fishHealingRate}, falling with age, and a full one is what a female
+ * broods on (see `livestock/breeding.ts`).
  *
  * Stressors, hardened here before they reach the vitality engine:
- * - Temperature, pH, GH, satiation (hunger side), water level, flow, age
- *   (past species `maxAge`) are scaled by `1 − effectiveHardiness`.
+ * - Temperature, pH, GH, hunger, water level, flow and predation are scaled
+ *   by `1 − fishHardiness`.
  * - Free NH3, nitrite, nitrate and oxygen instead carry hardiness on the
  *   concentration axis: it moves where harm starts, not how steeply it grows.
+ * - Wear, rising with age on a Gompertz curve, is intrinsic: no hardiness
+ *   shields it, only the individual's vigour scales it (see {@link fishWear}).
  *
- * Benefit factors (peaks tunable via `LivestockConfig`):
+ * Benefit factors (peaks tunable via `LivestockConfig`), every one earned on
+ * what the fish digested — its nourishment, half at its maintenance ration:
  * - pH, full at the band centre and zero at its edges
- * - Satiation in well-fed band (peak around mid-well-fed, zero at
- *   the band edges)
  * - Oxygen, rising from `OXYGEN_EDGE` to full at `OXYGEN_COMFORT`
  * - Plant presence (saturating at `plantBenefitSaturationPoint`)
  *
- * At default calibration, pH at its band centre, the abiotic three sum
- * to ≈ 1.0 %/h and the plant benefit adds up to 0.2 %/h on top.
- *
- * Temperature is not a separate benefit: inside the species range
- * temperature stress is zero and the other benefits cover recovery;
- * outside the range the temperature stressor takes over. The plant-
- * presence benefit gives fish shelter/cover; plant-derived oxygen and
- * ammonia uptake flow through the resource layer into the existing
- * oxygen / ammonia channels and are not double-counted here.
- *
- * The plant benefit pushes the all-good budget above the abiotic
- * ceiling on purpose — a healthy planted tank should sit at full
- * health with a positive net rate, banking surplus on `Fish.surplus`.
+ * At default calibration and full nourishment, pH at its band centre, the
+ * abiotic two sum to ≈ 0.7 %/h and the plant benefit adds up to 0.2 %/h.
  */
 
 import type { Fish, Plant, Resources } from '../state.js';
 import { getPh } from '../core/carbonate.js';
-import { FISH_SPECIES_DATA } from '../livestock/species.js';
+import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { getDgh, getPpm } from '../resources/index.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
-import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';
+import { maintenance, nourishment, shareOut, swallow } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
+import { sum } from '../core/sum.js';
+import { bodyOrganics, eggOrganics, fishSize } from './fish-growth.js';
 import {
   FREE_AMMONIA_EDGE,
   NITRATE_EDGE,
@@ -60,6 +52,7 @@ import {
   eFoldsUnder,
   hardened,
   outsideBand,
+  shortfall,
   type VitalityFactor,
   type VitalityResult,
 } from './vitality.js';
@@ -69,22 +62,22 @@ export interface HealthResult {
   survivingFish: Fish[];
   /** Names of fish that died */
   deadFishNames: string[];
-  /** Total waste produced from dead fish */
+  /** Waste the dead leave: their bodies, their guts and the broods they carried, less what the survivors ate */
   deathWaste: number;
   /** Each fish's vitality this tick, in the order handed in, the dead included */
   vitalities: VitalityResult[];
 }
 
 /**
- * Compute the effective hardiness for a fish.
- *
- * Species baseline + per-individual offset, clamped to [0.1, 0.95]
- * so an extreme offset can't push a fish into invincible or instantly-
- * dying territory.
+ * Hardiness clamped to [0.1, 0.95], so no offset makes an organism
+ * invincible or instantly doomed.
  */
-function effectiveHardiness(fish: Fish): number {
-  const base = FISH_SPECIES_DATA[fish.species].hardiness;
-  return Math.max(0.1, Math.min(0.95, base + fish.hardinessOffset));
+export function speciesHardiness(species: FishSpecies, offset = 0): number {
+  return Math.max(0.1, Math.min(0.95, FISH_SPECIES_DATA[species].hardiness + offset));
+}
+
+export function fishHardiness(fish: Pick<Fish, 'species' | 'hardinessOffset'>): number {
+  return speciesHardiness(fish.species, fish.hardinessOffset);
 }
 
 interface FishFactorContext {
@@ -95,6 +88,12 @@ interface FishFactorContext {
   tankCapacity: number;
   config: LivestockConfig;
   hardiness: number;
+  /** Grams its gut digested this hour. */
+  digested: number;
+  /** Grams it had to digest this hour to hold its condition. */
+  need: number;
+  /** Grams by which the tank's larger fish outweigh it, summed. */
+  predatorMass: number;
 }
 
 /**
@@ -115,20 +114,23 @@ function plantBenefitAmount(plants: Plant[], config: LivestockConfig): number {
 }
 
 /**
- * Build the hardened stressor list for a fish: water-quality channels move
- * their edge by hardiness, the rest are scaled by it. Inactive stressors are
- * emitted with `amount: 0` so the breakdown shape stays stable for downstream
- * UI / tests that look up by name.
+ * What the water charges an organism of this species and hardiness, in %/h:
+ * the tolerance bands scaled by `1 − hardiness`, the toxins and oxygen with
+ * hardiness moving their edge instead. Fish and their clutches both read it.
  */
-function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
-  const { fish, resources, waterVolume, tankCapacity, config } = ctx;
-  const speciesData = FISH_SPECIES_DATA[fish.species];
-  const tolerance = toleranceFactor(ctx.hardiness);
+export function waterStressors(
+  species: FishSpecies,
+  hardiness: number,
+  resources: Resources,
+  waterVolume: number,
+  config: LivestockConfig
+): VitalityFactor[] {
+  const speciesData = FISH_SPECIES_DATA[species];
+  const tolerance = toleranceFactor(hardiness);
 
   const tempStress =
     config.temperatureStressSeverity * outsideBand(resources.temperature, speciesData.temperatureRange);
-  const ph = getPh(resources);
-  const phStress = config.phStressSeverity * outsideBand(ph, speciesData.phRange);
+  const phStress = config.phStressSeverity * outsideBand(getPh(resources), speciesData.phRange);
   const ghStress =
     config.ghStressSeverity * outsideBand(getDgh(resources.gh, waterVolume), speciesData.ghRange);
 
@@ -139,24 +141,84 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     config.nitriteStressSeverity * eFoldsPast(getPpm(resources.nitrite, waterVolume), NITRITE_EDGE * tolerance);
   const nitrateStress =
     config.nitrateStressSeverity * eFoldsPast(getPpm(resources.nitrate, waterVolume), NITRATE_EDGE * tolerance);
-
-  // Satiation stressor — band-aware label (Overfed / Hungry / Starving)
-  // depending on which side of the well-fed peak the fish is sitting
-  // on. The amount comes from the single piecewise-linear
-  // `satiationContribution` curve; the well-fed benefit is emitted in
-  // `buildBenefits` from the same call. When the fish is in a non-
-  // stressing band (well-fed or peckish) the entry is still emitted at
-  // amount 0 so the breakdown shape stays stable; the label falls back
-  // to the neutral channel name "Satiation" so a UI introspecting the
-  // inactive entry doesn't see a misleading band name.
-  const satiation = satiationContribution(fish.satiation, config);
-  const satiationStressLabel =
-    satiation.band === 'overfed' || satiation.band === 'hungry' || satiation.band === 'starving'
-      ? SATIATION_BAND_LABEL[satiation.band]
-      : 'Satiation';
-
   const oxygenStress =
     config.oxygenStressSeverity * eFoldsUnder(resources.oxygen, OXYGEN_EDGE / tolerance, OXYGEN_LOG_OFFSET);
+
+  return [
+    ...hardened(
+      [
+        { key: 'temperature', label: 'Temperature', amount: tempStress },
+        { key: 'ph', label: 'pH', amount: phStress },
+        { key: 'gh', label: 'GH', amount: ghStress },
+      ],
+      hardiness
+    ),
+    { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
+    { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
+    { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
+    { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
+  ];
+}
+
+/** How hard a fish hunts a prey: the grams by which it outweighs it, none between equals. */
+export function predatorWeight(predator: Pick<Fish, 'mass'>, prey: Pick<Fish, 'mass'>): number {
+  return Math.max(0, predator.mass - prey.mass);
+}
+
+/** Each fish's predator mass: every other fish's predator weight on it, summed, in one sort. */
+export function predatorMasses(fish: readonly Pick<Fish, 'mass'>[]): number[] {
+  const order = fish.map((_, i) => i).sort((a, b) => fish[a].mass - fish[b].mass);
+  const masses = new Array<number>(fish.length);
+  let heavier = 0;
+  for (let k = order.length - 1; k >= 0; k--) {
+    const { mass } = fish[order[k]];
+    masses[order[k]] = Math.max(0, heavier - (order.length - 1 - k) * mass);
+    heavier += mass;
+  }
+  return masses;
+}
+
+/** How exposed a fish of this size is to predators: whole at no size, falling smoothly to none at adult size. */
+export function preyVulnerability(size: number, config: LivestockConfig): number {
+  return Math.max(0, 1 - size / 100) ** config.preyVulnerabilityExponent;
+}
+
+/** Damage, before hardiness, that its predator mass per litre does a fish an hour. */
+export function predationStress(
+  prey: Pick<Fish, 'species' | 'mass'>,
+  predatorMass: number,
+  waterVolume: number,
+  config: LivestockConfig
+): number {
+  if (waterVolume <= 0) return 0;
+  return ((config.predationRate * predatorMass) / waterVolume) * preyVulnerability(fishSize(prey), config);
+}
+
+const MAX_WEAR_DOUBLINGS = 64;
+
+/**
+ * Damage a fish's age does it an hour, Gompertz: `wearAtLifespan` at its
+ * species lifespan, doubling every `wearDoublingShare` of it, so negligible in
+ * youth. Species hardiness never shields it; a fish hardier than its species
+ * wears slower in proportion, which staggers a cohort's deaths.
+ */
+export function fishWear(fish: Pick<Fish, 'species' | 'age' | 'hardinessOffset'>, config: LivestockConfig): number {
+  if (config.wearAtLifespan <= 0) return 0;
+  const { lifespan, hardiness } = FISH_SPECIES_DATA[fish.species];
+  const vigour = fishHardiness(fish) / hardiness;
+  const doublings = (fish.age - lifespan) / (config.wearDoublingShare * lifespan);
+  return (config.wearAtLifespan / vigour) * 2 ** Math.min(doublings, MAX_WEAR_DOUBLINGS);
+}
+
+/**
+ * Build the hardened stressor list for a fish: the water's, then its own
+ * body's, scaled by hardiness. Inactive stressors are emitted with
+ * `amount: 0` so the breakdown shape stays stable for downstream UI / tests
+ * that look up by name.
+ */
+function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
+  const { fish, waterVolume, tankCapacity, config, resources } = ctx;
+  const speciesData = FISH_SPECIES_DATA[fish.species];
 
   // Water level stress (below the configured threshold of capacity)
   let waterLevelStress = 0;
@@ -173,86 +235,75 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     flowStress = config.flowStressSeverity * (turnover - speciesData.maxTurnover);
   }
 
-  // Age stress — past `maxAge` damage grows linearly with the excess,
-  // through the same channel as every other stressor: a hardy species in
-  // good conditions outlives a sensitive species at the same age, and
-  // visible declining health gives the player a chance to react. Death
-  // itself is the same `newHealth <= 0` check the other stressors share.
-  let ageStress = 0;
-  if (fish.age > speciesData.maxAge) {
-    ageStress = config.ageStressSeverity * (fish.age - speciesData.maxAge);
-  }
+  const hungerStress = config.hungerSeverity * shortfall(ctx.digested, ctx.need);
+  const huntedStress = predationStress(fish, ctx.predatorMass, waterVolume, config);
 
   return [
+    ...waterStressors(fish.species, ctx.hardiness, resources, waterVolume, config),
     ...hardened(
       [
-        { key: 'temperature', label: 'Temperature', amount: tempStress },
-        { key: 'ph', label: 'pH', amount: phStress },
-        { key: 'gh', label: 'GH', amount: ghStress },
-        { key: 'satiation', label: satiationStressLabel, amount: satiation.stressor },
+        { key: 'hunger', label: 'Hunger', amount: hungerStress },
         { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
         { key: 'flow', label: 'Flow', amount: flowStress },
-        { key: 'age', label: 'Age', amount: ageStress },
+        { key: 'hunted', label: 'Hunted', amount: huntedStress },
       ],
       ctx.hardiness
     ),
-    { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
-    { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
-    { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
-    { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
+    { key: 'wear', label: 'Wear', amount: fishWear(fish, config) },
   ];
 }
 
 /**
- * Build the benefit list for a fish. All four configured factors are
- * emitted every tick, even when they contribute zero — UI filters; the
- * simulation doesn't have to.
+ * Build the benefit list for a fish, every channel earned on its nourishment.
+ * All three are emitted every tick, even at zero — UI filters; the simulation
+ * doesn't have to.
  */
 function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
   const { fish, resources, plants, config } = ctx;
   const speciesData = FISH_SPECIES_DATA[fish.species];
+  const earning = nourishment(ctx.digested, ctx.need);
 
   return [
     {
       key: 'ph',
       label: 'pH',
-      amount: config.phBenefitPeak * bandComfort(getPh(resources), speciesData.phRange),
-    },
-    {
-      key: 'satiation',
-      label: SATIATION_BAND_LABEL.wellFed,
-      // Same `satiationContribution` curve as the stressor; only the
-      // well-fed band emits a non-zero benefit, and the ramps either
-      // side of the peak meet zero exactly at the band edges.
-      amount: satiationContribution(fish.satiation, config).benefit,
+      amount: earning * config.phBenefitPeak * bandComfort(getPh(resources), speciesData.phRange),
     },
     {
       key: 'oxygen',
       label: 'Oxygen',
       amount:
+        earning *
         config.oxygenBenefitPeak *
         Math.min(1, eFoldsPast(resources.oxygen, OXYGEN_EDGE) / Math.log(OXYGEN_COMFORT / OXYGEN_EDGE)),
     },
     {
       key: 'plants',
       label: 'Plants',
-      amount: plantBenefitAmount(plants, config),
+      amount: earning * plantBenefitAmount(plants, config),
     },
   ];
 }
 
 /**
- * Rate a fish's bank heals it at, per hour: `healingDrawRate` for a 1 g fish,
- * scaled by adult mass to the −¼ power, as mass-specific metabolism is.
+ * Rate a fish's bank heals it at, per hour: `healingDrawRate` for a young 1 g
+ * fish, scaled by its mass to `massScalingExponent`, as mass-specific
+ * metabolism is, and halving every `healingHalvingShare` of its species lifespan.
  */
-export function fishHealingRate(fish: Fish, config: LivestockConfig): number {
-  return config.healingDrawRate * FISH_SPECIES_DATA[fish.species].adultMass ** -0.25;
+export function fishHealingRate(fish: Pick<Fish, 'species' | 'mass' | 'age'>, config: LivestockConfig): number {
+  const { lifespan } = FISH_SPECIES_DATA[fish.species];
+  return (
+    config.healingDrawRate *
+    fish.mass ** config.massScalingExponent *
+    2 ** (-fish.age / (config.healingHalvingShare * lifespan))
+  );
 }
 
 /**
  * A vitality tick for one fish, without applying it — `processHealth` applies
  * it. A caller wanting the next tick's numbers reads it on the hour that tick
- * settles, with the fish as metabolism leaves them.
+ * settles, with the fish as metabolism leaves them, what its gut digested,
+ * the metabolic factor it digested at and its predator mass.
  */
 export function computeFishVitality(
   fish: Fish,
@@ -260,10 +311,23 @@ export function computeFishVitality(
   plants: Plant[],
   waterVolume: number,
   tankCapacity: number,
-  config: LivestockConfig
+  config: LivestockConfig,
+  digested: number,
+  metabolicFactor: number,
+  predatorMass: number
 ): VitalityResult {
-  const hardiness = effectiveHardiness(fish);
-  const ctx: FishFactorContext = { fish, resources, plants, waterVolume, tankCapacity, config, hardiness };
+  const ctx: FishFactorContext = {
+    fish,
+    resources,
+    plants,
+    waterVolume,
+    tankCapacity,
+    config,
+    hardiness: fishHardiness(fish),
+    digested,
+    need: maintenance(fish, metabolicFactor, config),
+    predatorMass,
+  };
   return computeVitality({
     stressors: buildStressors(ctx),
     benefits: buildBenefits(ctx),
@@ -274,13 +338,19 @@ export function computeFishVitality(
   });
 }
 
+/** Share of a fish's damage this hour that one stressor did. */
+function damageShare(vitality: VitalityResult, key: string): number {
+  const { damageRate, stressors } = vitality.breakdown;
+  const amount = stressors.find((factor) => factor.key === key)?.amount ?? 0;
+  return damageRate > 0 ? amount / damageRate : 0;
+}
+
 /**
- * Process health for all fish in one tick.
- * Applies vitality, captures surplus, and handles death.
- *
- * Death is driven entirely by vitality: when stressors (including
- * the age stressor past `maxAge`) outpace benefits and condition
- * reaches 0, the fish dies. There is no separate probabilistic check.
+ * One tick of vitality for every fish; a fish whose condition reaches 0 dies.
+ * What it leaves — its whole body, its gut and the brood it carried, all in
+ * grams of organic matter — its predators eat in the share of its damage they
+ * did, by their weight on it and as far as their guts have room; the rest is
+ * waste.
  */
 export function processHealth(
   fish: Fish[],
@@ -288,36 +358,49 @@ export function processHealth(
   plants: Plant[],
   waterVolume: number,
   tankCapacity: number,
-  config: LivestockConfig
+  config: LivestockConfig,
+  digested: readonly number[],
+  metabolicFactor: number,
+  carried: readonly number[]
 ): HealthResult {
-  const survivingFish: Fish[] = [];
   const deadFishNames: string[] = [];
   let deathWaste = 0;
-  const vitalities = fish.map((f) =>
-    computeFishVitality(f, resources, plants, waterVolume, tankCapacity, config)
+  const predatorMass = predatorMasses(fish);
+  const vitalities = fish.map((f, i) =>
+    computeFishVitality(
+      f,
+      resources,
+      plants,
+      waterVolume,
+      tankCapacity,
+      config,
+      digested[i],
+      metabolicFactor,
+      predatorMass[i]
+    )
   );
 
+  const survivingFish = fish
+    .map((f, i) => ({ ...f, health: vitalities[i].newCondition, surplus: vitalities[i].surplus }))
+    .filter((f) => f.health > 0);
+
   fish.forEach((f, i) => {
+    if (vitalities[i].newCondition > 0) return;
     const speciesData = FISH_SPECIES_DATA[f.species];
-    const result = vitalities[i];
-    const newHealth = result.newCondition;
+    const remains = bodyOrganics(f.mass, config) + f.ovary * eggOrganics(f.species, config) + f.gut + carried[i];
+    const weights = survivingFish.map((survivor) => predatorWeight(survivor, f));
+    const surviving = predatorMass[i] > 0 ? Math.min(1, sum(weights) / predatorMass[i]) : 0;
+    const share = damageShare(vitalities[i], 'hunted') * surviving;
 
-    if (newHealth <= 0) {
-      // Distinguish age-driven death in the log so the player can tell
-      // "my fish got old" from "my water went bad." Past maxAge the
-      // age stressor is on, so attribute death to age when that's the
-      // dominant signal.
-      const overAge = f.age > speciesData.maxAge;
-      deadFishNames.push(overAge ? `${speciesData.name} (old age)` : speciesData.name);
-      deathWaste += f.mass * config.deathDecayFactor;
-      return;
-    }
-
-    survivingFish.push({
-      ...f,
-      health: newHealth,
-      surplus: result.surplus,
+    const eaten = shareOut(weights, share * remains);
+    const swallowed = swallow(survivingFish, eaten.taken, config);
+    survivingFish.forEach((survivor, j) => {
+      survivor.gut += swallowed.taken[j];
     });
+    deathWaste += (1 - share) * remains + eaten.overflow + swallowed.overflow;
+
+    const cause = damageShare(vitalities[i], 'wear') > 0.5 ? ' (old age)' : share > 0.5 ? ' (eaten)' : '';
+    deadFishNames.push(`${speciesData.name}${cause}`);
   });
 
   return {

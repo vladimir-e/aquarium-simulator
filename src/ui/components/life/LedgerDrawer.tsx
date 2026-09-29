@@ -127,15 +127,15 @@ export function LedgerDrawer({
           {ledger.subtitle && <p className="text-[13px] text-ink-3">{ledger.subtitle}</p>}
         </div>
 
-        {ledger.satiation && (
+        {ledger.gut && (
           <ReadingRow
-            name="Satiation"
-            value={Math.round(ledger.satiation.at * 100).toString()}
+            name="Gut"
+            value={Math.round(ledger.gut.at * 100).toString()}
             unit="%"
-            at={ledger.satiation.at}
-            band={ledger.satiation.band}
-            tone={toneOf(ledger.satiation.status)}
-            note={ledger.satiation.word}
+            at={ledger.gut.at}
+            band={ledger.gut.band}
+            tone={toneOf(ledger.gut.status)}
+            note={ledger.gut.word}
           />
         )}
 

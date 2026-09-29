@@ -25,8 +25,8 @@ month-long run becomes something you can watch, scrub back through, and explain.
 |---|---|---|
 | Overview | `/` | The tank as widgets, each a window onto its module: the nitrogen cycle as a chain of stocks, life, water, gear and nutrients. A phone stacks them; a tablet runs the chain, the life roster and the rack full width with water and nutrients side by side; a desk-wide stage gives life and nutrients a column of their own beside the chain, water and gear. Whatever needs the keeper is named above them, one line each, with the verb that answers it |
 | Water | `/water` | The tank as a lab sheet, two columns of headed reading rows. Left: water (temperature, pH, KH, GH, level), the dissolved gases, and the four nutrients and the bed against what the plants ask for. Right: the nitrogen compounds on their alert lines, then the biofilter — each guild against its ceiling, what it converts an hour, whether the tank reads as cycled and where the nitrite peak falls — and the waste pool feeding it. Any row opens its reading in the drawer |
-| Life | `/life` | Two tables on one row shape: the fish, and the plants with the two blooms — green water and film — riding along at their top as population rows — the roster, below. Bioload sits under the fish against the stocking guideline, and the plants' header reads how much of the floor the planting claims, saying so once it has outgrown it. Under the fish rows sit the clutches counting down to hatch and one row for every fry in the tank, which is the unit the sell-all-fry verb takes. Any row opens the vitality ledger in the drawer, addressed by the URL (`/life?inspect=…`) so the Overview opens one too — helping against hurting, each factor at its rate per day, and the bank between them, named by which way the next tick moves it: banking, healing, or buying growth, an offshoot or a brood — and the module's "+" stocks a species through the same drawer |
-| Gear | `/gear` | A rack of eight device rows: a power switch, a silhouette, the name, and what it is set to — or, for the three that keep a clock, that day as a 24 h ribbon against the hour the tank is on. A row opens the device's inspector in the drawer, addressed by the URL, so each inspector is a link and back walks between devices; closing one lands on the rack. Under the rack the scape — the substrate, and each piece of hardscape with the surface it adds — and under that what the fittings add up to, which is what the tick reads. The day's light sits among them against what the worst-lit plant starves under at its own height, and opens its reading |
+| Life | `/life` | Two tables on one row shape: the fish, and the plants with the two blooms — green water and film — riding along at their top as population rows — the roster, below. Bioload sits under the fish against the stocking guideline, and the plants' header reads how much of the floor the planting claims, saying so once it has outgrown it. Under the fish rows sit the clutches, each with its eggs and how far it has developed, and one row for every fry in the tank, which is the unit the sell-all-fry verb takes. Any row opens the vitality ledger in the drawer, addressed by the URL (`/life?inspect=…`) so the Overview opens one too — helping against hurting, each factor at its rate per day, and the bank between them, named by which way the next tick moves it: banking, healing, or buying growth, an offshoot or a brood — and the module's "+" stocks a species through the same drawer, a fish at the size the keeper names |
+| Gear | `/gear` | A rack of nine device rows: a power switch, a silhouette, the name, and what it is set to — or, for the four that keep a clock, that day as a 24 h ribbon against the hour the tank is on. A row opens the device's inspector in the drawer, addressed by the URL, so each inspector is a link and back walks between devices; closing one lands on the rack. Under the rack the scape — the substrate, and each piece of hardscape with the surface it adds — and under that what the fittings add up to, which is what the tick reads. The day's light sits among them against what the worst-lit plant starves under at its own height, and opens its reading |
 | History | `/history` | The spine at full height: the four tracks stacked over one axis on the left, and on the right what the run cost — deaths, births, alerts, water changed — over the event log. A window switch scopes both. Dragging a track or the axis, or tapping a log line, parks the same playhead the spine writes |
 | Setup | `/setup` | What the tank *is*, rather than how it is doing: the preset it came from and whether the tank still matches it, the capacity, the lid, the room and the tap water, each row carrying what it does to the tank. Beside them the display choices — units and theme — what the run has cost so far and the reset that ends it, and what this simulation claims to be. Capacity is read-only — resizing is a separate row, because a new size builds a new tank at hour zero; past a month's run both it and the reset confirm first |
 
@@ -38,10 +38,10 @@ open in two, and every level starts collapsed.
 
 | Row | Counts | A dot per | Figures | Opens onto |
 |---|---|---|---|---|
-| Fish species | fish | fish | mass each, mean age, satiation | its fish |
+| Fish species | fish | fish | mass each, mean age, how full the guts are | its fish |
 | Plant species | units, beside how many families | family | the sizes summed, oldest unit, worst-lit unit's light | its families |
 | Family | units | unit | the sizes summed, oldest unit, worst-lit unit's light | its units |
-| Unit or fish | — | — | size or mass, age; a fish also its satiation; a unit also the unit it budded from, its light and its bank | its ledger |
+| Unit or fish | — | — | size or mass, age; a fish also its gut; a unit also the unit it budded from, its light and its bank | its ledger |
 
 A unit is one plant. A group's summed size — `Σ 180 %` — is its units' sizes
 added up, each a % of one full unit of its growth form.
@@ -61,7 +61,7 @@ order they were born; a unit names the one it budded from the same way —
 `family 2`, `#3 · from #1`. A family keeps its number when its founder dies. The
 engine's ids never reach the page.
 
-A tablet-wide table shows the mass or size and the age; the satiation, light
+A tablet-wide table shows the mass or size and the age; the gut, light
 and bank columns wait for a laptop-wide stage. On a phone a unit's size, or a
 fish's mass, takes the count cell its row has no count for, and at any width a
 name wraps to a second line before it truncates.
@@ -230,8 +230,8 @@ you** strip carries the same verb beside the condition that calls for it.
 | Needs you | Verb |
 |---|---|
 | Every alert the engine latches | The verb or the fitting that answers it — a water change, a top-off, a scrub, the air pump or the CO₂ injector. Each kind of bloom is its own line with its own verb: a water change for green water, a scrub for film |
-| Fish hungry or starving | Feed |
-| Fish sick — damage outrunning their healing | The worst one's ledger |
+| Fish starving — hunger alone outrunning what they earn; at alert once it makes one sick | Feed |
+| Fish sick but not starving — damage outrunning their healing | The worst one's ledger |
 
 Each line states the reading behind it — its figure, its band in the engine's
 words, its tone — so the strip, the rail's dot and the top bar's count never
