@@ -1,3 +1,6 @@
+import type { DebParams } from '../systems/deb.js';
+import { fromAmP, GENERALISED_ANIMAL, proxyEntry, type AmpEntry } from './amp.js';
+
 /**
  * Fish species types.
  */
@@ -45,6 +48,8 @@ export interface FishSpeciesData {
   name: string;
   /** Adult body mass in grams */
   adultMass: number;
+  /** Adult physical length in cm, the hobby figure: the female's where the sexes differ. */
+  adultLength: number;
   /** Median age, in ticks, a well-kept fish dies of wear at. */
   lifespan: number;
   /** Hardiness factor 0-1 (higher = more tolerant of stressors) */
@@ -61,15 +66,25 @@ export interface FishSpeciesData {
   growthRate: number;
   /** Reproduction parameters */
   breeding: FishBreedingData;
+  /** Dynamic Energy Budget parameters, from the species' Add-my-Pet entry. */
+  deb: AmpEntry;
 }
+
+const HOURS_PER_DAY = 24;
+
+const proxied = (data: Omit<FishSpeciesData, 'deb'>): FishSpeciesData => ({
+  ...data,
+  deb: proxyEntry(GENERALISED_ANIMAL, data.adultLength, data.lifespan / HOURS_PER_DAY),
+});
 
 /**
  * Species catalog with characteristics for each fish type.
  */
 export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
-  neon_tetra: {
+  neon_tetra: proxied({
     name: 'Neon Tetra',
     adultMass: 0.5,
+    adultLength: 3.5,
     lifespan: 24 * 365 * 5,
     hardiness: 0.5,
     temperatureRange: [22, 28],
@@ -86,10 +101,11 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       eggMass: 0.0004,
       maleShare: 0.2,
     },
-  },
-  betta: {
+  }),
+  betta: proxied({
     name: 'Betta',
     adultMass: 3.0,
+    adultLength: 5.5,
     lifespan: 24 * 365 * 3,
     hardiness: 0.6,
     temperatureRange: [24, 30],
@@ -107,10 +123,11 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       eggMass: 0.0005,
       maleShare: 0.6,
     },
-  },
-  guppy: {
+  }),
+  guppy: proxied({
     name: 'Guppy',
     adultMass: 1.0,
+    adultLength: 5,
     lifespan: 24 * 365 * 3,
     hardiness: 0.8,
     temperatureRange: [22, 28],
@@ -128,10 +145,11 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       eggMass: 0.005,
       maleShare: 0.2,
     },
-  },
-  angelfish: {
+  }),
+  angelfish: proxied({
     name: 'Angelfish',
     adultMass: 15.0,
+    adultLength: 15,
     lifespan: 24 * 365 * 10,
     hardiness: 0.4,
     temperatureRange: [24, 30],
@@ -149,10 +167,11 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       eggMass: 0.002,
       maleShare: 0.5,
     },
-  },
-  corydoras: {
+  }),
+  corydoras: proxied({
     name: 'Corydoras',
     adultMass: 4.0,
+    adultLength: 7,
     lifespan: 24 * 365 * 5,
     hardiness: 0.7,
     temperatureRange: [22, 26],
@@ -169,5 +188,17 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       eggMass: 0.004,
       maleShare: 0.2,
     },
-  },
+  }),
 };
+
+const converted = new WeakMap<AmpEntry, DebParams>();
+
+export function debParams(species: FishSpecies): Readonly<DebParams> {
+  const { deb } = FISH_SPECIES_DATA[species];
+  let params = converted.get(deb);
+  if (params === undefined) {
+    params = fromAmP(deb);
+    converted.set(deb, params);
+  }
+  return params;
+}
