@@ -379,13 +379,14 @@ export function processHealth(
     });
     deathWaste += (1 - share) * remains + eaten.overflow + swallowed.overflow;
 
-    const cause = oldAge[i]
-      ? ' (old age)'
-      : damageShare(vitalities[i], 'starvation') > 0.5
-        ? ' (starved)'
-        : share > 0.5
-          ? ' (eaten)'
-          : '';
+    const cause =
+      oldAge[i] || damageShare(vitalities[i], 'age') > 0.5
+        ? ' (old age)'
+        : damageShare(vitalities[i], 'starvation') > 0.5
+          ? ' (starved)'
+          : share > 0.5
+            ? ' (eaten)'
+            : '';
     deadFishNames.push(`${FISH_SPECIES_DATA[f.species].name}${cause}`);
   });
 

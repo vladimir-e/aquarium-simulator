@@ -512,6 +512,11 @@ describe('processHealth', () => {
     expect(health([{ ...fish, survivalDraw: 0.4 }]).survivingFish).toHaveLength(1);
   });
 
+  it('labels a death mostly of age damage as old age too', () => {
+    const frail = fishRecord({ health: 0.01, deb: { ...fishRecord().deb, hazard: 1e-3 } });
+    expect(health([frail], {}, [], [0], livestockDefaults).deadFishNames).toEqual(['Neon Tetra (old age)']);
+  });
+
   it('labels a death mostly of starvation as starved', () => {
     const starving = fishRecord({ health: 0.01, deb: { ...fishRecord().deb, reserve: 0 } });
     expect(health([starving]).deadFishNames).toEqual(['Neon Tetra (starved)']);

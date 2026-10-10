@@ -1,6 +1,6 @@
 ---
 title: Vitality
-description: One model for every organism — rates of benefit and harm move condition, only a full organism banks, and the bank heals at a species rate and buys what the organism makes.
+description: One model for every organism — rates of benefit and harm move condition; a plant or a bloom banks at full condition and its bank heals it and buys what it makes, while a fish's bank is its energy budget's reserve.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -18,7 +18,10 @@ at a tolerance edge is not ([Rates into stocks](/concepts/rates-into-stocks/#swi
 ## One hour
 
 Each hour an organism lists what is doing it good and what is harming it, both
-in condition points per hour, and one shared step settles them.
+in condition points per hour, and one shared step settles them. A fish settles
+the same lists on its own step: nothing banks, and it repairs a share of its
+deficit from its energy budget's reserve instead — see
+[Health](/subsystems/livestock/#health).
 
 ```
 condition += Σbenefits − Σstressors
@@ -28,7 +31,7 @@ below 100:  the bank heals min(100 − condition, (1 − e^−healingRate) × ba
 
 | Term | Is |
 |---|---|
-| Benefits | Income from favourable conditions, earned on what the organism takes in — a plant's light and nutrients, a fish's digestion. Hardiness never scales them |
+| Benefits | Income from favourable conditions, earned on what the organism takes in — a plant's light and nutrients, a fish's reserve. Hardiness never scales them |
 | Stressors | Damage, hardened by each organism: `× (1 − hardiness)`, or by moving where harm starts |
 | Bank | Condition points banked at full condition, capped at `surplusCap` |
 | Healing rate | The first-order rate its bank drains at while it heals, per hour |
@@ -54,7 +57,7 @@ and it ends when the rates turn round.
 
 | Organism | Healing rate | Shipped |
 |---|---|---|
-| Fish | `healingDrawRate × mass^−¼`, the way mass-specific metabolism scales, halving with age | 0.06 /h for a young adult neon, 0.025 /h for a young adult angelfish |
+| Fish | `healingRate × τ` on its deficit, paid from reserve at `healingCost` hours of upkeep a point | 0.005 /h at 20 °C |
 | Plant | `healingDrawRate × growthRate` — a plant repairs at the rate it grows | 0.09 /h for monte carlo, 0.015 /h for anubias |
 | Algae | The plants' law, at its kind's growth rate | 3 /h for green water — 95 % of its bank in an hour — and 1 /h for film, 63 % |
 
@@ -62,7 +65,7 @@ and it ends when the rates turn round.
 
 | Organism | Low condition | The bank buys |
 |---|---|---|
-| Fish | Dies at 0 | Its growth and its broods: growth draws on the bank through a share that closes as the fish nears adult size, and a full bank buys a female a brood with the rest, the males paying their share — see [Growth and broods](/subsystems/livestock/#growth-and-broods) |
+| Fish | Dies at 0 | Nothing: its energy budget buys its growth and broods from its reserve — see [The budget](/subsystems/livestock/#the-budget) |
 | Plant | Sheds tissue, with the square of the deficit; dies at 0 | Its growth and its offshoots: growth draws on the bank through a taper that closes as the unit fills, and a full bank buys a new unit of the family — see [Offshoots](/subsystems/plants/#offshoots) |
 | Algae | Sheds mass as a plant sheds tissue; dies back at 0 | Mass, in proportion to the mass standing, on the logistic its habitat sets — see [Algae](/subsystems/algae/#the-bank-buys-mass). Its spores are its offshoots: they land at condition 100 on an empty bank whatever the bloom is doing |
 
@@ -70,12 +73,12 @@ and it ends when the rates turn round.
 
 | Mechanic | Status | Why |
 |---|---|---|
-| The balance | <Badge text="settled" variant="success" /> | One step for fish, plants and the blooms. Each organism hardens its own charges, so a channel can move its edge instead of scaling its charge |
+| The balance | <Badge text="settled" variant="success" /> | One step for plants and the blooms, its lists shared with fish. Each organism hardens its own charges, so a channel can move its edge instead of scaling its charge |
 | Banking at full condition | <Badge text="settled" variant="success" /> | Income heals first and banks only at 100; damage never reaches the bank |
 | First-order healing | <Badge text="settled" variant="success" /> | The bank heals at a species rate, integrated over the hour, with no floor, switch or clamp |
 | Sickness | <Badge text="settled" variant="success" /> | A reading of the rates, not a state: condition falling is the whole of it |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at each edge, and the matching damage starts from zero at or past it, so net never jumps as a reading leaves its band |
-| Brood and offshoot | <Badge text="settled" variant="success" /> | Each is an event a full bank buys: the bank is its price and refilling it is the cooldown, with no timers |
+| Offshoot | <Badge text="settled" variant="success" /> | An event a full bank buys: the bank is its price and refilling it is the cooldown, with no timers |
 
 ## Source
 

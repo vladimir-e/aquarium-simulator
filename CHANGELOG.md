@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Fish run on their energy budgets** - each fish is an Add-my-Pet DEB: food fills a reserve that pays maintenance first, grows the fish and fills a brood buffer; starving shrinks it, low oxygen starves a fed one, repair is paid from reserve, and old age is a survival curve; breaking: `Fish.deb`, `survival`, `survivalDraw` replace `mass`, `surplus`, `ovary`, stocking size is % of grown length, livestock config reshaped (v35).
 - **A fish is made of what it ate** - fish grow and lay from digested food, small ones eat and burn more per gram, and the dead return their whole body; breaking: `processBodies` replaces `processBreeding`, `Fish.ovary`, `assimilatedFraction` replaces `gillNFraction` (v34).
 - **Old age is wear** - fish age by a rising damage rate and heal slower, a cohort dying over a few months near the species lifespan; breaking: `lifespan` replaces `maxAge`, `fishHealingRate` needs `mass` (v34).
 - **Predation** - larger fish hunt the young by the grams they outweigh them and eat what they kill; breaking: `computeFishVitality`, `readyToBrood` args (v34).
