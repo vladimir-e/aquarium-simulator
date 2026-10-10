@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { addOrganics, NO_ORGANICS, scaleOrganics } from '../core/organics.js';
+import { organicsCloseTo } from '../tests/organics.js';
 import { produce } from 'immer';
 import {
   biofilmKept,
@@ -236,7 +238,7 @@ describe('disturbBed', () => {
     produce(createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } }), (draft) => {
       draft.resources.aob = 1000;
       draft.resources.nob = 500;
-      draft.resources.waste = 0;
+      draft.resources.waste = NO_ORGANICS;
     });
   const disturbed = (state: SimulationState, share: number): SimulationState =>
     produce(state, (draft) => disturbBed(draft, share));
@@ -246,8 +248,8 @@ describe('disturbBed', () => {
     const after = disturbed(state, 0.25);
     const reserve = state.equipment.substrate.organicReserve;
 
-    expect(after.resources.waste).toBeCloseTo(reserve * 0.25, 12);
-    expect(after.equipment.substrate.organicReserve + after.resources.waste).toBeCloseTo(reserve, 12);
+    expect(after.resources.waste).toEqual(organicsCloseTo(scaleOrganics(reserve, 0.25)));
+    expect(addOrganics(after.equipment.substrate.organicReserve, after.resources.waste)).toEqual(organicsCloseTo(reserve));
   });
 
   it('scrapes that share of the bed’s colony and nothing off the glass or the filter', () => {
@@ -308,7 +310,7 @@ describe('hardscape moves', () => {
     expect(lifted.equipment.hardscape.items).toEqual([]);
     expect(lifted.resources.surface).toBe(calculateSurface(lifted));
     expect(lifted.resources.aob).toBeCloseTo(density * (lifted.resources.surface - stirred), 9);
-    expect(lifted.resources.waste).toBeGreaterThan(state.resources.waste);
+    expect(lifted.resources.waste.grams).toBeGreaterThan(state.resources.waste.grams);
   });
 
   it('stirs no bed on a tank with no slots', () => {
@@ -340,7 +342,7 @@ describe('hardscape moves', () => {
     const lifted = liftHardscape(state, 'rock-0', 'rock-1', 'rock-2');
 
     expect(lifted.equipment.hardscape.items.map((i) => i.id)).toEqual(['rock-3']);
-    expect(lifted.equipment.substrate.organicReserve).toBeCloseTo(reserve * (1 - 3 / 8), 12);
+    expect(lifted.equipment.substrate.organicReserve).toEqual(organicsCloseTo(scaleOrganics(reserve, 1 - 3 / 8)));
   });
 
   it('sets every piece back fresh, stirring the whole bed they sat on', () => {
@@ -351,7 +353,7 @@ describe('hardscape moves', () => {
       state.equipment.hardscape.items.map((i) => createHardscapeItem(i.id, i.type))
     );
     expect(reset.equipment.hardscape.items[0]!.tannins).toBeGreaterThan(0);
-    expect(reset.equipment.substrate.organicReserve).toBe(0);
+    expect(reset.equipment.substrate.organicReserve).toEqual(NO_ORGANICS);
     expect(reset.resources.surface).toBe(calculateSurface(reset));
     expect(reset.resources.aob).toBeLessThan(state.resources.aob);
   });

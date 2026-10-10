@@ -13,6 +13,8 @@ import type { ActionResult } from './types.js';
 import { DEFAULT_PLANT_SIZE, MIN_PLANTABLE_SIZE } from '../plants/create-plant.js';
 import { produce } from 'immer';
 import { plantRecord } from '../tests/plant.js';
+import { organicsCloseTo } from '../tests/organics.js';
+import { addOrganics, scaleOrganics } from '../core/organics.js';
 
 const SMALL = 19;
 const FERN_FOOTPRINT = GROWTH_FORMS.attached.footprintCm2;
@@ -141,9 +143,11 @@ describe('removePlant', () => {
     const share = GROWTH_FORMS.rosette.footprintCm2 / calculateFloorArea(sword.tank.capacity);
     const reserve = sword.equipment.substrate.organicReserve;
 
-    expect(reserve).toBeGreaterThan(0);
-    expect(result.state.equipment.substrate.organicReserve).toBeCloseTo(reserve * (1 - share), 12);
-    expect(result.state.resources.waste).toBeCloseTo(sword.resources.waste + reserve * share, 12);
+    expect(reserve.grams).toBeGreaterThan(0);
+    expect(result.state.equipment.substrate.organicReserve).toEqual(organicsCloseTo(scaleOrganics(reserve, 1 - share)));
+    expect(result.state.resources.waste).toEqual(
+      organicsCloseTo(addOrganics(sword.resources.waste, scaleOrganics(reserve, share)))
+    );
     expect(result.state.resources.aob).toBeLessThan(1000);
   });
 

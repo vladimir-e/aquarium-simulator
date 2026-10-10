@@ -347,7 +347,7 @@ function createValidSimulation(): PersistedSimulation {
       lightByHour: new Array(24).fill(0),
       aeration: false,
       food: 0,
-      waste: 0,
+      waste: { grams: 0, nutrients: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 } },
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
@@ -375,7 +375,7 @@ function createValidSimulation(): PersistedSimulation {
       powerhead: { enabled: false, flowRateGPH: 240 },
       substrate: {
         type: 'gravel',
-        organicReserve: 0.5,
+        organicReserve: { grams: 0.5, nutrients: { nitrate: 110, phosphate: 10, potassium: 4, iron: 0.1 } },
         khReserve: 0,
         nutrients: { nitrate: 400, phosphate: 60, potassium: 200, iron: 10 },
       },

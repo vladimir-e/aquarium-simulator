@@ -16,9 +16,9 @@ import {
   getSubstrateOrganicReserve,
   type SubstrateType,
 } from './equipment/substrate.js';
-import { NUTRIENTS, nutrientsDefaults, ZERO_NUTRIENTS } from './config/nutrients.js';
-import { livestockDefaults } from './config/livestock.js';
-import { organicNutrients } from './systems/nutrients.js';
+import { NUTRIENTS, ZERO_NUTRIENTS } from './config/nutrients.js';
+import { addOrganics, atRecipe, scaleOrganics } from './core/organics.js';
+import { DEFAULT_CONFIG } from './config/index.js';
 import { calculateMaxBacteria } from './systems/nitrogen-cycle.js';
 import { HARDSCAPE_TANNINS } from './equipment/hardscape.js';
 import { DEFAULT_PLANT_SIZE, MIN_PLANTABLE_SIZE } from './plants/create-plant.js';
@@ -160,10 +160,10 @@ describe('createSimulation seeding', () => {
           const seeded = createSimulation(config, { bacteria: 'cycled' });
           const virgin = createSimulation(config);
 
-          expect(seeded.equipment.substrate.organicReserve).toBe(cycledReserve(type, tankCapacity));
-          expect(seeded.equipment.substrate.organicReserve).toBeGreaterThan(0);
-          expect(seeded.equipment.substrate.organicReserve).toBeLessThan(
-            virgin.equipment.substrate.organicReserve
+          expect(seeded.equipment.substrate.organicReserve).toEqual(cycledReserve(type, tankCapacity));
+          expect(seeded.equipment.substrate.organicReserve.grams).toBeGreaterThan(0);
+          expect(seeded.equipment.substrate.organicReserve.grams).toBeLessThan(
+            virgin.equipment.substrate.organicReserve.grams
           );
         }
       }
@@ -189,9 +189,10 @@ describe('createSimulation seeding', () => {
     });
 
     it('sets the reserve on its own, without a colony', () => {
-      const seeded = createSimulation(TANK, { substrate: { organicReserve: 0.4 } });
+      const organicReserve = atRecipe(0.4, DEFAULT_CONFIG);
+      const seeded = createSimulation(TANK, { substrate: { organicReserve } });
 
-      expect(seeded.equipment.substrate.organicReserve).toBe(0.4);
+      expect(seeded.equipment.substrate.organicReserve).toEqual(organicReserve);
       expect(seeded.equipment.substrate.type).toBe('aqua_soil');
       expect(seeded.resources.aob).toBe(0);
     });
@@ -200,18 +201,19 @@ describe('createSimulation seeding', () => {
       const seeded = createSimulation(TANK, { bacteria: 'cycled', substrate: { khReserve: 123 } });
 
       expect(seeded.equipment.substrate.khReserve).toBe(123);
-      expect(seeded.equipment.substrate.organicReserve).toBe(
+      expect(seeded.equipment.substrate.organicReserve).toEqual(
         cycledReserve('aqua_soil', TANK.tankCapacity)
       );
     });
 
     it('takes a named reserve over the one the shorthand would have resolved', () => {
+      const organicReserve = atRecipe(1.5, DEFAULT_CONFIG);
       const seeded = createSimulation(TANK, {
         bacteria: 'cycled',
-        substrate: { organicReserve: 1.5 },
+        substrate: { organicReserve },
       });
 
-      expect(seeded.equipment.substrate.organicReserve).toBe(1.5);
+      expect(seeded.equipment.substrate.organicReserve).toEqual(organicReserve);
       expect(seeded.resources.aob).toBe(cycledColony(seeded).aob);
     });
   });
@@ -249,7 +251,7 @@ describe('createSimulation seeding', () => {
       const ghShort = environment.tapGh - getDgh(resources.gh, resources.water);
       const khShort = environment.tapKh - getDkh(resources.kh, resources.water);
       const leached = (type: SubstrateType): number =>
-        getSubstrateOrganicReserve(type, tankCapacity) - cycledReserve(type, tankCapacity);
+        getSubstrateOrganicReserve(type, tankCapacity).grams - cycledReserve(type, tankCapacity).grams;
       const gravelSpent = 5 - getDkh(cycledHardness('gravel', 5, 8, tankCapacity).kh, tankCapacity);
 
       expect(resources.gh).toBe(cycledHardness('aqua_soil', 5, 8, tankCapacity).gh);
@@ -331,16 +333,17 @@ describe('createSimulation seeding', () => {
     it('holds a share of what the bed leached and leaked, and never more than a fresh bed had to give', () => {
       const { tankCapacity } = TANK;
       const seeded = createSimulation(TANK, { bacteria: 'cycled' });
-      const recipe = organicNutrients(livestockDefaults, nutrientsDefaults);
-      const leached =
-        getSubstrateOrganicReserve('aqua_soil', tankCapacity) - cycledReserve('aqua_soil', tankCapacity);
+      const leached = addOrganics(
+        getSubstrateOrganicReserve('aqua_soil', tankCapacity),
+        scaleOrganics(cycledReserve('aqua_soil', tankCapacity), -1)
+      ).nutrients;
       const fresh = getSubstrateNutrients('aqua_soil', tankCapacity);
 
       for (const n of NUTRIENTS) {
         const water = seeded.resources[n];
         const bed = seeded.equipment.substrate.nutrients[n];
-        const released = fresh[n] + leached * recipe[n] - bed;
-        expect(water + bed).toBeLessThanOrEqual(fresh[n] + leached * recipe[n]);
+        const released = fresh[n] + leached[n] - bed;
+        expect(water + bed).toBeLessThanOrEqual(fresh[n] + leached[n]);
         expect(water).toBeGreaterThan(0);
         expect(water / released).toBeGreaterThan(0);
         expect(water / released).toBeLessThan(1);

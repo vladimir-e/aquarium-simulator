@@ -26,8 +26,7 @@
 import type { Effect, EffectTier } from '../core/effects.js';
 import type { Resources, SimulationState } from '../state.js';
 import type { System } from './types.js';
-import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
-import { ammoniaPerGramOfFood } from '../config/livestock.js';
+import type { TunableConfig } from '../config/index.js';
 import {
   AIR_SATURATED_O2,
   type NitrogenCycleConfig,
@@ -39,11 +38,13 @@ import {
   MW_NH3,
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
+  NO3_TO_NH3_MASS_RATIO,
   O2_PER_NH3_OXIDIZED,
   O2_PER_NO2_OXIDIZED,
   PROTONS_PER_N,
 } from '../core/chemistry.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
+import { scaleOrganics, type Organics } from '../core/organics.js';
 import { getPpm } from '../resources/index.js';
 import { getPh } from '../core/carbonate.js';
 
@@ -213,25 +214,28 @@ export function mintAmmonia(ammonia: number, tier: EffectTier, source: string): 
   ];
 }
 
+/** mg of NH₃ the nitrogen in these organics mints. */
+export function ammoniaIn(organics: Organics): number {
+  return organics.nutrients.nitrate * NO3_TO_NH3_MASS_RATIO;
+}
+
 /**
- * Waste mineralized this tick (g) and the NH₃ it yields (mg), at the nitrogen
- * of the food the waste came from.
+ * Organics mineralised, as effects: their nitrogen minted as NH₃ with the KH
+ * its proton returns, and their phosphate, potassium and iron dissolved.
  */
-export function calculateWasteToAmmonia(
-  waste: number,
-  config: TunableConfig = DEFAULT_CONFIG
-): {
-  wasteConsumed: number;
-  ammoniaProduced: number;
-} {
-  if (waste <= 0) {
-    return { wasteConsumed: 0, ammoniaProduced: 0 };
-  }
+export function mineralise(organics: Organics, tier: EffectTier, source: string): Effect[] {
+  return [
+    ...mintAmmonia(ammoniaIn(organics), tier, source),
+    ...WASTE_NUTRIENTS.map((nutrient): Effect => ({ tier, resource: nutrient, delta: organics.nutrients[nutrient], source })),
+  ];
+}
 
-  const wasteConsumed = waste * config.nitrogenCycle.wasteConversionRate;
-  const ammoniaProduced = wasteConsumed * ammoniaPerGramOfFood(config.livestock);
-
-  return { wasteConsumed, ammoniaProduced };
+/** The share of the waste pool mineralised this tick, its content in proportion. */
+export function wasteMineralised(
+  waste: Organics,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): Organics {
+  return scaleOrganics(waste, config.wasteConversionRate);
 }
 
 /**
@@ -449,7 +453,6 @@ export const nitrogenCycleSystem: System = {
 
     // Track current values for calculations (effects accumulate)
     // Nitrogen compounds are stored as mass (mg)
-    let currentWaste = resources.waste;
     let currentAmmonia = resources.ammonia; // mg
     let currentNitrite = resources.nitrite; // mg
     let currentAob = resources.aob;
@@ -479,31 +482,20 @@ export const nitrogenCycleSystem: System = {
 
     // ========================================================================
     // Stage 1: Waste → Ammonia + minerals (Mineralization)
-    // Produces ammonia mass (mg) from waste (g)
+    // Releases what the mineralised share of the waste holds
     // ========================================================================
-    if (currentWaste > 0) {
-      const { wasteConsumed, ammoniaProduced } = calculateWasteToAmmonia(currentWaste, config);
-
-      if (wasteConsumed > 0) {
-        effects.push({
+    const mineralised = wasteMineralised(resources.waste, ncConfig);
+    if (mineralised.grams > 0) {
+      effects.push(
+        {
           tier: 'passive',
           resource: 'waste',
-          delta: -wasteConsumed,
+          delta: scaleOrganics(mineralised, -1),
           source: 'nitrogen-cycle-mineralization',
-        });
-        currentWaste -= wasteConsumed;
-
-        effects.push(...mintAmmonia(ammoniaProduced, 'passive', 'nitrogen-cycle-mineralization'));
-        for (const nutrient of WASTE_NUTRIENTS) {
-          effects.push({
-            tier: 'passive',
-            resource: nutrient,
-            delta: wasteConsumed * config.nutrients.foodMineralContent[nutrient],
-            source: 'nitrogen-cycle-mineralization',
-          });
-        }
-        currentAmmonia += ammoniaProduced;
-      }
+        },
+        ...mineralise(mineralised, 'passive', 'nitrogen-cycle-mineralization')
+      );
+      currentAmmonia += ammoniaIn(mineralised);
     }
 
     // ========================================================================

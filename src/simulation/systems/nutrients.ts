@@ -41,7 +41,6 @@ import {
 } from '../core/chemistry.js';
 import { monodFactor, monodUptake } from '../core/kinetics.js';
 import { getMassFromPpm, getPpm } from '../resources/index.js';
-import { nitratePerGramOfFood, type LivestockConfig } from '../config/livestock.js';
 
 /**
  * mg of GH, as CaCO3, a plant takes up per mg of nitrogen its tissue takes,
@@ -181,11 +180,6 @@ export function calculateNutrientSufficiency(
   config: NutrientsConfig = nutrientsDefaults
 ): number {
   return liebig(feederShares(poolDraws(pools, plantFeeder(species, config))));
-}
-
-/** mg of each nutrient in a gram of organic matter — food, its waste, plant and algae tissue alike — its nitrogen counted as the nitrate it ends up as. */
-export function organicNutrients(livestock: LivestockConfig, nutrients: NutrientsConfig): NutrientVector {
-  return { nitrate: nitratePerGramOfFood(livestock), ...nutrients.foodMineralContent };
 }
 
 /** mg of each nutrient, as the recipe counts it, that these masses of its forms carry. */

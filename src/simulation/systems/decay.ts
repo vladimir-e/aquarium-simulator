@@ -14,10 +14,9 @@ import type { TunableConfig } from '../config/index.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { monodFactor, q10Factor } from '../core/kinetics.js';
 import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
-import { ammoniaPerGramOfFood } from '../config/livestock.js';
-import { WASTE_NUTRIENTS } from '../config/nutrients.js';
+import { atRecipe } from '../core/organics.js';
 import { getPpm } from '../resources/index.js';
-import { mintAmmonia } from './nitrogen-cycle.js';
+import { mineralise } from './nitrogen-cycle.js';
 
 /**
  * Calculate temperature factor for decay rate using Q10 coefficient.
@@ -90,20 +89,12 @@ export const decaySystem: System = {
         effects.push({
           tier: 'passive',
           resource: 'waste',
-          delta: wasteAmount,
+          delta: atRecipe(wasteAmount, config),
           source: 'decay',
         });
 
         const oxidizedAmount = decayAmount * (1 - decayConfig.wasteConversionRatio);
-        effects.push(...mintAmmonia(oxidizedAmount * ammoniaPerGramOfFood(config.livestock), 'passive', 'decay'));
-        for (const nutrient of WASTE_NUTRIENTS) {
-          effects.push({
-            tier: 'passive',
-            resource: nutrient,
-            delta: oxidizedAmount * config.nutrients.foodMineralContent[nutrient],
-            source: 'decay',
-          });
-        }
+        effects.push(...mineralise(atRecipe(oxidizedAmount, config), 'passive', 'decay'));
 
         const oxygenDemandMgPerL = getPpm(
           oxidizedAmount * decayConfig.gasExchangePerGramDecay,

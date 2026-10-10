@@ -56,7 +56,7 @@ export function snapshot(state: SimulationState): HistorySnapshot {
       light: r.light,
       aeration: r.aeration,
       food: r.food,
-      waste: r.waste,
+      waste: r.waste.grams,
       ammonia: r.ammonia,
       nitrite: r.nitrite,
       nitrate: r.nitrate,

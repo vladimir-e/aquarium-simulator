@@ -9,7 +9,7 @@
 
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
-import type { Effect } from '../core/effects.js';
+import { deltaOf, type Effect } from '../core/effects.js';
 import type { TunableConfig } from '../config/index.js';
 import type { MineralVector } from '../config/nutrients.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
@@ -19,6 +19,7 @@ import type { Pace } from '../systems/digestion.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { mintAmmonia } from '../systems/nitrogen-cycle.js';
 import { createLog } from '../core/logging.js';
+import { atRecipe } from '../core/organics.js';
 import { clutchOrganics, clutchesWithMothers } from '../systems/clutch.js';
 import { getPpm } from '../resources/index.js';
 import type { LivestockConfig } from '../config/livestock.js';
@@ -91,11 +92,11 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
   const effects = (
     [
       { tier: 'active', resource: 'food', delta: -metabolism.foodConsumed, source: 'fish-metabolism' },
-      { tier: 'active', resource: 'waste', delta: metabolism.feces, source: 'fish-metabolism' },
+      { tier: 'active', resource: 'waste', delta: atRecipe(metabolism.feces, config), source: 'fish-metabolism' },
       ...burnEffects(metabolism.burned, water, livestock, config.nutrients.foodMineralContent, 'fish-respiration'),
-      { tier: 'active', resource: 'waste', delta: health.deathWaste, source: 'fish-death' },
+      { tier: 'active', resource: 'waste', delta: atRecipe(health.deathWaste, config), source: 'fish-death' },
     ] satisfies Effect[]
-  ).filter((effect) => effect.delta !== 0);
+  ).filter((effect) => deltaOf(effect) !== 0);
 
   const newState = produce(state, (draft) => {
     draft.fish = health.survivingFish;

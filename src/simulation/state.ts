@@ -4,6 +4,7 @@
 
 import { celsius, createLog, liters, measured, type LogEntry } from './core/logging.js';
 import { createRng, type RngState } from './core/rng.js';
+import { NO_ORGANICS, type Organics } from './core/organics.js';
 import type { DailySchedule } from './core/schedule.js';
 import type { Filter } from './equipment/filter.js';
 import { DEFAULT_FILTER } from './equipment/filter.js';
@@ -160,8 +161,8 @@ export interface Resources {
   // Biological resources
   /** Food available for consumption (grams, 2 decimal precision) */
   food: number;
-  /** Organic waste accumulation (grams) */
-  waste: number;
+  /** Organic waste standing in the water */
+  waste: Organics;
 
   // Chemical resources (nitrogen cycle) - stored as mass (mg)
   // Concentration (ppm) derived as mass/water for display and threshold checks
@@ -603,7 +604,7 @@ export function createSimulation(
       aeration: false,
       // Biological
       food: 0.0,
-      waste: 0.0,
+      waste: NO_ORGANICS,
       // Chemical (nitrogen cycle)
       ammonia: 0,
       nitrite: 0,

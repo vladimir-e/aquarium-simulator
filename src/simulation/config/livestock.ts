@@ -186,7 +186,7 @@ export const livestockDefaults: LivestockConfig = {
   preyVulnerabilityExponent: 4,
 };
 
-/** mg of NH₃ a gram of food, or of the waste it becomes, yields once mineralized. */
+/** mg of NH₃ a gram of food yields once mineralized. */
 export function ammoniaPerGramOfFood(config: LivestockConfig): number {
   return config.foodNitrogenFraction * N_TO_NH3_MASS_RATIO * 1000;
 }

@@ -5,7 +5,7 @@ import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
 import { DEFAULT_CONFIG, configRange, withTunable, type TunableConfig } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
-import { NUTRIENTS, WASTE_NUTRIENTS, type WasteNutrient } from '../config/nutrients.js';
+import { NUTRIENTS, WASTE_NUTRIENTS, type NutrientVector, type WasteNutrient } from '../config/nutrients.js';
 import { CACO3_PER_EQUIVALENT, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
 import { tissueMass } from '../systems/plant-lifecycle.js';
 import { ALGAE, ALGAE_KINDS } from '../algae/index.js';
@@ -15,7 +15,8 @@ import { stockedBody } from '../livestock/create-fish.js';
 import { mature } from '../systems/deb.js';
 import { spawnsAt } from '../systems/brood.js';
 import { clutchOrganics } from '../systems/clutch.js';
-import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
+import { nutrientShare } from '../systems/nutrients.js';
+import { addOrganics, atRecipe, foodRecipe, ofComposition } from '../core/organics.js';
 import { freshSubstrate } from '../equipment/substrate.js';
 import { getPpm } from '../resources/index.js';
 import { plantRecord } from './plant.js';
@@ -39,19 +40,19 @@ function livestockOrganics({ fish, clutches }: Pick<SimulationState, 'fish' | 'c
   return bodies + clutches.reduce((sum, clutch) => sum + clutchOrganics(clutch), 0);
 }
 
-/** Grams of organic matter in the tank: food, waste, the bed's reserve, plant tissue, the blooms' and the livestock's. */
+/** Grams of organic matter at food's recipe: food, plant tissue, the blooms' and the livestock's. */
 function organics(state: SimulationState): number {
-  const { resources, equipment, plants } = state;
-  const tissue = plants.reduce((sum, plant) => sum + tissueMass(plant.species, plant.size), 0);
-  return (
-    resources.food +
-    resources.waste +
-    equipment.substrate.organicReserve +
-    tissue +
-    bloomsTissue(state) +
-    livestockOrganics(state)
-  );
+  const tissue = state.plants.reduce((sum, plant) => sum + tissueMass(plant.species, plant.size), 0);
+  return state.resources.food + tissue + bloomsTissue(state) + livestockOrganics(state);
 }
+
+/** mg of each nutrient the organic pools hold, whatever they were made of: the standing waste and the bed's mulm. */
+function pooled({ resources, equipment }: SimulationState): NutrientVector {
+  return addOrganics(resources.waste, equipment.substrate.organicReserve).nutrients;
+}
+
+/** A composition far from food's: lean in nitrogen and rich in potassium. */
+const LEAN = { nitrate: 40, phosphate: 3, potassium: 20, iron: 0.05 };
 
 /** Nitrogen in the water column, dissolved, mg as N. */
 function dissolvedNitrogen({ resources }: SimulationState): number {
@@ -66,13 +67,14 @@ function nitrogenInPools(state: SimulationState): number {
   const bed = state.equipment.substrate.nutrients.nitrate;
   return (
     organics(state) * DEFAULT_CONFIG.livestock.foodNitrogenFraction +
-    ((ammonia / MW_NH3 + nitrite / MW_NO2 + (nitrate + bed) / MW_NO3) * MW_N) / 1000
+    ((ammonia / MW_NH3 + nitrite / MW_NO2 + (nitrate + bed + pooled(state).nitrate) / MW_NO3) * MW_N) / 1000
   );
 }
 
 function mineralsInPools(state: SimulationState, n: WasteNutrient): number {
   return (
     organics(state) * DEFAULT_CONFIG.nutrients.foodMineralContent[n] +
+    pooled(state)[n] +
     state.resources[n] +
     state.equipment.substrate.nutrients[n]
   );
@@ -113,11 +115,11 @@ describe('nitrogen mass', () => {
 
   it('is conserved through waste mineralization and the chain', () => {
     const start = produce(cycledBareTank(), (draft) => {
-      draft.resources.waste = 10;
+      draft.resources.waste = atRecipe(10, DEFAULT_CONFIG);
     });
     const end = run(start, 2000);
 
-    expect(end.resources.waste).toBeLessThan(0.05);
+    expect(end.resources.waste.grams).toBeLessThan(0.05);
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 2);
   });
 
@@ -127,21 +129,37 @@ describe('nitrogen mass', () => {
     });
     const end = run(start, 2000);
 
-    expect(end.resources.food + end.resources.waste).toBeLessThan(0.05);
+    expect(end.resources.food + end.resources.waste.grams).toBeLessThan(0.05);
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 10);
   });
 
   it('is conserved through the bed, as waste settles in and leaches back out', () => {
     const start = produce(cycledBareTank(), (draft) => {
       draft.equipment.substrate.type = 'gravel';
-      draft.resources.waste = 10;
+      draft.resources.waste = atRecipe(10, DEFAULT_CONFIG);
     });
     const mid = run(start, 24);
     const end = run(mid, 2000);
 
-    expect(mid.equipment.substrate.organicReserve).toBeGreaterThan(0);
+    expect(mid.equipment.substrate.organicReserve.grams).toBeGreaterThan(0);
     expect(nitrogenInPools(mid) / nitrogenInPools(start)).toBeCloseTo(1, 2);
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 2);
+  });
+
+  it('is conserved through the bed and the chain for waste of a composition far from food’s', () => {
+    const start = produce(cycledBareTank(), (draft) => {
+      draft.equipment.substrate.type = 'gravel';
+      draft.resources.waste = ofComposition(10, LEAN);
+    });
+    const mid = run(start, 24);
+    const end = run(mid, 2000);
+
+    expect(mid.equipment.substrate.organicReserve.grams).toBeGreaterThan(0);
+    expect(end.resources.nitrate / (end.resources.nitrate + pooled(end).nitrate)).toBeGreaterThan(0.5);
+    for (const state of [mid, end]) {
+      expect(nitrogenInPools(state) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+      for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(state, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
+    }
   });
 
   it('is conserved through the fish that eat and digest the food', () => {
@@ -323,19 +341,19 @@ describe('mineral mass', () => {
     });
     const end = run(start, 2000);
 
-    expect(end.resources.food + end.resources.waste).toBeLessThan(0.05);
+    expect(end.resources.food + end.resources.waste.grams).toBeLessThan(0.05);
     expectConserved(start, end);
   });
 
   it('is conserved through the bed, as waste settles in and leaches back out', () => {
     const start = produce(cycledBareTank(), (draft) => {
       draft.equipment.substrate.type = 'gravel';
-      draft.resources.waste = 10;
+      draft.resources.waste = atRecipe(10, DEFAULT_CONFIG);
     });
     const mid = run(start, 24);
     const end = run(mid, 2000);
 
-    expect(mid.equipment.substrate.organicReserve).toBeGreaterThan(0);
+    expect(mid.equipment.substrate.organicReserve.grams).toBeGreaterThan(0);
     expectConserved(start, mid);
     expectConserved(start, end);
   });
@@ -619,10 +637,9 @@ describe('an offshoot bought on thin water', () => {
   });
 
   it('is a lump a draw read at the start of the tick would overdraw, and the pool meets it in part without going below zero', () => {
-    const { plants, livestock, nutrients } = DEFAULT_CONFIG;
-    const { offshootSize } = purchase(start.plants[0], plants);
+    const { offshootSize } = purchase(start.plants[0], DEFAULT_CONFIG.plants);
     const share = nutrientShare(getPpm(start.resources.phosphate, start.resources.water), 'java_fern', 'phosphate');
-    expect(tissueMass('java_fern', offshootSize) * organicNutrients(livestock, nutrients).phosphate * share).toBeGreaterThan(
+    expect(tissueMass('java_fern', offshootSize) * foodRecipe(DEFAULT_CONFIG).phosphate * share).toBeGreaterThan(
       start.resources.phosphate
     );
 

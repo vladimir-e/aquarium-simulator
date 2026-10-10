@@ -15,6 +15,7 @@ import { debParams, FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import type { TunableConfig } from '../config/index.js';
 import { createLog } from '../core/logging.js';
+import { atRecipe } from '../core/organics.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { drawId } from '../core/rng.js';
 import { sum } from '../core/sum.js';
@@ -57,7 +58,7 @@ export function processBodies(state: SimulationState, config: TunableConfig): Bo
     config.nutrients.foodMineralContent,
     'fish-broods'
   );
-  if (waste > 0) effects.push({ tier: 'active', resource: 'waste', delta: waste, source: 'dead-eggs' });
+  if (waste > 0) effects.push({ tier: 'active', resource: 'waste', delta: atRecipe(waste, config), source: 'dead-eggs' });
   return { state: newState, effects, burned, waste };
 }
 

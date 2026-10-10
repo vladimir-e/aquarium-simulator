@@ -62,7 +62,6 @@ export {
   plantFeeder,
   poolDraws,
   feederShares,
-  organicNutrients,
   nutrientsIn,
 } from '../systems/nutrients.js';
 export type { Feeder, NutrientPool, TankPools, PoolDraw } from '../systems/nutrients.js';

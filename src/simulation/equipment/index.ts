@@ -6,6 +6,7 @@ import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { calculateTankHeight, calculateTankGlassSurface } from '../core/geometry.js';
+import { addOrganics, scaleOrganics } from '../core/organics.js';
 import { type OpticsConfig, type TunableConfig } from '../config/index.js';
 import {
   heaterUpdate,
@@ -385,9 +386,9 @@ export function rescape(state: SimulationState, type: SubstrateType): Simulation
 export function disturbBed(draft: SimulationState, share: number): void {
   const stirred = Math.max(0, Math.min(1, share));
   const bed = draft.equipment.substrate;
-  const released = bed.organicReserve * stirred;
-  bed.organicReserve -= released;
-  draft.resources.waste += released;
+  const released = scaleOrganics(bed.organicReserve, stirred);
+  bed.organicReserve = addOrganics(bed.organicReserve, scaleOrganics(released, -1));
+  draft.resources.waste = addOrganics(draft.resources.waste, released);
 
   const kept = 1 - stirred * (1 - biofilmKept(draft));
   draft.resources.aob *= kept;

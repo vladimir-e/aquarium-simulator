@@ -106,7 +106,7 @@ export function renderObserve(session: Session): string {
       toPpm(r.iron, r.water),
       3
     )} ppm`,
-    `**Other** waste ${round(r.waste, 2)}g · ${ALGAE_KINDS.map(
+    `**Other** waste ${round(r.waste.grams, 2)}g · ${ALGAE_KINDS.map(
       (kind) =>
         `${ALGAE[kind].name.toLowerCase()} ${round(state.algae[kind].mass, 1)} (condition ${round(state.algae[kind].condition, 0)}%)`
     ).join(' · ')} · food ${round(r.food, 2)}g`,

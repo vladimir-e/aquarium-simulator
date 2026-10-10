@@ -13,15 +13,18 @@ import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   ALGAE_KINDS,
   applyAction,
+  atRecipe,
   calculateDecay,
   calculateSubstrateLeach,
   createSimulation,
   tick,
+  type Organics,
   type SimulationState,
 } from '../../simulation/index.js';
 import { gutAt } from '../test/gut';
 
 const config = DEFAULT_CONFIG;
+const rot = (grams: number): Organics => atRecipe(grams, config);
 
 function inflowOf(state: SimulationState): WasteInflowReadout {
   return wasteInflow(state, config, readHourAhead(state, config));
@@ -72,7 +75,7 @@ describe('wasteInflow', () => {
       state.equipment.substrate.organicReserve,
       config.decay
     );
-    expect(inflow.perHour).toBeCloseTo(leach, 10);
+    expect(inflow.perHour).toBeCloseTo(leach.grams, 10);
     expect(inflow.sources.find((s) => s.key === 'substrate')?.share).toBe(1);
     expect(inflow.sources.find((s) => s.key === 'food')?.gramsPerHour).toBe(0);
   });
@@ -158,7 +161,7 @@ describe('wasteInflow', () => {
 describe('wasteReadout', () => {
   it('reports the pool’s only outflow alongside its inflow', () => {
     const state = tank();
-    state.resources.waste = 3;
+    state.resources.waste = rot(3);
     const readout = readoutOf(state);
     expect(readout.standing).toBe(3);
     expect(readout.mineralised).toBeCloseTo(3 * config.nitrogenCycle.wasteConversionRate, 10);
@@ -192,7 +195,7 @@ describe('wasteReadout', () => {
 describe('wasteSummary', () => {
   it('says where the pool settles, and which way it is heading', () => {
     const standing = (waste: number): SimulationState =>
-      produce(soilTank(), (draft) => void (draft.resources.waste = waste));
+      produce(soilTank(), (draft) => void (draft.resources.waste = rot(waste)));
 
     expect(wasteSummary(readoutOf(standing(0)), config)).toContain('climbing to');
     expect(wasteSummary(readoutOf(standing(10)), config)).toContain('falling to');
@@ -205,19 +208,19 @@ describe('wasteSummary', () => {
     const state = setup();
     const readout = readoutOf(state);
     const level = wasteLevel(readout, config);
-    const held = produce(state, (draft) => void (draft.resources.waste = level));
+    const held = produce(state, (draft) => void (draft.resources.waste = rot(level)));
 
     expect(readout.settlingShare).toBeGreaterThan(0);
     expect(wasteSummary(readout, config)).toContain(`${level.toFixed(3)} g.`);
-    expect(Math.abs(tick(held, config).resources.waste - level)).toBeLessThan(readout.perHour * 0.01);
+    expect(Math.abs(tick(held, config).resources.waste.grams - level)).toBeLessThan(readout.perHour * 0.01);
   });
 
   it('counts what settles into the bed as an outflow of the pool', () => {
     const state = soilTank();
-    state.resources.waste = 1;
+    state.resources.waste = rot(1);
     const readout = readoutOf(state);
     expect(readout.settled).toBeCloseTo(readout.settlingShare, 12);
-    expect(readoutOf(produce(state, (d) => void (d.resources.waste = 2))).settled).toBeCloseTo(
+    expect(readoutOf(produce(state, (d) => void (d.resources.waste = rot(2)))).settled).toBeCloseTo(
       2 * readout.settled,
       12
     );

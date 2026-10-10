@@ -1,8 +1,8 @@
 /**
  * Nutrients tunable configuration: what the fertilizer and a root tab carry,
  * how fast the bed gives its store up to the water, how hard each species
- * leans on a pool, and the minerals in a gram of organic matter — the fish
- * food, the waste it becomes and plant tissue alike.
+ * leans on a pool, and the minerals in a gram of food — and of the fish and
+ * plant tissue made at its recipe.
  */
 
 import type { NutrientDemand } from '../plants/species.js';
@@ -76,8 +76,8 @@ export interface NutrientsConfig {
    */
   demand: Record<NutrientDemand, NutrientVector>;
   /**
-   * mg of each mineral in a gram of food, in the waste it becomes and in plant
-   * tissue. Its nitrogen is `livestock.foodNitrogenFraction`.
+   * mg of each mineral in a gram of food, and in the fish and plant tissue
+   * made at its recipe. Its nitrogen is `livestock.foodNitrogenFraction`.
    */
   foodMineralContent: MineralVector;
 }

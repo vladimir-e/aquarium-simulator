@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { NO_ORGANICS } from '../core/organics.js';
 import {
   calculateCo2Factor,
   calculatePhotosynthesis,
@@ -39,7 +40,7 @@ function buildResources(
     lightByHour: new Array(24).fill(0),
     aeration: false,
     food: 0,
-    waste: 0,
+    waste: NO_ORGANICS,
     ammonia: 0,
     nitrite: 0,
     nitrate: mass(nutrientsDefaults.halfSaturation.nitrate),

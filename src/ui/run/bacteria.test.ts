@@ -20,7 +20,7 @@ import {
   applyAction,
   mapKinds,
   createSimulation,
-  organicNutrients,
+  foodRecipe,
   tick,
   type Resources,
   type SimulationState,
@@ -280,7 +280,7 @@ describe('bacteriaReadout', () => {
     const water = blooming.resources.water;
     const ammoniaTaken =
       (bloomsTissue(next) - bloomsTissue(blooming)) *
-      organicNutrients(config.livestock, config.nutrients).nitrate *
+      foodRecipe(config).nitrate *
       NO3_TO_NH3_MASS_RATIO;
     const moved = (next.resources.ammonia - blooming.resources.ammonia) / water;
 

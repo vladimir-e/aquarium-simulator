@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { deltaOf } from '../core/effects.js';
 import { burnEffects, processLivestock, tankPaces } from './index.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
@@ -25,7 +26,7 @@ function makeState(fish: Fish[] = []): SimulationState {
 const effectOf = (result: ReturnType<typeof processLivestock>, resource: string, source?: string): number =>
   result.effects
     .filter((e) => e.resource === resource && (source === undefined || e.source === source))
-    .reduce((sum, e) => sum + e.delta, 0);
+    .reduce((sum, e) => sum + deltaOf(e), 0);
 
 describe('processLivestock', () => {
   it('returns unchanged state when no fish', () => {

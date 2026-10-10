@@ -65,7 +65,6 @@ import {
   ghDrawn,
   liebig,
   nutrientsIn,
-  organicNutrients,
   plantFeeder,
   poolDraws,
   tankPools,
@@ -77,6 +76,7 @@ import { computePlantVitality } from '../systems/plant-vitality.js';
 import { losePlant, tissueMass } from '../systems/plant-lifecycle.js';
 import type { VitalityResult } from '../systems/vitality.js';
 import { sum } from '../core/sum.js';
+import { atRecipe, foodRecipe } from '../core/organics.js';
 
 /** A bloom's hour in the pass. */
 export interface BloomHour {
@@ -113,8 +113,11 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const { plants: plantsConfig, nutrients: nutrientsConfig } = config;
   const waterVolume = state.resources.water;
 
-  const pushDelta = (resource: NutrientForm | 'oxygen' | 'co2' | 'gh' | 'kh' | 'waste', delta: number, source: string): void => {
+  const pushDelta = (resource: NutrientForm | 'oxygen' | 'co2' | 'gh' | 'kh', delta: number, source: string): void => {
     if (delta !== 0) effects.push({ tier: 'active', resource, delta, source });
+  };
+  const pushWaste = (grams: number, source: string): void => {
+    if (grams !== 0) effects.push({ tier: 'active', resource: 'waste', delta: atRecipe(grams, config), source });
   };
 
   // 1–2. Light, and where each feeder feeds, once.
@@ -203,7 +206,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
       ...blooms.map((b, k) => ({ grams: bloomTissue(massBought(bloomPurchases[k]), b.habitat, b.traits), draws: b.draws })),
     ],
     pools,
-    organicNutrients(config.livestock, nutrientsConfig)
+    foodRecipe(config)
   );
   const plantCount = state.plants.length;
   const plantUptake = sumForms(tissue.uptake.slice(0, plantCount).map(([water]) => water));
@@ -223,10 +226,10 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const plantLosses = supplied.map(({ after }) => losePlant(after, plantsConfig));
   const bloomLosses = blooms.map((b, k) => loseBloom(bloomsSupplied[k].after, b.habitat, b.traits, plantsConfig));
   const plantShedding = sum(plantLosses.map((loss) => loss.shed));
-  pushDelta('waste', plantShedding, 'plant-shedding');
-  pushDelta('waste', sum(plantLosses.map((loss) => loss.died)), 'plant-death');
-  pushDelta('waste', sum(bloomLosses.map((loss) => loss.shed)), 'algae-shedding');
-  pushDelta('waste', sum(bloomLosses.map((loss) => loss.died)), 'algae-death');
+  pushWaste(plantShedding, 'plant-shedding');
+  pushWaste(sum(plantLosses.map((loss) => loss.died)), 'plant-death');
+  pushWaste(sum(bloomLosses.map((loss) => loss.shed)), 'algae-shedding');
+  pushWaste(sum(bloomLosses.map((loss) => loss.died)), 'algae-death');
 
   // 9. Offshoots and spores join, the survivors age a tick. An offshoot's id and vigour come off the tank's stream.
   const newState = produce(state, (draft) => {

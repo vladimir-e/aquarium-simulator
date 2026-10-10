@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { deltaOf } from '../core/effects.js';
 import { produce } from 'immer';
 import { processBodies } from './bodies.js';
 import { processLivestock, tankPaces } from './index.js';
@@ -35,7 +36,7 @@ const born = (before: Fish[], after: Fish[]): Fish[] => after.slice(before.lengt
 const events = (s: SimulationState, e: string): LogEntry[] => s.logs.filter((l) => l.event === e);
 const egg = eggOrganics;
 const wasteOf = (out: ReturnType<typeof processBodies>): number =>
-  out.effects.reduce((sum, e) => (e.resource === 'waste' ? sum + e.delta : sum), 0);
+  out.effects.reduce((sum, e) => (e.resource === 'waste' ? sum + e.delta.grams : sum), 0);
 
 /** Grams of organics the fish and their clutches hold, guts included. */
 const held = ({ fish, clutches }: SimulationState): number =>
@@ -124,7 +125,7 @@ describe('processBodies', () => {
       const out = processLivestock(state, DEFAULT_CONFIG);
       expect(out.state.fish).toHaveLength(0);
       expect(out.state.clutches).toHaveLength(0);
-      return out.effects.find((e) => e.source === 'fish-death')!.delta;
+      return deltaOf(out.effects.find((e) => e.source === 'fish-death')!);
     };
     expect(deathWaste(dying([brood])) - deathWaste(dying([]))).toBeCloseTo(12 * egg('guppy'), 12);
     const second: Clutch = { ...brood, id: 'd', eggs: 5 };

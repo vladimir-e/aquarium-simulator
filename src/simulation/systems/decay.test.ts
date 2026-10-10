@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { deltaOf } from '../core/effects.js';
+import { atRecipe } from '../core/organics.js';
+import { organicsCloseTo } from '../tests/organics.js';
 import {
   decaySystem,
   getTemperatureFactor,
@@ -93,7 +96,7 @@ describe('decaySystem', () => {
         draft.resources.food = overrides.food;
       }
       if (overrides.waste !== undefined) {
-        draft.resources.waste = overrides.waste;
+        draft.resources.waste = atRecipe(overrides.waste, DEFAULT_CONFIG);
       }
       if (overrides.temperature !== undefined) {
         draft.resources.temperature = overrides.temperature;
@@ -104,7 +107,7 @@ describe('decaySystem', () => {
     });
   }
 
-  it('turns the waste-conversion share of decayed food into waste', () => {
+  it('turns the waste-conversion share of decayed food into waste at food’s recipe', () => {
     const state = createTestState({ food: 1.0, temperature: 25 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
@@ -114,9 +117,8 @@ describe('decaySystem', () => {
     );
 
     expect(wasteEffect).toBeDefined();
-    expect(wasteEffect!.delta).toBeCloseTo(
-      -foodEffect!.delta * decayDefaults.wasteConversionRatio,
-      6
+    expect(wasteEffect!.delta).toEqual(
+      organicsCloseTo(atRecipe(-deltaOf(foodEffect!) * decayDefaults.wasteConversionRatio, DEFAULT_CONFIG))
     );
   });
 
@@ -124,7 +126,7 @@ describe('decaySystem', () => {
     const state = createTestState({ food: 1.0, temperature: 25, water: 0 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
     const released = (resource: string): number =>
-      effects.find((e) => e.resource === resource && e.source === 'decay')!.delta;
+      deltaOf(effects.find((e) => e.resource === resource && e.source === 'decay')!);
     const oxidized = -released('food') * (1 - decayDefaults.wasteConversionRatio);
 
     expect(released('ammonia')).toBeCloseTo(
@@ -152,8 +154,8 @@ describe('decaySystem', () => {
     const coldEffects = decaySystem.update(coldState, DEFAULT_CONFIG);
     const hotEffects = decaySystem.update(hotState, DEFAULT_CONFIG);
 
-    const coldDecay = coldEffects.find((e) => e.resource === 'food')!.delta;
-    const hotDecay = hotEffects.find((e) => e.resource === 'food')!.delta;
+    const coldDecay = deltaOf(coldEffects.find((e) => e.resource === 'food')!);
+    const hotDecay = deltaOf(hotEffects.find((e) => e.resource === 'food')!);
 
     expect(hotDecay).toBeLessThan(coldDecay);
   });
@@ -164,7 +166,7 @@ describe('decaySystem', () => {
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
     expect(co2Effect).toBeDefined();
-    expect(co2Effect!.delta).toBeGreaterThan(0);
+    expect(deltaOf(co2Effect!)).toBeGreaterThan(0);
     expect(co2Effect!.source).toBe('decay');
     expect(co2Effect!.tier).toBe('passive');
   });
@@ -175,7 +177,7 @@ describe('decaySystem', () => {
 
     const o2Effect = effects.find((e) => e.resource === 'oxygen');
     expect(o2Effect).toBeDefined();
-    expect(o2Effect!.delta).toBeLessThan(0);
+    expect(deltaOf(o2Effect!)).toBeLessThan(0);
     expect(o2Effect!.source).toBe('decay');
     expect(o2Effect!.tier).toBe('passive');
   });
@@ -187,7 +189,7 @@ describe('decaySystem', () => {
     const co2Effect = effects.find((e) => e.resource === 'co2');
     const o2Effect = effects.find((e) => e.resource === 'oxygen');
 
-    expect(co2Effect!.delta / MW_CO2).toBeCloseTo(-o2Effect!.delta / MW_O2, 10);
+    expect(deltaOf(co2Effect!) / MW_CO2).toBeCloseTo(-deltaOf(o2Effect!) / MW_O2, 10);
   });
 
   it('draws the oxygen the oxidised fraction demands', () => {
@@ -197,18 +199,18 @@ describe('decaySystem', () => {
     const foodEffect = effects.find((e) => e.resource === 'food')!;
     const o2Effect = effects.find((e) => e.resource === 'oxygen')!;
 
-    const decayAmount = -foodEffect.delta;
+    const decayAmount = -deltaOf(foodEffect);
     const oxidizedAmount = decayAmount * (1 - decayDefaults.wasteConversionRatio);
     const expectedO2 = (oxidizedAmount * decayDefaults.gasExchangePerGramDecay) / 100;
 
-    expect(-o2Effect.delta).toBeCloseTo(expectedO2, 6);
+    expect(-deltaOf(o2Effect)).toBeCloseTo(expectedO2, 6);
   });
 
   it('spends a mass of oxygen, so ten times the water is a tenth of the demand', () => {
     const drawnIn = (water: number): number => {
       const state = createTestState({ food: 1.0, temperature: 25, water });
       const effects = decaySystem.update(state, DEFAULT_CONFIG);
-      return -effects.find((e) => e.resource === 'oxygen')!.delta;
+      return -deltaOf(effects.find((e) => e.resource === 'oxygen')!);
     };
 
     expect(drawnIn(100) / drawnIn(1000)).toBeCloseTo(10, 6);

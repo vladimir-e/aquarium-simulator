@@ -143,7 +143,17 @@ export { blendTemperature, blendConcentration } from './core/blending.js';
 export { carbonatePh, getPh } from './core/carbonate.js';
 
 export type { Effect, EffectTier } from './core/effects.js';
-export { applyEffects } from './core/effects.js';
+export { applyEffects, deltaOf } from './core/effects.js';
+export {
+  NO_ORGANICS,
+  addOrganics,
+  atRecipe,
+  foodRecipe,
+  ofComposition,
+  scaleOrganics,
+  type Organics,
+  type RecipeConfig,
+} from './core/organics.js';
 
 export { tick } from './tick.js';
 export { getHourOfDay, getDayNumber } from './core/clock.js';
@@ -411,7 +421,6 @@ export {
   plantFeeder,
   poolDraws,
   feederShares,
-  organicNutrients,
   nutrientsIn,
   tissueMass,
   losePlant,

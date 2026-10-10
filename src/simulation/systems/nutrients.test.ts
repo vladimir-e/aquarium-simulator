@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { foodRecipe, NO_ORGANICS } from '../core/organics.js';
 import {
   bedPool,
   calculateNutrientSufficiency,
@@ -11,7 +12,6 @@ import {
   liebig,
   nutrientShare,
   nutrientsIn,
-  organicNutrients,
   feederShares,
   plantFeeder,
   poolDraws,
@@ -36,7 +36,7 @@ import {
 } from '../config/nutrients.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { plantsDefaults } from '../config/plants.js';
-import { CACO3_PER_EQUIVALENT, MW_N, MW_NH3, MW_NO3, NO2_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
+import { CACO3_PER_EQUIVALENT, MW_NH3, MW_NO3, NO2_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
 import { calculateAmmoniaToNitrite } from './nitrogen-cycle.js';
 import { monodUptake } from '../core/kinetics.js';
 import { createSimulation, type Resources } from '../state.js';
@@ -59,7 +59,7 @@ function resourcesAt(ppm: Partial<FormVector>): Resources {
     lightByHour: new Array(24).fill(0),
     aeration: false,
     food: 0,
-    waste: 0,
+    waste: NO_ORGANICS,
     ammonia: (ppm.ammonia ?? 0) * WATER,
     nitrite: 0,
     nitrate: (ppm.nitrate ?? 0) * WATER,
@@ -208,7 +208,7 @@ describe('where a plant feeds', () => {
 });
 
 describe('nitrogen in two forms', () => {
-  const recipe = organicNutrients(livestockDefaults, nutrientsDefaults);
+  const recipe = foodRecipe({ livestock: livestockDefaults, nutrients: nutrientsDefaults });
   const K = (form: 'ammonia' | 'nitrate'): number => speciesHalfSaturation('java_fern', form);
   /** Water rich in everything but nitrogen, which it holds at these multiples of the fern's own half-saturations. */
   const nitrogenAt = (ammonia: number, nitrate: number): TankPools =>
@@ -286,22 +286,8 @@ describe('nitrogen in two forms', () => {
   });
 });
 
-describe('organicNutrients', () => {
-  const recipe = organicNutrients(livestockDefaults, nutrientsDefaults);
-
-  it('carries the nitrogen of food, as the nitrate it ends up as', () => {
-    expect((recipe.nitrate * MW_N) / MW_NO3 / 1000).toBeCloseTo(livestockDefaults.foodNitrogenFraction, 12);
-  });
-
-  it('carries the minerals of food', () => {
-    for (const n of ['phosphate', 'potassium', 'iron'] as const) {
-      expect(recipe[n]).toBe(nutrientsDefaults.foodMineralContent[n]);
-    }
-  });
-});
-
 describe('drawTissue', () => {
-  const recipe = organicNutrients(livestockDefaults, nutrientsDefaults);
+  const recipe = foodRecipe({ livestock: livestockDefaults, nutrients: nutrientsDefaults });
   /** Grams of tissue a young plant's half-full bank buys in an hour. */
   const anHour = (species: PlantSpecies): number => {
     const young = createPlant({ species, size: MIN_PLANTABLE_SIZE, rng: createRng(1) });

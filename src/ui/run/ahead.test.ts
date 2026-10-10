@@ -3,6 +3,7 @@ import { produce } from 'immer';
 import {
   ALGAE_KINDS,
   applyEffects,
+  deltaOf,
   createSimulation,
   dailyLightIntegral,
   getPresetById,
@@ -88,7 +89,7 @@ function bodiesOf(state: SimulationState): {
   const delta = (resource: string, source: string): number =>
     [...livestock.effects, ...bodies.effects]
       .filter((e) => e.resource === resource && e.source === source)
-      .reduce((sum, e) => sum + e.delta, 0);
+      .reduce((sum, e) => sum + deltaOf(e), 0);
   return { bodies, delta };
 }
 

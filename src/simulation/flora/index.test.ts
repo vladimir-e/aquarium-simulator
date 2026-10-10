@@ -4,7 +4,9 @@ import { readPlantLight } from '../plants/index.js';
 import { canopyLight, floorCover, plantHeight } from '../plants/canopy.js';
 import { calculatePhotosynthesis, plantFixer } from '../systems/photosynthesis.js';
 import { calculateRespiration } from '../systems/respiration.js';
-import { calculateNutrientSufficiency, nutrientsIn, organicNutrients, tankPools } from '../systems/nutrients.js';
+import { calculateNutrientSufficiency, nutrientsIn, tankPools } from '../systems/nutrients.js';
+import { deltaOf } from '../core/effects.js';
+import { atRecipe, foodRecipe } from '../core/organics.js';
 import { tissueMass } from '../systems/plant-lifecycle.js';
 import { getPpm } from '../resources/index.js';
 import {
@@ -76,7 +78,7 @@ function tank({ plants = [], algae = {}, ...resources }: Partial<TankFields> = {
 const total = (effects: readonly Effect[], resource: string, source?: string): number =>
   effects
     .filter((e) => e.resource === resource && (source === undefined || e.source === source))
-    .reduce((sum, e) => sum + e.delta, 0);
+    .reduce((sum, e) => sum + deltaOf(e), 0);
 
 describe('processFlora — plants', () => {
   const C = 100;
@@ -233,7 +235,7 @@ describe('processFlora — plants', () => {
         DEFAULT_CONFIG
       )
         .effects.filter((e) => e.resource === 'oxygen')
-        .reduce((sum, e) => sum + e.delta, 0);
+        .reduce((sum, e) => sum + deltaOf(e), 0);
 
     const crossover = (species: PlantSpecies): number => {
       let dark = 0;
@@ -276,7 +278,7 @@ describe('processFlora — plants', () => {
         DEFAULT_CONFIG
       );
       const sum = (resource: 'oxygen' | 'co2'): number =>
-        result.effects.filter((e) => e.resource === resource).reduce((s, e) => s + e.delta, 0);
+        result.effects.filter((e) => e.resource === resource).reduce((s, e) => s + deltaOf(e), 0);
       return { oxygen: sum('oxygen'), co2: sum('co2') };
     };
 
@@ -303,7 +305,7 @@ describe('processFlora — plants', () => {
       );
 
       for (const effect of drained.effects) {
-        expect(Number.isFinite(effect.delta)).toBe(true);
+        expect(Number.isFinite(deltaOf(effect))).toBe(true);
       }
       expect(drained.effects.filter((e) => e.resource === 'oxygen')).toHaveLength(0);
       expect(drained.effects.filter((e) => e.resource === 'co2')).toHaveLength(0);
@@ -312,7 +314,7 @@ describe('processFlora — plants', () => {
 
   describe('tissue drawn from the water and the bed', () => {
     const CAP = plantsDefaults.surplusCap;
-    const recipe = organicNutrients(DEFAULT_CONFIG.livestock, DEFAULT_CONFIG.nutrients);
+    const recipe = foodRecipe(DEFAULT_CONFIG);
     const fromWater = (result: ReturnType<typeof processFlora>, n: (typeof NUTRIENTS)[number]): number =>
       -total(result.effects, n, 'growth');
     const fromBed = (
@@ -445,8 +447,9 @@ describe('processFlora — plants', () => {
       expect(result.state.plants[0].size).toBeLessThan(50);
       const waste = result.effects.filter((e) => e.resource === 'waste');
       expect(waste.map((e) => e.source)).toEqual(['plant-shedding', 'plant-death']);
-      expect(waste.every((e) => e.delta > 0)).toBe(true);
-      expect(result.shedding).toBe(waste[0].delta);
+      expect(waste.every((e) => deltaOf(e) > 0)).toBe(true);
+      expect(result.shedding).toBe(deltaOf(waste[0]));
+      expect(waste.map((e) => e.delta)).toEqual(waste.map((e) => atRecipe(deltaOf(e), DEFAULT_CONFIG)));
       expect(result.state.logs.filter((l) => l.event === 'plant-died')).toHaveLength(1);
     });
 
@@ -630,7 +633,7 @@ describe('processFlora — plants', () => {
         for (const light of [0, 70]) {
           const state = tank({ plants: seedlings, light, lightByHour: light > 0 ? LIT_DAY : new Array(24).fill(0) });
           const result = processFlora(state, config);
-          for (const effect of result.effects) expect(Number.isFinite(effect.delta)).toBe(true);
+          for (const effect of result.effects) expect(Number.isFinite(deltaOf(effect))).toBe(true);
           for (const plant of result.state.plants) {
             expect(Number.isFinite(plant.size)).toBe(true);
             expect(Number.isFinite(plant.condition)).toBe(true);

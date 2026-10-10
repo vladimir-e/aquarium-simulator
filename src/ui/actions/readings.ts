@@ -357,7 +357,7 @@ const READINGS: Reading[] = [
   {
     key: 'waste',
     label: 'Waste',
-    read: ({ state }) => state.resources.waste,
+    read: ({ state }) => state.resources.waste.grams,
     unit: () => 'g',
     display: same,
     decimals: WasteResource.precision,

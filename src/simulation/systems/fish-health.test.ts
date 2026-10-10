@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { NO_ORGANICS } from '../core/organics.js';
 import {
   computeFishVitality,
   healingAsked,
@@ -79,7 +80,7 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
     lightByHour: new Array(24).fill(0),
     aeration: true,
     food: 1,
-    waste: 0,
+    waste: NO_ORGANICS,
     ammonia: 0,
     nitrite: 0,
     nitrate: 0,

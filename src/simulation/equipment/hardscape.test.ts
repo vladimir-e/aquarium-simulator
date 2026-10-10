@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { deltaOf } from '../core/effects.js';
 import { produce } from 'immer';
 import {
   calculateCalciteDissolution,
@@ -118,7 +119,7 @@ describe('hardscapeUpdate', () => {
   const khDelta = (state: SimulationState): number =>
     hardscapeUpdate(state)
       .effects.filter((effect) => effect.resource === 'kh')
-      .reduce((sum, effect) => sum + effect.delta, 0);
+      .reduce((sum, effect) => sum + deltaOf(effect), 0);
 
   it('leaves KH alone in an inert scape', () => {
     expect(khDelta(tank(['neutral_rock', 'plastic_decoration']))).toBe(0);

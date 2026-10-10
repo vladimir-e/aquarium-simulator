@@ -227,14 +227,14 @@ describe('useSimulation', () => {
 
     const started = result.current.state.equipment.substrate.organicReserve;
     const full = getSubstrateOrganicReserve('aqua_soil', result.current.state.tank.capacity);
-    expect(started).toBeGreaterThan(0);
-    expect(started).toBeLessThan(full);
+    expect(started.grams).toBeGreaterThan(0);
+    expect(started.grams).toBeLessThan(full.grams);
 
     act(() => {
       result.current.step();
     });
     const spent = result.current.state.equipment.substrate.organicReserve;
-    expect(spent).toBeLessThan(started);
+    expect(spent.grams).toBeLessThan(started.grams);
 
     act(() => {
       result.current.updateSubstrateType('aqua_soil');
@@ -245,7 +245,7 @@ describe('useSimulation', () => {
       result.current.updateSubstrateType('gravel');
       result.current.updateSubstrateType('aqua_soil');
     });
-    expect(result.current.state.equipment.substrate.organicReserve).toBe(full);
+    expect(result.current.state.equipment.substrate.organicReserve).toEqual(full);
   });
 
   it('heater controls update simulation state', () => {

@@ -21,6 +21,7 @@ import {
   type AlgaeKind,
 } from '../algae/index.js';
 import { createLog } from '../core/logging.js';
+import { addOrganics, atRecipe, type RecipeConfig } from '../core/organics.js';
 import type { ActionResult } from './types.js';
 
 /** Each kind's mass times the walls' share of its habitat — what a scrub takes off. */
@@ -28,7 +29,7 @@ export function onTheGlass(state: SimulationState): Record<AlgaeKind, number> {
   return coverageAt(state.algae, 'walls', state);
 }
 
-export function scrubAlgae(state: SimulationState): ActionResult {
+export function scrubAlgae(state: SimulationState, config: RecipeConfig): ActionResult {
   const glass = onTheGlass(state);
   const scraped = ALGAE_KINDS.filter((kind) => glass[kind] > 0);
   if (scraped.length === 0) return { state, message: 'Nothing on the glass to scrub' };
@@ -37,7 +38,10 @@ export function scrubAlgae(state: SimulationState): ActionResult {
     draft.algae = clearPlace(state.algae, 'walls', state);
     for (const kind of scraped) {
       const traits = ALGAE[kind];
-      draft.resources.waste += bloomTissue(glass[kind], habitatSize(traits.habitat, state), traits);
+      draft.resources.waste = addOrganics(
+        draft.resources.waste,
+        atRecipe(bloomTissue(glass[kind], habitatSize(traits.habitat, state), traits), config)
+      );
       draft.logs.push(
         createLog(
           draft.tick,

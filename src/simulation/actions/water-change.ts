@@ -16,6 +16,7 @@ import type { SimulationState } from '../state.js';
 import { ALGAE, ALGAE_KINDS, placeShare } from '../algae/index.js';
 import { createLog, liters, logText, measured, type LogText } from '../core/logging.js';
 import { blendTemperature, blendConcentration } from '../core/blending.js';
+import { scaleOrganics } from '../core/organics.js';
 import { getGhMass, getKhMass } from '../resources/helpers.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { gasExchangeDefaults } from '../config/gas-exchange.js';
@@ -73,7 +74,7 @@ export function waterChange(
   const remainingWater = currentWater - waterRemoved;
   const waterAdded = capacity - remainingWater; // Fill to 100%
   const percent = `${Math.round(amount * 100)}%`;
-  const vacuumed = vacuum > 0 && state.equipment.substrate.organicReserve > 0;
+  const vacuumed = vacuum > 0 && state.equipment.substrate.organicReserve.grams > 0;
   const mulm = vacuumed ? `, vacuumed ${Math.round(vacuum * 100)}% of the bed's mulm` : '';
   const line = (lead: string): LogText =>
     measured`${lead} (removed ${liters(waterRemoved)}, added ${liters(waterAdded)})${mulm}`;
@@ -132,7 +133,7 @@ export function waterChange(
     draft.resources.water = capacity;
 
     // 6. The gravel vac pulls mulm out with the water
-    draft.equipment.substrate.organicReserve *= 1 - vacuum;
+    draft.equipment.substrate.organicReserve = scaleOrganics(draft.equipment.substrate.organicReserve, 1 - vacuum);
 
     // 7. Log the action
     draft.logs.push(createLog(draft.tick, 'user', 'info', line(`Water change: ${percent}`)));

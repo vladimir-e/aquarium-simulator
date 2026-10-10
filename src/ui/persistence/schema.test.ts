@@ -256,7 +256,7 @@ describe('PersistedSimulationSchema', () => {
       lightByHour: new Array(24).fill(0),
       aeration: false,
       food: 0,
-      waste: 0,
+      waste: { grams: 0, nutrients: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 } },
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
@@ -284,7 +284,7 @@ describe('PersistedSimulationSchema', () => {
       powerhead: { enabled: false, flowRateGPH: 240 },
       substrate: {
         type: 'gravel',
-        organicReserve: 0.5,
+        organicReserve: { grams: 0.5, nutrients: { nitrate: 110, phosphate: 10, potassium: 4, iron: 0.1 } },
         khReserve: 0,
         nutrients: { nitrate: 400, phosphate: 60, potassium: 200, iron: 10 },
       },
@@ -315,6 +315,17 @@ describe('PersistedSimulationSchema', () => {
 
   it('validates valid simulation state', () => {
     expect(PersistedSimulationSchema.safeParse(validSimulation).success).toBe(true);
+  });
+
+  it('rejects the v35 shape, the waste and the mulm as bare grams', () => {
+    const { resources, equipment } = validSimulation;
+    const bareWaste = { ...validSimulation, resources: { ...resources, waste: 0 } };
+    const bareMulm = {
+      ...validSimulation,
+      equipment: { ...equipment, substrate: { ...equipment.substrate, organicReserve: 0.5 } },
+    };
+    expect(PersistedSimulationSchema.safeParse(bareWaste).success).toBe(false);
+    expect(PersistedSimulationSchema.safeParse(bareMulm).success).toBe(false);
   });
 
   it('keeps the seed a tank started from, and refuses one that names a stock it cannot seed', () => {
@@ -511,7 +522,7 @@ describe('PersistedStateSchema', () => {
       lightByHour: new Array(24).fill(0),
       aeration: false,
       food: 0,
-      waste: 0,
+      waste: { grams: 0, nutrients: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 } },
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
@@ -539,7 +550,7 @@ describe('PersistedStateSchema', () => {
       powerhead: { enabled: false, flowRateGPH: 240 },
       substrate: {
         type: 'gravel',
-        organicReserve: 0.5,
+        organicReserve: { grams: 0.5, nutrients: { nitrate: 110, phosphate: 10, potassium: 4, iron: 0.1 } },
         khReserve: 0,
         nutrients: { nitrate: 400, phosphate: 60, potassium: 200, iron: 10 },
       },

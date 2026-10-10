@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { deltaOf } from '../core/effects.js';
 import { autoFeederUpdate, type AutoFeeder } from './auto-feeder.js';
 import { processEquipment } from './index.js';
 import { createSimulation, type SimulationState } from '../state.js';
@@ -27,6 +28,6 @@ describe('autoFeederUpdate', () => {
   it('puts its ration in the water through the equipment pass', () => {
     const state = tankAt(tankAt(0).equipment.autoFeeder.startHour);
     const food = processEquipment(state, DEFAULT_CONFIG).effects.filter((e) => e.resource === 'food');
-    expect(food.reduce((sum, e) => sum + e.delta, 0)).toBeCloseTo(0.3, 12);
+    expect(food.reduce((sum, e) => sum + deltaOf(e), 0)).toBeCloseTo(0.3, 12);
   });
 });

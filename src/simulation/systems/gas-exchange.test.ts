@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { deltaOf, type Effect } from '../core/effects.js';
 import {
   gasExchangeSystem,
   calculateO2Saturation,
@@ -10,6 +11,8 @@ import { createSimulation, type SimulationState } from '../state.js';
 import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { gasExchangeDefaults } from '../config/gas-exchange.js';
+
+const deltaOrZero = (effect: Effect | undefined): number => (effect ? deltaOf(effect) : 0);
 
 describe('calculateO2Saturation', () => {
   it('returns base saturation at the reference temperature', () => {
@@ -200,7 +203,7 @@ describe('gasExchangeSystem', () => {
     const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
     effects.forEach((e) => {
-      expect(Math.abs(e.delta)).toBeLessThan(0.01);
+      expect(Math.abs(deltaOf(e))).toBeLessThan(0.01);
     });
   });
 
@@ -219,8 +222,8 @@ describe('gasExchangeSystem', () => {
     const lowFlowEffects = gasExchangeSystem.update(lowFlowState, DEFAULT_CONFIG);
     const highFlowEffects = gasExchangeSystem.update(highFlowState, DEFAULT_CONFIG);
 
-    const lowO2Delta = lowFlowEffects.find((e) => e.resource === 'oxygen')?.delta ?? 0;
-    const highO2Delta = highFlowEffects.find((e) => e.resource === 'oxygen')?.delta ?? 0;
+    const lowO2Delta = deltaOrZero(lowFlowEffects.find((e) => e.resource === 'oxygen'));
+    const highO2Delta = deltaOrZero(highFlowEffects.find((e) => e.resource === 'oxygen'));
 
     expect(highO2Delta).toBeGreaterThan(lowO2Delta);
   });
@@ -240,8 +243,8 @@ describe('gasExchangeSystem', () => {
     const coldEffects = gasExchangeSystem.update(coldState, DEFAULT_CONFIG);
     const hotEffects = gasExchangeSystem.update(hotState, DEFAULT_CONFIG);
 
-    const coldO2Delta = coldEffects.find((e) => e.resource === 'oxygen')?.delta ?? 0;
-    const hotO2Delta = hotEffects.find((e) => e.resource === 'oxygen')?.delta ?? 0;
+    const coldO2Delta = deltaOrZero(coldEffects.find((e) => e.resource === 'oxygen'));
+    const hotO2Delta = deltaOrZero(hotEffects.find((e) => e.resource === 'oxygen'));
 
     expect(coldO2Delta).toBeGreaterThan(hotO2Delta);
   });
@@ -326,8 +329,8 @@ describe('gasExchangeSystem', () => {
       const noAerationEffects = gasExchangeSystem.update(noAerationState, DEFAULT_CONFIG);
       const aerationEffects = gasExchangeSystem.update(aerationState, DEFAULT_CONFIG);
 
-      const noAerationO2 = noAerationEffects.find((e) => e.source === 'gas-exchange-o2')?.delta ?? 0;
-      const aerationO2 = aerationEffects.find((e) => e.source === 'gas-exchange-o2')?.delta ?? 0;
+      const noAerationO2 = deltaOrZero(noAerationEffects.find((e) => e.source === 'gas-exchange-o2'));
+      const aerationO2 = deltaOrZero(aerationEffects.find((e) => e.source === 'gas-exchange-o2'));
 
       expect(aerationO2).toBeGreaterThan(noAerationO2);
     });
@@ -347,8 +350,8 @@ describe('gasExchangeSystem', () => {
       const noAerationEffects = gasExchangeSystem.update(noAerationState, DEFAULT_CONFIG);
       const aerationEffects = gasExchangeSystem.update(aerationState, DEFAULT_CONFIG);
 
-      const noAerationCO2 = noAerationEffects.find((e) => e.source === 'gas-exchange-co2')?.delta ?? 0;
-      const aerationCO2 = aerationEffects.find((e) => e.source === 'gas-exchange-co2')?.delta ?? 0;
+      const noAerationCO2 = deltaOrZero(noAerationEffects.find((e) => e.source === 'gas-exchange-co2'));
+      const aerationCO2 = deltaOrZero(aerationEffects.find((e) => e.source === 'gas-exchange-co2'));
 
       expect(aerationCO2).toBeLessThan(noAerationCO2);
     });

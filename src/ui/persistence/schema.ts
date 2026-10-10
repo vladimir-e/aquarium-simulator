@@ -37,6 +37,13 @@ const numbersFor = <K extends string>(
 
 const NutrientVectorSchema = numbersFor(NUTRIENTS);
 
+const OrganicsSchema = z
+  .object({
+    grams: z.number().min(0),
+    nutrients: NutrientVectorSchema,
+  })
+  .strict();
+
 // ============================================================================
 // Schedule Schema
 // ============================================================================
@@ -73,7 +80,7 @@ const ResourcesSchema = z
     lightByHour: z.array(z.number().min(0)).length(24),
     aeration: z.boolean(),
     food: z.number().min(0),
-    waste: z.number().min(0),
+    waste: OrganicsSchema,
     ammonia: z.number().min(0),
     nitrite: z.number().min(0),
     nitrate: z.number().min(0),
@@ -159,7 +166,7 @@ const PowerheadSchema = z
 const SubstrateSchema = z
   .object({
     type: z.enum(['none', 'sand', 'gravel', 'aqua_soil']),
-    organicReserve: z.number(),
+    organicReserve: OrganicsSchema,
     khReserve: z.number(),
     nutrients: NutrientVectorSchema,
   })
