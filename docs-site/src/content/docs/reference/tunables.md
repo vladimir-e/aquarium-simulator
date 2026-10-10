@@ -13,7 +13,9 @@ a spinner step and, for everything but the derived nitrification rates, a
 outside it, and the tunables drawer holds its field to it. The save path does
 not — its bounds are hand-written per leaf and mostly assert shape rather than
 range, so a stored `digestionRate` of −1 loads without complaint against a
-declared minimum of `0.01`.
+declared minimum of `0.01`. A module constant elsewhere in the engine — an alert
+line, an action bound, a device rating — is not a tunable: it declares no range,
+and the config layer cannot reach it.
 
 ## Sections
 
@@ -68,7 +70,7 @@ off — which is the part that makes a number checkable.
 | `nobNitriteHalfSaturation` | Nitrite, as NO₂⁻, at which NOB oxidise at half rate | ppm |
 
 The four half-saturation constants are measured concentrations and carry a range.
-The ten leaves above them were never given bounds, so a writer that asks
+The nine leaves above them were never given bounds, so a writer that asks
 gets nothing back. A test asserts exactly that split, so the gap is stated
 rather than discovered.
 
@@ -145,8 +147,8 @@ for every kind.
 | `basePhotosynthesisRate` | Rate one rate unit — 500 cm² of leaf at growth rate 1 — fixes carbon at, at full carbon and saturating light | /hr |
 | `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which a species of each carbon need photosynthesises at half rate | mg/L |
 | `saturationIrradianceFactor` | Multiple of a species' band low at which its light response saturates — the `Ik` of the light curve | × band low |
-| `co2PerRateUnit` | CO₂ carried by one rate unit; oxygen derives from it at the molar ratio | mg |
-| `baseRespirationRate` | Dark respiration per rate unit of leaf at growth rate 1, as a share of the light-saturated rate, running around the clock | /hr |
+| `co2PerRateUnit` | CO₂ carried by one rate unit, fixed and released alike; oxygen derives from it at the molar ratio | mg |
+| `baseRespirationRate` | Dark respiration per rate unit of leaf at growth rate 1, as a share of the light- and carbon-saturated rate, running around the clock | /hr |
 | `respirationQ10` | Factor respiration and light starvation multiply by per 10 °C | — |
 | `respirationReferenceTemp` | Temperature respiration and light starvation are quoted at | °C |
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which respiration runs at half rate | mg/L |
@@ -157,7 +159,7 @@ for every kind.
 | `tissuePerSize` | Organic matter in a % of a rate unit of tissue, so a unit weighs by its leaf, not its size — what growth draws the recipe for, and shedding and death return as waste | g/% |
 | `lightStarvationSeverity` | Damage in a day without light, falling to nothing at the species' daily light edge; quoted at growth rate 1 and the respiration reference temperature | %/hr |
 | `lightExcessiveSeverity` | Damage per PAR unit above the species' tolerable band | %/PAR/hr |
-| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
+| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per °C, pH unit or dGH outside the species' tolerable band, one per factor | %/unit/hr |
 | `nutrientDeficiencySeverity` · `sufficiencyEdge` | Damage at a Liebig sufficiency of 0 under saturating light, falling linearly to nothing at the edge; and the sufficiency a plant counts as fed, since a Monod share never reaches 1 | %/hr · — |
 | `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the plant's own edge, and where a hardiness-0 plant's edge sits | %/e-fold/hr · ppm |
 | `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on the light term times the Liebig sufficiency | %/hr |
@@ -188,7 +190,7 @@ A fish's energy budget — growth, reserve, maturity, brood buffer, ageing — c
 | `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, mineralized as waste, or burned by a fish | g N/g food |
 | `oxygenPerGramBurned` | Oxygen a fish breathes per gram of organics its budget burns | mg O₂/g |
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |
-| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band | %/unit/hr |
+| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per °C, pH unit or dGH outside the species' tolerable band | %/unit/hr |
 | `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own tolerance edge, which hardiness moves out — free NH₃, not total ammonia; oxygen counts e-folds under | %/e-fold/hr |
 | `waterLevelStressSeverity` · `flowStressSeverity` | Damage per % of capacity under the threshold, and per turnover above the species' tolerance | %/%/hr · %/turnover/hr |
 | `waterLevelStressThreshold` | Share of capacity the water-level stressor switches on under | % |
