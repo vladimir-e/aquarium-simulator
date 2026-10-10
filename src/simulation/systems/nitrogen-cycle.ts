@@ -33,7 +33,7 @@ import {
   type NitrogenCycleConfig,
   nitrogenCycleDefaults,
 } from '../config/nitrogen-cycle.js';
-import { monodFactor, monodUptake, q10Factor } from '../core/kinetics.js';
+import { KELVIN, monodFactor, monodUptake, q10Factor } from '../core/kinetics.js';
 import {
   alkalinityMoved,
   MW_NH3,
@@ -62,7 +62,7 @@ import { getPh } from '../core/carbonate.js';
  * ~30× less toxic NH3 than the same TAN at pH 8.0.
  */
 export function unionizedAmmoniaFraction(ph: number, temperatureC: number): number {
-  const tempK = temperatureC + 273.15;
+  const tempK = temperatureC + KELVIN;
   const pKa = 0.09018 + 2729.92 / tempK;
   return 1 / (1 + Math.pow(10, pKa - ph));
 }

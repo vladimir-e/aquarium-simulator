@@ -11,7 +11,7 @@ export function q10Factor(temperature: number, q10: number, referenceTemp: numbe
   return Math.pow(q10, (temperature - referenceTemp) / 10.0);
 }
 
-const KELVIN = 273.15;
+export const KELVIN = 273.15;
 const ARRHENIUS_REFERENCE = 20;
 
 /** Temperature scaling on an Arrhenius temperature in kelvin, the form Add-my-Pet quotes: 1 at 20 °C. */

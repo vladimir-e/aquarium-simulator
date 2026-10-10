@@ -1,6 +1,8 @@
 /**
  * A fish's Dynamic Energy Budget in engine units: grams of organics for every
  * energy-like quantity, cm³ for structure, hours for time.
+ * The hourly step assumes L ≫ v·τ·ω.
+ * Reserve density can exceed 1 while structure burns at ω < 1; readouts use wellFed.
  */
 
 import { sum } from '../core/sum.js';
@@ -29,7 +31,6 @@ export interface DebParams {
   sG: number;
   /** K */
   TA: number;
-  delM: number;
   /** g/cm³: dry grams per wet cm³ of structure, which AmP assumes for reserve too */
   dV: number;
   /** g */
@@ -62,12 +63,12 @@ export interface DebState {
 
 export const structuralLength = (state: DebState): number => Math.cbrt(state.structure);
 
-export const physicalLength = (state: DebState, p: DebParams): number => structuralLength(state) / p.delM;
-
 export const maxReserveDensity = (p: DebParams): number => p.pAm / p.v;
 
 export const reserveDensity = (state: DebState, p: DebParams): number =>
   state.structure > 0 ? state.reserve / (maxReserveDensity(p) * state.structure) : 0;
+
+export const wellFed = (state: DebState, p: DebParams): number => Math.min(1, reserveDensity(state, p));
 
 export const maxStructuralLength = (p: DebParams): number => (p.kappa * p.pAm) / p.pM;
 
@@ -85,13 +86,12 @@ export const organics = (state: DebState, p: DebParams): number =>
 export const wetMass = (state: DebState, p: DebParams): number =>
   state.structure + (state.reserve + state.broodBuffer) / p.dV;
 
+/** An hour's inputs: ω in [0, 1]; healing ≥ 0, grams of reserve to spend on repair at full oxygen. */
 export interface DebHour {
-  /** Grams of food digested this hour. */
-  digested: number;
+  fromGut: number;
   tau: number;
   omega: number;
   stress?: Readonly<DebStress>;
-  /** Grams of reserve to spend on repair. */
   healing?: number;
 }
 
@@ -104,7 +104,6 @@ export interface DebBurned {
 }
 
 export interface DebFluxes {
-  /** Digested grams past the assimilation ceiling, back to the gut. */
   returned: number;
   assimilated: number;
   feces: number;
@@ -112,7 +111,7 @@ export interface DebFluxes {
   toStructure: number;
   fromStructure: number;
   burned: DebBurned;
-  /** Maintenance, somatic and maturity, that the hour's mobilisation could not pay. */
+  /** Maintenance its own share of the mobilisation could not pay: somatic from κ, maturity from 1 − κ. */
   shortfall: number;
 }
 
@@ -132,78 +131,86 @@ export function assimilationCeiling(
   return p.pAm * stress.assimilation * L * L * tau * omega;
 }
 
-/** One hour of the budget: τ paces every rate, ω only the supply — assimilation and mobilisation. */
+/** One hour of the budget: τ paces every rate; ω scales {p_Am}, v and healing. */
 export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
-  const { digested, tau, omega, stress = NO_STRESS, healing = 0 } = hour;
+  const { fromGut, tau, omega, stress = NO_STRESS, healing = 0 } = hour;
   const { structure: V, reserve: E, maturity: EH, broodBuffer: ER, wearLoad: q, hazard: h } = state;
-  const supply = tau * omega;
-  const pM = p.pM * stress.maintenance;
-  const EG = p.EG * stress.growthCost;
+  const pMStressed = p.pM * stress.maintenance;
+  const EGStressed = p.EG * stress.growthCost;
   const gramsPerCm3 = structureOrganics(p);
   const L = structuralLength(state);
   const adult = mature(state, p);
 
-  const intake = Math.min(digested, assimilationCeiling(state, p, hour) / p.kappaX);
+  const intake = Math.min(fromGut, assimilationCeiling(state, p, hour) / p.kappaX);
   const assimilated = p.kappaX * intake;
+  const conductance = omega * p.v;
   const mobilised =
-    V > 0 ? Math.min(E, (supply * E * (p.v * EG * L * L + pM * V)) / (EG * V + p.kappa * E)) : 0;
+    V > 0
+      ? Math.min(
+          E,
+          (tau * E * (conductance * EGStressed * L * L + pMStressed * V)) / (EGStressed * V + p.kappa * E)
+        )
+      : 0;
 
-  const soma = p.kappa * mobilised;
-  const somatic = pM * V * tau;
-  const paid = Math.min(soma, somatic);
-  const invested = soma - paid;
-  const somaticDue = somatic - paid;
-  const grown = invested / EG;
+  const somaShare = p.kappa * mobilised;
+  const somaticUpkeep = pMStressed * V * tau;
+  const somaticPaid = Math.min(somaShare, somaticUpkeep);
+  const somaticUnpaid = somaticUpkeep - somaticPaid;
+  const invested = somaShare - somaticPaid;
+  const grown = invested / EGStressed;
   const toStructure = gramsPerCm3 * grown;
 
-  const branch = mobilised - soma;
+  const branch = mobilised - somaShare;
   const maturityUpkeep = p.kJ * tau * EH;
   const upkept = Math.min(branch, maturityUpkeep);
-  const surplus = branch - upkept;
   const maturityDue = maturityUpkeep - upkept;
-  const toBuffer = adult ? surplus : Math.max(0, EH + surplus - p.EHp);
+  const surplus = branch - upkept;
+  const somaFromSurplus = Math.min(surplus, somaticUnpaid);
+  const reproduction = surplus - somaFromSurplus;
+  const toBuffer = adult ? reproduction : Math.max(0, EH + reproduction - p.EHp);
 
+  const somaticDue = somaticUnpaid - somaFromSurplus;
   const buffer = ER + toBuffer;
   const somaFromBuffer = Math.min(buffer, somaticDue);
   const fromStructure = Math.min(somaticDue - somaFromBuffer, gramsPerCm3 * V);
-  const bufferLeft = buffer - somaFromBuffer;
-  const maturityFromBuffer = Math.min(bufferLeft, maturityDue);
-  const healed = Math.min(healing, E + assimilated - mobilised);
+  const maturityFromBuffer = Math.min(buffer - somaFromBuffer, maturityDue);
+  const healed = Math.max(0, Math.min(omega * healing, E + assimilated - mobilised));
 
   const nextV = V + grown - fromStructure / gramsPerCm3;
-  const r = V > 0 ? (nextV - V) / V : 0;
+  const dilution = nextV > 0 ? V / nextV : 0;
   const drive = V > 0 ? mobilised / (maxReserveDensity(p) * V) : 0;
   const Vm = maxStructuralLength(p) ** 3;
+  const accrual = (q * (V / Vm) * p.sG + p.ha * tau * tau) * drive;
 
   return {
     state: {
       structure: nextV,
       reserve: E + assimilated - mobilised - healed,
-      maturity: adult ? EH : Math.min(p.EHp, EH + surplus - (maturityDue - maturityFromBuffer)),
-      broodBuffer: bufferLeft - maturityFromBuffer,
-      wearLoad: q + (q * (V / Vm) * p.sG + p.ha * tau * tau) * drive - r * q,
-      hazard: h + q - r * h,
+      maturity: adult ? EH : Math.min(p.EHp, EH + reproduction) - (maturityDue - maturityFromBuffer),
+      broodBuffer: buffer - somaFromBuffer - maturityFromBuffer,
+      wearLoad: (q + accrual) * dilution,
+      hazard: (h + q) * dilution,
     },
     fluxes: {
-      returned: digested - intake,
+      returned: fromGut - intake,
       assimilated,
       feces: intake - assimilated,
       mobilised,
       toStructure,
       fromStructure,
       burned: {
-        maintenance: paid,
-        development: branch - toBuffer + maturityFromBuffer,
+        maintenance: somaticPaid,
+        development: upkept + reproduction - toBuffer,
         growth: invested - toStructure,
-        starvation: somaFromBuffer + fromStructure,
+        starvation: somaFromSurplus + somaFromBuffer + maturityFromBuffer + fromStructure,
         healing: healed,
       },
-      shortfall: somaticDue + maturityDue,
+      shortfall: somaticUnpaid + maturityDue,
     },
   };
 }
 
-export function eggsReady(state: DebState, p: DebParams, { stress = NO_STRESS }: Pick<DebHour, 'stress'>): number {
+export function eggsReady(state: DebState, p: DebParams, stress: Readonly<DebStress> = NO_STRESS): number {
   return Math.floor((p.kappaR * state.broodBuffer) / (p.E0 * stress.eggCost));
 }
 
@@ -215,9 +222,8 @@ export interface Spawn {
   overhead: number;
 }
 
-export function layEggs(state: DebState, p: DebParams, hour: Pick<DebHour, 'stress'>, eggs: number): Spawn {
-  const { stress = NO_STRESS } = hour;
-  const count = Math.min(eggs, eggsReady(state, p, hour));
+export function layEggs(state: DebState, p: DebParams, eggs: number, stress: Readonly<DebStress> = NO_STRESS): Spawn {
+  const count = Math.max(0, Math.min(Math.floor(eggs), eggsReady(state, p, stress)));
   const laid = count * p.E0;
   const drawn = Math.min(state.broodBuffer, (laid * stress.eggCost) / p.kappaR);
   return { state: { ...state, broodBuffer: state.broodBuffer - drawn }, eggs: count, laid, overhead: drawn - laid };

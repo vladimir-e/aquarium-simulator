@@ -16,6 +16,7 @@ import {
   structuralLength,
   structureOrganics,
   totalBurned,
+  wellFed,
   wetMass,
   type DebFluxes,
   type DebHour,
@@ -43,7 +44,6 @@ const animal: DebParams = {
   ha: 1e-6 / HOURS_PER_DAY ** 2,
   sG: 1e-4,
   TA: 8000,
-  delM: 0.25,
   dV: 0.1,
   E0: 1 * GRAMS_PER_JOULE,
   Lb: 0.05,
@@ -51,9 +51,10 @@ const animal: DebParams = {
 const { E0 } = animal;
 const Lm = maxStructuralLength(animal);
 const YEAR = 365 * HOURS_PER_DAY;
+const SEASON = 90 * HOURS_PER_DAY;
 
 const FEAST = 1;
-const atRest = (digested: number): DebHour => ({ digested, tau: 1, omega: 1 });
+const atReference = (fromGut: number): DebHour => ({ fromGut, tau: 1, omega: 1 });
 
 function fish(L: number, e: number, o: Partial<DebState> = {}): DebState {
   const structure = L ** 3;
@@ -79,32 +80,47 @@ function live(from: DebState, hours: number, hour: DebHour): DebStep[] {
   return steps;
 }
 
+const spawned = (s: DebState): DebState => layEggs(s, animal, eggsReady(s, animal)).state;
+
 const last = <T,>(xs: readonly T[]): T => xs[xs.length - 1];
 const most = (xs: readonly number[]): number => xs.reduce((a, b) => Math.max(a, b), -Infinity);
+const rising = (xs: readonly number[]): boolean => xs.every((x, i) => i === 0 || x > xs[i - 1]);
+const product = (...axes: readonly number[][]): number[][] =>
+  axes.reduce<number[][]>((rows, axis) => rows.flatMap((row) => axis.map((x) => [...row, x])), [[]]);
 
+const tolerance = (expected: number): number => 1e-9 * Math.max(Math.abs(expected), 1e-12);
+const near = (actual: number, expected: number): boolean => Math.abs(actual - expected) <= tolerance(expected);
 const expectNear = (actual: number, expected: number): void => {
-  expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1e-9 * Math.max(Math.abs(expected), 1e-12));
+  expect(Math.abs(actual - expected)).toBeLessThanOrEqual(tolerance(expected));
 };
 
-const lifeOnFeast = live(hatchling(animal), 9 * YEAR, atRest(FEAST));
+const lifeOnFeast = live(hatchling(animal), 9 * YEAR, atReference(FEAST));
 const stateAt = (hour: number): DebState => lifeOnFeast[hour - 1].state;
+const starvingJuvenile = fish(0.3 * Lm, 0.5, { maturity: animal.EHp / 2 });
 
 const regimes: { name: string; from: DebState; hour: DebHour }[] = [
-  { name: 'feasting', from: hatchling(animal), hour: atRest(FEAST) },
-  { name: 'fasting', from: stateAt(3 * YEAR), hour: atRest(0) },
+  { name: 'feasting', from: hatchling(animal), hour: atReference(FEAST) },
+  { name: 'fasting', from: stateAt(3 * YEAR), hour: atReference(0) },
   {
     name: 'stressed, paced and healing',
     from: stateAt(YEAR),
     hour: {
-      digested: 2e-5,
+      fromGut: 2e-5,
       tau: 1.7,
       omega: 0.6,
       stress: { assimilation: 0.7, maintenance: 1.4, growthCost: 1.3, eggCost: 1 },
       healing: 1e-7,
     },
   },
-  { name: 'fed without oxygen', from: stateAt(YEAR), hour: { digested: FEAST, tau: 1, omega: 0 } },
-  { name: 'an adult on an empty buffer at low e', from: fish(0.8 * Lm, 0.05), hour: atRest(2e-6) },
+  {
+    name: 'fed at ω = 0.4 on a spent buffer',
+    from: spawned(stateAt(9 * YEAR)),
+    hour: { fromGut: FEAST, tau: 1, omega: 0.4 },
+  },
+  { name: 'fed without oxygen', from: stateAt(YEAR), hour: { fromGut: FEAST, tau: 1, omega: 0 } },
+  { name: 'an adult on an empty buffer at low e', from: fish(0.8 * Lm, 0.05), hour: atReference(2e-6) },
+  { name: 'a starving juvenile', from: starvingJuvenile, hour: atReference(0) },
+  { name: 'a starving juvenile without oxygen', from: starvingJuvenile, hour: { fromGut: 0, tau: 1, omega: 0 } },
 ];
 
 describe.each(regimes.map((regime) => ({ ...regime, steps: live(regime.from, 2 * YEAR, regime.hour) })))(
@@ -113,11 +129,12 @@ describe.each(regimes.map((regime) => ({ ...regime, steps: live(regime.from, 2 *
     const hours = steps.map((step, t) => ({ before: t === 0 ? from : steps[t - 1].state, ...step }));
 
     it('closes the ledger every hour', () => {
-      const gaps = hours.map(({ before, state, fluxes }) => {
+      const open = hours.findIndex(({ before, state, fluxes }) => {
         const stored = organics(state, animal) - organics(before, animal);
-        return hour.digested - fluxes.returned - (stored + totalBurned(fluxes) + fluxes.feces);
+        const gap = hour.fromGut - fluxes.returned - (stored + totalBurned(fluxes) + fluxes.feces);
+        return Math.abs(gap) > Math.max(1e-15, 1e-12 * (fluxes.assimilated + fluxes.mobilised));
       });
-      expect(most(gaps.map(Math.abs))).toBeLessThan(1e-12);
+      expect(open).toBe(-1);
     });
 
     it('keeps every stock non-negative and finite', () => {
@@ -125,8 +142,19 @@ describe.each(regimes.map((regime) => ({ ...regime, steps: live(regime.from, 2 *
       expect(hours.findIndex(({ state }) => !Object.values(state).every(sound))).toBe(-1);
     });
 
-    it('never grows while it runs short', () => {
-      expect(hours.findIndex(({ fluxes }) => fluxes.toStructure > 0 && fluxes.shortfall > 0)).toBe(-1);
+    it('holds reserve density at or below 1 through its first season', () => {
+      const densities = hours.slice(0, SEASON).map(({ state }) => reserveDensity(state, animal));
+      expect(most(densities)).toBeLessThanOrEqual(1 + 1e-9);
+    });
+
+    it('grows only once somatic maintenance is paid in full', () => {
+      const { tau, stress = NO_STRESS } = hour;
+      const somaticUpkeep = (V: number): number => animal.pM * stress.maintenance * V * tau;
+      const unpaid = hours.findIndex(
+        ({ before, fluxes }) =>
+          fluxes.toStructure > 0 && !near(fluxes.burned.maintenance, somaticUpkeep(before.structure))
+      );
+      expect(unpaid).toBe(-1);
     });
   }
 );
@@ -142,64 +170,52 @@ describe('the hour', () => {
     expectNear(ceiling(0.4, { ...base, stress: { ...NO_STRESS, assimilation: 0.5 } }), 0.5 * ceiling(0.4, base));
   });
 
-  it('assimilates κ_X of what it digests, up to its ceiling, and hands back the rest', () => {
+  it('assimilates κ_X of what it takes from the gut, up to its ceiling, and returns the rest', () => {
     const s = fish(0.5, 0.6);
     const hour = { tau: 1.3, omega: 0.8 };
     const ceiling = assimilationCeiling(s, animal, hour);
 
-    const scarce = stepDeb(s, animal, { ...hour, digested: ceiling }).fluxes;
+    const scarce = stepDeb(s, animal, { ...hour, fromGut: ceiling }).fluxes;
     expectNear(scarce.assimilated, animal.kappaX * ceiling);
     expectNear(scarce.feces, (1 - animal.kappaX) * ceiling);
     expect(scarce.returned).toBe(0);
 
-    const plenty = stepDeb(s, animal, { ...hour, digested: 100 * ceiling }).fluxes;
+    const plenty = stepDeb(s, animal, { ...hour, fromGut: 100 * ceiling }).fluxes;
     expectNear(plenty.assimilated, ceiling);
     expectNear(plenty.returned, 100 * ceiling - ceiling / animal.kappaX);
   });
 
   it('never mobilises more reserve than it holds', () => {
     const speck = fish(1e-4, 1);
-    for (const tau of [1, 5, 20]) {
-      const { state, fluxes } = stepDeb(speck, animal, { digested: 0, tau, omega: 1 });
-      expect(fluxes.mobilised).toBeLessThanOrEqual(speck.reserve);
-      expect(state.reserve).toBeGreaterThanOrEqual(0);
-    }
+    const hours = [1, 5, 20].map((tau) => stepDeb(speck, animal, { fromGut: 0, tau, omega: 1 }));
+    expect(hours.every(({ state, fluxes }) => fluxes.mobilised <= speck.reserve && state.reserve >= 0)).toBe(true);
   });
 
   it('burns the growth overhead: a cm³ of structure costs [E_G] and holds κ_G·[E_G]', () => {
     const s = fish(0.4, 1);
-    for (const growthCost of [1, 2]) {
-      const { state, fluxes } = stepDeb(s, animal, { ...atRest(FEAST), stress: { ...NO_STRESS, growthCost } });
-      const invested = fluxes.toStructure + fluxes.burned.growth;
-      expectNear(state.structure - s.structure, invested / (growthCost * animal.EG));
-      expectNear(fluxes.toStructure, structureOrganics(animal) * (state.structure - s.structure));
-    }
+    const priced = [1, 2].every((growthCost) => {
+      const { state, fluxes } = stepDeb(s, animal, { ...atReference(FEAST), stress: { ...NO_STRESS, growthCost } });
+      const grown = state.structure - s.structure;
+      return (
+        near(grown, (fluxes.toStructure + fluxes.burned.growth) / (growthCost * animal.EG)) &&
+        near(fluxes.toStructure, structureOrganics(animal) * grown)
+      );
+    });
+    expect(priced).toBe(true);
   });
 
   it('paces every rate by τ', () => {
     const s = fish(0.6, 0.8);
-    const slow = stepDeb(s, animal, { digested: 0, tau: 1, omega: 0.5 }).fluxes;
-    const fast = stepDeb(s, animal, { digested: 0, tau: 2, omega: 0.5 }).fluxes;
+    const slow = stepDeb(s, animal, { fromGut: 0, tau: 1, omega: 0.5 }).fluxes;
+    const fast = stepDeb(s, animal, { fromGut: 0, tau: 2, omega: 0.5 }).fluxes;
     expectNear(fast.mobilised, 2 * slow.mobilised);
     expectNear(fast.burned.maintenance, 2 * slow.burned.maintenance);
     expectNear(fast.burned.development, 2 * slow.burned.development);
   });
 
-  it('throttles the supply by ω and leaves maintenance at τ', () => {
-    const s = fish(0.6, 0.8);
-    const full = stepDeb(s, animal, { digested: FEAST, tau: 1.5, omega: 1 }).fluxes;
-    const thin = stepDeb(s, animal, { digested: FEAST, tau: 1.5, omega: 0.5 }).fluxes;
-    expectNear(thin.assimilated, full.assimilated / 2);
-    expectNear(thin.mobilised, full.mobilised / 2);
-    for (const fluxes of [full, thin]) {
-      expectNear(fluxes.burned.maintenance + fluxes.shortfall, animal.pM * s.structure * 1.5);
-      expectNear(fluxes.burned.development, animal.kJ * animal.EHp * 1.5);
-    }
-  });
-
   it('moves the flux each stress names', () => {
     const s = fish(0.6, 0.9);
-    const hour = atRest(FEAST);
+    const hour = atReference(FEAST);
     const plain = stepDeb(s, animal, hour).fluxes;
     const stressed = (o: Partial<DebStress>): DebFluxes =>
       stepDeb(s, animal, { ...hour, stress: { ...NO_STRESS, ...o } }).fluxes;
@@ -209,37 +225,87 @@ describe('the hour', () => {
     expect(stressed({ growthCost: 1.5 }).toStructure).toBeLessThan(plain.toStructure);
   });
 
-  it('burns nothing negative anywhere in the stress domain, so no stress mints mass', () => {
+  it('burns nothing negative anywhere in the domain, so no input mints mass', () => {
     const s = fish(0.6, 0.9, { broodBuffer: 20 * E0 });
-    for (const assimilation of [0, 1])
-      for (const maintenance of [1, 3])
-        for (const growthCost of [1, 3])
-          for (const eggCost of [1, 3]) {
-            const hour = { ...atRest(FEAST), stress: { assimilation, maintenance, growthCost, eggCost } };
-            const { fluxes } = stepDeb(s, animal, hour);
-            for (const burned of Object.values(fluxes.burned)) expect(burned).toBeGreaterThanOrEqual(0);
-            expect(layEggs(s, animal, hour, eggsReady(s, animal, hour)).overhead).toBeGreaterThanOrEqual(0);
-          }
+    const domain = product([0, 1], [1, 3], [1, 3], [1, 3], [0, 1], [0, 1e-6]).map(
+      ([assimilation, maintenance, growthCost, eggCost, omega, healing]): DebHour => ({
+        fromGut: FEAST,
+        tau: 1,
+        omega,
+        healing,
+        stress: { assimilation, maintenance, growthCost, eggCost },
+      })
+    );
+    const minting = domain.findIndex(({ stress, ...hour }) => {
+      const { burned } = stepDeb(s, animal, { ...hour, stress }).fluxes;
+      const { overhead } = layEggs(s, animal, eggsReady(s, animal, stress), stress);
+      return Object.values(burned).some((grams) => grams < 0) || overhead < 0;
+    });
+    expect(minting).toBe(-1);
   });
 
-  it('pays healing from reserve, never more than the reserve holds', () => {
+  it('pays healing from reserve at the hour’s oxygen, never more than the reserve holds', () => {
     const s = fish(0.6, 0.5);
-    const plain = stepDeb(s, animal, atRest(0));
-    const healed = stepDeb(s, animal, { ...atRest(0), healing: 1e-6 });
+    const plain = stepDeb(s, animal, atReference(0));
+    const healed = stepDeb(s, animal, { ...atReference(0), healing: 1e-6 });
     expectNear(healed.fluxes.burned.healing, 1e-6);
     expectNear(plain.state.reserve - healed.state.reserve, 1e-6);
+    expectNear(stepDeb(s, animal, { fromGut: 0, tau: 1, omega: 0.5, healing: 1e-6 }).fluxes.burned.healing, 5e-7);
+    expect(stepDeb(s, animal, { ...atReference(0), healing: -1e-6 }).fluxes.burned.healing).toBe(0);
 
-    const greedy = stepDeb(s, animal, { ...atRest(0), healing: 1 });
+    const greedy = stepDeb(s, animal, { ...atReference(0), healing: 1 });
     expectNear(greedy.fluxes.burned.healing, plain.state.reserve);
     expect(greedy.state.reserve).toBe(0);
   });
 });
 
+describe('oxygen', () => {
+  it('scales {p_Am} and v by ω and leaves maintenance owed at τ', () => {
+    const s = fish(0.6, 0.8);
+    const tau = 1.5;
+    const [none, thin, full] = [0, 0.5, 1].map((omega) => stepDeb(s, animal, { fromGut: FEAST, tau, omega }).fluxes);
+    expect(none.assimilated).toBe(0);
+    expectNear(thin.assimilated, full.assimilated / 2);
+    expect(none.mobilised).toBeGreaterThan(0);
+    expectNear(thin.mobilised - none.mobilised, (full.mobilised - none.mobilised) / 2);
+    const owed = [none, thin, full].every(
+      ({ burned, shortfall }) =>
+        near(burned.maintenance + shortfall, animal.pM * s.structure * tau) &&
+        near(burned.development, animal.kJ * animal.EHp * tau)
+    );
+    expect(owed).toBe(true);
+  });
+
+  it('holds at L_m on a full reserve only at full oxygen, short [p_M]·V·τ·(1 − ω)·g/(1 + g) below it', () => {
+    const grown = fish(Lm, 1);
+    const g = animal.EG / (animal.kappa * maxReserveDensity(animal));
+    const owed = (tau: number): number => animal.pM * grown.structure * tau;
+    const at = (tau: number, omega: number): DebFluxes =>
+      stepDeb(grown, animal, { fromGut: FEAST, tau, omega }).fluxes;
+    const taus = [1, 1.4];
+
+    const holds = taus.every((tau) => {
+      const { toStructure, shortfall } = at(tau, 1);
+      return toStructure < 1e-12 * owed(tau) && shortfall < 1e-12 * owed(tau);
+    });
+    expect(holds).toBe(true);
+
+    const short = taus.every((tau) =>
+      [0.8, 0.5, 0.2].every((omega) => near(at(tau, omega).shortfall, (owed(tau) * (1 - omega) * g) / (1 + g)))
+    );
+    expect(short).toBe(true);
+  });
+
+  it('runs short every hour of a fed season at ω = 0.4 near L_m', () => {
+    const hypoxic = live(stateAt(9 * YEAR), SEASON, { fromGut: FEAST, tau: 1, omega: 0.4 });
+    expect(hypoxic.every(({ fluxes }) => fluxes.shortfall > 0)).toBe(true);
+  });
+});
+
 describe('maintenance priority', () => {
   it('starving, draws the buffer first, then structure', () => {
-    const grown = stateAt(3 * YEAR);
-    const spawned = layEggs(grown, animal, {}, eggsReady(grown, animal, {})).state;
-    const fast = live(spawned, 3000, atRest(0));
+    const before = spawned(stateAt(3 * YEAR));
+    const fast = live(before, 3000, atReference(0));
 
     expect(fast.findIndex(({ fluxes, state }) => fluxes.fromStructure > 0 && state.broodBuffer > 0)).toBe(-1);
 
@@ -248,60 +314,54 @@ describe('maintenance priority', () => {
     expect(bufferPays).toBeGreaterThanOrEqual(0);
     expect(fast[bufferPays].fluxes.fromStructure).toBe(0);
     expect(shrinks).toBeGreaterThan(bufferPays);
-    expect(last(fast).state.structure).toBeLessThan(spawned.structure);
+    expect(last(fast).state.structure).toBeLessThan(before.structure);
   });
 
   it('counts unpaid maturity maintenance in the shortfall', () => {
-    const { fluxes } = stepDeb(fish(0.8 * Lm, 0.001), animal, atRest(0));
+    const { fluxes } = stepDeb(fish(0.8 * Lm, 0.001), animal, atReference(0));
     expect(fluxes.shortfall).toBeGreaterThan(fluxes.fromStructure);
   });
 
-  it('pays a somatic shortfall from the buffer before maturity maintenance draws on it', () => {
+  it('pays a somatic shortfall from the buffer before maturity maintenance, both as starvation', () => {
     const starving = fish(0.8 * Lm, 0.001);
-    const bare = stepDeb(starving, animal, atRest(0)).fluxes;
+    const bare = stepDeb(starving, animal, atReference(0)).fluxes;
     const somaticDue = bare.fromStructure;
     const maturityDue = bare.shortfall - somaticDue;
 
-    const buffered = stepDeb({ ...starving, broodBuffer: somaticDue + maturityDue / 2 }, animal, atRest(0));
+    const broodBuffer = somaticDue + maturityDue / 2;
+    const buffered = stepDeb({ ...starving, broodBuffer }, animal, atReference(0));
     expect(buffered.fluxes.fromStructure).toBe(0);
     expect(buffered.state.broodBuffer).toBe(0);
-    expect(buffered.fluxes.burned.development).toBeLessThan(animal.kJ * animal.EHp);
+    expectNear(buffered.fluxes.burned.starvation, broodBuffer);
   });
 
-  it('rejuvenates a starving juvenile and holds an adult at puberty', () => {
-    const juvenile = fish(0.3 * Lm, 0.001, { maturity: animal.EHp / 2 });
-    expect(stepDeb(juvenile, animal, atRest(0)).state.maturity).toBeLessThan(juvenile.maturity);
-    expect(stepDeb(fish(0.8 * Lm, 0.001), animal, atRest(0)).state.maturity).toBe(animal.EHp);
+  it('pays a juvenile’s somatic shortfall from its surplus before maturity takes the rest', () => {
+    const juvenile = fish(0.5 * Lm, 0.4, { maturity: animal.EHp / 2 });
+    const { state, fluxes } = stepDeb(juvenile, animal, atReference(0));
+    expect(fluxes.shortfall).toBeGreaterThan(0);
+    expect(fluxes.fromStructure).toBe(0);
+    expectNear(fluxes.burned.starvation, fluxes.shortfall);
+    expect(state.maturity).toBeGreaterThan(juvenile.maturity);
   });
 
-  it('holds at L_m on a full reserve only with full oxygen, short [p_M]·V·(1−ω)·τ below it', () => {
-    const grown = fish(Lm, 1);
-    const owed = (tau: number): number => animal.pM * grown.structure * tau;
-    for (const tau of [1, 1.4]) {
-      const full = stepDeb(grown, animal, { digested: FEAST, tau, omega: 1 }).fluxes;
-      expect(full.toStructure).toBeLessThan(1e-12 * owed(tau));
-      expect(full.shortfall).toBeLessThan(1e-12 * owed(tau));
-      for (const omega of [0.8, 0.5, 0.2]) {
-        const { shortfall } = stepDeb(grown, animal, { digested: FEAST, tau, omega }).fluxes;
-        expectNear(shortfall, owed(tau) * (1 - omega));
-      }
-    }
-
-    const hypoxic = live(stateAt(9 * YEAR), 30 * HOURS_PER_DAY, { digested: FEAST, tau: 1, omega: 0.4 });
-    expect(hypoxic.every(({ fluxes }) => fluxes.shortfall > 0)).toBe(true);
+  it('rejuvenates a starving juvenile with or without oxygen, and holds an adult at puberty', () => {
+    const matured = (omega: number): number =>
+      last(live(starvingJuvenile, 2 * YEAR, { fromGut: 0, tau: 1, omega })).state.maturity;
+    expect([1, 0].every((omega) => matured(omega) < starvingJuvenile.maturity)).toBe(true);
+    expect(stepDeb(fish(0.8 * Lm, 0.001), animal, atReference(0)).state.maturity).toBe(animal.EHp);
   });
 });
 
 describe('a life on unlimited food', () => {
   it('fills its reserve toward e = 1 and never past it', () => {
-    const lean = live(fish(0.5, 0.3), 2 * YEAR, atRest(FEAST));
+    const lean = live(fish(0.5, 0.3), 2 * YEAR, atReference(FEAST));
     expect(reserveDensity(last(lean).state, animal)).toBeCloseTo(1, 2);
     expect(most([...lifeOnFeast, ...lean].map(({ state }) => reserveDensity(state, animal)))).toBeLessThanOrEqual(
       1 + 1e-9
     );
   });
 
-  it('grows every hour toward L_m and never past it', () => {
+  it('never shrinks on its way to L_m and never passes it', () => {
     const structures = [hatchling(animal), ...lifeOnFeast.map(({ state }) => state)].map((s) => s.structure);
     expect(structures.findIndex((V, t) => t > 0 && V < structures[t - 1])).toBe(-1);
     expect(Math.cbrt(most(structures))).toBeLessThan(Lm);
@@ -310,9 +370,8 @@ describe('a life on unlimited food', () => {
 
   it('assimilates less and grows slower under assimilation stress, however much it eats', () => {
     const fry = hatchling(animal);
-    const season = 90 * HOURS_PER_DAY;
-    const plain = live(fry, season, atRest(FEAST));
-    const stressed = live(fry, season, { ...atRest(FEAST), stress: { ...NO_STRESS, assimilation: 0.6 } });
+    const plain = live(fry, SEASON, atReference(FEAST));
+    const stressed = live(fry, SEASON, { ...atReference(FEAST), stress: { ...NO_STRESS, assimilation: 0.6 } });
     expectNear(stressed[0].fluxes.assimilated, 0.6 * plain[0].fluxes.assimilated);
     expect(last(stressed).state.structure).toBeLessThan(last(plain).state.structure);
   });
@@ -324,7 +383,7 @@ describe('a life on unlimited food', () => {
     expect(lifeOnFeast.slice(puberty).every(({ state }) => state.maturity === animal.EHp)).toBe(true);
     expect(stateAt(2 * YEAR).broodBuffer).toBeGreaterThan(0);
 
-    const fasting = live(stateAt(3 * YEAR), YEAR, atRest(0));
+    const fasting = live(stateAt(3 * YEAR), YEAR, atReference(0));
     expect(fasting.every(({ state }) => state.maturity === animal.EHp)).toBe(true);
   });
 });
@@ -333,53 +392,68 @@ describe('ageing', () => {
   it('accrues wear per gram mobilised at τ², whatever the oxygen', () => {
     const s = fish(0.6, 0.8);
     const wearPerGram = (tau: number, omega: number): number => {
-      const { state, fluxes } = stepDeb(s, animal, { digested: 0, tau, omega });
-      return state.wearLoad / fluxes.mobilised;
+      const { state, fluxes } = stepDeb(s, animal, { fromGut: 0, tau, omega });
+      return (state.wearLoad * state.structure) / (s.structure * fluxes.mobilised);
     };
     expectNear(wearPerGram(1, 0.4), wearPerGram(1, 1));
     expectNear(wearPerGram(2, 1), 4 * wearPerGram(1, 1));
   });
 
+  it('dilutes wear and hazard by the volume ratio, growing or shrinking', () => {
+    const worn = { wearLoad: 1e-9, hazard: 1e-5 };
+    const hours = [
+      { s: fish(0.3, 1, worn), hour: atReference(FEAST) },
+      { s: fish(0.8 * Lm, 0.001, worn), hour: atReference(0) },
+    ].map(({ s, hour }) => ({ s, ...stepDeb(s, animal, hour) }));
+    expect(hours.every(({ s, state }) => state.structure !== s.structure)).toBe(true);
+    expect(
+      hours.every(({ s, state }) => near(state.hazard, ((s.hazard + s.wearLoad) * s.structure) / state.structure))
+    ).toBe(true);
+  });
+
   it('ages faster warm: the hazard a season after hatching rises with τ', () => {
     const hazards = [0.8, 1, 1.3, 1.7].map(
-      (tau) => last(live(hatchling(animal), 90 * HOURS_PER_DAY, { digested: FEAST, tau, omega: 1 })).state.hazard
+      (tau) => last(live(hatchling(animal), SEASON, { fromGut: FEAST, tau, omega: 1 })).state.hazard
     );
-    for (let i = 1; i < hazards.length; i++) expect(hazards[i]).toBeGreaterThan(hazards[i - 1]);
+    expect(rising(hazards)).toBe(true);
   });
 
   it('wears faster with age: the hazard rises year on year', () => {
-    const yearly = Array.from({ length: 9 }, (_, i) => stateAt((i + 1) * YEAR).hazard);
-    for (let i = 1; i < yearly.length; i++) expect(yearly[i]).toBeGreaterThan(yearly[i - 1]);
+    expect(rising(Array.from({ length: 9 }, (_, i) => stateAt((i + 1) * YEAR).hazard))).toBe(true);
   });
 });
 
 describe('brood', () => {
   it('readies fewer eggs as egg cost rises', () => {
     const s = fish(0.8, 1, { broodBuffer: 40 * E0 });
-    const ready = [1, 1.3, 2, 5].map((eggCost) => eggsReady(s, animal, { stress: { ...NO_STRESS, eggCost } }));
-    for (let i = 1; i < ready.length; i++) expect(ready[i]).toBeLessThanOrEqual(ready[i - 1]);
+    const ready = [1, 1.3, 2, 5].map((eggCost) => eggsReady(s, animal, { ...NO_STRESS, eggCost }));
+    expect(ready.every((n, i) => i === 0 || n <= ready[i - 1])).toBe(true);
     expect(last(ready)).toBeLessThan(ready[0]);
   });
 
   it('laying every egg ready leaves less than one egg’s cost and never a negative buffer', () => {
-    for (const broodBuffer of [0, 0.5 * E0, 7.5 * E0, 40.3 * E0]) {
-      for (const eggCost of [1, 1.5]) {
-        const s = fish(0.8, 1, { broodBuffer });
-        const hour = { stress: { ...NO_STRESS, eggCost } };
-        const spawn = layEggs(s, animal, hour, eggsReady(s, animal, hour));
-        expect(spawn.state.broodBuffer).toBeGreaterThanOrEqual(0);
-        expect(spawn.state.broodBuffer).toBeLessThan((E0 * eggCost) / animal.kappaR);
-        expect(spawn.overhead).toBeGreaterThanOrEqual(0);
-        expectNear(s.broodBuffer - spawn.state.broodBuffer, spawn.laid + spawn.overhead);
-      }
-    }
+    const unsound = product([0, 0.5 * E0, 7.5 * E0, 40.3 * E0], [1, 1.5]).findIndex(([broodBuffer, eggCost]) => {
+      const s = fish(0.8, 1, { broodBuffer });
+      const stress = { ...NO_STRESS, eggCost };
+      const spawn = layEggs(s, animal, eggsReady(s, animal, stress), stress);
+      const left = spawn.state.broodBuffer;
+      return (
+        left < 0 ||
+        left >= (E0 * eggCost) / animal.kappaR ||
+        spawn.overhead < 0 ||
+        !near(s.broodBuffer - left, spawn.laid + spawn.overhead)
+      );
+    });
+    expect(unsound).toBe(-1);
   });
 
-  it('lays no more eggs than are ready', () => {
+  it('lays a whole, non-negative number of eggs, never more than are ready', () => {
     const s = fish(0.8, 1, { broodBuffer: 7.5 * E0 });
-    const spawn = layEggs(s, animal, {}, 1000);
-    expect(spawn.eggs).toBe(eggsReady(s, animal, {}));
-    expect(spawn.state.broodBuffer).toBeGreaterThanOrEqual(0);
+    expect(layEggs(s, animal, 1000).eggs).toBe(eggsReady(s, animal));
+    expect(layEggs(s, animal, 2.7).eggs).toBe(2);
+    const none = layEggs(s, animal, -3);
+    expect(none.eggs).toBe(0);
+    expect(none.state.broodBuffer).toBe(s.broodBuffer);
   });
 
   it('draws a father’s share from the buffer, never more than it holds', () => {
@@ -400,6 +474,10 @@ describe('brood', () => {
     expect(fry).toMatchObject({ maturity: animal.EHb, broodBuffer: 0, wearLoad: 0, hazard: 0 });
     expect(mature(fry, animal)).toBe(false);
   });
+
+  it('pays for its hatchling out of an egg: E_0 covers the hatchling’s organics and E_Hb', () => {
+    expect(organics(hatchling(animal), animal) + animal.EHb).toBeLessThanOrEqual(animal.E0);
+  });
 });
 
 describe('readings', () => {
@@ -410,22 +488,28 @@ describe('readings', () => {
     expect(wetMass(fish(0.7, 0, { broodBuffer: 0.001 }), animal)).toBeGreaterThan(wetMass(bare, animal));
   });
 
+  it('reads well-fed as reserve density on a feast, capped at 1 where hypoxic structure burns', () => {
+    expect(lifeOnFeast.every(({ state }) => near(wellFed(state, animal), reserveDensity(state, animal)))).toBe(true);
+    const { state } = last(live(fish(Lm, 1), SEASON, { fromGut: FEAST, tau: 1, omega: 0 }));
+    expect(reserveDensity(state, animal)).toBeGreaterThan(1);
+    expect(wellFed(state, animal)).toBe(1);
+  });
+
   it('reads size 0–100 against L_m, rising as the fish grows', () => {
     expect(size(fish(Lm, 1), animal)).toBeCloseTo(100, 12);
     const yearly = Array.from({ length: 9 }, (_, i) => size(stateAt((i + 1) * YEAR), animal));
-    for (let i = 1; i < yearly.length; i++) expect(yearly[i]).toBeGreaterThan(yearly[i - 1]);
+    expect(rising(yearly)).toBe(true);
     expect(last(yearly)).toBeLessThan(100);
   });
 
   it('stays finite at the zero state', () => {
     const zero: DebState = { structure: 0, reserve: 0, maturity: 0, broodBuffer: 0, wearLoad: 0, hazard: 0 };
-    for (const digested of [0, FEAST]) {
-      const { state, fluxes } = stepDeb(zero, animal, atRest(digested));
+    const finite = [0, FEAST].every((fromGut) => {
+      const { state, fluxes } = stepDeb(zero, animal, atReference(fromGut));
       const { burned, ...flows } = fluxes;
-      for (const x of [...Object.values(state), ...Object.values(burned), ...Object.values(flows)]) {
-        expect(Number.isFinite(x)).toBe(true);
-      }
-    }
+      return [...Object.values(state), ...Object.values(burned), ...Object.values(flows)].every(Number.isFinite);
+    });
+    expect(finite).toBe(true);
     expect(reserveDensity(zero, animal)).toBe(0);
     expect(wetMass(zero, animal)).toBe(0);
     expect(size(zero, animal)).toBe(0);

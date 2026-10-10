@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { arrheniusFactor, lightSaturationFactor, monodFactor, monodUptake, q10Factor } from './kinetics.js';
+import { arrheniusFactor, KELVIN, lightSaturationFactor, monodFactor, monodUptake, q10Factor } from './kinetics.js';
 
 describe('q10Factor', () => {
   it('leaves a rate alone at the temperature it is quoted at', () => {
@@ -20,7 +20,7 @@ describe('arrheniusFactor', () => {
 
   it('runs ln of the factor linear in 1/T, at a slope of minus the Arrhenius temperature', () => {
     const TA = 8000;
-    const reciprocal = (celsius: number): number => 1 / (celsius + 273.15);
+    const reciprocal = (celsius: number): number => 1 / (celsius + KELVIN);
     for (const [a, b] of [
       [5, 15],
       [15, 30],
