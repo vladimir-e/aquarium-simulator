@@ -126,13 +126,13 @@ leaf's declared range — see
 
 ## Key tunables
 
-Most action bounds are module constants rather than `TunableConfig` leaves, so
-they are not reachable through the config layer or a declared range.
+The fertilizer formula and the root tab are listed in the reference under
+[Nutrients](/reference/tunables/#nutrients). The action bounds are module
+constants rather than `TunableConfig` leaves, so they are not reachable through
+the config layer or a declared range.
 
 | Constant | Meaning | Value |
 |---|---|---|
-| `fertilizerFormula` | Nitrate, phosphate, potassium and iron per millilitre — a config-layer leaf | `50` · `5` · `40` · `1` mg/ml |
-| `rootTab` | Nitrate, phosphate, potassium and iron per tab — a config-layer leaf | `400` · `60` · `200` · `10` mg |
 | Dose bounds, manual | Floor and ceiling on a hand dose | `0.1`–`50` ml |
 | Dose bounds, automatic | Floor and ceiling on a scheduled dose | `0.5`–`10` ml |
 | `MAX_ROOT_TABS` | Most tabs one push takes | `10` |

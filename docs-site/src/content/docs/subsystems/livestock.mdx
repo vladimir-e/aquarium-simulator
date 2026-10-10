@@ -276,27 +276,7 @@ guts by weight as room allows.
 
 ## Key tunables
 
-| Constant | Meaning | Value |
-|---|---|---|
-| `digestionRate` | First-order digestion at 20 °C | `0.07` /hr |
-| `oxygenHalfSaturation` | O₂ at which the oxygen pace is half what saturated water gives | `1.0` mg/L |
-| `foodNitrogenFraction` | Nitrogen in food, the waste it becomes and every gram a fish burns | `0.05` g N/g |
-| `oxygenPerGramBurned` | O₂ a gram of burned organics takes | `1450` mg/g |
-| `respiratoryQuotient` | CO₂ exhaled per O₂ consumed, molar | `0.8` |
-| `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own edge; oxygen's per e-fold under | `0.56` · `0.75` · `1.0` · `2.7` %/e-fold/hr |
-| `flowStressSeverity` | Damage per turnover unit above species tolerance | `0.3` %/×/hr |
-| `ghStressSeverity` | Damage per dGH outside the species range | `0.1` %/dGH/hr |
-| `starvationSeverity` | Damage at a wholly unpaid maintenance, before hardiness | `0.5` %/hr |
-| `hazardSeverity` | Damage per unit of hourly hazard | `5000` |
-| `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | The three benefit channels, on a full reserve | `0.4` · `0.3` · `0.2` %/hr |
-| `plantBenefitSaturationPoint` | Plant power at which shelter tops out | `3.0` |
-| `healingRate` | First-order rate a fish repairs its deficit at, at 20 °C | `0.005` /hr |
-| `healingCost` | Hours of somatic upkeep a point of repair costs | `0.5` h |
-| `maleBufferTurnover` | First-order rate a male burns his unspent buffer at, at 20 °C | `0.006` /hr |
-| `eggSensitivity` | How many times harder the water harms a laid egg than a fish | `3` × |
-| `eggPredationRate` | Share of a laid clutch eaten an hour per g/L of predator mass, before exposure | `15` L/g/hr |
-| `predationRate` | Damage an hour, before hardiness, per g/L of predator mass on a fish at no size | `100` %/hr per g/L |
-| `preyVulnerabilityExponent` | How steeply a growing fish outgrows its predators | `4` |
+The tunables are listed in the reference under [Livestock](/reference/tunables/#livestock).
 
 ## Seams
 
@@ -316,5 +296,5 @@ guts by weight as room allows.
 `src/simulation/livestock/` — the roster and its Add-my-Pet entries,
 construction, the per-tick pipeline and the clutches' and broods' step after
 it; `src/simulation/systems/` — the energy budget, metabolism, digestion, fish
-health and broods; `src/simulation/config/` — the tunables above and their
+health and broods; `src/simulation/config/` — the tunables and their
 declared ranges.

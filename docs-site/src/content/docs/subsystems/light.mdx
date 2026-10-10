@@ -196,17 +196,17 @@ it is derived from the planting every hour.
 
 ## Key tunables
 
+The optics coefficients are listed in the reference under
+[Optics](/reference/tunables/#optics), and the plant constants that read this
+light — `saturationIrradianceFactor`, `lightStarvationSeverity` and
+`lightExcessiveSeverity` — under [Plants](/reference/tunables/#plants).
+
 | Constant | Meaning | Value |
 |---|---|---|
-| `waterAttenuationPerCm` | Beer–Lambert coefficient of the water column | `0.010` /cm |
-| `leafAttenuationPerLai` | Beer–Lambert extinction per unit of leaf area index — what a canopy takes from the light beneath it; broad-leaved canopies run 0.6–0.8 | `0.7` /LAI |
-| `algaeAttenuationPerGram` | Beer–Lambert extinction per gram of algal tissue crossed per cm² — phytoplankton take about 0.02 m² per mg of chlorophyll, some 1 % of their organic matter | `3000` cm²/g |
 | `MAX_LIGHT_PAR` | Ceiling on a fixture rating — full noon sun at the surface | `2000` µmol/m²/s |
 
 A rating past `MAX_LIGHT_PAR` is a typo rather than a lighting choice, and tank
-construction refuses it. The plant constants that read this light —
-`saturationIrradianceFactor`, `lightStarvationSeverity` and
-`lightExcessiveSeverity` — are under [Plants](/subsystems/plants/#key-tunables).
+construction refuses it.
 
 ## Seams
 

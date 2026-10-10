@@ -241,24 +241,10 @@ soil took KH, and its KH lower still by the nitrate its month made.
 
 ## Key tunables
 
-| Constant | Meaning | Value |
-|---|---|---|
-| `o2SaturationBase` | O₂ saturation at the reference temperature | `10.08` mg/L |
-| `o2SaturationSlope` | Saturation lost per °C | `−0.17` mg/L/°C |
-| `atmosphericCo2` | The CO₂ level a tank off-gasses toward | `4.0` mg/L |
-| `baseExchangeRate` | Share of the gap to equilibrium closed per tick at full flow | `0.25` /tick |
-| `optimalFlowTurnover` | Turnovers per hour at which the flow factor saturates | `10` /hr |
-| `minFlowFactor` | Still-surface diffusion floor, as a share of the full-flow rate | `0.1` |
-| `aerationExchangeMultiplier` | What aeration does to the exchange rate | `3.0` × |
-| `aerationDirectO2` | Bubble dissolution, only below saturation | `0.05` mg/L/hr |
-| `aerationCo2OffgasMultiplier` | Extra CO₂ stripping on top of that | `1.5` × |
-| `gasExchangePerGramDecay` | Oxygen demanded per gram of organic matter oxidised | `250` mg/g |
-| `calciteDissolutionRate` | CaCO₃ one calcite rock dissolves per hour at pH 7 | `20` mg/h |
-| `tanninLeachRate` | Share of a driftwood piece's remaining tannins leached per hour | `0.0003` /h |
-| `aquaSoilKhUptake` | Share of the tank's KH a fresh aqua soil bed takes per hour | `0.01` /h |
-
-The five oxygen half-saturation constants are tunables too, but each lives with
-the system that quotes it rather than here; their values are in the table above.
+The tunables are listed in the reference under
+[Gas exchange](/reference/tunables/#gas-exchange) and
+[Water chemistry](/reference/tunables/#water-chemistry), and the decomposers'
+oxygen demand under [Decay](/reference/tunables/#decay).
 
 ## Seams
 

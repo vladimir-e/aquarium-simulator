@@ -125,18 +125,11 @@ where it was, so every ppm rises, and no system had to be told.
 
 ## Key tunables
 
-| Constant | Meaning | Value |
-|---|---|---|
-| `coolingCoefficient` | Share of the temperature gap closed per hour at the reference volume | `0.132` /hr |
-| `referenceVolume` | The volume `coolingCoefficient` is quoted at | `100` L |
-| `volumeExponent` | How the rate scales with volume — the surface-to-volume power | `1/3` |
-| `roomDailySwing` | How far the room runs above its mean at 17:00 and below it at 05:00 | `1.25` °C |
-| `lightWarmingPerPar` | What a lit fixture adds to the temperature the water settles toward | `0.01` °C/PAR |
-| `baseRatePerDay` | Water lost per day at zero differential, before the lid | `0.01` /day |
-| `tempDoublingInterval` | Differential that doubles the evaporation rate | `5.56` °C |
-
-The four lid multipliers are module constants rather than tunables, so they sit
-outside the range-declaration rule the rest of the engine follows.
+The tunables are listed in the reference under
+[Temperature](/reference/tunables/#temperature) and
+[Evaporation](/reference/tunables/#evaporation). The four lid multipliers are
+module constants rather than tunables, so they sit outside the
+range-declaration rule the rest of the engine follows.
 
 ## Seams
 

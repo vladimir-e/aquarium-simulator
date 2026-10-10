@@ -166,22 +166,19 @@ makes its contribution reversible the instant a fitting is switched off.
 
 ## Key tunables
 
+The bed's tunables are listed in the reference under
+[Decay](/reference/tunables/#decay) and [Nutrients](/reference/tunables/#nutrients).
+Every other number on this page is a module constant with no declared range, so
+the rule that every tunable must declare bounds — enforced across the config
+layer by a test that walks each leaf — does not reach the equipment layer at all.
+
 | Constant | Meaning | Value |
 |---|---|---|
-| `substrateLeachRate` | Share of the bed's remaining reserve released per tick | `0.003` /hr |
-| `wasteSettlingRate` | Share of standing waste settling into the bed per tick in still water | `0.1` /hr |
-| `settlingHalfTurnover` | Tank turnovers an hour at which flow halves settling | `4` /hr |
-| `bedLeakRate` | Share of each nutrient the bed holds that leaks into the water per tick — a half-life of about five months | `0.0002` /hr |
 | `CO2_MASS_RATE` | CO₂ metered per bubble per second, off a ~0.1 mL bubble | `648` mg/hr/bps |
 | `WATER_LEVEL_THRESHOLD` | Fill fraction below which the ATO refills to full | `0.99` |
 | `baseOutputLph` | Air output of the smallest pump band | `60` L/h |
 | `flowPerAirLph` | Share of air output that becomes water movement | `0.1` |
 | `MAX_LIGHT_PAR` | Ceiling on a fixture rating — full noon sun at the surface | `2000` µmol/m²/s |
-
-Only the first four rows live in `config/`. Every other number on this page is a
-module constant with no declared range, so the rule that every tunable must
-declare bounds — enforced across the config layer by a test that walks each leaf
-— does not reach the equipment layer at all.
 
 ## Seams
 
