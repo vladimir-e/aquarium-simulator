@@ -113,7 +113,7 @@ export function spend<G extends { invested: number }>(
 export const K_SLICE = 0.5;
 
 /** Share of its reserve a V1-morph mobilises per hour at the density it holds: DEB's p_C / E. */
-export const turnover = (state: ReserveState, p: ReserveParams): number =>
+const turnover = (state: ReserveState, p: ReserveParams): number =>
   state.structure > 0
     ? (state.structure * (p.v * p.EG + p.pM)) / (p.EG * state.structure + p.kappa * state.reserve)
     : 0;
@@ -148,8 +148,7 @@ export interface ReserveBudget<S extends ReserveState, F> {
  * A V1-morph's hour, in `hourSlices` slices. Each releases by exponential
  * Euler at its own turnover net of the share its κ-rule turns back, so what
  * comes back passes through again, and never more than a full reserve
- * releases over the structure the slice grows. The fish keeps its own
- * mobilisation: moving it here changes fish numbers, and is its own change.
+ * releases over the structure the slice grows.
  */
 export function integrateHour<S extends ReserveState, F>(
   state: S,
@@ -161,15 +160,18 @@ export function integrateHour<S extends ReserveState, F>(
   const slice = { inflow: hour.inflow / slices, healing: hour.healing / slices, tau: hour.tau / slices };
   const full = maxReserveDensity(p);
   const fullTurnover = turnover({ structure: 1, reserve: full }, p);
-  const fullGrowth = (p.kappa * p.pAm - p.pM) / (p.EG + p.kappa * full);
+  const fullGrowth = Math.max(0, (p.kappa * p.pAm - p.pM) / (p.EG + p.kappa * full));
 
   const released = (at: S): number => {
     const rate = slice.tau * turnover(at, p);
     const drawn = (net: number): number => at.reserve * hourlyDraw(net) + slice.inflow * hourlyInflowDraw(net);
     const first = drawn(rate);
-    const turnedBack = first > 0 ? budget.slice(at, first, slice).turnedBack / first : 0;
+    const spentShare = first > 0 ? 1 - budget.slice(at, first, slice).turnedBack / first : 1;
     const meanStructure = at.structure * meanOfExp(slice.tau * fullGrowth * budget.growthLimit(at));
-    return Math.min(drawn((1 - turnedBack) * rate) / (1 - turnedBack), slice.tau * fullTurnover * full * meanStructure);
+    return Math.min(
+      spentShare > 0 ? drawn(spentShare * rate) / spentShare : first,
+      slice.tau * fullTurnover * full * meanStructure
+    );
   };
 
   let spent = budget.slice(state, released(state), slice);

@@ -15,7 +15,7 @@ import {
   type FloraState,
   type FloraStep,
 } from './flora-budget.js';
-import { hourSlices, maxReserveDensity, reserveDensity, totalBurned, wellFed } from './reserve.js';
+import { hourSlices, K_SLICE, maxReserveDensity, reserveDensity, totalBurned, wellFed } from './reserve.js';
 import { bloomParams, plantParams } from '../flora/params.js';
 import { plantsDefaults } from '../config/plants.js';
 import { mapNutrients, NUTRIENTS, ZERO_NUTRIENTS, type Nutrient, type NutrientVector } from '../config/nutrients.js';
@@ -101,6 +101,10 @@ const slicesOf = (state: FloraState, p: FloraParams, hour: FloraBudgetHour): Flo
 const last = <T,>(xs: readonly T[]): T => xs[xs.length - 1];
 const most = (xs: readonly number[]): number => xs.reduce((a, b) => Math.max(a, b), -Infinity);
 const falling = (xs: readonly number[]): boolean => xs.every((x, i) => i === 0 || x < xs[i - 1]);
+const flat = ({ burned, ...flows }: FloraStep['fluxes']): number[] => [
+  ...Object.values(flows),
+  ...Object.values(burned),
+];
 
 const tolerance = (scale: number): number => 1e-12 * Math.max(Math.abs(scale), 1e-12);
 const near = (actual: number, expected: number, scale = expected): boolean =>
@@ -160,6 +164,12 @@ const regimes: { name: string; p: FloraParams; from: FloraState; supply: Supply;
     from: flora(greenWater, 0.3, 0.5),
     supply: photoperiod(greenWater, 10, { tau: 0 }),
     fed: true,
+  },
+  {
+    name: 'green water owing no upkeep, with no room to grow, lit by day',
+    p: { ...greenWater, pM: 0 },
+    from: flora(greenWater, 0.3, 0.5),
+    supply: photoperiod(greenWater, 10, { room: 0 }),
   },
 ];
 
@@ -235,7 +245,8 @@ describe('the hour', () => {
     const { state, fluxes } = stepFlora(from, greenWater, hour);
     expect(slices.length).toBeGreaterThan(1);
     expect(state).toEqual(last(slices).state);
-    expectNear(fluxes.toStructure, slices.reduce((grown, slice) => grown + slice.fluxes.toStructure, 0));
+    const sliced = slices.map((slice) => flat(slice.fluxes));
+    flat(fluxes).forEach((flux, i) => expectNear(flux, sliced.reduce((sum, each) => sum + each[i], 0)));
   });
 
   it('grows in saturating light from its first hour of the day, a bloom whatever reserve the night left it', () => {
@@ -297,10 +308,6 @@ describe('the hour', () => {
       tau: 1.2,
       room: 0.6,
     });
-    const flat = ({ burned, ...flows }: FloraStep['fluxes']): number[] => [
-      ...Object.values(flows),
-      ...Object.values(burned),
-    ];
     const one = flat(stepFlora(s, sword, hour(s)).fluxes);
     const two = flat(stepFlora(twice, sword, hour(twice)).fluxes);
     expect(one.some((flux) => flux > 0)).toBe(true);
@@ -438,13 +445,20 @@ describe('three days by the hour', () => {
     { name: 'a sword', p: sword, from: flora(sword, 2, 0.5), light: 12 },
   ];
 
-  it('run a plant in one slice an hour and a bloom in several', () => {
-    expect(PACES.every((tau) => hourSlices(sword, tau) === 1)).toBe(true);
-    expect(PACES.every((tau) => [greenWater, film].every((p) => hourSlices(p, tau) > 1))).toBe(true);
-  });
+  it.each(KINDS)(
+    'run $name in the fewest slices an hour that each turn over at most K_SLICE of an empty reserve',
+    ({ p }) => {
+      const fewest = PACES.every((tau) => {
+        const slices = hourSlices(p, tau);
+        const turned = turnover(flora(p, 1, 0), p, tau);
+        return turned / slices <= K_SLICE && K_SLICE < turned / (slices - 1);
+      });
+      expect(fewest).toBe(true);
+    }
+  );
 
   it.each(setups)(
-    'grow $name, lit by day and fed, within 3 % of the same days stepped 200 times an hour',
+    'grow $name, lit by day and fed, within 3 % of the same days stepped 100 and 200 times an hour, extrapolated',
     ({ p, from, light }) => {
       const grown = (tau: number, steps: number): number => {
         let state = from;
@@ -455,7 +469,9 @@ describe('three days by the hour', () => {
         }
         return state.structure - from.structure;
       };
-      expect(PACES.every((tau) => Math.abs(grown(tau, 1) / grown(tau, 200) - 1) < 0.03)).toBe(true);
+      // Richardson off 100 and 200 steps an hour: within 0.09 % of 800 steps, ~160 ms a kind.
+      const converged = (tau: number): number => 2 * grown(tau, 200) - grown(tau, 100);
+      expect(PACES.every((tau) => Math.abs(grown(tau, 1) / converged(tau) - 1) < 0.03)).toBe(true);
     }
   );
 });

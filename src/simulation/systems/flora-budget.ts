@@ -4,8 +4,8 @@
  * `Organics.nutrients` counts it, hours.
  *
  * Leaf area scales with tissue, so the budget is DEB's V1-morph. It holds at
- * any pace: the hour runs in slices that each turn over at most K_SLICE of an
- * empty reserve, and every slice reads its own turnover and Droop limit.
+ * any pace because `integrateHour` runs the hour in slices, each reading its
+ * own turnover and Droop limit.
  */
 
 import { hourlyDraw, monodFactor, monodUptake } from '../core/kinetics.js';
