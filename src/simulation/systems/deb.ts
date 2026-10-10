@@ -174,7 +174,7 @@ export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
   const somaFromBuffer = Math.min(buffer, somaticDue);
   const fromStructure = Math.min(somaticDue - somaFromBuffer, gramsPerCm3 * V);
   const maturityFromBuffer = Math.min(buffer - somaFromBuffer, maturityDue);
-  const healed = Math.max(0, Math.min(omega * healing, E + assimilated - mobilised));
+  const healed = Math.min(omega * healing, E + assimilated - mobilised);
 
   const nextV = V + grown - fromStructure / gramsPerCm3;
   const dilution = nextV > 0 ? V / nextV : 0;

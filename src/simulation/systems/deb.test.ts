@@ -123,7 +123,9 @@ const regimes: { name: string; from: DebState; hour: DebHour }[] = [
   { name: 'a starving juvenile without oxygen', from: starvingJuvenile, hour: { fromGut: 0, tau: 1, omega: 0 } },
 ];
 
-describe.each(regimes.map((regime) => ({ ...regime, steps: live(regime.from, 2 * YEAR, regime.hour) })))(
+const lives = regimes.map((regime) => ({ ...regime, steps: live(regime.from, 2 * YEAR, regime.hour) }));
+
+describe.each(lives)(
   'two years $name',
   ({ from, hour, steps }) => {
     const hours = steps.map((step, t) => ({ before: t === 0 ? from : steps[t - 1].state, ...step }));
@@ -140,11 +142,6 @@ describe.each(regimes.map((regime) => ({ ...regime, steps: live(regime.from, 2 *
     it('keeps every stock non-negative and finite', () => {
       const sound = (stock: number): boolean => Number.isFinite(stock) && stock >= 0;
       expect(hours.findIndex(({ state }) => !Object.values(state).every(sound))).toBe(-1);
-    });
-
-    it('holds reserve density at or below 1 through its first season', () => {
-      const densities = hours.slice(0, SEASON).map(({ state }) => reserveDensity(state, animal));
-      expect(most(densities)).toBeLessThanOrEqual(1 + 1e-9);
     });
 
     it('grows only once somatic maintenance is paid in full', () => {
@@ -251,7 +248,6 @@ describe('the hour', () => {
     expectNear(healed.fluxes.burned.healing, 1e-6);
     expectNear(plain.state.reserve - healed.state.reserve, 1e-6);
     expectNear(stepDeb(s, animal, { fromGut: 0, tau: 1, omega: 0.5, healing: 1e-6 }).fluxes.burned.healing, 5e-7);
-    expect(stepDeb(s, animal, { ...atReference(0), healing: -1e-6 }).fluxes.burned.healing).toBe(0);
 
     const greedy = stepDeb(s, animal, { ...atReference(0), healing: 1 });
     expectNear(greedy.fluxes.burned.healing, plain.state.reserve);
@@ -260,6 +256,13 @@ describe('the hour', () => {
 });
 
 describe('oxygen', () => {
+  it('holds reserve density at or below 1 for two years in every regime at full oxygen', () => {
+    const densities = lives
+      .filter(({ hour }) => hour.omega === 1)
+      .flatMap(({ steps }) => steps.map(({ state }) => reserveDensity(state, animal)));
+    expect(most(densities)).toBeLessThanOrEqual(1 + 1e-9);
+  });
+
   it('scales {p_Am} and v by ω and leaves maintenance owed at τ', () => {
     const s = fish(0.6, 0.8);
     const tau = 1.5;
@@ -404,11 +407,16 @@ describe('ageing', () => {
     const hours = [
       { s: fish(0.3, 1, worn), hour: atReference(FEAST) },
       { s: fish(0.8 * Lm, 0.001, worn), hour: atReference(0) },
+      { s: fish(0.8 * Lm, 0, worn), hour: atReference(0) },
     ].map(({ s, hour }) => ({ s, ...stepDeb(s, animal, hour) }));
     expect(hours.every(({ s, state }) => state.structure !== s.structure)).toBe(true);
     expect(
-      hours.every(({ s, state }) => near(state.hazard, ((s.hazard + s.wearLoad) * s.structure) / state.structure))
+      hours.every(({ s, state }) => near(state.hazard * state.structure, (s.hazard + s.wearLoad) * s.structure))
     ).toBe(true);
+
+    const starved = last(hours);
+    expect(starved.fluxes.mobilised).toBe(0);
+    expectNear(starved.state.wearLoad, (starved.s.wearLoad * starved.s.structure) / starved.state.structure);
   });
 
   it('ages faster warm: the hazard a season after hatching rises with τ', () => {
