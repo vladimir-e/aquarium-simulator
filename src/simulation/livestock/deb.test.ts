@@ -150,7 +150,7 @@ describe('the hour', () => {
     }
   });
 
-  it('runs every rate at the pace τ·ω', () => {
+  it('paces every rate by τ', () => {
     const s = fish(0.6, 0.8);
     const slow = stepDeb(s, animal, { digested: 0, tau: 1, omega: 0.5 }).fluxes;
     const fast = stepDeb(s, animal, { digested: 0, tau: 2, omega: 0.5 }).fluxes;
@@ -159,9 +159,21 @@ describe('the hour', () => {
     expectNear(fast.burned.development, 2 * slow.burned.development);
   });
 
+  it('throttles the supply by ω and leaves maintenance at τ', () => {
+    const s = fish(0.6, 0.8);
+    const full = stepDeb(s, animal, { digested: FEAST, tau: 1.5, omega: 1 }).fluxes;
+    const thin = stepDeb(s, animal, { digested: FEAST, tau: 1.5, omega: 0.5 }).fluxes;
+    expectNear(thin.assimilated, full.assimilated / 2);
+    expectNear(thin.mobilised, full.mobilised / 2);
+    for (const fluxes of [full, thin]) {
+      expectNear(fluxes.burned.maintenance + fluxes.shortfall, animal.pM * s.V * 1.5);
+      expectNear(fluxes.burned.development, animal.kJ * animal.EHp * 1.5);
+    }
+  });
+
   it('moves the flux each stress names', () => {
     const s = fish(0.6, 0.9);
-    const hour = atRest(1e-5);
+    const hour = atRest(FEAST);
     const plain = stepDeb(s, animal, hour).fluxes;
     const stressed = (o: Partial<DebStress>): DebFluxes =>
       stepDeb(s, animal, { ...hour, stress: { ...NO_STRESS, ...o } }).fluxes;
@@ -181,6 +193,15 @@ describe('a life on unlimited food', () => {
     const last = lifeOnFeast[lifeOnFeast.length - 1];
     expect(structuralLength(last.state) / Lm).toBeGreaterThan(0.99);
     expect(last.fluxes.toStructure / structureOrganics(animal) / last.state.V).toBeLessThan(1e-6);
+  });
+
+  it('assimilates less and grows slower under assimilation stress, however much it eats', () => {
+    const fry = hatchling(animal, Lb);
+    const season = 90 * HOURS_PER_DAY;
+    const plain = live(fry, season, atRest(FEAST));
+    const stressed = live(fry, season, { ...atRest(FEAST), stress: { ...NO_STRESS, assimilation: 0.6 } });
+    expectNear(stressed[0].fluxes.assimilated, 0.6 * plain[0].fluxes.assimilated);
+    expect(stressed[season - 1].state.V).toBeLessThan(plain[season - 1].state.V);
   });
 
   it('stops growing at L_m on a full reserve: the soma share there pays maintenance exactly', () => {
@@ -228,6 +249,18 @@ describe('starvation', () => {
     expect(fast[bufferPays].fluxes.fromStructure).toBe(0);
     expect(shrinks).toBeGreaterThan(bufferPays);
     expect(fast[fast.length - 1].state.V).toBeLessThan(spawned.V);
+  });
+
+  it('starves a fed fish on low oxygen alone', () => {
+    const steady = fish(Lm, 1);
+    expect(stepDeb(steady, animal, atRest(FEAST)).fluxes.shortfall).toBeLessThan(1e-12 * animal.pM * steady.V);
+    for (const omega of [0.8, 0.5, 0.2]) {
+      const { shortfall } = stepDeb(steady, animal, { digested: FEAST, tau: 1, omega }).fluxes;
+      expectNear(shortfall, animal.pM * steady.V * (1 - omega));
+    }
+
+    const hypoxic = live(stateAt(9 * YEAR), 30 * HOURS_PER_DAY, { digested: FEAST, tau: 1, omega: 0.4 });
+    for (const { fluxes } of hypoxic) expect(fluxes.shortfall).toBeGreaterThan(0);
   });
 });
 

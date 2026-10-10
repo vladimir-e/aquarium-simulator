@@ -122,26 +122,25 @@ export interface DebStep {
   fluxes: DebFluxes;
 }
 
-/** One hour of the budget, every rate at the pace τ·ω. */
+/** One hour of the budget: τ paces every rate, ω only the supply — assimilation and mobilisation. */
 export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
   const { digested, tau, omega, stress = NO_STRESS } = hour;
   const { V, E, EH, ER, q, h } = state;
-  const pace = tau * omega;
-  const kappaX = p.kappaX * stress.assimilation;
+  const supply = tau * omega;
   const pM = p.pM * stress.maintenance;
   const EG = p.EG * stress.growthCost;
   const content = structureOrganics(p);
   const L = Math.cbrt(V);
 
-  const ceiling = p.pAm * L * L * pace;
-  const intake = kappaX * digested <= ceiling ? digested : ceiling / kappaX;
-  const assimilated = kappaX * intake;
+  const ceiling = p.pAm * stress.assimilation * L * L * supply;
+  const intake = p.kappaX * digested <= ceiling ? digested : ceiling / p.kappaX;
+  const assimilated = p.kappaX * intake;
 
   const demand = EG * V + p.kappa * E;
-  const mobilised = demand > 0 ? (pace * E * (p.v * EG * L * L + pM * V)) / demand : 0;
+  const mobilised = demand > 0 ? (supply * E * (p.v * EG * L * L + pM * V)) / demand : 0;
 
   const soma = p.kappa * mobilised;
-  const maintenance = pM * V * pace;
+  const maintenance = pM * V * tau;
   const paid = Math.min(soma, maintenance);
   const invested = soma - paid;
   const shortfall = maintenance - paid;
@@ -149,7 +148,7 @@ export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
   const toStructure = content * grown;
 
   const branch = mobilised - soma;
-  const maturityMaintenance = p.kJ * pace * EH;
+  const maturityMaintenance = p.kJ * tau * EH;
   const toMaturity = EH >= p.EHp ? 0 : Math.min(branch - maturityMaintenance, p.EHp - EH);
   const reproduction = branch - maturityMaintenance - toMaturity;
   const toBuffer = Math.max(0, reproduction);
@@ -160,7 +159,7 @@ export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
 
   const nextV = V + grown - fromStructure / content;
   const r = V > 0 ? (nextV - V) / V : 0;
-  const drive = V > 0 ? reserveDensity(state, p) * ((p.v * pace) / L - r) : 0;
+  const drive = V > 0 ? reserveDensity(state, p) * ((p.v * supply) / L - r) : 0;
   const Vm = maxStructuralLength(p) ** 3;
 
   return {
@@ -169,7 +168,7 @@ export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
       E: E + assimilated - mobilised,
       EH: toMaturity === p.EHp - EH ? p.EHp : EH + toMaturity,
       ER: nextER,
-      q: q + (q * (V / Vm) * p.sG + p.ha * pace * pace) * drive - r * q,
+      q: q + (q * (V / Vm) * p.sG + p.ha * supply * supply) * drive - r * q,
       h: h + q - r * h,
     },
     fluxes: {
