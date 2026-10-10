@@ -22,7 +22,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **Flora take ammonia before nitrate** (#73) - plants and the blooms take their nitrogen as ammonia before nitrate, moving KH as they do; breaking (v33).
 - **A plant lives at the rate it grows** (#73) - its leaf fixes, respires and starves at its growth rate, so a carpet melts in a blackout an anubias rides out.
 - **Algae is a plant without a position** (#73) - green water and film grow on the plants' law, take their light and die back into waste; breaking (v33).
-- **The bed is a nutrient store** (#71) - aqua soil comes charged, root tabs refill any bed and it leaks into the water; swords and carpets feed partly through their roots; breaking (v32).
+- **The bed is a nutrient store** (#71, #72) - aqua soil comes charged, root tabs refill any bed and it leaks into the water; swords and carpets feed partly through their roots; breaking (v32).
 - **A plant is made of its nutrients** (#71) - growth draws its tissue's N, P, K and Fe from the water and the bed, and shedding and death return them; breaking (v32).
 - **A plant dies only at condition 0** (#71) - a shrunken plant lives while it has condition, and plantings, trims and seeds run from `MIN_PLANTABLE_SIZE` to 100; breaking (v32).
 - **A new tank opens on the optics it runs on** (#70) - `SimulationConfig.optics` lights its first day, and `relight` re-reads a tank at hour zero under others.
@@ -36,7 +36,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **Plant nutrition saturates** (#70) - per-nutrient Monod on species demand, and fish release only the nitrogen they ate; breaking (v29).
 - **The planted preset injects like a keeper** (#70) - 0.5 bps holds CO₂ at 20–30 mg/L.
 - **The console reads families, sickness and the day's light** (#70) - passes return what they computed, and log lines read in the keeper's units; breaking: such a log `message` holds `{0}`-style placeholders.
-- **A cycled tank carries its stock** (#69) - a `'cycled'` colony is sized to the load its fish and bed put on it at rest, so a stocked tank opens without a mini-cycle.
+- **A cycled tank carries its stock** (#69) - a `'cycled'` colony is sized to the load its fish and bed put on it at rest, so a stocked tank opens without a mini-cycle; breaking.
 - **Nitrifiers saturate on their substrate** (#69) - AOB and NOB oxidise at a Monod share of capacity, so a cycled tank holds hundredths of a ppm and a pulse stands until worked down.
 - **The bed collects mulm** (#69) - standing waste settles into the bed's organic reserve, less in strong flow, and a water change can vacuum a share of it out.
 - **Ammonia alerts on free NH₃** (#69) - fires at 0.02 ppm unionized ammonia, so the total-ammonia line moves with pH and temperature.
@@ -48,9 +48,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **pH follows CO₂ and KH** (#68) - KH is a tank stock moved by tap water, nitrification and scape; breaking.
 - **Scenario runner** (#67) - `npm run scenarios` runs preset tanks headless and grades each reading against real-tank bands; `--diff` shows what moved.
 - **A retuned fertiliser formula reaches the bottle** (#66) - the manual dose and the auto-doser meter by the tuned formula plant uptake already read; breaking.
-- **The tunables reach the phone** (#66) - the constants drawer opens from the More sheet, where the top bar has no room for its control.
 - **The dashboard is a console** (#66) - transport, rail, spine and widgets over one reading set, and any row opens the one inspector (v26).
-- **A resize asks before it rebuilds** (#66) - changing tank size starts a new tank at hour zero, so past a month's run it confirms first.
 - **Every constant is reachable** (#66) - the tunables drawer opens over any screen (⌘,) with a search; livestock and the fertiliser formula are in it at last.
 - **Docs portal** (#64) - the whole system documented at docs.fishroom.app, linked from the dashboard.
 - **A nutrient shortfall is pinned from both ends** (#63) - `nutrientDeficiencySeverity` 0.7 → 0.3, re-derived against the corrected photosynthate income.
@@ -66,7 +64,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **`config set` takes a finite number or nothing** (#58) - `Infinity` and `1e309` were stored as strings that arithmetic turned back into `NaN`, and a typo'd path grew the config a key nothing reads.
 - **A tunable is held to the range it declares** (#58) - `config set` and the tunables drawer read the leaf's own min/max, so a negative attenuation is refused.
 - **Light is PAR, not watts** (#58) - a fixture is rated at the surface, the tank runs on what reaches the substrate, and depth comes from capacity (v18, v5).
-- **A tank runs the same life twice** (#57) - a seed and counter on the state give one `rngSeed` one life, ids too; breaking: no `generateFishId` (v17, v4).
+- **A tank runs the same life twice** (#57) - a seed and counter on the state, so one `rngSeed` gives one life, ids too; breaking: no `generateFishId` (v17, v4).
 - **The CLI rejects unknown flags** (#56) - `sim new --capacity=200` no longer builds the default tank and reports success; each subcommand names its flags.
 - **Loading a preset starts a new tank** (#56) - a fresh simulation at tick 0, not a retrofit of the running one, and the dialog names what that costs.
 - **Presets open cycled** (#56) - every preset but Bare Tank opens a month into its life: a working biofilter, a part-spent bed, and the nitrate to match.
@@ -86,10 +84,10 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **Error boundary keeps your tank** (#52) - render errors show a recovery screen instead of wiping the save and reloading; reset is now an explicit button.
 - **Fish reproduction** (#51) - a mature female spawns on a full bank beside a mature male, and the spawn empties it; livebearers drop fry, egg-layers lay clutches.
 - **npm packaging** (#49) - publish-ready as `aquarium-simulator` v0.1.0: the build ships only the pure-TS engine, MIT license, trusted publishing.
-- **Algae as pure population** (#48) - algae drops `condition`, and its net rate drives mass directly.
 
 ## 2026-05-02
 
+- **Algae as pure population** (#48) - algae drops `condition`, and its net rate drives mass directly.
 - **Algae as a living organism** (#48) - algae becomes a peer organism on `state.algae` with vitality, surplus-driven growth and plant suppression (v12).
 
 ## 2026-05-01
@@ -118,7 +116,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## 2026-04-19
 
-- **Low-volume stressors calibration (S04)** (#42) - three 19 L variants; `temperatureStressSeverity` retuned 2.0 → 0.85; new `scripts/calibrate-low-volume.ts`.
+- **Low-volume stressors calibration (S04)** (#42) - three 19 L variants; `temperatureStressSeverity` retuned 2.0 → 0.85.
 - **Planted-equilibrium calibration (S02)** (#42) - photosynthesis refactored to per-plant Liebig sufficiency by demand tier; CO2→pH logarithmic; ambient waste tightened.
 - **NOB/AOB stoichiometric asymmetry** (#42) - NOB nitrite-processing rate scales by molar-mass ratio so NO2 throughput matches AOB output in N-atom terms.
 - **Uncycled quarantine calibration** (#42) - ammonia toxicity honors free-NH3 fraction (Emerson 1975); new `basalAmmoniaRate`; nitrification colonizes over weeks.
@@ -131,7 +129,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **Nitrogen-chain stoichiometry** (#42) - NH3 → NO2 → NO3 conserves N-mass with molecular-weight scaling (1 mg NH3 → 2.70 mg NO2 → 3.64 mg NO3).
 - **Fish default hunger** (#42) - `addFish` initialises hunger to 30 (was 0) so new fish eat on the next feeding instead of letting food decay.
 - **CLI waterChange arbitrary fractions** (#42) - `sim action waterChange` accepts any fraction in (0–1] or percent in (0–100].
-- **Calibration CLI** (#42) - stateful `sim` CLI for agent-driven calibration; session persisted in `.simstate/current.json`; docs in `docs/calibration/`.
+- **Calibration CLI** (#42) - stateful `sim` CLI for agent-driven calibration; session persisted in `.simstate/current.json`.
 
 ## 2026-02-10
 
@@ -197,5 +195,5 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 ## 2026-01-12
 
 - **UI Foundation** (#5) - React + Vite + Tailwind UI with timeline controls, equipment bar, and simulation integration.
-- **Temperature, Evaporation, Heater** - environment/equipment state, temperature drift, evaporation, heater control.
-- **Foundation** - simulation state, effect system, tick loop with Immer immutability.
+- **Temperature, Evaporation, Heater** (#2) - environment/equipment state, temperature drift, evaporation, heater control.
+- **Foundation** (#1) - simulation state, effect system, tick loop with Immer immutability.
