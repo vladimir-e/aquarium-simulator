@@ -364,7 +364,6 @@ export {
   storeFill,
   floraOrganics,
   offshootReady,
-  offshootPrice,
   stocked,
   scaleFlora,
 } from './systems/flora-budget.js';
@@ -402,6 +401,7 @@ export {
   buildAlgaeStressors,
   buildAlgaeBenefits,
   thrivingPlantDensity,
+  allelopathy,
 } from './algae/index.js';
 export type {
   AlgaeKind,
@@ -488,14 +488,8 @@ export { clutchMass, clutchesWithMothers } from './systems/clutch.js';
 export { appetite, fullPaceLine, gutCapacity, ration, type Pace } from './systems/digestion.js';
 export { burn, gillAmmonia } from './systems/metabolism.js';
 export type { FishHour } from './systems/metabolism.js';
-export {
-  mature,
-  NO_STRESS,
-  type DebState,
-  type DebParams,
-  type DebStress,
-} from './systems/deb.js';
-export { reserveDensity, wellFed, starvation, oxygenPace } from './systems/reserve.js';
+export { mature, type DebState, type DebParams } from './systems/deb.js';
+export { reserveDensity, wellFed, starvation, oxygenPace, NO_STRESS, type DebStress } from './systems/reserve.js';
 
 // Vitality
 export {

@@ -22,9 +22,7 @@ import { ammoniaPerGramOfFood } from '../../simulation/config/livestock.js';
 import { holdingEggs } from '../../simulation/tests/fish.js';
 import { readHourAhead } from './ahead.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
-import { offshootPrice } from '../../simulation/systems/flora-budget.js';
 import { offshootStructure } from '../../simulation/plants/create-plant.js';
-import { plantParams } from '../../simulation/flora/params.js';
 
 const config = DEFAULT_CONFIG;
 
@@ -53,7 +51,7 @@ function recovering(): SimulationState {
     for (const plant of draft.plants) plant.condition = 60;
     const sword = draft.plants[0];
     sword.condition = 100;
-    sword.budget.offshootBuffer = 1.01 * offshootPrice(sword.budget, plantParams(sword.species, config.plants), offshootStructure(sword.species));
+    sword.budget.offshootBuffer = 1.01 * offshootStructure(sword.species);
     for (const fish of draft.fish) fish.health = 70;
     Object.assign(draft.fish[0], { sex: 'female', health: 100 });
     ripe(draft.fish[0], spawnsAt('neon_tetra') - 0.1);

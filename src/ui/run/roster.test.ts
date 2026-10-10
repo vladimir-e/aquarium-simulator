@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { plantRecord } from '../../simulation/tests/plant.js';
 import { sizeOf } from '../../simulation/plants/canopy.js';
-import { offshootPrice } from '../../simulation/systems/flora-budget.js';
 import { offshootStructure } from '../../simulation/plants/create-plant.js';
-import { plantParams } from '../../simulation/flora/params.js';
 import type { Clutch, Fish, Plant, SimulationState } from '../../simulation/index.js';
 import { applyAction, createSimulation, fishMass, readPlantLight } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
@@ -45,7 +43,7 @@ function input(state: SimulationState, config: TunableConfig): RosterInput {
   const fish = readFish(state, config, readHourAhead(state, config));
   return {
     fish: groupBySpecies(fish),
-    plants: groupPlantsBySpecies(plantRows(state, config, readHourAhead(state, config))),
+    plants: groupPlantsBySpecies(plantRows(state, readHourAhead(state, config))),
     fry: groupFry(fish),
     clutches: state.clutches,
   };
@@ -285,8 +283,6 @@ describe('rosterTables', () => {
 
   describe('for plants', () => {
     /** Three java fern families: `a` down two generations, `b` with one offshoot, `c` alone. */
-    const priceOf = (plant: Plant): number =>
-      offshootPrice(plant.budget, plantParams(plant.species, DEFAULT_CONFIG.plants), offshootStructure(plant.species));
 
     function families(tweak: (plant: Plant) => Partial<Plant> = () => ({})): SimulationState {
       const base = ['java_fern', 'java_fern', 'java_fern'].reduce(
@@ -394,7 +390,7 @@ describe('rosterTables', () => {
     });
 
     it('names a unit by the one it budded from, beside its light and its buffer toward the next offshoot', () => {
-      const state = families((plant) => (plant.id === 'plant_a2' ? { budget: { ...plant.budget, offshootBuffer: 0.625 * priceOf(plant) } } : {}));
+      const state = families((plant) => (plant.id === 'plant_a2' ? { budget: { ...plant.budget, offshootBuffer: 0.625 * offshootStructure(plant.species) } } : {}));
       const [a] = state.plants;
       const rows = tables(state, ['species-java_fern', `family-${a.id}`]).plants;
       const unit = rows.find((row) => row.key === 'plant_a2') as IndividualRosterRow;
@@ -415,7 +411,7 @@ describe('rosterTables', () => {
 
     it('gives a unit the light and the bank its ledger gives it', () => {
       const state = families((plant) => ({
-        budget: { ...plant.budget, offshootBuffer: (plant.parentId ? 1 / 3 : 1) * priceOf(plant) },
+        budget: { ...plant.budget, offshootBuffer: (plant.parentId ? 1 / 3 : 1) * offshootStructure(plant.species) },
       }));
       const ahead = readHourAhead(state, DEFAULT_CONFIG);
       const open = ['species-java_fern', ...state.plants.map((p) => `family-${p.familyId}`)];

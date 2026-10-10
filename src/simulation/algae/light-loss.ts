@@ -1,16 +1,15 @@
 /**
- * What the blooms take from the light. Algal tissue takes it by Beer–Lambert
- * on the grams the light crosses per cm² of its path, at one coefficient for
- * every kind; a kind's habitat decides how the light crosses it. Suspended in
- * the column it is spread over the depth, so it joins the water's extinction
- * by its tissue per cm³. On the lit surfaces it is a coat, and the share of a
- * surface it covers passes `e^(−κσ)` of the light, σ a full coat's tissue per
- * cm². A leaf is a lit surface, coated at the kind's coverage.
+ * What the blooms take from the light, by Beer–Lambert on their coverage; a
+ * kind's habitat decides how the light crosses it. Suspended in the column it
+ * is spread over the depth, so it joins the water's extinction in proportion
+ * to its coverage. On the lit surfaces it is a coat, and the share of a
+ * surface it covers passes `e^(−D)` of the light, D a full coat's optical
+ * depth. A leaf is a lit surface, coated at the kind's coverage.
  */
 
 import type { SimulationState } from '../state.js';
 import type { OpticsConfig } from '../config/optics.js';
-import { ALGAE, ALGAE_KINDS, type AlgaeHabitat, type AlgaeKind, type AlgaeTraits } from './traits.js';
+import { ALGAE, ALGAE_KINDS, type AlgaeHabitat, type AlgaeKind } from './traits.js';
 import { mapKinds } from './blooms.js';
 import { bloomMass } from './habitat.js';
 
@@ -24,17 +23,9 @@ export interface BloomLightLoss {
   coat: number;
 }
 
-const CM3_PER_LITRE = 1000;
-
-const LOSS: Record<AlgaeHabitat, (fill: number, traits: AlgaeTraits, perGram: number) => BloomLightLoss> = {
-  column: (fill, { tissueDensity }, perGram) => ({
-    extinction: (perGram * fill * tissueDensity) / CM3_PER_LITRE,
-    coat: 0,
-  }),
-  surfaces: (fill, { tissueDensity }, perGram) => ({
-    extinction: 0,
-    coat: fill * -Math.expm1(-perGram * tissueDensity),
-  }),
+const LOSS: Record<AlgaeHabitat, (fill: number, optics: OpticsConfig) => BloomLightLoss> = {
+  column: (fill, optics) => ({ extinction: fill * optics.algaeAttenuationPerCm, coat: 0 }),
+  surfaces: (fill, optics) => ({ extinction: 0, coat: fill * -Math.expm1(-optics.algaeCoatOpticalDepth) }),
 };
 
 /** What the tank's water and its blooms take from the light, as they stand. */
@@ -47,9 +38,7 @@ export interface LightLoss {
 }
 
 export function lightLoss(tank: BloomTank, optics: OpticsConfig): LightLoss {
-  const loss = mapKinds((kind) =>
-    LOSS[ALGAE[kind].habitat](bloomMass(tank, kind) / 100, ALGAE[kind], optics.algaeAttenuationPerGram)
-  );
+  const loss = mapKinds((kind) => LOSS[ALGAE[kind].habitat](bloomMass(tank, kind) / 100, optics));
   return {
     extinction: ALGAE_KINDS.reduce((k, kind) => k + loss[kind].extinction, optics.waterAttenuationPerCm),
     leafPass: ALGAE_KINDS.reduce((passed, kind) => passed * (1 - loss[kind].coat), 1),

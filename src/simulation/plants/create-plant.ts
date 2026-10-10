@@ -8,10 +8,10 @@
 import type { Plant } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { draw, drawId, type RngState } from '../core/rng.js';
-import { offshootPrice, stocked, type FloraState } from '../systems/flora-budget.js';
+import { stocked, type FloraState } from '../systems/flora-budget.js';
 import { plantParams } from '../flora/params.js';
 import { tissueMass } from './canopy.js';
-import type { PlantSpecies } from './species.js';
+import { growthFormOf, type PlantSpecies } from './species.js';
 
 /** Size a plant goes in at when the caller doesn't say — a young specimen. */
 export const DEFAULT_PLANT_SIZE = 50;
@@ -23,15 +23,14 @@ export function isPlantableSize(size: number): boolean {
   return size >= MIN_PLANTABLE_SIZE && size <= 100;
 }
 
-/** The structure an offshoot is born with: the least a plant is planted at. */
+/** The structure an offshoot is born with: a plantlet at its growth form's offshoot size. */
 export function offshootStructure(species: PlantSpecies): number {
-  return tissueMass(species, MIN_PLANTABLE_SIZE);
+  return tissueMass(species, growthFormOf(species).offshootSize);
 }
 
-/** Its offshoot buffer as a share of what its next offshoot costs. */
-export function offshootShare(plant: Pick<Plant, 'species' | 'budget'>, config: PlantsConfig): number {
-  const price = offshootPrice(plant.budget, plantParams(plant.species, config), offshootStructure(plant.species));
-  return price > 0 ? Math.min(1, plant.budget.offshootBuffer / price) : 0;
+/** Its offshoot buffer as a share of its next offshoot. */
+export function offshootShare(plant: Pick<Plant, 'species' | 'budget'>): number {
+  return Math.min(1, plant.budget.offshootBuffer / offshootStructure(plant.species));
 }
 
 /** Vigour span either side of 0: clonal ramets differ in growth by 10–20 %. */

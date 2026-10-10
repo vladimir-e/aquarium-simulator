@@ -4,8 +4,8 @@
  * crowding its habitat leaves is the room its growth has.
  */
 
-import type { AlgaeState, Blooms, SimulationState } from '../state.js';
-import type { NutrientsConfig, PlantsConfig } from '../config/index.js';
+import type { AlgaeState, Blooms, Plant, SimulationState } from '../state.js';
+import type { AlgaeConfig, NutrientsConfig, PlantsConfig } from '../config/index.js';
 import type { OpticsConfig } from '../config/optics.js';
 import { mapNutrients, NUTRIENTS, type NutrientVector } from '../config/nutrients.js';
 import { calculateTankHeight } from '../core/geometry.js';
@@ -14,6 +14,8 @@ import { formHalfSaturations, type Feeder } from '../systems/nutrients.js';
 import type { CarbonFixer } from '../systems/photosynthesis.js';
 import { metabolicRateUnits, saturationIrradiance, TISSUE_PER_RATE_UNIT } from '../systems/flora.js';
 import { scaleFlora, type FloraParams, type FloraState } from '../systems/flora-budget.js';
+import { NO_STRESS, type DebStress } from '../systems/reserve.js';
+import { getPlantPower } from '../systems/plant-power.js';
 import { floorShade } from '../plants/canopy.js';
 import {
   bloomMass,
@@ -59,6 +61,20 @@ export function bloomFixer(
     omega,
     co2HalfSaturation: traits.co2HalfSaturation,
   };
+}
+
+/** Rate units of thriving plant per litre of water: the dose of their exudates. */
+export function thrivingPlantDensity(plants: readonly Plant[], litres: number): number {
+  return litres > 0 ? getPlantPower(plants) / litres : 0;
+}
+
+/**
+ * What thriving plants' exudates do to a bloom's budget: they lower the share
+ * of its photosynthate it can take, along a Monod falling from 1 with the dose,
+ * halved where `allelopathySeverity × dose` is 1.
+ */
+export function allelopathy(plants: readonly Plant[], litres: number, config: AlgaeConfig): DebStress {
+  return { ...NO_STRESS, assimilation: 1 / (1 + config.allelopathySeverity * thrivingPlantDensity(plants, litres)) };
 }
 
 /**
@@ -161,10 +177,5 @@ export {
 export type { BloomLight, BloomRemoval, HabitatPlace, HabitatTank } from './habitat.js';
 export { bloomPass, columnPass, lightLoss, waterExtinction } from './light-loss.js';
 export type { BloomLightLoss, BloomTank, LightLoss } from './light-loss.js';
-export {
-  computeAlgaeVitality,
-  buildAlgaeStressors,
-  buildAlgaeBenefits,
-  thrivingPlantDensity,
-} from '../systems/algae-vitality.js';
+export { computeAlgaeVitality, buildAlgaeStressors, buildAlgaeBenefits } from '../systems/algae-vitality.js';
 export type { AlgaeVitalityContext } from '../systems/algae-vitality.js';

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ALGAE,
   ALGAE_KINDS,
+  allelopathy,
   bloomFeeder,
   bloomLight,
   bloomRateUnits,
@@ -10,6 +11,7 @@ import {
   landSpores,
   massOf,
   sporesBuilt,
+  thrivingPlantDensity,
 } from './index.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { mapNutrients, NUTRIENTS } from '../config/nutrients.js';
@@ -19,6 +21,10 @@ import { formHalfSaturations, poolDraws } from '../systems/nutrients.js';
 import { stocked, type FloraState } from '../systems/flora-budget.js';
 import { bloomParams } from '../flora/params.js';
 import { PLANT_SPECIES_DATA, plantTraits, type PlantSpecies } from '../plants/species.js';
+import { getPlantPower } from '../systems/plant-power.js';
+import { NO_STRESS } from '../systems/reserve.js';
+import { plantRecord } from '../tests/plant.js';
+import type { Plant } from '../state.js';
 
 const config = DEFAULT_CONFIG;
 
@@ -128,6 +134,38 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
       expect(landSpores(null, spores)).toEqual({ budget: spores, condition: 100 });
       expect(landSpores(null, EMPTY_BLOOM.budget)).toEqual(EMPTY_BLOOM);
     });
+  });
+});
+
+describe('allelopathy', () => {
+  const LITRES = 100;
+  const sword = (condition: number, id = `s${condition}`): Plant =>
+    plantRecord({ id, species: 'amazon_sword', size: 100, condition });
+  const assimilation = (plants: Plant[], litres = LITRES, severity = config.algae.allelopathySeverity): number =>
+    allelopathy(plants, litres, { allelopathySeverity: severity }).assimilation;
+
+  it('doses the water with thriving plant per litre: a dying one adds nothing, a half-well one half', () => {
+    expect(thrivingPlantDensity([sword(100)], LITRES)).toBeCloseTo(getPlantPower([sword(100)]) / LITRES, 12);
+    expect(thrivingPlantDensity([sword(0)], LITRES)).toBe(0);
+    expect(thrivingPlantDensity([sword(50)], LITRES)).toBeCloseTo(thrivingPlantDensity([sword(100)], LITRES) / 2, 12);
+    expect(thrivingPlantDensity([sword(100)], 0)).toBe(0);
+  });
+
+  it('lowers assimilation alone, from 1 with no plants, falling with the dose and never reaching 0', () => {
+    const one = allelopathy([sword(100)], LITRES, config.algae);
+    expect({ ...one, assimilation: 1 }).toEqual(NO_STRESS);
+    expect(assimilation([])).toBe(1);
+    const doses = [1, 2, 4, 8, 64].map((n) => assimilation(Array.from({ length: n }, (_, i) => sword(100, `s${i}`))));
+    for (let i = 1; i < doses.length; i++) expect(doses[i]).toBeLessThan(doses[i - 1]);
+    expect(doses.at(-1)).toBeGreaterThan(0);
+  });
+
+  it('is a Monod on the dose: halved where severity × dose is 1, and nothing at severity 0', () => {
+    const dose = thrivingPlantDensity([sword(100)], LITRES);
+    expect(assimilation([sword(100)], LITRES, 1 / dose)).toBeCloseTo(0.5, 12);
+    expect(assimilation([sword(100)], LITRES, 3 / dose)).toBeCloseTo(0.25, 12);
+    expect(assimilation([sword(100)], LITRES, 0)).toBe(1);
+    expect(assimilation([sword(100)], 2 * LITRES)).toBeGreaterThan(assimilation([sword(100)]));
   });
 });
 

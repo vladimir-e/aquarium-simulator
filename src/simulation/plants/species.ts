@@ -16,9 +16,9 @@ export type PlantSpecies =
  * How a species builds one unit — a carpet patch, a rosette specimen, a rhizome
  * clump. A plant's size is how full that unit is, so the form fixes what size
  * 100 means: how tall it stands, how much floor it claims and how much leaf it
- * carries over it. It also says where the plant feeds and names what its
- * offshoot buffer buys — a runner, a plantlet, a rhizome branch — though every
- * form buys it the same way.
+ * carries over it. It also says where the plant feeds, and what its offshoot
+ * buffer buys — a runner, a plantlet, a rhizome branch — and at what size,
+ * though every form buys it the same way.
  */
 export type GrowthForm = 'carpet' | 'rosette' | 'attached';
 
@@ -30,6 +30,8 @@ export interface GrowthFormData {
   leafAreaIndex: number;
   /** Share of its nutrients the plant draws through its roots from the bed; the rest comes from the water. */
   rootShare: number;
+  /** % of one full unit an offshoot is born at. */
+  offshootSize: number;
   offshootVerb: string;
 }
 
@@ -42,11 +44,15 @@ export interface GrowthFormData {
  * fronds of 40 cm² over its 200. A sword draws most of its food through its
  * roots; a carpet roots a dense mat into the bed but lies spread under the
  * water, so it takes half from each; an epiphyte on wood has no roots in the bed.
+ * An offshoot is a plantlet that stands on its own: a sword's runner plantlet
+ * or a rhizome's new branch carries a few leaves of a grown unit's dozen or
+ * more, about a tenth of it, and a carpet's runner roots a tuft at a node, a
+ * twentieth of a patch. The sizes are Tune's.
  */
 export const GROWTH_FORMS: Record<GrowthForm, GrowthFormData> = {
-  carpet: { heightCm: 5, heightExponent: 0, footprintCm2: 100, leafAreaIndex: 2.5, rootShare: 0.5, offshootVerb: 'sent a runner' },
-  rosette: { heightCm: 40, heightExponent: 1 / 3, footprintCm2: 700, leafAreaIndex: 2.0, rootShare: 0.7, offshootVerb: 'threw a plantlet' },
-  attached: { heightCm: 20, heightExponent: 1 / 3, footprintCm2: 200, leafAreaIndex: 2.5, rootShare: 0, offshootVerb: 'branched at the rhizome' },
+  carpet: { heightCm: 5, heightExponent: 0, footprintCm2: 100, leafAreaIndex: 2.5, rootShare: 0.5, offshootSize: 5, offshootVerb: 'sent a runner' },
+  rosette: { heightCm: 40, heightExponent: 1 / 3, footprintCm2: 700, leafAreaIndex: 2.0, rootShare: 0.7, offshootSize: 10, offshootVerb: 'threw a plantlet' },
+  attached: { heightCm: 20, heightExponent: 1 / 3, footprintCm2: 200, leafAreaIndex: 2.5, rootShare: 0, offshootSize: 10, offshootVerb: 'branched at the rhizome' },
 };
 
 /**

@@ -13,14 +13,15 @@
  *    the protons each form carries.
  * 3. Photosynthate: light, carbon and oxygen set what each is offered, all
  *    drawn on the one CO₂ stock.
- * 4. The budget: each runs its hour on what it was offered, asking its reserve
- *    to repair its deficit. What it assimilates draws CO₂ and releases O₂;
+ * 4. The budget: each runs its hour on what it was offered — a bloom on the
+ *    share thriving plants' exudates leave it — asking its reserve to repair
+ *    its deficit. What it assimilates draws CO₂ and releases O₂;
  *    what it burns does the reverse.
  * 5. Condition: one vitality step for every organism.
  * 6. Shedding and death: low condition sheds structure as waste, and condition
  *    0 kills — its remains are waste and its stores leach to the water.
- * 7. Offshoots and spores: a buffer that holds a new unit buys one, and the
- *    spores land into their bloom.
+ * 7. Offshoots and spores: a buffer that holds a new unit cuts it loose, and
+ *    the spores land into their bloom.
  * 8. Offshoots join at the end of the list at age 0, and surviving plants age
  *    a tick.
  *
@@ -50,6 +51,7 @@ import { createOffshoot, offshootStructure } from '../plants/create-plant.js';
 import {
   ALGAE,
   ALGAE_KINDS,
+  allelopathy,
   bloomFeeder,
   bloomFixer,
   bloomLight,
@@ -78,7 +80,7 @@ import { getRespirationTemperatureFactor } from '../systems/respiration.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
 import { buyOffshoot, stepFlora, storeRequest, takeUp, type FloraFluxes } from '../systems/flora-budget.js';
 import { growthTaper, healingAsked, loseFlora } from '../systems/flora.js';
-import { oxygenPace, totalBurned } from '../systems/reserve.js';
+import { NO_STRESS, oxygenPace, totalBurned } from '../systems/reserve.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import type { VitalityResult } from '../systems/vitality.js';
 import { sum } from '../core/sum.js';
@@ -136,6 +138,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const saturation = calculateO2Saturation(resources.temperature, config.gasExchange);
   const omega = oxygenPace(resources.oxygen, saturation, plantsConfig.oxygenHalfSaturation);
   const pools = tankPools(state);
+  const exudates = allelopathy(state.plants, waterVolume, config.algae);
   const plants = state.plants.map((plant, i) => ({
     budget: plant.budget,
     condition: plant.condition,
@@ -143,6 +146,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     draws: poolDraws(pools, plantFeeder(plant.species, nutrientsConfig)),
     room: growthTaper(sizeOf(plant)),
     fixer: plantFixer(plant, light[i].par, omega, plantsConfig),
+    stress: NO_STRESS,
   }));
   const blooms = ALGAE_KINDS.map((kind) => {
     const traits = ALGAE[kind];
@@ -162,6 +166,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
       room,
       spores: bloomTissue(traits.sporeRate * room, habitat, traits),
       fixer: bloomFixer(state.algae[kind], lit, omega, traits, plantsConfig),
+      stress: exudates,
     };
   });
   const flora = [...plants, ...blooms];
@@ -195,13 +200,14 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     waterVolume,
     plantsConfig
   ).map(photosynthateOf);
-  const steps = flora.map(({ budget, condition, p, room }, i) => {
+  const steps = flora.map(({ budget, condition, p, room, stress }, i) => {
     const fed = takeUp(budget, delivery.delivered[i]);
     return stepFlora(fed, p, {
       offered: offered[i],
       tau,
       omega,
       room,
+      stress,
       healing: healingAsked(fed, p, condition, tau, plantsConfig),
     });
   });
@@ -224,9 +230,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
       traits: b.traits,
       params: b.p,
       resources,
-      plants: state.plants,
       plantsConfig,
-      algaeConfig: config.algae,
     })
   );
   const conditions = [...vitalities, ...bloomVitalities].map((vitality) => vitality.newCondition);
@@ -242,7 +246,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   pushWaste(addOrganics(...bloomLosses.map((loss) => loss.died)), 'algae-death');
   for (const n of NUTRIENTS) pushDelta(n, sum(losses.map((loss) => loss.leachate[n])), 'leaching');
 
-  // 7. A buffer that holds a unit buys one.
+  // 7. A buffer that holds a unit cuts it loose.
   const offshoots = state.plants.map((plant, i) => {
     const survivor = plantLosses[i].survivor;
     if (survivor === null) return null;
@@ -250,8 +254,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   });
 
   const assimilated = sum(steps.map(({ fluxes }) => fluxes.assimilated));
-  const burned =
-    sum(steps.map(({ fluxes }) => totalBurned(fluxes))) + sum(offshoots.map((bought) => bought?.overhead ?? 0));
+  const burned = sum(steps.map(({ fluxes }) => totalBurned(fluxes)));
   const fixed = carbonGases(assimilated);
   const respired = carbonGases(burned);
   pushDelta('co2', -getPpm(fixed.co2, waterVolume), 'photosynthesis');

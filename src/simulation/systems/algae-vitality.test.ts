@@ -3,20 +3,17 @@ import {
   buildAlgaeBenefits,
   buildAlgaeStressors,
   computeAlgaeVitality,
-  thrivingPlantDensity,
   type AlgaeVitalityContext,
 } from './algae-vitality.js';
 import { healingPrice } from './flora.js';
-import { getPlantPower } from './plant-power.js';
 import { monodFactor } from '../core/kinetics.js';
 import { ALGAE, ALGAE_KINDS } from '../algae/traits.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { createSimulation, type Plant } from '../state.js';
-import { plantRecord } from '../tests/plant.js';
+import { createSimulation } from '../state.js';
 import { bloomParams } from '../flora/params.js';
 import { stocked, type FloraFluxes } from './flora-budget.js';
 
-const { plants: plantsConfig, algae: algaeConfig } = DEFAULT_CONFIG;
+const { plants: plantsConfig } = DEFAULT_CONFIG;
 const LITRES = 100;
 
 const PAID: FloraFluxes = {
@@ -42,9 +39,7 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
       traits,
       params,
       resources,
-      plants: [],
       plantsConfig,
-      algaeConfig,
       ...overrides,
     };
   }
@@ -52,30 +47,6 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
   const amount = (factors: { key: string; amount: number }[], key: string): number =>
     factors.find((f) => f.key === key)!.amount;
   const sum = (factors: { amount: number }[]): number => factors.reduce((total, f) => total + f.amount, 0);
-
-  const sword = (condition: number): Plant => plantRecord({ id: `s${condition}`, species: 'amazon_sword', size: 100, condition });
-
-  describe('allelopathy', () => {
-    it('harms the bloom in proportion to thriving plant per litre of standing water, hardened, from no plants up', () => {
-      const harm = (plants: Plant[], water = LITRES): number => {
-        const ctx = context({ plants });
-        return amount(buildAlgaeStressors({ ...ctx, resources: { ...ctx.resources, water } }), 'allelopathy');
-      };
-
-      expect(harm([])).toBe(0);
-      expect(harm([sword(100)])).toBeCloseTo(
-        algaeConfig.allelopathySeverity * (getPlantPower([sword(100)]) / LITRES) * (1 - traits.hardiness),
-        12
-      );
-      expect(harm([sword(100), sword(100)])).toBeCloseTo(2 * harm([sword(100)]), 12);
-      expect(harm([sword(100)], 2 * LITRES)).toBeCloseTo(harm([sword(100)]) / 2, 12);
-    });
-
-    it('comes from thriving plants only: a dying one harms nothing, a half-well one half', () => {
-      expect(thrivingPlantDensity([sword(0)], LITRES)).toBe(0);
-      expect(thrivingPlantDensity([sword(50)], LITRES)).toBeCloseTo(thrivingPlantDensity([sword(100)], LITRES) / 2, 12);
-    });
-  });
 
   describe('income', () => {
     it('runs on its reserve density, and is nothing on a burned reserve', () => {

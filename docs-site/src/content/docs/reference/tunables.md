@@ -122,7 +122,7 @@ for every kind.
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `allelopathySeverity` | Damage per rate unit of thriving plant per litre | %/(unit/L)/hr |
+| `allelopathySeverity` | How hard thriving plants' exudates cut a bloom's assimilation: it runs at 1 / (1 + severity × rate units of thriving plant per litre); at 0 plants leave blooms alone | L/unit |
 
 ## Optics
 
@@ -130,7 +130,8 @@ for every kind.
 |---|---|---|
 | `waterAttenuationPerCm` | Beer–Lambert attenuation of the water column, per cm of depth | /cm |
 | `leafAttenuationPerLai` | Beer–Lambert extinction of a canopy, per unit of leaf area index; at 0 leaves shade nothing and a plant reads the water alone | /LAI |
-| `algaeAttenuationPerGram` | Beer–Lambert extinction per gram of algal tissue crossed, per cm² — green water's in the column, film's as a coat on every leaf; at 0 a bloom shades nothing | cm²/g |
+| `algaeAttenuationPerCm` | Beer–Lambert extinction a bloom suspended in the column adds at full coverage, per cm of depth; at 0 it shades nothing | /cm |
+| `algaeCoatOpticalDepth` | Beer–Lambert optical depth of a full coat of bloom on a lit surface, every leaf included; at 0 it shades nothing | – |
 
 ## Water chemistry
 

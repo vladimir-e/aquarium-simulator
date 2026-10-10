@@ -8,7 +8,8 @@ import {
 import { PERSISTENCE_VERSION } from './types.js';
 import {
   DEFAULT_CONFIG,
-  MAX_ALGAE_ATTENUATION_PER_GRAM,
+  MAX_ALGAE_ATTENUATION_PER_CM,
+  MAX_ALGAE_COAT_OPTICAL_DEPTH,
   MAX_LEAF_ATTENUATION_PER_LAI,
   MAX_DROOP_EDGE,
   MAX_WATER_ATTENUATION_PER_CM,
@@ -165,15 +166,20 @@ describe('TunableConfigSchema', () => {
   });
 
   it('takes blooms that shade nothing, and refuses blooms that make light or take past the ceiling', () => {
-    const blooms = (algaeAttenuationPerGram: number): boolean =>
+    const blooms = (key: 'algaeAttenuationPerCm' | 'algaeCoatOpticalDepth', value: number): boolean =>
       TunableConfigSchema.safeParse({
         ...DEFAULT_CONFIG,
-        optics: { ...DEFAULT_CONFIG.optics, algaeAttenuationPerGram },
+        optics: { ...DEFAULT_CONFIG.optics, [key]: value },
       }).success;
-    expect(blooms(0)).toBe(true);
-    expect(blooms(MAX_ALGAE_ATTENUATION_PER_GRAM)).toBe(true);
-    expect(blooms(-1)).toBe(false);
-    expect(blooms(MAX_ALGAE_ATTENUATION_PER_GRAM + 1)).toBe(false);
+    for (const [key, max] of [
+      ['algaeAttenuationPerCm', MAX_ALGAE_ATTENUATION_PER_CM],
+      ['algaeCoatOpticalDepth', MAX_ALGAE_COAT_OPTICAL_DEPTH],
+    ] as const) {
+      expect(blooms(key, 0)).toBe(true);
+      expect(blooms(key, max)).toBe(true);
+      expect(blooms(key, -0.1)).toBe(false);
+      expect(blooms(key, max + 1)).toBe(false);
+    }
   });
 
   it('takes a Droop edge up to its ceiling, and refuses the 1 a Droop limit never reaches', () => {

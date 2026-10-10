@@ -207,11 +207,11 @@ export interface PlantRow {
   /** The day's light at its own height over the day's light its species starves under. */
   light: number;
   lightStatus: Status;
-  /** Its offshoot buffer as a share of what the next offshoot costs. */
+  /** Its offshoot buffer as a share of its next offshoot. */
   bank: number;
 }
 
-export function plantRows(state: SimulationState, config: TunableConfig, ahead: HourAhead): PlantRow[] {
+export function plantRows(state: SimulationState, ahead: HourAhead): PlantRow[] {
   const labels = plantLabels(state.plants);
   return state.plants.map((plant, i) => {
     const { vitality, light } = ahead.plants[i];
@@ -229,7 +229,7 @@ export function plantRows(state: SimulationState, config: TunableConfig, ahead: 
       reading,
       light: light.needShare,
       lightStatus: plantLightStatus(light, plant.species),
-      bank: offshootShare(plant, config.plants),
+      bank: offshootShare(plant),
     };
   });
 }

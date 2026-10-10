@@ -311,14 +311,16 @@ describe('bacteriaReadout', () => {
 });
 
 describe('projectNitritePeak', () => {
-  it('finds the peak the engine reaches on a fishless, unlit soil tank, where the chain runs alone, to within a percent', () => {
+  it('finds the peak the engine reaches on a fishless, unlit soil tank, where only spores feed beside the chain: a little sooner and higher, by what they draw', () => {
     const state = soilTank({ lit: false });
     const projection = projectPeak(state)!;
     const engine = enginePeak(state);
 
     expect(projection.feeders).toEqual([]);
-    expect(Math.abs(projection.hours - engine.hours)).toBeLessThanOrEqual(2);
-    expect(Math.abs(projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.01);
+    expect(projection.hours).toBeLessThanOrEqual(engine.hours);
+    expect((engine.hours - projection.hours) / engine.hours).toBeLessThan(0.02);
+    expect(projection.ppm).toBeGreaterThan(engine.ppm);
+    expect((projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.06);
     expect(bacteriaSummary(readBiofilter(state), projection)).toContain(
       `The cycle alone peaks nitrite at ${projection.ppm.toFixed(2)} ppm in ${Math.round(projection.hours / 24)} d.`
     );

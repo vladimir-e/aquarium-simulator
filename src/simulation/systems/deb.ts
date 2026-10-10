@@ -7,8 +7,10 @@
 
 import {
   maxReserveDensity,
+  NO_STRESS,
   spend,
   structureOrganics,
+  type DebStress,
   type ReserveParams,
   type ReserveState,
 } from './reserve.js';
@@ -43,16 +45,6 @@ export interface DebParams extends ReserveParams {
   Lb: number;
   delM: number;
 }
-
-/** Multipliers on the budget: assimilation in [0, 1]; maintenance, growthCost and eggCost ≥ 1. */
-export interface DebStress {
-  assimilation: number;
-  maintenance: number;
-  growthCost: number;
-  eggCost: number;
-}
-
-export const NO_STRESS: Readonly<DebStress> = { assimilation: 1, maintenance: 1, growthCost: 1, eggCost: 1 };
 
 export interface DebState extends ReserveState {
   /** cm³ */

@@ -3,7 +3,6 @@ import {
   buyOffshoot,
   droopFactor,
   floraOrganics,
-  offshootPrice,
   offshootReady,
   remains,
   scaleFlora,
@@ -18,7 +17,16 @@ import {
   type FloraState,
   type FloraStep,
 } from './flora-budget.js';
-import { hourSlices, K_SLICE, maxReserveDensity, reserveDensity, totalBurned, wellFed } from './reserve.js';
+import {
+  hourSlices,
+  K_SLICE,
+  maxReserveDensity,
+  NO_STRESS,
+  reserveDensity,
+  totalBurned,
+  wellFed,
+  type DebStress,
+} from './reserve.js';
 import { bloomParams, plantParams } from '../flora/params.js';
 import { plantsDefaults } from '../config/plants.js';
 import { mapNutrients, NUTRIENTS, ZERO_NUTRIENTS, type Nutrient, type NutrientVector } from '../config/nutrients.js';
@@ -159,6 +167,13 @@ const regimes: { name: string; p: FloraParams; from: FloraState; supply: Supply;
     p: film,
     from: flora(film, 0.05, 0.6, 0.5),
     supply: photoperiod(film, 8, { tau: 1.3, healing: 1e-4 }),
+  },
+  {
+    name: 'green water stressed on every hook, lit by day and fed',
+    p: greenWater,
+    from: flora(greenWater, 0.3, 0.5),
+    supply: photoperiod(greenWater, 10, { stress: { assimilation: 0.3, maintenance: 1.5, growthCost: 1.4, eggCost: 1 } }),
+    fed: true,
   },
   {
     name: 'green water at no pace, lit by day and fed',
@@ -317,14 +332,14 @@ describe('the hour', () => {
     expect(one.every((flux, i) => Math.abs(two[i] - 2 * flux) <= 1e-9 * Math.max(Math.abs(flux), 1e-9))).toBe(true);
   });
 
-  it('builds a gram of structure for [E_G] of reserve, burns the overhead, and takes its Q_min from every store', () => {
+  it('builds a gram of tissue, its own or the next offshoot’s, for [E_G] of reserve, burns the overhead, and takes its Q_min from every store', () => {
     const s = flora(sword, 2, 0.8);
     const { state, fluxes } = stepFlora(s, sword, { offered: 0, tau: 1, omega: 1, room: 1 });
     const grown = state.structure - s.structure;
     expect(grown).toBeGreaterThan(0);
     expectNear(fluxes.burned.maintenance, sword.pM * s.structure);
     expectNear(fluxes.toStructure, grown);
-    expectNear(fluxes.burned.growth, (1 - sword.kappaG) * sword.EG * grown);
+    expectNear(fluxes.burned.growth, (1 - sword.kappaG) * sword.EG * (grown + state.offshootBuffer));
     expect(NUTRIENTS.every((n) => near(s.stores[n] - state.stores[n], sword.qMin[n] * grown, s.stores[n]))).toBe(true);
   });
 
@@ -519,15 +534,24 @@ describe('uptake', () => {
 
 describe('offshoots', () => {
   const unit = 0.8;
-  const price = (parent: FloraState): number => unit * (sword.EG + wellFed(parent, sword) * maxReserveDensity(sword));
-  const parent = (o: Partial<FloraState> = {}): FloraState => {
-    const s = flora(sword, 3, 0.7, 0.5);
-    return { ...s, offshootBuffer: price(s) * (1 + 1e-9), ...o };
-  };
+  const parent = (o: Partial<FloraState> = {}): FloraState => ({
+    ...flora(sword, 3, 0.7, 0.5),
+    offshootBuffer: unit * (1 + 1e-9),
+    ...o,
+  });
 
-  it('are ready once the buffer holds a unit’s tissue at [E_G] and its reserve, and every store its Q_min', () => {
+  it('build their tissue in the buffer at [E_G] as the 1 − κ share flows in, the overhead burned as it lands', () => {
+    const s = flora(sword, 2, 0.9, 1);
+    const { state, fluxes } = stepFlora(s, sword, { offered: sword.pAm * s.structure, tau: 1, omega: 1, room: 0 });
+    expect(fluxes.toStructure).toBe(0);
+    expect(state.offshootBuffer).toBeGreaterThan(0);
+    expectNear(fluxes.burned.growth, (sword.EG - 1) * state.offshootBuffer);
+    expectNear(fluxes.mobilised, fluxes.burned.maintenance + sword.EG * state.offshootBuffer);
+  });
+
+  it('are ready once the buffer holds a unit’s tissue and every store its Q_min', () => {
     expect(offshootReady(parent(), sword, unit)).toBe(true);
-    expect(offshootReady(parent({ offshootBuffer: price(parent()) * (1 - 1e-9) }), sword, unit)).toBe(false);
+    expect(offshootReady(parent({ offshootBuffer: unit * (1 - 1e-9) }), sword, unit)).toBe(false);
     const lean = parent();
     expect(
       NUTRIENTS.every(
@@ -538,27 +562,26 @@ describe('offshoots', () => {
     expect(buyOffshoot(parent({ offshootBuffer: 0 }), sword, unit)).toBeNull();
   });
 
-  it('are born at the parent’s reserve density on empty stores, and the purchase closes both ledgers', () => {
+  it('are cut loose on empty stores with their share of the reserve, parent and offshoot at one density, burning nothing', () => {
     const before = parent();
     const bought = buyOffshoot(before, sword, unit);
     expect(bought).not.toBeNull();
-    const { parent: after, offshoot, overhead } = bought!;
+    const { parent: after, offshoot } = bought!;
 
     expect(offshoot.structure).toBe(unit);
-    expectNear(reserveDensity(offshoot, sword), wellFed(before, sword));
+    expectNear(reserveDensity(offshoot, sword), reserveDensity(after, sword));
+    expectNear(reserveDensity(offshoot, sword), (reserveDensity(before, sword) * before.structure) / (before.structure + unit));
     expect(offshoot.offshootBuffer).toBe(0);
     expect(offshoot.stores).toEqual(ZERO_NUTRIENTS);
     expect(after.structure).toBe(before.structure);
-    expect(after.reserve).toBe(before.reserve);
 
-    expectNear(floraOrganics(before), floraOrganics(after) + floraOrganics(offshoot) + overhead);
-    expectNear(overhead, (1 - sword.kappaG) * sword.EG * unit);
+    expectNear(floraOrganics(before), floraOrganics(after) + floraOrganics(offshoot));
     const held = [before, after, offshoot].map((s) => nutrientsHeld(s, sword));
     expect(NUTRIENTS.every((n) => near(held[0][n], held[1][n] + held[2][n]))).toBe(true);
   });
 
   it('come in bouts: a buffer holding two buys two, one after the other', () => {
-    const rich = parent({ offshootBuffer: 2 * price(parent()) * (1 + 1e-9) });
+    const rich = parent({ offshootBuffer: 2 * unit * (1 + 1e-9) });
     const first = buyOffshoot(rich, sword, unit);
     const second = first && buyOffshoot(first.parent, sword, unit);
     expect(second).not.toBeNull();
@@ -693,6 +716,33 @@ describe('oxygen', () => {
   });
 });
 
+describe('stress', () => {
+  const s = flora(sword, 2, 0.6, 0.9);
+  const hour = { offered: sword.pAm * s.structure, tau: 1, omega: 1, room: 1 };
+  const stressed = (o: Partial<DebStress>): FloraStep => stepFlora(s, sword, { ...hour, stress: { ...NO_STRESS, ...o } });
+
+  it('is none by default', () => {
+    expect(stepFlora(s, sword, hour)).toEqual(stressed({}));
+  });
+
+  it('takes its assimilation share of what it is offered, and hands back the rest', () => {
+    const empty = flora(sword, 2, 0, 0.9);
+    const taking = (assimilation: number): FloraStep =>
+      stepFlora(empty, sword, { ...hour, stress: { ...NO_STRESS, assimilation } });
+    expectNear(taking(0.4).fluxes.assimilated, 0.4 * taking(1).fluxes.assimilated);
+    expectNear(taking(0.4).fluxes.returned, 0.6 * hour.offered);
+    expect(taking(0).fluxes.assimilated).toBe(0);
+  });
+
+  it('moves the flux each stress names', () => {
+    const plain = stressed({}).fluxes;
+    expectNear(stressed({ maintenance: 1.5 }).fluxes.owed, 1.5 * plain.owed);
+    expect(stressed({ maintenance: 1.5 }).fluxes.burned.maintenance).toBeGreaterThan(plain.burned.maintenance);
+    expect(stressed({ growthCost: 1.5 }).fluxes.toStructure).toBeLessThan(plain.toStructure);
+    expect(stressed({ assimilation: 0.5 }).fluxes.assimilated).toBeLessThan(plain.assimilated);
+  });
+});
+
 describe('a share of a budget', () => {
   it('stocks a new unit fed and full: its reserve at E_m, every store at Q_max, nothing in the buffer', () => {
     const fresh = stocked(2, sword);
@@ -709,10 +759,5 @@ describe('a share of a budget', () => {
     expect(a.offshootBuffer + b.offshootBuffer).toBeCloseTo(s.offshootBuffer, 15);
     expect(NUTRIENTS.every((n) => near(a.stores[n] + b.stores[n], s.stores[n]))).toBe(true);
     expect(reserveDensity(a, sword)).toBeCloseTo(reserveDensity(s, sword), 15);
-  });
-
-  it('prices an offshoot at its tissue’s [E_G] and its reserve at the parent’s density', () => {
-    const s = flora(sword, 3, 0.6, 0.4);
-    expect(offshootPrice(s, sword, 0.5)).toBeCloseTo(0.5 * (sword.EG + 0.6 * maxReserveDensity(sword)), 12);
   });
 });

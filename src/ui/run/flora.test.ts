@@ -49,9 +49,7 @@ import {
 import { readHourAhead } from './ahead';
 import { bloomAt } from '../../simulation/tests/blooms.js';
 import { bloomMass } from '../../simulation/algae/index.js';
-import { offshootPrice } from '../../simulation/systems/flora-budget.js';
 import { offshootStructure } from '../../simulation/plants/create-plant.js';
-import { plantParams } from '../../simulation/flora/params.js';
 import { sizeOf } from '../../simulation/plants/canopy.js';
 import { COVERAGE_DECIMALS } from '../utils/units';
 import { conditionStatus, conditionWord, projectedTrend, type Reading } from './status';
@@ -153,7 +151,7 @@ describe('condition + algae words', () => {
 });
 
 function rows(state: SimulationState, config = DEFAULT_CONFIG): PlantRow[] {
-  return plantRows(state, config, readHourAhead(state, config));
+  return plantRows(state, readHourAhead(state, config));
 }
 
 const THRIVING: Reading = { status: 'ok', word: 'thriving' };
@@ -292,13 +290,13 @@ describe('plantRows', () => {
     });
   });
 
-  it('reads an offshoot buffer as its share of the next offshoot’s price, full once it holds it', () => {
+  it('reads an offshoot buffer as its share of the next offshoot, full once it holds it', () => {
     const base = planted(['java_fern', 'java_fern', 'java_fern']);
-    const price = offshootPrice(base.plants[0].budget, plantParams('java_fern', DEFAULT_CONFIG.plants), offshootStructure('java_fern'));
+    const unit = offshootStructure('java_fern');
     const state = produce(base, (draft) => {
       draft.plants[0].budget.offshootBuffer = 0;
-      draft.plants[1].budget.offshootBuffer = price / 4;
-      draft.plants[2].budget.offshootBuffer = 2 * price;
+      draft.plants[1].budget.offshootBuffer = unit / 4;
+      draft.plants[2].budget.offshootBuffer = 2 * unit;
     });
     expect(rows(state).map((row) => row.bank)).toEqual([0, expect.closeTo(0.25, 12), 1]);
   });

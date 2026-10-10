@@ -16,19 +16,25 @@ export interface OpticsConfig {
    * zero is leaves that shade nothing, and light at height is the water's alone.
    */
   leafAttenuationPerLai: number;
-  /**
-   * Beer–Lambert extinction per gram of algal tissue the light crosses, per
-   * cm² of its path — the same for every kind of bloom. Phytoplankton take
-   * about 0.02 m² per mg of chlorophyll, and chlorophyll is about 1 % of their
-   * organic matter, so 2,000–3,000 cm²/g; zero is a bloom that shades nothing.
-   */
-  algaeAttenuationPerGram: number;
+  /** Beer–Lambert extinction a bloom suspended in the column adds at full coverage, per cm of depth. */
+  algaeAttenuationPerCm: number;
+  /** Beer–Lambert optical depth of a full coat of bloom on a lit surface: where it covers, it passes e^(−depth). */
+  algaeCoatOpticalDepth: number;
 }
 
 export const opticsDefaults: OpticsConfig = {
   waterAttenuationPerCm: 0.010,
   leafAttenuationPerLai: 0.7,
-  algaeAttenuationPerGram: 3000,
+  // A bloom takes light by its coverage, the keeper's reading of it, as it
+  // fixes and burns by its coverage: light per % and gas flux per % are both
+  // anchored there, and grams are what the budget sees, so a kind's tissue
+  // density moves with its pace and its optics do not. Phytoplankton take
+  // about 0.02 m² per mg of chlorophyll, and chlorophyll is about 1 % of their
+  // organic matter, so 2,000–3,000 cm² a gram of what a reader sees: a full
+  // column is heavy green water's 30 mg/L of dry cells, 0.09 /cm, and a full
+  // coat a green film's 0.3 mg/cm², an optical depth of 0.9 that passes 41 %.
+  algaeAttenuationPerCm: 0.09,
+  algaeCoatOpticalDepth: 0.9,
 };
 
 /**
@@ -48,10 +54,12 @@ export const MAX_LEAF_ATTENUATION_PER_LAI = 2;
 
 /**
  * Chlorophyll at its absorption peak, at the most of it a cell carries, takes
- * about 12,000 cm² a gram of tissue. Past twice that a coefficient is a typo;
- * a negative one turns a bloom into a light source.
+ * about 12,000 cm² a gram: 0.36 /cm through a full column, an optical depth of
+ * 3.6 through a full coat. Past about twice those a coefficient is a typo; a
+ * negative one turns a bloom into a light source.
  */
-export const MAX_ALGAE_ATTENUATION_PER_GRAM = 25000;
+export const MAX_ALGAE_ATTENUATION_PER_CM = 0.75;
+export const MAX_ALGAE_COAT_OPTICAL_DEPTH = 7.5;
 
 export interface OpticsConfigMeta {
   key: keyof OpticsConfig;
@@ -80,11 +88,19 @@ export const opticsConfigMeta: OpticsConfigMeta[] = [
     step: 0.05,
   },
   {
-    key: 'algaeAttenuationPerGram',
+    key: 'algaeAttenuationPerCm',
     label: 'Algae Attenuation',
-    unit: 'cm²/g',
+    unit: '/cm at full coverage',
     min: 0,
-    max: 10000,
-    step: 100,
+    max: 0.3,
+    step: 0.005,
+  },
+  {
+    key: 'algaeCoatOpticalDepth',
+    label: 'Algae Coat Depth',
+    unit: 'per full coat',
+    min: 0,
+    max: 3,
+    step: 0.05,
   },
 ];

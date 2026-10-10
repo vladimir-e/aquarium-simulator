@@ -15,7 +15,8 @@ import {
   mapKinds,
 } from '../../simulation/index.js';
 import {
-  MAX_ALGAE_ATTENUATION_PER_GRAM,
+  MAX_ALGAE_ATTENUATION_PER_CM,
+  MAX_ALGAE_COAT_OPTICAL_DEPTH,
   MAX_DROOP_EDGE,
   MAX_LEAF_ATTENUATION_PER_LAI,
   MAX_WATER_ATTENUATION_PER_CM,
@@ -470,7 +471,8 @@ const OpticsConfigSchema = z
   .object({
     waterAttenuationPerCm: z.number().min(0).max(MAX_WATER_ATTENUATION_PER_CM),
     leafAttenuationPerLai: z.number().min(0).max(MAX_LEAF_ATTENUATION_PER_LAI),
-    algaeAttenuationPerGram: z.number().min(0).max(MAX_ALGAE_ATTENUATION_PER_GRAM),
+    algaeAttenuationPerCm: z.number().min(0).max(MAX_ALGAE_ATTENUATION_PER_CM),
+    algaeCoatOpticalDepth: z.number().min(0).max(MAX_ALGAE_COAT_OPTICAL_DEPTH),
   })
   .strict();
 

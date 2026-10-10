@@ -42,7 +42,7 @@ import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { plantRecord } from '../tests/plant.js';
 import { gutCapacity, type Pace } from './digestion.js';
 import { liveHour, type FishHour } from './metabolism.js';
-import { NO_STRESS } from './deb.js';
+import { NO_STRESS } from './reserve.js';
 import { fishMass, fishOrganics, fishSize } from './fish-body.js';
 import { fishRecord } from '../tests/fish.js';
 

@@ -33,7 +33,8 @@ export {
   opticsConfigMeta,
   MAX_WATER_ATTENUATION_PER_CM,
   MAX_LEAF_ATTENUATION_PER_LAI,
-  MAX_ALGAE_ATTENUATION_PER_GRAM,
+  MAX_ALGAE_ATTENUATION_PER_CM,
+  MAX_ALGAE_COAT_OPTICAL_DEPTH,
 } from './optics.js';
 export {
   type WaterChemistryConfig,

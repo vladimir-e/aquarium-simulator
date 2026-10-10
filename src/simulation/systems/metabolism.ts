@@ -19,8 +19,8 @@ import { N_TO_NH3_MASS_RATIO, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js'
 import { WASTE_NUTRIENTS, type MineralVector } from '../config/nutrients.js';
 import { sum } from '../core/sum.js';
 import { speciesTau, type FishSpecies } from '../livestock/species.js';
-import { NO_STRESS, stepDeb, type DebFluxes } from './deb.js';
-import { oxygenPace, totalBurned } from './reserve.js';
+import { stepDeb, type DebFluxes } from './deb.js';
+import { NO_STRESS, oxygenPace, totalBurned } from './reserve.js';
 import { fishParams } from './fish-body.js';
 import { digest, gutRoom, shareCapped, type Pace } from './digestion.js';
 

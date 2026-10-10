@@ -7,13 +7,13 @@ import { sizeOf } from '../plants/canopy.js';
 import { offshootStructure } from '../plants/create-plant.js';
 import { nutrientsIn, uptakeAlkalinity } from '../systems/nutrients.js';
 import { carbonGases } from '../systems/photosynthesis.js';
-import { offshootPrice, type FloraFluxes, type FloraState } from '../systems/flora-budget.js';
+import type { FloraFluxes, FloraState } from '../systems/flora-budget.js';
 import { totalBurned } from '../systems/reserve.js';
 import { shedShare } from '../systems/flora.js';
 import { deltaOf } from '../tests/effects.js';
 import { getPpm } from '../resources/index.js';
 import { createSimulation, type Plant, type Resources, type SimulationState } from '../state.js';
-import { ALGAE, ALGAE_KINDS, bloomMass, habitatGain, type AlgaeKind } from '../algae/index.js';
+import { ALGAE, ALGAE_KINDS, allelopathy, bloomMass, habitatGain, type AlgaeKind } from '../algae/index.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { mapNutrients, NUTRIENTS, nutrientsDefaults, type NutrientVector } from '../config/nutrients.js';
 import { PLANT_SPECIES_DATA, growthFormOf, type PlantSpecies } from '../plants/species.js';
@@ -230,10 +230,9 @@ describe('processFlora — plants', () => {
     expect(total(result.effects, 'phosphate', 'leaching')).toBeGreaterThan(0);
   });
 
-  it('buys an offshoot when its buffer holds the price: a new unit at the least planted size, appended at age 0', () => {
-    const p = plantParams('java_fern', config.plants);
+  it('cuts an offshoot loose when its buffer holds one: a plantlet at its growth form’s size, appended at age 0', () => {
     const fern = plantRecord({ id: 'fern', species: 'java_fern', size: 80 });
-    const budding = withBudget(fern, { offshootBuffer: 1.01 * offshootPrice(fern.budget, p, offshootStructure('java_fern')) });
+    const budding = withBudget(fern, { offshootBuffer: 1.01 * offshootStructure('java_fern') });
     const result = processFlora(tank({ plants: [budding], ...LIT }), config);
     const [parent, child] = result.state.plants;
     expect(result.state.plants).toHaveLength(2);
@@ -315,14 +314,18 @@ describe.each(ALGAE_KINDS)('processFlora — %s', (kind) => {
     expect(result.algae[kind].waterUptake.phosphate).toBeGreaterThan(0);
   });
 
-  it('is harmed by thriving plants, and the more of them the more', () => {
-    const harm = (count: number): number => {
-      const plants = Array.from({ length: count }, (_, i) => sword({ id: `s${i}` }));
-      const { vitality } = processFlora(tank({ plants, algae: { [kind]: 10 }, ...LIT }), config).algae[kind];
-      return vitality.breakdown.stressors.find((f) => f.key === 'allelopathy')!.amount;
+  it('takes the share of what it is offered that thriving plants leave it, and the less the more of them', () => {
+    const planting = (count: number): Plant[] => Array.from({ length: count }, (_, i) => sword({ id: `s${i}` }));
+    const taken = (count: number): number => {
+      const state = produce(tank({ plants: planting(count), algae: { [kind]: 10 }, ...LIT }), (draft) => {
+        draft.algae[kind].budget.reserve = 0;
+      });
+      const { fluxes } = processFlora(state, config).algae[kind];
+      return fluxes.assimilated / (fluxes.assimilated + fluxes.returned);
     };
-    expect(harm(0)).toBe(0);
-    expect(harm(2)).toBeGreaterThan(harm(1));
+    expect(taken(0)).toBeCloseTo(1, 12);
+    expect(taken(1)).toBeCloseTo(allelopathy(planting(1), tank().resources.water, config.algae).assimilation, 12);
+    expect(taken(2)).toBeLessThan(taken(1));
   });
 });
 

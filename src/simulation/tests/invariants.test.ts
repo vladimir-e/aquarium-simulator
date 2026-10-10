@@ -7,10 +7,9 @@ import { DEFAULT_CONFIG, configRange, withTunable, type TunableConfig } from '..
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { mapNutrients, NUTRIENTS, WASTE_NUTRIENTS, type NutrientVector, type WasteNutrient } from '../config/nutrients.js';
 import { CACO3_PER_EQUIVALENT, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
-import { tissueMass } from '../plants/canopy.js';
 import { ALGAE_KINDS, bloomMass } from '../algae/index.js';
 import { bloomParams, plantParams } from '../flora/params.js';
-import { offshootPrice, type FloraParams, type FloraState } from '../systems/flora-budget.js';
+import type { FloraParams, FloraState } from '../systems/flora-budget.js';
 import { offshootStructure } from '../plants/create-plant.js';
 import { fishOrganics, fishParams, fishSize, frySize } from '../systems/fish-body.js';
 import { stockedBody } from '../livestock/create-fish.js';
@@ -638,8 +637,7 @@ describe('an offshoot bought out of the buffer and the stores', () => {
   beforeAll(() => {
     start = produce(cycledBareTank(20), (draft) => {
       const fern = plantRecord({ id: 'fern', species: 'java_fern', size: 99 });
-      const p = plantParams('java_fern', DEFAULT_CONFIG.plants);
-      fern.budget.offshootBuffer = offshootPrice(fern.budget, p, offshootStructure('java_fern'));
+      fern.budget.offshootBuffer = offshootStructure('java_fern');
       draft.plants = [fern];
       draft.resources.nitrate = 10 * draft.resources.water;
       draft.resources.phosphate = 0.04 * draft.resources.water;
@@ -649,9 +647,9 @@ describe('an offshoot bought out of the buffer and the stores', () => {
     budded = tick(start);
   });
 
-  it('is born at the least a plant is planted at, full condition, beside its parent', () => {
+  it('is born a plantlet at its growth form’s offshoot size, full condition, beside its parent', () => {
     expect(budded.plants).toHaveLength(2);
-    expect(budded.plants[1].budget.structure).toBeCloseTo(tissueMass('java_fern', 1), 12);
+    expect(budded.plants[1].budget.structure).toBeCloseTo(offshootStructure('java_fern'), 12);
     expect(budded.plants[1].parentId).toBe('fern');
   });
 

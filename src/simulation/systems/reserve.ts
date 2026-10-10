@@ -22,6 +22,16 @@ export interface ReserveParams {
   kappaG: number;
 }
 
+/** Multipliers on the budget: assimilation in [0, 1]; maintenance, growthCost and eggCost ≥ 1. */
+export interface DebStress {
+  assimilation: number;
+  maintenance: number;
+  growthCost: number;
+  eggCost: number;
+}
+
+export const NO_STRESS: Readonly<DebStress> = { assimilation: 1, maintenance: 1, growthCost: 1, eggCost: 1 };
+
 export const maxReserveDensity = (p: ReserveParams): number => p.pAm / p.v;
 
 export const reserveDensity = (state: ReserveState, p: ReserveParams): number =>

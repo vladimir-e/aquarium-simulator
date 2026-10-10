@@ -271,7 +271,6 @@ function reserveNote(fish: Fish, hour: FishHour, healed: number, broods: boolean
 
 function plantLedger(
   state: SimulationState,
-  config: TunableConfig,
   ahead: HourAhead,
   id: string,
   subtitle: string
@@ -283,7 +282,7 @@ function plantLedger(
   const { vitality, fluxes, buds, light } = ahead.plants[index];
   const { breakdown } = vitality;
   const label = plantLabels(state.plants).get(id)!;
-  const buffer = offshootShare(plant, config.plants);
+  const buffer = offshootShare(plant);
   const data = PLANT_SPECIES_DATA[plant.species];
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
@@ -423,7 +422,7 @@ export function readLedger(
     case 'fish':
       return fishLedger(state, config, ahead, target.id, subtitle);
     case 'plant':
-      return plantLedger(state, config, ahead, target.id, subtitle);
+      return plantLedger(state, ahead, target.id, subtitle);
     case 'algae':
       return algaeLedger(state, config, ahead, target.bloom);
   }

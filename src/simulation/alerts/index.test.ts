@@ -24,7 +24,7 @@ import { DEFAULT_CONFIG, configRange, type TunableConfig } from '../config/index
 import { computeFishVitality } from '../systems/fish-health.js';
 import { fishRecord } from '../tests/fish.js';
 import { liveHour } from '../systems/metabolism.js';
-import { NO_STRESS } from '../systems/deb.js';
+import { NO_STRESS } from '../systems/reserve.js';
 import { plantLightTaken } from '../plants/canopy.js';
 import { plantRecord } from '../tests/plant.js';
 import { FREE_AMMONIA_EDGE, NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../livestock/tolerance.js';
@@ -238,7 +238,14 @@ describe('bloomAlert', () => {
       draft.algae[kind] = bloomAt(draft, kind, mass);
     });
   const unplanted = (kind: AlgaeKind, mass: number): SimulationState => ({ ...planted(kind, mass), plants: [] });
-  const attenuated = (perGram: number): TunableConfig => ({ ...config, optics: { ...config.optics, algaeAttenuationPerGram: perGram } });
+  const attenuated = (end: 'min' | 'max'): TunableConfig => ({
+    ...config,
+    optics: {
+      ...config.optics,
+      algaeAttenuationPerCm: configRange('optics.algaeAttenuationPerCm')![end],
+      algaeCoatOpticalDepth: configRange('optics.algaeCoatOpticalDepth')![end],
+    },
+  });
   const fires = (kind: AlgaeKind, state: SimulationState, at = config): boolean => bloomAlert(kind).check(state, at).log !== null;
 
   it.each(ALGAE_KINDS)('fires for %s exactly where its level passes 1: coverage past its line, or the plants’ light it takes past its own', (kind) => {
@@ -251,12 +258,12 @@ describe('bloomAlert', () => {
   });
 
   it.each(ALGAE_KINDS)('fires for %s at its coverage line on the light it takes alone, once that passes its line', (kind) => {
-    const dense = attenuated(configRange('optics.algaeAttenuationPerGram')!.max);
+    const dense = attenuated('max');
     const state = planted(kind, BLOOM_COVERAGE_LINE);
 
     expect(plantLightTaken(state, dense.optics)[kind] * 100).toBeGreaterThan(PLANT_LIGHT_LINE);
     expect(fires(kind, state, dense)).toBe(true);
-    expect(fires(kind, state, attenuated(0))).toBe(false);
+    expect(fires(kind, state, attenuated('min'))).toBe(false);
     expect(fires(kind, unplanted(kind, BLOOM_COVERAGE_LINE), dense)).toBe(false);
   });
 
@@ -271,7 +278,7 @@ describe('bloomAlert', () => {
 
   it.each(ALGAE_KINDS)('names for %s the figure that leads its level', (kind) => {
     const message = (state: SimulationState, at: TunableConfig): string => bloomAlert(kind).check(state, at).log!.message;
-    const dense = attenuated(configRange('optics.algaeAttenuationPerGram')!.max);
+    const dense = attenuated('max');
     const byLight = planted(kind, BLOOM_COVERAGE_LINE);
     const byCoverage = unplanted(kind, 2 * BLOOM_COVERAGE_LINE);
 

@@ -126,7 +126,7 @@ describe('session roundtrip', () => {
       tankCapacity: 40,
       light: { enabled: true, par: 50, schedule: { startHour: 0, duration: 24 } },
     });
-    expect(() => tick(lit, config)).toThrow(/algaeAttenuationPerGram/);
+    expect(() => tick(lit, config)).toThrow(/algaeAttenuationPerCm/);
 
     saveSession({ ...createSession(lit, config), version: 4 }, { path });
     expect(() => loadSession({ path })).toThrow(/Unsupported session version/);

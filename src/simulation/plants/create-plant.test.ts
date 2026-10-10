@@ -3,7 +3,7 @@ import {
   createOffshoot,
   createPlant,
   DEFAULT_PLANT_SIZE,
-  MIN_PLANTABLE_SIZE,
+  isPlantableSize,
   offshootShare,
   offshootStructure,
   VIGOUR_SPAN,
@@ -12,9 +12,10 @@ import { createRng } from '../core/rng.js';
 import { plantsDefaults as config } from '../config/plants.js';
 import { NUTRIENTS } from '../config/nutrients.js';
 import { plantParams } from '../flora/params.js';
-import { offshootPrice, storeFill } from '../systems/flora-budget.js';
+import { storeFill } from '../systems/flora-budget.js';
 import { wellFed } from '../systems/reserve.js';
 import { sizeOf, tissueMass } from './canopy.js';
+import { growthFormOf, PLANT_SPECIES_DATA, type PlantSpecies } from './species.js';
 
 describe('createPlant', () => {
   it('builds a plant at full condition, fed and stocked as a shop sells it', () => {
@@ -99,16 +100,20 @@ describe('createOffshoot', () => {
 });
 
 describe('offshoots as the buffer buys them', () => {
-  it('are born at the least a plant is planted at', () => {
-    expect(offshootStructure('amazon_sword')).toBeCloseTo(tissueMass('amazon_sword', MIN_PLANTABLE_SIZE), 15);
+  it('are born a plantlet at their growth form’s offshoot size, never under the least a plant is planted at', () => {
+    for (const species of Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]) {
+      const { offshootSize } = growthFormOf(species);
+      expect(offshootStructure(species)).toBeCloseTo(tissueMass(species, offshootSize), 15);
+      expect(isPlantableSize(offshootSize)).toBe(true);
+    }
   });
 
-  it('read the buffer as a share of the next one’s price, full once it holds it', () => {
+  it('read the buffer as a share of the next one, full once it holds it', () => {
     const plant = createPlant({ species: 'java_fern', size: 60, rng: createRng(2), config });
-    const price = offshootPrice(plant.budget, plantParams('java_fern', config), offshootStructure('java_fern'));
-    const holding = (buffer: number): number => offshootShare({ ...plant, budget: { ...plant.budget, offshootBuffer: buffer } }, config);
+    const unit = offshootStructure('java_fern');
+    const holding = (buffer: number): number => offshootShare({ ...plant, budget: { ...plant.budget, offshootBuffer: buffer } });
     expect(holding(0)).toBe(0);
-    expect(holding(price / 4)).toBeCloseTo(0.25, 12);
-    expect(holding(2 * price)).toBe(1);
+    expect(holding(unit / 4)).toBeCloseTo(0.25, 12);
+    expect(holding(2 * unit)).toBe(1);
   });
 });

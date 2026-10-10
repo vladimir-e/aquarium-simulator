@@ -14,9 +14,7 @@ import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/inde
 import { readHourAhead } from './ahead.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
 import { bloomMass } from '../../simulation/algae/index.js';
-import { offshootPrice } from '../../simulation/systems/flora-budget.js';
 import { offshootStructure } from '../../simulation/plants/create-plant.js';
-import { plantParams } from '../../simulation/flora/params.js';
 import { LEDGER_DECIMALS, readLedger, type Ledger, type LedgerTarget } from './ledger.js';
 import { FED, atReserve, starving } from '../test/gut';
 import { projectedTrend } from './status.js';
@@ -123,13 +121,10 @@ describe('readLedger', () => {
     };
     const plantLedger = (state: SimulationState): Ledger =>
       ledgerOf(state, { kind: 'plant', id: state.plants[0].id })!;
-    const price = (state: SimulationState): number =>
-      offshootPrice(state.plants[0].budget, plantParams('java_fern', DEFAULT_CONFIG.plants), offshootStructure('java_fern'));
-
-    it('reads its offshoot buffer as its share of the next offshoot’s price, filling, or buying one', () => {
+    it('reads its offshoot buffer as its share of the next offshoot, filling, or buying one', () => {
       const empty = planted(10);
       expect(plantLedger(empty).bank).toMatchObject({ label: 'Buffer', at: 0, note: 'filling' });
-      const full = planted(10, 1.01 * price(empty));
+      const full = planted(10, 1.01 * offshootStructure('java_fern'));
       expect(tick(full, DEFAULT_CONFIG).plants).toHaveLength(2);
       expect(plantLedger(full).bank).toMatchObject({ at: 1, note: 'buying an offshoot' });
     });

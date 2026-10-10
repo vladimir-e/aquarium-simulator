@@ -36,7 +36,10 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      `reserveCapacity`, `storeFillDays`, `quotaMin`, `quotaMax`,
  *      `healingRate` and `healingCost`; and `lightStarvationSeverity`,
  *      `sufficiencyEdge` and `respirationOxygenHalfSaturation` become
- *      `starvationSeverity`, `droopEdge` and `oxygenHalfSaturation`.
+ *      `starvationSeverity`, `droopEdge` and `oxygenHalfSaturation`. The
+ *      blooms shade by their coverage: `OpticsConfig` trades
+ *      `algaeAttenuationPerGram` for `algaeAttenuationPerCm` and
+ *      `algaeCoatOpticalDepth`.
  * v35: A fish runs on its energy budget. `Fish` trades `mass`, `surplus` and
  *      `ovary` for `deb` — structure, reserve, maturity, brood buffer, wear
  *      and hazard — `survival` and `survivalDraw`. `LivestockConfig` drops the

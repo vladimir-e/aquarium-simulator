@@ -155,10 +155,11 @@ export const plantsDefaults: PlantsConfig = {
   co2PerRateUnit: 30.0,
 
 
-  // Energy budget. κ, κ_G, the full reserve and the stores' fill time are
+  // Energy budget. κ is DEB's usual 0.8, the generalised animal's (Kooijman
+  // 2010, Table 8.1). κ_G, the full reserve and the stores' fill time are
   // Tune's: nothing checked against its source fixes them for a submerged
   // plant.
-  somaShare: 0.95,
+  somaShare: 0.8,
   growthEfficiency: 0.8,
   reserveCapacity: 0.2,
   storeFillDays: 3,
