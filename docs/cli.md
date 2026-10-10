@@ -71,3 +71,15 @@ npx tsx src/cli/sim.ts smoke   # end-to-end wiring check
 ```
 
 Durations accept `5d`, `48h`, or a bare integer (hours). `config set` holds a tunable to the range its `*ConfigMeta` declares.
+
+## Add-my-Pet entries
+
+`npm run amp` transcribes a species' energy budget from the [Add-my-Pet](https://www.bio.vu.nl/thb/deb/deblab/add_my_pet/) collection into an entry module the livestock roster imports. Run it when a species joins the roster on an entry of its own, or to pick up a revised entry; `--offline` re-transcribes from the cached pages after a parser change, without touching the server.
+
+```bash
+npm run amp -- Poecilia_reticulata                 # fetch, cache and transcribe one entry
+npm run amp -- Betta_splendens Corydoras_aeneus    # several, one request a second
+npm run amp -- Poecilia_reticulata --offline       # re-transcribe from the cached pages
+```
+
+An entry's five pages (`par`, `stat`, `res`, `bib`, `cit`) are cached in `data/amp/<Entry>/` with the date they were fetched, and its module is written to `src/simulation/livestock/amp/entries/<Entry>.ts`. A failed download falls back to the cache. Each entry prints one line — its version, model, `s_M`, and whether it fits its data; parser warnings go to stderr.
