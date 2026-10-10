@@ -67,7 +67,7 @@ export interface VitalityBreakdown {
   benefitRate: number;
   /** benefitRate − damageRate (%/h). */
   net: number;
-  /** Condition the bank restored this tick. */
+  /** Condition restored this tick: from the bank, or from a fish's reserve. */
   healed: number;
   /** Income that went into the bank this tick. */
   banked: number;

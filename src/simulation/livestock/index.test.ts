@@ -51,7 +51,7 @@ describe('processLivestock', () => {
     expect(effectOf(result, 'waste', 'fish-metabolism')).toBeCloseTo(result.feces, 15);
     expect(result.feces).toBeGreaterThan(0);
     const { water } = makeState().resources;
-    const burnt = burn(result.burned, DEFAULT_CONFIG.livestock);
+    const burnt = burn(result.burned, DEFAULT_CONFIG.livestock, DEFAULT_CONFIG.nutrients.foodMineralContent);
     expect(effectOf(result, 'oxygen')).toBeCloseTo(-getPpm(burnt.oxygen, water), 15);
     expect(effectOf(result, 'co2')).toBeCloseTo(getPpm(burnt.co2, water), 15);
     expect(effectOf(result, 'ammonia')).toBeCloseTo(burnt.ammonia, 15);

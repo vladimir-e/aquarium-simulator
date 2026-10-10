@@ -1,6 +1,6 @@
 /**
  * What a fish's energy budget reads as: its weight, its size against its
- * species' grown length, the organics it holds, and whether it is grown.
+ * species' grown length, the organics it holds, and its life stage.
  */
 
 import type { Fish } from '../state.js';
@@ -35,7 +35,13 @@ export function frySize(species: FishSpecies): number {
   return size(hatchling(p), p);
 }
 
-export const fishLifeStage = (fish: Body): FishLifeStage => (mature(fish.deb, fishParams(fish)) ? 'adult' : 'fry');
+export const FRY_UNTIL_SIZE = 50;
+
+export function fishLifeStage(fish: Body): FishLifeStage {
+  const p = fishParams(fish);
+  if (mature(fish.deb, p)) return 'adult';
+  return size(fish.deb, p) < FRY_UNTIL_SIZE ? 'fry' : 'juvenile';
+}
 
 export function countFry(fish: readonly Body[]): number {
   return fish.filter((f) => fishLifeStage(f) === 'fry').length;

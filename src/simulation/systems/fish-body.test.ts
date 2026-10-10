@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { countFry, eggMass, eggOrganics, fishLifeStage, fishMass, fishOrganics, fishSize, frySize } from './fish-body.js';
-import { hatchling, organics, size, wetMass } from './deb.js';
+import {
+  countFry,
+  eggMass,
+  eggOrganics,
+  FRY_UNTIL_SIZE,
+  fishLifeStage,
+  fishMass,
+  fishOrganics,
+  fishSize,
+  frySize,
+} from './fish-body.js';
+import { hatchling, maxStructuralLength, organics, size, wetMass } from './deb.js';
 import { debParams, FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { fishRecord } from '../tests/fish.js';
 
@@ -22,20 +32,28 @@ describe.each(SPECIES)('a %s body', (species) => {
     expect(frySize(species)).toBe(size(hatchling(p), p));
   });
 
-  it('reads as fry until puberty and adult from it', () => {
+  it('reads as fry under half its grown length, juvenile from it until puberty, and adult from puberty at any size', () => {
     const fish = fishRecord({ species });
-    expect(fishLifeStage({ ...fish, deb: { ...fish.deb, maturity: p.EHp } })).toBe('adult');
-    expect(fishLifeStage({ ...fish, deb: { ...fish.deb, maturity: 0.99 * p.EHp } })).toBe('fry');
+    const at = (sizePercent: number, maturity: number): ReturnType<typeof fishLifeStage> =>
+      fishLifeStage({
+        species,
+        deb: { ...fish.deb, structure: ((sizePercent / 100) * maxStructuralLength(p)) ** 3, maturity },
+      });
     expect(fishLifeStage({ species, deb: hatchling(p) })).toBe('fry');
+    expect(at(FRY_UNTIL_SIZE - 0.1, 0.99 * p.EHp)).toBe('fry');
+    expect(at(FRY_UNTIL_SIZE + 0.1, 0.99 * p.EHp)).toBe('juvenile');
+    expect(at(FRY_UNTIL_SIZE - 0.1, p.EHp)).toBe('adult');
+    expect(at(FRY_UNTIL_SIZE + 0.1, p.EHp)).toBe('adult');
   });
 });
 
 describe('countFry', () => {
-  it('counts the fish not yet at puberty', () => {
-    const p = debParams('guppy');
+  it('counts the fish that read as fry, not the juveniles nor the adults', () => {
     const adult = fishRecord({ species: 'guppy' });
-    const fry = { ...adult, deb: hatchling(p) };
-    expect(countFry([adult, fry, fry])).toBe(2);
+    const juvenile = fishRecord({ species: 'angelfish' });
+    const fry = { ...adult, deb: hatchling(debParams('guppy')) };
+    expect([adult, juvenile, fry].map(fishLifeStage)).toEqual(['adult', 'juvenile', 'fry']);
+    expect(countFry([adult, juvenile, fry, fry])).toBe(2);
     expect(countFry([])).toBe(0);
   });
 });

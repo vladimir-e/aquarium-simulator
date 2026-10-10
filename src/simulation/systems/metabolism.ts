@@ -16,11 +16,11 @@
 import type { Fish, Resources } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { N_TO_NH3_MASS_RATIO, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
-import { arrheniusFactor, monodFactor } from '../core/kinetics.js';
-import { WASTE_NUTRIENTS, nutrientsDefaults, type MineralVector } from '../config/nutrients.js';
+import { monodFactor } from '../core/kinetics.js';
+import { WASTE_NUTRIENTS, type MineralVector } from '../config/nutrients.js';
 import { sum } from '../core/sum.js';
-import { debParams, type FishSpecies } from '../livestock/species.js';
-import { NO_STRESS, stepDeb, totalBurned, upkeep, type DebFluxes } from './deb.js';
+import { speciesTau, type FishSpecies } from '../livestock/species.js';
+import { NO_STRESS, stepDeb, totalBurned, type DebFluxes } from './deb.js';
 import { fishParams } from './fish-body.js';
 import { digest, gutRoom, shareCapped, type Pace } from './digestion.js';
 
@@ -40,7 +40,7 @@ export function fishPace(
   config: LivestockConfig
 ): Pace {
   return {
-    tau: arrheniusFactor(water.temperature, debParams(species).TA),
+    tau: speciesTau(species, water.temperature),
     omega: oxygenPace(water.oxygen, saturation, config.oxygenHalfSaturation),
     stress: NO_STRESS,
   };
@@ -54,14 +54,15 @@ export interface Burn {
   co2: number;
 }
 
-export function burn(
-  grams: number,
-  config: LivestockConfig,
-  foodMineralContent: MineralVector = nutrientsDefaults.foodMineralContent
-): Burn {
+/** mg of NH3 burning grams of a fish's organics excretes through its gills. */
+export function gillAmmonia(grams: number, config: LivestockConfig): number {
+  return grams * config.foodNitrogenFraction * NH3_MG_PER_G_N;
+}
+
+export function burn(grams: number, config: LivestockConfig, foodMineralContent: MineralVector): Burn {
   const oxygen = grams * config.oxygenPerGramBurned;
   return {
-    ammonia: grams * config.foodNitrogenFraction * NH3_MG_PER_G_N,
+    ammonia: gillAmmonia(grams, config),
     minerals: Object.fromEntries(WASTE_NUTRIENTS.map((n) => [n, grams * foodMineralContent[n]])) as MineralVector,
     oxygen,
     co2: oxygen * config.respiratoryQuotient * O2_TO_CO2_MASS_RATIO,
@@ -75,8 +76,6 @@ export interface FishHour {
   pace: Pace;
   digested: number;
   fluxes: DebFluxes;
-  /** Maintenance owed over the hour, the whole a shortfall is a share of. */
-  upkeep: number;
 }
 
 /** An hour of one fish's budget on what its gut digests, `healing` the grams of repair it asks of its reserve. */
@@ -95,7 +94,6 @@ export function liveHour(fish: Fish, pace: Pace, healing: number, config: Livest
     pace,
     digested,
     fluxes,
-    upkeep: upkeep(fish.deb, p, pace),
   };
 }
 

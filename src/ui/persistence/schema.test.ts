@@ -463,7 +463,7 @@ describe('PersistedSimulationSchema', () => {
 
   it('round-trips a fry fish alongside an unhatched clutch', () => {
     const withOffspring = {
-      ...withFish(fishRecord({ id: 'fry1', species: 'guppy', size: 0, age: 12, health: 98 })),
+      ...withFish(fishRecord({ id: 'fry1', species: 'guppy', size: 20, age: 12, health: 98 })),
       clutches: [{ id: 'c1', species: 'neon_tetra', eggs: 24.3, development: 0.6 }],
     };
     expect(PersistedSimulationSchema.safeParse(withOffspring).success).toBe(true);

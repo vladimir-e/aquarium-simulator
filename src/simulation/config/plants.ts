@@ -68,8 +68,7 @@ export interface PlantsConfig {
   sizePerSurplus: number;
   /**
    * Ceiling on the bank. Income past full condition banks up to it, and a full
-   * bank buys an offshoot (see `propagate`).
-   * Shared default across organism types — see `SURPLUS_CAP_DEFAULT`.
+   * bank buys an offshoot (see `propagate`). The blooms bank to it too.
    */
   surplusCap: number;
   /**

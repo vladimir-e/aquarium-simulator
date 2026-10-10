@@ -1,18 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { burn, fishPace, liveHour, oxygenPace, processMetabolism } from './metabolism.js';
+import { burn, fishPace, gillAmmonia, liveHour, oxygenPace, processMetabolism } from './metabolism.js';
 import { gutCapacity, gutRoom, type Pace } from './digestion.js';
 import { livestockDefaults as config } from '../config/livestock.js';
-import { debParams } from '../livestock/species.js';
+import { speciesTau } from '../livestock/species.js';
 import { WASTE_NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
-import { arrheniusFactor } from '../core/kinetics.js';
+import { sum } from '../core/sum.js';
 import { NO_STRESS, totalBurned } from './deb.js';
 import { fishOrganics } from './fish-body.js';
 import { fishRecord } from '../tests/fish.js';
 
 const SATURATED = 8;
 const REFERENCE: Pace = { tau: 1, omega: 1, stress: NO_STRESS };
-const sum = (xs: readonly number[]): number => xs.reduce((a, b) => a + b, 0);
 
 describe('oxygenPace', () => {
   it('reads 1 in saturated water and above it, and nothing in none', () => {
@@ -30,21 +29,24 @@ describe('oxygenPace', () => {
 describe('fishPace', () => {
   it('runs on its species’ Arrhenius temperature, and on oxygen alone for ω', () => {
     const pace = fishPace('guppy', { temperature: 26, oxygen: 3 }, SATURATED, config);
-    expect(pace.tau).toBe(arrheniusFactor(26, debParams('guppy').TA));
+    expect(pace.tau).toBe(speciesTau('guppy', 26));
     expect(pace.omega).toBe(oxygenPace(3, SATURATED, config.oxygenHalfSaturation));
     expect(pace.stress).toBe(NO_STRESS);
   });
 });
 
 describe('burn', () => {
-  it('excretes the food recipe’s nitrogen as NH3 and its minerals, gram for gram', () => {
-    const burnt = burn(2, config);
+  const recipe = nutrientsDefaults.foodMineralContent;
+
+  it('excretes the food recipe’s nitrogen as NH3 through the gills and its minerals, gram for gram', () => {
+    const burnt = burn(2, config, recipe);
     expect(burnt.ammonia).toBeCloseTo(2 * config.foodNitrogenFraction * (MW_NH3 / MW_N) * 1000, 9);
-    for (const n of WASTE_NUTRIENTS) expect(burnt.minerals[n]).toBeCloseTo(2 * nutrientsDefaults.foodMineralContent[n], 12);
+    expect(burnt.ammonia).toBe(gillAmmonia(2, config));
+    for (const n of WASTE_NUTRIENTS) expect(burnt.minerals[n]).toBeCloseTo(2 * recipe[n], 12);
   });
 
   it('breathes oxygenPerGramBurned and exhales the respiratory quotient in moles', () => {
-    const burnt = burn(0.5, config);
+    const burnt = burn(0.5, config, recipe);
     expect(burnt.oxygen).toBeCloseTo(0.5 * config.oxygenPerGramBurned, 9);
     expect(burnt.co2 / MW_CO2 / (burnt.oxygen / MW_O2)).toBeCloseTo(config.respiratoryQuotient, 12);
   });

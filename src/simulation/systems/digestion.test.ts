@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { appetite, digest, fullPaceLine, gutCapacity, gutRoom, shareCapped, swallow, type Pace } from './digestion.js';
+import { appetite, digest, fullPaceLine, gutCapacity, gutRoom, ration, shareCapped, swallow, type Pace } from './digestion.js';
 import { livestockDefaults as config } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
-import { NO_STRESS, assimilationCeiling } from './deb.js';
+import { NO_STRESS, assimilationCeiling, stepDeb } from './deb.js';
 import { debParams } from '../livestock/species.js';
 import { fishRecord } from '../tests/fish.js';
 import type { Fish } from '../state.js';
@@ -30,6 +30,17 @@ describe('appetite', () => {
     const base = appetite(fish, REFERENCE);
     expect(appetite(fish, { tau: 1.5, omega: 0.5 })).toBeCloseTo(0.75 * base, 15);
     expect(appetite(fish, { ...REFERENCE, stress: { ...NO_STRESS, assimilation: 0.4 } })).toBeCloseTo(0.4 * base, 15);
+  });
+});
+
+describe('ration', () => {
+  it('is the food whose assimilation pays the upkeep it owes, gram for gram', () => {
+    const fish = guppy(50);
+    const p = debParams('guppy');
+    const { owed } = stepDeb(fish.deb, p, { fromGut: 0, ...REFERENCE }).fluxes;
+    const fed = stepDeb(fish.deb, p, { fromGut: ration(fish, owed), ...REFERENCE }).fluxes;
+    expect(fed.assimilated).toBeCloseTo(owed, 15);
+    expect(fed.returned).toBe(0);
   });
 });
 

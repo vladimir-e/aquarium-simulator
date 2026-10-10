@@ -59,9 +59,9 @@ export function totalFishMass(fish: readonly Pick<Fish, 'species' | 'deb'>[]): n
   return sum(fish.map(fishMass));
 }
 
-/** Grams a fish of this species weighs bought at this size. */
+/** Grams a fish of this species weighs bought at this size; a size it is never stocked at throws a `RangeError`. */
 export function stockedMass(species: FishSpecies, size: number): number {
-  return fishMass({ species, deb: stockedBody(species, size, 20).deb });
+  return fishMass({ species, deb: stockedBody(species, size).deb });
 }
 
 export interface FishCapacityResult {
@@ -120,7 +120,7 @@ export function addFish(state: SimulationState, action: AddFishAction): ActionRe
   const speciesData = FISH_SPECIES_DATA[species];
 
   const newState = produce(state, (draft) => {
-    const fish = stockFish({ species, size, temperature: draft.resources.temperature, rng: draft.rng });
+    const fish = stockFish({ species, size, rng: draft.rng });
     draft.fish.push(fish);
 
     draft.logs.push(

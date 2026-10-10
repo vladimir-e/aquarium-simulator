@@ -1,30 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { processBodies } from './bodies.js';
-import { processLivestock } from './index.js';
+import { processLivestock, tankPaces } from './index.js';
 import { createSimulation, type SimulationState, type Fish, type Clutch } from '../state.js';
-import { debParams, FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
+import { debParams, FISH_SPECIES_DATA, speciesTau, type FishSpecies } from '../livestock/species.js';
 import type { LogEntry } from '../core/logging.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { arrheniusFactor, hourlyDraw } from '../core/kinetics.js';
+import { hourlyDraw } from '../core/kinetics.js';
 import { hatchling, organics } from '../systems/deb.js';
 import { eggMass, eggOrganics, fishMass, fishOrganics } from '../systems/fish-body.js';
 import { gutCapacity } from '../systems/digestion.js';
-import { tankPaces } from './index.js';
+import { spawnsAt } from '../systems/brood.js';
 import { clutchOrganics } from '../systems/clutch.js';
-import { fishRecord } from '../tests/fish.js';
+import { fishRecord, holdingEggs } from '../tests/fish.js';
 
 let idSeq = 0;
 function mkFish(o: Partial<Fish> = {}): Fish {
   return fishRecord({ id: `f${idSeq++}`, species: 'guppy', sex: 'female', ...o });
 }
 
-/** A fish whose buffer readies `eggs` eggs: a female's to lay, a male's to father at his own share. */
-function withEggs(fish: Fish, eggs: number): Fish {
-  const p = debParams(fish.species);
-  const share = fish.sex === 'male' ? FISH_SPECIES_DATA[fish.species].breeding.maleShare : 1;
-  return { ...fish, deb: { ...fish.deb, broodBuffer: (eggs * share * p.E0) / p.kappaR } };
-}
+/** A male whose buffer fathers `eggs` eggs at his species' share. */
+const fathering = (male: Fish, eggs: number): Fish =>
+  holdingEggs(male, eggs * FISH_SPECIES_DATA[male.species].breeding.maleShare);
 
 function withTank(fish: Fish[], clutches: Clutch[] = []): SimulationState {
   return produce(createSimulation({ tankCapacity: 100 }), (draft) => {
@@ -51,28 +48,32 @@ describe('processBodies', () => {
     expect(out.effects).toHaveLength(0);
   });
 
-  it('spawns once her buffer readies a whole egg, and not a hair short of it', () => {
-    const male = withEggs(mkFish({ sex: 'male' }), 100);
-    expect(breed(withTank([withEggs(mkFish(), 1.0001), male])).state.clutches).toHaveLength(1);
-    expect(breed(withTank([withEggs(mkFish(), 0.9999), male])).state.clutches).toHaveLength(0);
-  });
+  for (const species of Object.keys(FISH_SPECIES_DATA) as FishSpecies[]) {
+    it(`${species} spawns once her buffer holds her bout, and not a hair short of it`, () => {
+      const bout = spawnsAt(species);
+      const male = fathering(mkFish({ species, sex: 'male' }), 2 * bout);
+      expect(breed(withTank([holdingEggs(mkFish({ species }), bout + 0.0001), male])).state.clutches).toHaveLength(1);
+      expect(breed(withTank([holdingEggs(mkFish({ species }), bout - 0.0001), male])).state.clutches).toHaveLength(0);
+    });
+
+    it(`${species} lays every egg her buffer holds, a clutch of the eggs fathered, undeveloped`, () => {
+      const bout = spawnsAt(species);
+      const she = holdingEggs(mkFish({ species }), bout + 9.5);
+      const out = breed(withTank([she, fathering(mkFish({ species, sex: 'male' }), bout + 3.2)]));
+      const [clutch] = out.state.clutches;
+      expect(clutch.eggs).toBe(bout + 3);
+      expect(clutch.development).toBe(0);
+      expect(out.state.fish[0].deb.broodBuffer).toBeLessThan(debParams(species).E0 / debParams(species).kappaR);
+    });
+  }
 
   it('a lone female resorbs her eggs and bears nothing, every gram drawn burned', () => {
-    const she = withEggs(mkFish({ species: 'neon_tetra' }), 12.5);
+    const she = holdingEggs(mkFish({ species: 'neon_tetra' }), spawnsAt('neon_tetra') + 0.5);
     const out = breed(withTank([she]));
     expect(out.state.clutches).toHaveLength(0);
     expect(out.state.fish[0].deb.broodBuffer).toBeLessThan(she.deb.broodBuffer);
     expect(out.burned).toBeCloseTo(she.deb.broodBuffer - out.state.fish[0].deb.broodBuffer, 15);
   });
-
-  for (const species of Object.keys(FISH_SPECIES_DATA) as FishSpecies[]) {
-    it(`${species} spawns a clutch of the eggs fathered, undeveloped`, () => {
-      const pair = [withEggs(mkFish({ species }), 9.5), withEggs(mkFish({ species, sex: 'male' }), 4.2)];
-      const [clutch] = breed(withTank(pair)).state.clutches;
-      expect(clutch.eggs).toBe(4);
-      expect(clutch.development).toBe(0);
-    });
-  }
 
   it('hatches a clutch when its development completes, not before', () => {
     const clutch = (development: number): Clutch => ({ id: 'c', species: 'neon_tetra', eggs: 12, development });
@@ -98,16 +99,17 @@ describe('processBodies', () => {
 
   it('a livebearer carries her brood, and an egg-layer leaves hers', () => {
     for (const species of ['guppy', 'neon_tetra'] as const) {
-      const she = withEggs(mkFish({ id: `she-${species}`, species }), 5);
-      const [clutch] = breed(withTank([she, withEggs(mkFish({ species, sex: 'male' }), 5)])).state.clutches;
+      const bout = spawnsAt(species);
+      const she = holdingEggs(mkFish({ id: `she-${species}`, species }), bout + 4);
+      const [clutch] = breed(withTank([she, fathering(mkFish({ species, sex: 'male' }), bout)])).state.clutches;
       expect(clutch.motherId).toBe(species === 'guppy' ? she.id : undefined);
     }
   });
 
   it('a gestating female spawns again only once she has given birth', () => {
-    const she = withEggs(mkFish({ id: 'she' }), 20);
+    const she = holdingEggs(mkFish({ id: 'she' }), 20);
     const carrying: Clutch = { id: 'c', species: 'guppy', eggs: 5, development: 0.1, motherId: 'she' };
-    const out = breed(withTank([she, withEggs(mkFish({ sex: 'male' }), 20)], [carrying]));
+    const out = breed(withTank([she, fathering(mkFish({ sex: 'male' }), 20)], [carrying]));
     expect(out.state.clutches.map((c) => c.id)).toEqual(['c']);
     expect(events(out.state, 'eggs-laid')).toHaveLength(0);
   });
@@ -178,10 +180,14 @@ describe('processBodies', () => {
       withTank([mkFish({ id: 'a', species: 'neon_tetra', sex: 'male' })], [
         { id: 'c', species: 'neon_tetra', eggs: 40.3, development: 0.9999 },
       ]),
-      withTank([withEggs(mkFish({ id: 'she' }), 30.7), withEggs(mkFish({ id: 'he', sex: 'male' }), 11.2)]),
-      withTank([withEggs(mkFish({ species: 'betta' }), 6), withEggs(mkFish({ species: 'betta', sex: 'male' }), 2)], [
-        { id: 'c', species: 'corydoras', eggs: 30, development: 0.2 },
-      ]),
+      withTank([holdingEggs(mkFish({ id: 'she' }), 30.7), fathering(mkFish({ id: 'he', sex: 'male' }), 11.2)]),
+      withTank(
+        [
+          holdingEggs(mkFish({ species: 'betta' }), spawnsAt('betta') + 6),
+          fathering(mkFish({ species: 'betta', sex: 'male' }), 20),
+        ],
+        [{ id: 'c', species: 'corydoras', eggs: 30, development: 0.2 }]
+      ),
     ];
     for (const tank of tanks) {
       const out = breed(tank);
@@ -229,16 +235,16 @@ describe('processBodies', () => {
     expect(wasteOf(other)).toBeCloseTo(wasteOf(one), 15);
   });
 
-  it('resorbs a share of every male’s buffer at his turnover, paced by τ, and none of a female’s', () => {
-    const he = withEggs(mkFish({ id: 'he', sex: 'male' }), 50);
-    const she = withEggs(mkFish({ id: 'she' }), 0.5);
+  it('turns over a share of every male’s buffer at his turnover, paced by τ, and none of a female’s', () => {
+    const he = fathering(mkFish({ id: 'he', sex: 'male' }), 50);
+    const she = holdingEggs(mkFish({ id: 'she' }), 0.5);
     const tank = withTank([he, she]);
     const out = breed(tank);
-    const tau = arrheniusFactor(tank.resources.temperature, debParams('guppy').TA);
-    const resorbed = he.deb.broodBuffer * hourlyDraw(DEFAULT_CONFIG.livestock.maleBufferTurnover * tau);
-    expect(out.state.fish[0].deb.broodBuffer).toBeCloseTo(he.deb.broodBuffer - resorbed, 15);
+    const tau = speciesTau('guppy', tank.resources.temperature);
+    const turned = he.deb.broodBuffer * hourlyDraw(DEFAULT_CONFIG.livestock.maleBufferTurnover * tau);
+    expect(out.state.fish[0].deb.broodBuffer).toBeCloseTo(he.deb.broodBuffer - turned, 15);
     expect(out.state.fish[1].deb.broodBuffer).toBe(she.deb.broodBuffer);
-    expect(out.burned).toBeCloseTo(resorbed, 15);
+    expect(out.burned).toBeCloseTo(turned, 15);
   });
 });
 

@@ -13,6 +13,7 @@ import {
   type FishVitality,
 } from './fish-health.js';
 import { livestockDefaults } from '../config/livestock.js';
+import { hourlyDraw } from '../core/kinetics.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { debParams, FISH_SPECIES_DATA } from '../livestock/species.js';
 import { createSimulation, type Fish, type Plant, type Resources, type SimulationState } from '../state.js';
@@ -684,12 +685,12 @@ describe('starvation', () => {
 });
 
 describe('repair', () => {
-  it('asks healingRate of its deficit at τ, at healingCost hours of its upkeep a point', () => {
+  it('asks its deficit closing first order at healingRate × τ, at healingCost hours of its upkeep a point', () => {
     const fish = fishRecord({ health: 60 });
     const price = healingPrice(fish, livestockDefaults);
     expect(price).toBeCloseTo(livestockDefaults.healingCost * debParams('neon_tetra').pM * fish.deb.structure, 15);
     expect(healingAsked(fish, { ...REFERENCE, tau: 1.5 }, livestockDefaults)).toBeCloseTo(
-      price * livestockDefaults.healingRate * 1.5 * 40,
+      price * hourlyDraw(livestockDefaults.healingRate * 1.5) * 40,
       15
     );
     expect(healingAsked(fishRecord(), REFERENCE, livestockDefaults)).toBe(0);
@@ -698,7 +699,7 @@ describe('repair', () => {
   it('heals the points its reserve paid for, on top of what it earns', () => {
     const fish = fishRecord({ health: 60 });
     const v = vitality(fish, {}, { config: HEALING });
-    expect(v.breakdown.healed).toBeCloseTo(livestockDefaults.healingRate * 40, 9);
+    expect(v.breakdown.healed).toBeCloseTo(hourlyDraw(livestockDefaults.healingRate) * 40, 9);
     expect(v.newCondition).toBeCloseTo(60 + v.breakdown.net + v.breakdown.healed, 12);
   });
 

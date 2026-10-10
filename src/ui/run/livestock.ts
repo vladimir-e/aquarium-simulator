@@ -37,7 +37,7 @@ const STARVING_SHORTFALL = 0.5;
 const HUNGRY_SHORTFALL = 0.05;
 const HUNGRY_RESERVE = 0.5;
 
-export function gutBand(fish: Pick<Fish, 'species' | 'deb'>, hour: Pick<FishHour, 'fluxes' | 'upkeep'>): GutBand {
+export function gutBand(fish: Pick<Fish, 'species' | 'deb'>, hour: Pick<FishHour, 'fluxes'>): GutBand {
   const unpaid = starvation(hour);
   if (unpaid >= STARVING_SHORTFALL) return 'starving';
   return unpaid > HUNGRY_SHORTFALL || wellFed(fish.deb, debParams(fish.species)) < HUNGRY_RESERVE ? 'hungry' : 'fed';
@@ -92,28 +92,29 @@ export function fishReading(vital: Reading, gut: Gut): Reading {
 type Kin = Pick<Fish, 'id' | 'species' | 'deb'>;
 
 /**
- * Every fish's number among its species at the stage its size reads as, in the order it was
- * stocked or born — the way plants count. The ids stay the engine's; these are
- * the reader's.
+ * Every fish's number in the row it sits in — its species' fry, or the fish of
+ * its species grown past them — in the order it was stocked or born, the way
+ * plants count. The ids stay the engine's; these are the reader's.
  */
 export function fishNumbers(fish: readonly Kin[]): Map<string, number> {
   return new Map(
-    groupBy(fish, (f) => `${f.species}:${fishLifeStage(f)}`).flatMap((kind) => [
+    groupBy(fish, (f) => `${f.species}:${fishLifeStage(f) === 'fry'}`).flatMap((kind) => [
       ...numbered(kind.map((f) => f.id)),
     ])
   );
 }
 
-/** A fish as the console names it. */
+/** A fish as the console names it: an adult by its species, the young by their stage too. */
 export function fishTitle(fish: Kin, number: number): string {
   const name = FISH_SPECIES_DATA[fish.species].name;
-  return `${name}${fishLifeStage(fish) === 'fry' ? ' fry' : ''} #${number}`;
+  const stage = fishLifeStage(fish);
+  return `${name}${stage === 'adult' ? '' : ` ${stage}`} #${number}`;
 }
 
 /** One fish, with the vitality pass behind its row already spent. */
 export interface FishRead {
   id: string;
-  /** Its number among its species at its stage. */
+  /** Its number in its row. */
   number: number;
   condition: number;
   sick: boolean;
@@ -200,10 +201,10 @@ function groupFigures(members: FishRead[]): RosterGroup {
   };
 }
 
-/** Adult fish folded into per-species rows, in first-seen order. */
+/** Fish grown past fry folded into per-species rows, in first-seen order. */
 export function groupBySpecies(fish: FishRead[]): SpeciesGroup[] {
-  const adults = fish.filter((read) => fishLifeStage(read.fish) === 'adult');
-  return groupBy(adults, (read) => read.fish.species).map((members) => ({
+  const grown = fish.filter((read) => fishLifeStage(read.fish) !== 'fry');
+  return groupBy(grown, (read) => read.fish.species).map((members) => ({
     species: members[0].fish.species,
     name: FISH_SPECIES_DATA[members[0].fish.species].name,
     ...groupFigures(members),
@@ -221,17 +222,13 @@ export function groupFry(fish: FishRead[]): FryBatch | null {
   };
 }
 
-/**
- * What the tank holds, in one line. Fry are counted apart from adults: they are
- * stock the tank is carrying, but not yet fish that breed.
- */
+/** What the tank holds, in one line, its fry counted apart from the fish grown past them. */
 export function rosterSummary(state: SimulationState): string {
   const { fish, clutches } = state;
   const fry = countFry(fish);
-  const adults = fish.length - fry;
   const species = new Set(fish.map((f) => f.species)).size;
 
-  const clauses = [`${adults} fish`];
+  const clauses = [`${fish.length - fry} fish`];
   if (species > 0) clauses.push(`${species} species`);
   if (clutches.length > 0) {
     clauses.push(`${clutches.length} clutch${clutches.length > 1 ? 'es' : ''}`);

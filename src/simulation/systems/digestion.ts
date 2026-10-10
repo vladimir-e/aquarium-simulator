@@ -26,6 +26,11 @@ export function appetite(fish: Body, pace: Pace): number {
   return assimilationCeiling(fish.deb, p, pace) / p.kappaX;
 }
 
+/** Grams of food an hour whose assimilation pays `owed` grams of its upkeep. */
+export function ration(fish: Pick<Fish, 'species'>, owed: number): number {
+  return owed / fishParams(fish).kappaX;
+}
+
 /** Grams of food a full gut holds: a day of its appetite. */
 export function gutCapacity(fish: Body, pace: Pace): number {
   return HOURS_PER_DAY * appetite(fish, pace);

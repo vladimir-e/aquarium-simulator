@@ -147,8 +147,8 @@ export const livestockDefaults: LivestockConfig = {
   flowStressSeverity: 0.3,
 
   waterLevelStressThreshold: 50, // % capacity — below this water level damages fish
-  // A mid-hardiness fish with nothing left to pay its upkeep from loses
-  // 0.25 %/h: three weeks from full health once its reserve is gone.
+  // A mid-hardiness fish whose upkeep goes wholly unpaid loses 0.25 %/h,
+  // seventeen days from full health.
   starvationSeverity: 0.5,
   // Hazard at the species lifespan runs 2–9 × 10⁻⁵ /h, so 0.1–0.5 %/h there.
   hazardSeverity: 5000,
@@ -172,7 +172,7 @@ export const livestockDefaults: LivestockConfig = {
   maleBufferTurnover: 0.006,
 
   // Water at a fish's 96-hour LC50 costs a clutch about 5 %/h — most of a
-  // neon clutch before it hatches — while the adults ride it out on their banks.
+  // neon clutch before it hatches — while the adults ride it out.
   eggSensitivity: 3,
   // A grown neon pair in 30 gal finds an eighth of an open clutch an hour, so
   // one egg in twenty-five hatches — five of a 125-egg spawn — and every fry

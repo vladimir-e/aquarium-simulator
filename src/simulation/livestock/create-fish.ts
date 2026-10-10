@@ -6,16 +6,15 @@
  * differ only in the body they arrive with.
  *
  * A stocked fish was grown in the shop: its budget is the one its species
- * reaches at the named size on unlimited food, its broods spent along the way.
- * Temperature paces that life without moving its path, so the shop raises it
- * once per size at 20 °C and the tank's τ reads its age and its wear.
+ * reaches at the named size on unlimited food at its mid-range temperature,
+ * its broods spent along the way, and its age, wear and survival are that
+ * upbringing's whatever tank buys it.
  */
 
 import type { Fish } from '../state.js';
 import { draw, drawId, type RngState } from '../core/rng.js';
-import { arrheniusFactor } from '../core/kinetics.js';
 import type { FishSex, FishSpecies } from './species.js';
-import { debParams, FISH_SPECIES_DATA } from './species.js';
+import { debParams, FISH_SPECIES_DATA, midRangeTemperature, speciesTau } from './species.js';
 import { assimilationCeiling, hatchling, size, stepDeb, type DebState } from '../systems/deb.js';
 import { frySize } from '../systems/fish-body.js';
 
@@ -38,22 +37,17 @@ export function unstockableSizeMessage(species: FishSpecies): string {
   return `A ${FISH_SPECIES_DATA[species].name} is stocked from ${from}% to ${MAX_STOCKED_SIZE}% of its grown length`;
 }
 
-interface Raised {
+export interface Upbringing {
   deb: DebState;
   survival: number;
   hours: number;
 }
 
-const raised = new Map<string, Raised>();
-
-/** A fish fed without limit at 20 °C from hatching until it reaches `target` size, its buffer spent every hour. */
-function raisedTo(species: FishSpecies, target: number): Raised {
-  const key = `${species}:${target}`;
-  const memo = raised.get(key);
-  if (memo) return memo;
-
+/** A fish fed without limit at `temperatureC` from hatching until it reaches `target` size, its buffer spent every hour. */
+export function raise(species: FishSpecies, target: number, temperatureC: number): Upbringing {
+  if (!isStockableSize(species, target)) throw new RangeError(unstockableSizeMessage(species));
   const p = debParams(species);
-  const pace = { tau: 1, omega: 1 };
+  const pace = { tau: speciesTau(species, temperatureC), omega: 1 };
   let [deb, survival, hours] = [hatchling(p), 1, 0];
   while (size(deb, p) < target) {
     const fromGut = assimilationCeiling(deb, p, pace) / p.kappaX;
@@ -61,24 +55,20 @@ function raisedTo(species: FishSpecies, target: number): Raised {
     deb = { ...stepDeb(deb, p, { fromGut, ...pace }).state, broodBuffer: 0 };
     hours++;
   }
-  const result = { deb, survival, hours };
-  raised.set(key, result);
-  return result;
+  return { deb, survival, hours };
 }
 
-/** The budget a stocked fish arrives with, `size` in % of grown length, before any individual variation. */
-export function stockedBody(
-  species: FishSpecies,
-  size: number,
-  temperature: number
-): Pick<Fish, 'deb' | 'survival' | 'age'> {
-  const { deb, survival, hours } = raisedTo(species, size);
-  const tau = arrheniusFactor(temperature, debParams(species).TA);
-  return {
-    deb: { ...deb, wearLoad: deb.wearLoad * tau * tau, hazard: deb.hazard * tau },
-    survival,
-    age: Math.round(hours / tau),
-  };
+const shop = new Map<string, Upbringing>();
+
+/**
+ * The body a stocked fish arrives with, raised at its species' mid-range temperature to `target` % of its grown
+ * length, before any individual variation.
+ */
+export function stockedBody(species: FishSpecies, target: number): Pick<Fish, 'deb' | 'survival' | 'age'> {
+  const key = `${species}:${target}`;
+  const raised = shop.get(key) ?? raise(species, target, midRangeTemperature(species));
+  shop.set(key, raised);
+  return { deb: raised.deb, survival: raised.survival, age: raised.hours };
 }
 
 interface Individual {
@@ -113,9 +103,9 @@ function individual(
   };
 }
 
-/** A fish from the shop at `size` % of its grown length, into water at `temperature`. */
-export function stockFish(params: Individual & { size: number; temperature: number }): Fish {
-  return individual(params, stockedBody(params.species, params.size, params.temperature));
+/** A fish from the shop at `size` % of its grown length. */
+export function stockFish(params: Individual & { size: number }): Fish {
+  return individual(params, stockedBody(params.species, params.size));
 }
 
 /** A fry out of its egg. */

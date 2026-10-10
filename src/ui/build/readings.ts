@@ -481,7 +481,7 @@ export function deviceHint(
         state.fish.length === 0
           ? 'No fish to eat it — what it drops rots in the water.'
           : ahead.fish.some((fish) => fish.hour.pace.omega > 0)
-            ? `A day's ration of ${formatFeed(fed)} is ${(fed / ahead.ration).toFixed(1)}× what the fish need to hold condition.`
+            ? `A day's ration of ${formatFeed(fed)} is ${(fed / ahead.ration).toFixed(1)}× what pays the fish's upkeep.`
             : 'Without oxygen the fish cannot digest — what they eat sits in their guts.'
       );
     }

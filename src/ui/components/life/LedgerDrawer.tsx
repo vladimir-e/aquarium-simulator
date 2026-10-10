@@ -205,7 +205,7 @@ export function LedgerDrawer({
         {ledger.bank && (
           <div className="border-t border-hairline pt-1">
             <ReadingRow
-              name="Bank"
+              name={ledger.bank.label}
               value={ledger.bank.text}
               unit={ledger.bank.unit}
               at={ledger.bank.at}

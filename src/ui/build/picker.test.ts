@@ -4,7 +4,9 @@ import {
   createSimulation,
   DEFAULT_CONFIG,
   FISH_SPECIES_DATA,
+  frySize,
   getMaxFishMass,
+  MAX_STOCKED_SIZE,
   stockedMass,
   calculateFloorArea,
   checkPlantFootprint,
@@ -15,7 +17,7 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { getGhMass } from '../../simulation/resources/index.js';
-import { pickerOptions, type PickerOption } from './picker';
+import { FISH_SPECIES, pickerOptions, stockingSize, type PickerOption } from './picker';
 import { bioload } from './stocking';
 import { bedReading, type BedReading } from '../run';
 import { fishRecord } from '../../simulation/tests/fish.js';
@@ -71,6 +73,21 @@ describe('fish options', () => {
 
     expect(small).toBe(Math.floor(500 / stockedMass('neon_tetra', 25)));
     expect(small).toBeGreaterThan(adults);
+  });
+
+  it('reads every species at a size it is stocked at, from its hatchling’s whole size to the most a shop sells', () => {
+    const state = tank(1);
+    for (const species of FISH_SPECIES) {
+      const smallest = Math.ceil(frySize(species));
+      expect([0, smallest - 1, smallest, 55, 120].map((size) => stockingSize(species, size))).toEqual([
+        smallest,
+        smallest,
+        smallest,
+        55,
+        MAX_STOCKED_SIZE,
+      ]);
+      expect(option(fish(state, 1, 0), species).headroom).toBe(Math.floor(500 / stockedMass(species, smallest)));
+    }
   });
 
   it('refuses in the action’s own words once nothing more fits', () => {

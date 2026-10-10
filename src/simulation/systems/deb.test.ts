@@ -16,7 +16,6 @@ import {
   structuralLength,
   structureOrganics,
   totalBurned,
-  upkeep,
   wellFed,
   wetMass,
   type DebFluxes,
@@ -301,13 +300,18 @@ describe('maintenance priority', () => {
     expect(last(fast).state.structure).toBeLessThan(before.structure);
   });
 
+  it('owes its somatic and maturity maintenance at τ, however fed and however oxygenated', () => {
+    const state = fish(0.6 * Lm, 0.7, { maturity: animal.EHp / 2 });
+    const stress = { ...NO_STRESS, maintenance: 2 };
+    const owed = (animal.pM * 2 * state.structure + animal.kJ * state.maturity) * 1.5;
+    for (const [fromGut, omega] of [[0, 1], [FEAST, 1], [FEAST, 0.3]]) {
+      expectNear(stepDeb(state, animal, { fromGut, tau: 1.5, omega, stress }).fluxes.owed, owed);
+    }
+  });
+
   it('falls short by its whole upkeep with nothing stored, and by none of it on a full reserve below L_m', () => {
-    const empty = fish(0.8 * Lm, 0);
-    const stressed = { tau: 1.5, stress: { ...NO_STRESS, maintenance: 2 } };
-    expect(stepDeb(empty, animal, { fromGut: 0, omega: 1, ...stressed }).fluxes.shortfall).toBeCloseTo(
-      upkeep(empty, animal, stressed),
-      15
-    );
+    const empty = stepDeb(fish(0.8 * Lm, 0), animal, { fromGut: 0, omega: 1, tau: 1.5, stress: { ...NO_STRESS, maintenance: 2 } });
+    expect(empty.fluxes.shortfall).toBeCloseTo(empty.fluxes.owed, 15);
     expect(stepDeb(fish(0.8 * Lm, 1), animal, atReference(0)).fluxes.shortfall).toBe(0);
   });
 

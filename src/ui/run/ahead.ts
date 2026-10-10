@@ -8,15 +8,15 @@
 
 import {
   applyEffects,
-  burn,
   calculateDecay,
   dailyLightIntegral,
-  debParams,
+  gillAmmonia,
   mapKinds,
   processBodies,
   processFlora,
   paysTowardBrood,
   processLivestock,
+  ration,
   readyToBrood,
   type AlgaeKind,
   type BloomLight,
@@ -29,6 +29,7 @@ import {
 import { settleEnvironment } from '../../simulation/tick.js';
 import type { FormVector, TunableConfig } from '../../simulation/config/index.js';
 import { ammoniaPerGramOfFood } from '../../simulation/config/livestock.js';
+import { sum } from '../../simulation/core/sum.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 
 /** One organism on the hour ahead. */
@@ -142,10 +143,8 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),
     shedding: flora.shedding,
     fishWaste: livestock.feces + bodies.waste,
-    gillAmmonia: burn(livestock.burned + bodies.burned, config.livestock).ammonia,
-    ration:
-      TICKS_PER_DAY *
-      livestock.hours.reduce((grams, hour) => grams + hour.upkeep / debParams(hour.fish.species).kappaX, 0),
+    gillAmmonia: gillAmmonia(livestock.burned + bodies.burned, config.livestock),
+    ration: TICKS_PER_DAY * sum(livestock.hours.map((hour) => ration(hour.fish, hour.fluxes.owed))),
     foodWaste: decayed * wasteShare,
     foodAmmonia: decayed * (1 - wasteShare) * ammoniaPerGramOfFood(config.livestock),
     waterUptake: flora.waterUptake,

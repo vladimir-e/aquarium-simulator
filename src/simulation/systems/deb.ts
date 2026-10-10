@@ -112,6 +112,8 @@ export interface DebFluxes {
   toStructure: number;
   fromStructure: number;
   burned: DebBurned;
+  /** Maintenance due over the hour, somatic and maturity: what a shortfall is a share of. */
+  owed: number;
   /** Maintenance its own share of the mobilisation could not pay: somatic from κ, maturity from 1 − κ. */
   shortfall: number;
 }
@@ -119,15 +121,6 @@ export interface DebFluxes {
 export interface DebStep {
   state: DebState;
   fluxes: DebFluxes;
-}
-
-/** Maintenance owed over the hour, somatic and maturity: what a shortfall is a share of. */
-export function upkeep(
-  state: DebState,
-  p: DebParams,
-  { tau, stress = NO_STRESS }: Pick<DebHour, 'tau' | 'stress'>
-): number {
-  return (p.pM * stress.maintenance * state.structure + p.kJ * state.maturity) * tau;
 }
 
 export const totalBurned = ({ burned }: DebFluxes): number => sum(Object.values(burned));
@@ -215,6 +208,7 @@ export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
         starvation: somaFromSurplus + somaFromBuffer + maturityFromBuffer + fromStructure,
         healing: healed,
       },
+      owed: somaticUpkeep + maturityUpkeep,
       shortfall: somaticUnpaid + maturityDue,
     },
   };

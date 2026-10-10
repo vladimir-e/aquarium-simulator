@@ -1,8 +1,8 @@
 /**
  * The fish's clutches and broods — the ACTIVE-tier step after
  * `processLivestock` (see `tick.ts`): the clutches standing live their hour
- * and hatch, the females whose buffers ready an egg spawn, and every male
- * resorbs a share of the buffer he has not spent fathering. It mutates
+ * and hatch, the females whose buffers ready a bout spawn, and every male
+ * turns over a share of the buffer he has not spent fathering. It mutates
  * `state.fish` and `state.clutches` directly because it *adds* organisms,
  * which the effect system can't express; what eggs and broods burn and leave
  * goes out as effects.
@@ -15,7 +15,7 @@ import { debParams, FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import type { TunableConfig } from '../config/index.js';
 import { createLog } from '../core/logging.js';
-import { arrheniusFactor, hourlyDraw } from '../core/kinetics.js';
+import { hourlyDraw } from '../core/kinetics.js';
 import { drawId } from '../core/rng.js';
 import { sum } from '../core/sum.js';
 import { hatchling, organics } from '../systems/deb.js';
@@ -44,9 +44,10 @@ export function processBodies(state: SimulationState, config: TunableConfig): Bo
   let waste = 0;
   let burned = 0;
   const newState = produce(state, (draft) => {
-    const clutches = tendClutches(draft, livestock, tankPaces(draft, config));
+    const paces = tankPaces(draft, config);
+    const clutches = tendClutches(draft, livestock, paces);
     waste = clutches.waste;
-    burned = clutches.burned + layBroods(draft) + resorbMales(draft, livestock);
+    burned = clutches.burned + layBroods(draft) + turnOverMaleBuffers(draft.fish, paces, livestock);
   });
 
   const effects: Effect[] = burnEffects(
@@ -160,16 +161,19 @@ function layBroods(draft: SimulationState): number {
   return burned;
 }
 
-/** Every male resorbs a share of his buffer at `maleBufferTurnover`, paced by τ; the grams burned. */
-function resorbMales(draft: SimulationState, config: LivestockConfig): number {
+/**
+ * Every male the hour found, `paces` theirs, burns a share of his buffer at
+ * `maleBufferTurnover` × τ; a male hatched this hour has none. The grams burned.
+ */
+function turnOverMaleBuffers(fish: Fish[], paces: readonly Pace[], config: LivestockConfig): number {
   let burned = 0;
-  for (const fish of draft.fish) {
-    if (fish.sex !== 'male') continue;
-    const tau = arrheniusFactor(draft.resources.temperature, debParams(fish.species).TA);
-    const resorbed = fish.deb.broodBuffer * hourlyDraw(config.maleBufferTurnover * tau);
-    fish.deb.broodBuffer -= resorbed;
-    burned += resorbed;
-  }
+  paces.forEach((pace, i) => {
+    const male = fish[i];
+    if (male.sex !== 'male') return;
+    const turned = male.deb.broodBuffer * hourlyDraw(config.maleBufferTurnover * pace.tau);
+    male.deb.broodBuffer -= turned;
+    burned += turned;
+  });
   return burned;
 }
 

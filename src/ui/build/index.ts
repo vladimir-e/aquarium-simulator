@@ -58,6 +58,7 @@ export {
   FISH_SPECIES,
   PLANT_SPECIES,
   pickerOptions,
+  stockingSize,
 } from './picker.js';
 export {
   HARDSCAPE_TYPES,

@@ -16,10 +16,11 @@ import {
 } from './equipment/substrate.js';
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
-import { burn } from './systems/metabolism.js';
-import { upkeep } from './systems/deb.js';
+import { gillAmmonia } from './systems/metabolism.js';
+import { stepDeb } from './systems/deb.js';
+import { ration } from './systems/digestion.js';
 import { fishParams } from './systems/fish-body.js';
-import { arrheniusFactor } from './core/kinetics.js';
+import { speciesTau } from './livestock/species.js';
 import { sum } from './core/sum.js';
 import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
@@ -140,11 +141,11 @@ type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
 function restingAmmoniaSupply(state: StockedTank): number {
   const { temperature } = state.resources;
   const resting = state.fish.map((fish) => {
-    const p = fishParams(fish);
-    const upkept = upkeep(fish.deb, p, { tau: arrheniusFactor(temperature, p.TA) });
-    return { upkept, feces: (upkept * (1 - p.kappaX)) / p.kappaX };
+    const pace = { tau: speciesTau(fish.species, temperature), omega: 1 };
+    const { owed } = stepDeb(fish.deb, fishParams(fish), { fromGut: 0, ...pace }).fluxes;
+    return { owed, feces: ration(fish, owed) - owed };
   });
-  const gills = burn(sum(resting.map((fish) => fish.upkept)), livestockDefaults).ammonia;
+  const gills = gillAmmonia(sum(resting.map((fish) => fish.owed)), livestockDefaults);
   const feces = sum(resting.map((fish) => fish.feces));
   const leached = calculateSubstrateLeach(state.equipment.substrate.organicReserve, decayDefaults);
   return gills + (feces + leached) * ammoniaPerGramOfFood(livestockDefaults);
@@ -319,7 +320,6 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
         stockFish({
           species: group.species,
           size: group.size ?? STOCKED_FISH_SIZE,
-          temperature: state.resources.temperature,
           sex: group.sex,
           rng: state.rng,
         })

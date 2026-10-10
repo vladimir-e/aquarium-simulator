@@ -1,5 +1,6 @@
 import type { Fish } from '../state.js';
 import { STOCKED_FISH_SIZE, stockedBody } from '../livestock/create-fish.js';
+import { debParams } from '../livestock/species.js';
 
 /**
  * A fish record as a test names it: a neon male from the shop at the stocking size, fasting at full health and never
@@ -7,7 +8,6 @@ import { STOCKED_FISH_SIZE, stockedBody } from '../livestock/create-fish.js';
  */
 export function fishRecord({ size = STOCKED_FISH_SIZE, ...fields }: Partial<Fish> & { size?: number } = {}): Fish {
   const species = fields.species ?? 'neon_tetra';
-  const body = stockedBody(species, size, 20);
   return {
     id: 'fish_1',
     species,
@@ -16,7 +16,13 @@ export function fishRecord({ size = STOCKED_FISH_SIZE, ...fields }: Partial<Fish
     sex: 'male',
     hardinessOffset: 0,
     survivalDraw: 0,
-    ...body,
+    ...stockedBody(species, size),
     ...fields,
   };
+}
+
+/** The fish with a brood buffer holding `eggs` of its species' eggs, at the cost a female lays them. */
+export function holdingEggs<F extends Pick<Fish, 'species' | 'deb'>>(fish: F, eggs: number): F {
+  const p = debParams(fish.species);
+  return { ...fish, deb: { ...fish.deb, broodBuffer: (eggs * p.E0) / p.kappaR } };
 }

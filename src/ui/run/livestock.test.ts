@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import type { Clutch, Fish, FishHour, SimulationState } from '../../simulation/index.js';
-import { createSimulation, FISH_SPECIES_DATA, fishMass, tick } from '../../simulation/index.js';
+import { createSimulation, FISH_SPECIES_DATA, fishMass, MAX_STOCKED_SIZE, tick } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import {
+  fishNumbers,
+  fishTitle,
   groupBySpecies,
   gutBand,
   gutStatus,
@@ -47,9 +49,8 @@ describe('gutStatus', () => {
 });
 
 describe('gutBand', () => {
-  const hour = (shortfall: number, upkeep = 1): Pick<FishHour, 'fluxes' | 'upkeep'> => ({
-    upkeep,
-    fluxes: { shortfall } as FishHour['fluxes'],
+  const hour = (shortfall: number, owed = 1): Pick<FishHour, 'fluxes'> => ({
+    fluxes: { shortfall, owed } as FishHour['fluxes'],
   });
   const full = fishRecord();
 
@@ -70,7 +71,30 @@ describe('gutBand', () => {
   });
 });
 
+describe('a fish’s name', () => {
+  it('names an adult by its species, a juvenile and a fry by their stage too, numbered in the row each sits in', () => {
+    const fish = [
+      makeFish({ id: 'adult', species: 'angelfish', size: MAX_STOCKED_SIZE }),
+      makeFish({ id: 'juvenile', species: 'angelfish' }),
+      makeFish({ id: 'fry', species: 'angelfish', size: 20 }),
+    ];
+    const numbers = fishNumbers(fish);
+    expect(fish.map((f) => fishTitle(f, numbers.get(f.id)!))).toEqual([
+      'Angelfish #1',
+      'Angelfish juvenile #2',
+      'Angelfish fry #1',
+    ]);
+  });
+});
+
 describe('groupBySpecies', () => {
+  it('folds juveniles in with the adults of their species', () => {
+    const fish = [makeFish({ id: 'a', species: 'angelfish', size: MAX_STOCKED_SIZE }), makeFish({ id: 'j', species: 'angelfish' })];
+    const [angel] = species(tank(fish));
+    expect(angel.members.map((member) => member.id)).toEqual(['a', 'j']);
+    expect(fry(tank(fish))).toBeNull();
+  });
+
   it('folds adults into per-species rows and excludes fry', () => {
     const fish = [
       makeFish({ id: 'n1', species: 'neon_tetra', gut: 0.8 * FED }),

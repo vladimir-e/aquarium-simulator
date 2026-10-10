@@ -222,7 +222,7 @@ function birth(e: Rates & Pick<Primaries, 'E_Hb'>): { L_b: number; E_0: number }
 }
 
 /** Days from laying to birth at T_ref, as AmP's get_tb integrates them along u, on the embryo's unaccelerated rates. */
-export function hatchAge(e: AmpReading): number {
+export function incubationDays(e: AmpReading): number {
   const { g, ub, length } = embryo({ ...e, p_Am: e.p_Am / e.s_M, v: e.v / e.s_M });
   const [scaledAge] = integrate((u) => [(3 * length(u)) / (g * (1 - u ** 3))], [0], ub, 200);
   return (scaledAge * e.E_G) / e.p_M;

@@ -1,24 +1,31 @@
 /**
- * Broods from the brood buffer. A female spawns once a whole egg is ready, a
- * livebearer only while she carries no brood; she draws every egg her buffer
- * readies. The males of her species father up to what their own buffers pay
- * at their species' share of an egg's cost; fathered eggs become her clutch,
- * the rest she resorbs, and resorbed eggs and every overhead are burned.
+ * Broods from the brood buffer, in bouts. An egg-layer spawns once her buffer
+ * holds a clutch; a livebearer once it holds a whole egg, and only while she
+ * carries no brood. She draws every egg her buffer readies. The males of her
+ * species father up to what their own buffers pay at their species' share of
+ * an egg's cost; fathered eggs become her clutch, the rest she resorbs, and
+ * resorbed eggs and every overhead are burned.
  */
 
 import type { Clutch, Fish } from '../state.js';
-import { FISH_SPECIES_DATA } from '../livestock/species.js';
+import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { sum } from '../core/sum.js';
 import { drawBroodBuffer, eggsReady, layEggs, type DebState } from './deb.js';
 import { fishParams } from './fish-body.js';
 
 type Parent = Pick<Fish, 'id' | 'species' | 'sex' | 'deb'>;
 
-/** Whether a female spawns this hour: a whole egg ready, and no brood of hers carried. */
+/** Eggs ready at which a female spawns: an egg-layer's clutch, a livebearer's first whole egg. */
+export function spawnsAt(species: FishSpecies): number {
+  const { breeding } = FISH_SPECIES_DATA[species];
+  return breeding.mode === 'livebearer' ? 1 : breeding.clutchSize;
+}
+
+/** Whether a female spawns this hour: her bout ready, and no brood of hers carried. */
 export function readyToBrood(fish: Parent, clutches: readonly Pick<Clutch, 'motherId'>[]): boolean {
   return (
     fish.sex === 'female' &&
-    eggsReady(fish.deb, fishParams(fish)) >= 1 &&
+    eggsReady(fish.deb, fishParams(fish)) >= spawnsAt(fish.species) &&
     !clutches.some((clutch) => clutch.motherId === fish.id)
   );
 }

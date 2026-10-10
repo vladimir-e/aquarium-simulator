@@ -118,12 +118,10 @@ describe('activeNeeds', () => {
       draft.resources.ammonia = 10 * draft.resources.water;
     });
 
-    expect(needs(state)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: 'fishSick', verb: 'Inspect', figure: '2 of 3', to: `/life?inspect=${state.fish[1].id}` }),
-        expect.objectContaining({ id: 'fishStarving', act: 'feed', figure: '1 of 3' }),
-      ])
-    );
+    expect(needs(state)).toMatchObject([
+      { id: 'fishStarving', tone: 'alert', act: 'feed', figure: '1 of 3' },
+      { id: 'fishSick', tone: 'warn', verb: 'Inspect', figure: '2 of 3', to: `/life?inspect=${state.fish[1].id}` },
+    ]);
   });
 
   it('sends each need to the section that answers it, in its worst tone', () => {

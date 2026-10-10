@@ -1,9 +1,10 @@
 import type { DebParams } from '../systems/deb.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
+import { arrheniusFactor } from '../core/kinetics.js';
 import {
   fromAmP,
-  hatchAge,
   impliedFigures,
+  incubationDays,
   proxyEntry,
   readEntry,
   readShaped,
@@ -33,8 +34,8 @@ export type FishSpecies =
  */
 export type FishSex = 'male' | 'female';
 
-/** Whether a fish has reached puberty, as the keeper words it. */
-export type FishLifeStage = 'fry' | 'adult';
+/** How far a fish has grown, as the keeper words it: fry while small, juvenile until puberty, adult from it. */
+export type FishLifeStage = 'fry' | 'juvenile' | 'adult';
 
 /** How a species reproduces: a livebearer carries its clutch, every other mode lays it. */
 export type BreedingMode =
@@ -45,13 +46,19 @@ export type BreedingMode =
   | 'bubble-nester';
 
 /** How a species breeds; what an egg costs and how long it takes come from its energy budget. */
-export interface FishBreedingData {
-  mode: BreedingMode;
+export type FishBreedingData = {
   /** Share of the tank's egg predation that reaches its clutch: 1 left in the open, 0 carried. */
   clutchExposure: number;
   /** The male's share of an egg's cost, paid from his own brood buffer for every egg he fathers. */
   maleShare: number;
-}
+} & (
+  | { mode: 'livebearer' }
+  | {
+      mode: Exclude<BreedingMode, 'livebearer'>;
+      /** Eggs a spawning bout lays: the hobby figure. */
+      clutchSize: number;
+    }
+);
 
 /**
  * Where a species' energy budget comes from: its Add-my-Pet entry used as it stands, a hobby adult length setting its
@@ -94,12 +101,12 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     phRange: [5.0, 7.8],
     ghRange: [1, 12],
     maxTurnover: 10, // Slow tributaries, but fine on a community canister
-    // Egg-scatterer: sheds adhesive eggs over plants and leaves them to be
-    // eaten.
+    // Egg-scatterer: sheds adhesive eggs over plants and leaves them to be eaten.
     breeding: {
       mode: 'egg-scatterer',
       clutchExposure: 1,
       maleShare: 0.2,
+      clutchSize: 80,
     },
     budget: { kind: 'entry', entry: Paracheirodon_innesi },
   },
@@ -116,6 +123,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       mode: 'bubble-nester',
       clutchExposure: 0.3,
       maleShare: 0.6,
+      clutchSize: 150,
     },
     // The entry predicts a 147 g adult against the 4.7 g it was given, so
     // its rates carry a body sized by the keeper.
@@ -148,12 +156,12 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     phRange: [6.0, 8.0],
     ghRange: [3, 15],
     maxTurnover: 10, // Tall body catches current, but its canonical home is a big canister tank
-    // Substrate-spawner: a pair cleans a leaf and fans and guards the eggs
-    // together.
+    // Substrate-spawner: a pair cleans a leaf and fans and guards the eggs together.
     breeding: {
       mode: 'substrate-spawner',
       clutchExposure: 0.5,
       maleShare: 0.5,
+      clutchSize: 300,
     },
     // The entry was fitted without length data; its own shape makes a 35 cm fish.
     budget: { kind: 'entry', entry: Pterophyllum_scalare, shape: { adultLengthCm: 15 } },
@@ -170,6 +178,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       mode: 'egg-depositor',
       clutchExposure: 1,
       maleShare: 0.2,
+      clutchSize: 20,
     },
     budget: { kind: 'entry', entry: Corydoras_aeneus },
   },
@@ -188,11 +197,16 @@ interface SpeciesReading {
   incubationDays: number;
 }
 
+/** °C at the middle of the species' preferred range: where its hobby figures are read and its shop raises it. */
+export function midRangeTemperature(species: FishSpecies): number {
+  const [low, high] = FISH_SPECIES_DATA[species].temperatureRange;
+  return (low + high) / 2;
+}
+
 function readSpecies(species: FishSpecies): SpeciesReading {
-  const { budget, temperatureRange: [low, high] } = FISH_SPECIES_DATA[species];
-  const midRange = (low + high) / 2;
-  const reading = readBudget(budget, midRange);
-  return { deb: fromAmP(reading), female: impliedFigures(reading, midRange), incubationDays: hatchAge(reading) };
+  const midRange = midRangeTemperature(species);
+  const reading = readBudget(FISH_SPECIES_DATA[species].budget, midRange);
+  return { deb: fromAmP(reading), female: impliedFigures(reading, midRange), incubationDays: incubationDays(reading) };
 }
 
 const readings: Partial<Record<FishSpecies, SpeciesReading>> = {};
@@ -200,6 +214,10 @@ const readings: Partial<Record<FishSpecies, SpeciesReading>> = {};
 const readingOf = (species: FishSpecies): SpeciesReading => (readings[species] ??= readSpecies(species));
 
 export const debParams = (species: FishSpecies): Readonly<DebParams> => readingOf(species).deb;
+
+/** τ: the pace water at `temperatureC` sets every rate of the species' budget at, 1 at 20 °C. */
+export const speciesTau = (species: FishSpecies, temperatureC: number): number =>
+  arrheniusFactor(temperatureC, debParams(species).TA);
 
 /** Grams a female weighs grown on unlimited food. */
 export const grownMass = (species: FishSpecies): number => readingOf(species).female.adultMassGrams;

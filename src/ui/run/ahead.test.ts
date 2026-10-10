@@ -15,16 +15,15 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { settleEnvironment } from '../../simulation/tick.js';
-import { debParams } from '../../simulation/livestock/species.js';
+import { spawnsAt } from '../../simulation/systems/brood.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { holdingEggs } from '../../simulation/tests/fish.js';
 import { readHourAhead } from './ahead.js';
 
 const config = DEFAULT_CONFIG;
 
-/** A fish whose brood buffer readies `eggs` of its own eggs. */
 function ripe(fish: Fish, eggs: number): void {
-  const p = debParams(fish.species);
-  fish.deb.broodBuffer = (eggs * p.E0) / p.kappaR;
+  fish.deb = holdingEggs(fish, eggs).deb;
 }
 
 /**
@@ -48,7 +47,7 @@ function recovering(): SimulationState {
     Object.assign(draft.plants[0], { condition: 100, surplus: config.plants.surplusCap });
     for (const fish of draft.fish) fish.health = 70;
     Object.assign(draft.fish[0], { sex: 'female', health: 100 });
-    ripe(draft.fish[0], 0.9);
+    ripe(draft.fish[0], spawnsAt('neon_tetra') - 0.1);
     draft.fish[1].sex = 'male';
     ripe(draft.fish[1], 20);
     for (const kind of ALGAE_KINDS) draft.algae[kind].mass = 20;
@@ -143,7 +142,8 @@ describe('readHourAhead', () => {
       expect(ahead.fish.map((fish) => fish.vitality.newCondition)).toEqual(
         after.map((fish) => fish.health)
       );
-      expect(ahead.fish.map(({ hour }) => hour.fish.age)).toEqual(after.map((fish) => fish.age));
+      expect(ahead.fish.map(({ hour }) => hour.fish.deb.structure)).toEqual(after.map((fish) => fish.deb.structure));
+      expect(ahead.fish.map(({ hour }) => hour.fish.deb.reserve)).toEqual(after.map((fish) => fish.deb.reserve));
     }
   });
 

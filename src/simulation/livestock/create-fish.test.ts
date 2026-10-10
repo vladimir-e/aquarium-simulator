@@ -5,67 +5,61 @@ import {
   hatchFish,
   isStockableSize,
   MAX_STOCKED_SIZE,
+  raise,
   stockedBody,
   stockFish,
 } from './create-fish.js';
 import { createRng, draw } from '../core/rng.js';
-import { debParams, FISH_SPECIES_DATA, type FishSpecies } from './species.js';
-import { arrheniusFactor } from '../core/kinetics.js';
-import { assimilationCeiling, hatchling, maxReserveDensity, mature, size, stepDeb } from '../systems/deb.js';
+import { debParams, FISH_SPECIES_DATA, midRangeTemperature, type FishSpecies } from './species.js';
+import { hatchling, mature, size, wellFed } from '../systems/deb.js';
 import { frySize } from '../systems/fish-body.js';
 
 const SPECIES = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
 const stock = (o: Partial<Parameters<typeof stockFish>[0]> = {}): ReturnType<typeof stockFish> =>
-  stockFish({ species: 'guppy', size: 60, temperature: 25, rng: createRng(1), ...o });
+  stockFish({ species: 'guppy', size: 60, rng: createRng(1), ...o });
 
-describe('a stocked fish', () => {
-  it.each(SPECIES)('arrives as a %s the shop raised to its size, a full reserve and no brood', (species) => {
+describe('a fish raised in the shop', () => {
+  it.each(SPECIES)('arrives as a %s at the size named, on a full reserve and with no brood', (species) => {
     const p = debParams(species);
-    for (const target of [frySize(species) + 1, 40, MAX_STOCKED_SIZE]) {
-      const { deb } = stockedBody(species, target, 25);
+    for (const target of [frySize(species), frySize(species) + 1, 40, MAX_STOCKED_SIZE]) {
+      const { deb } = stockedBody(species, target);
       expect(size(deb, p)).toBeGreaterThanOrEqual(target);
-      expect(deb.reserve / (maxReserveDensity(p) * deb.structure)).toBeGreaterThan(0.99);
+      expect(size(deb, p) - target).toBeLessThan(0.1);
+      expect(wellFed(deb, p)).toBeGreaterThan(0.99);
       expect(deb.broodBuffer).toBe(0);
     }
   });
 
-  it('is the hour the shop’s feast first reaches its size', () => {
-    const p = debParams('neon_tetra');
-    const { deb, age, survival } = stockedBody('neon_tetra', 55, 20);
-    let [state, hours, alive] = [hatchling(p), 0, 1];
-    while (size(state, p) < 55) {
-      const fromGut = assimilationCeiling(state, p, { tau: 1, omega: 1 }) / p.kappaX;
-      alive *= Math.exp(-state.hazard);
-      state = { ...stepDeb(state, p, { fromGut, tau: 1, omega: 1 }).state, broodBuffer: 0 };
-      hours++;
+  it.each(SPECIES)('arrives as a %s larger, older and worn further the larger it is named', (species) => {
+    const bodies = [frySize(species) + 1, 30, 55, 80, MAX_STOCKED_SIZE].map((target) => stockedBody(species, target));
+    for (let i = 1; i < bodies.length; i++) {
+      expect(bodies[i].deb.structure).toBeGreaterThan(bodies[i - 1].deb.structure);
+      expect(bodies[i].age).toBeGreaterThan(bodies[i - 1].age);
+      expect(bodies[i].survival).toBeLessThan(bodies[i - 1].survival);
     }
-    expect(deb).toEqual(state);
-    expect(age).toBe(hours);
-    expect(survival).toBe(alive);
   });
 
-  it('grew on the same path warm, only sooner, wearing at τ² and hazarded at τ', () => {
-    const p = debParams('guppy');
-    const cool = stockedBody('guppy', 60, 20);
-    const warm = stockedBody('guppy', 60, 28);
-    const tau = arrheniusFactor(28, p.TA);
-    expect(warm.deb.structure).toBe(cool.deb.structure);
-    expect(warm.deb.maturity).toBe(cool.deb.maturity);
-    expect(warm.deb.wearLoad).toBeCloseTo(cool.deb.wearLoad * tau * tau, 20);
-    expect(warm.deb.hazard).toBeCloseTo(cool.deb.hazard * tau, 20);
-    expect(warm.age).toBe(Math.round(cool.age / tau));
-    expect(warm.survival).toBe(cool.survival);
+  it.each(SPECIES)('reaches a %s’s size younger raised warmer', (species) => {
+    const p = debParams(species);
+    const [cool, warm] = [22, 28].map((temperature) => raise(species, 60, temperature));
+    expect(size(warm.deb, p)).toBeCloseTo(size(cool.deb, p), 1);
+    expect(warm.hours).toBeLessThan(cool.hours);
+  });
+
+  it('is the one raised at its species’ mid-range temperature, whatever tank buys it', () => {
+    const raised = raise('neon_tetra', 55, midRangeTemperature('neon_tetra'));
+    expect(stockedBody('neon_tetra', 55)).toEqual({ deb: raised.deb, survival: raised.survival, age: raised.hours });
   });
 
   it('is grown past puberty at the stocking size for a fast grower, short of it for a slow one', () => {
-    expect(mature(stockedBody('guppy', 80, 25).deb, debParams('guppy'))).toBe(true);
-    expect(mature(stockedBody('angelfish', 80, 25).deb, debParams('angelfish'))).toBe(false);
+    expect(mature(stockedBody('guppy', 80).deb, debParams('guppy'))).toBe(true);
+    expect(mature(stockedBody('angelfish', 80).deb, debParams('angelfish'))).toBe(false);
   });
 
   it('draws its survival threshold under the survival it arrives with, so the shop’s dead are never sold', () => {
     const rng = createRng(5);
     for (let i = 0; i < 200; i++) {
-      const fish = stockFish({ species: 'guppy', size: MAX_STOCKED_SIZE, temperature: 25, rng });
+      const fish = stockFish({ species: 'guppy', size: MAX_STOCKED_SIZE, rng });
       expect(fish.survivalDraw).toBeLessThan(fish.survival);
       expect(fish.survivalDraw).toBeGreaterThanOrEqual(0);
     }
@@ -77,6 +71,13 @@ describe('a stocked fish', () => {
     expect(isStockableSize('guppy', MAX_STOCKED_SIZE)).toBe(true);
     expect(isStockableSize('guppy', 100)).toBe(false);
     expect(isStockableSize('guppy', NaN)).toBe(false);
+  });
+
+  it('is never raised to a size no fish is stocked at', () => {
+    for (const target of [NaN, frySize('guppy') - 0.01, MAX_STOCKED_SIZE + 0.01, 100]) {
+      expect(() => stockedBody('guppy', target)).toThrow(RangeError);
+      expect(() => raise('guppy', target, 25)).toThrow(RangeError);
+    }
   });
 });
 

@@ -5,9 +5,9 @@
 
 import type { Clutch, Fish, Resources } from '../state.js';
 import type { FishSpecies } from '../livestock/species.js';
-import { debParams, FISH_SPECIES_DATA, incubation } from '../livestock/species.js';
+import { FISH_SPECIES_DATA, incubation, speciesTau } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
-import { arrheniusFactor, hourlyDraw } from '../core/kinetics.js';
+import { hourlyDraw } from '../core/kinetics.js';
 import { sum } from '../core/sum.js';
 import { waterStressors } from './fish-health.js';
 import { eggMass, eggOrganics } from './fish-body.js';
@@ -66,7 +66,7 @@ export function eggPredationRate(
 
 /** Development a clutch gains an hour in water this warm: its species' incubation paced by τ. */
 export function developmentRate(species: FishSpecies, temperature: number): number {
-  return arrheniusFactor(temperature, debParams(species).TA) / incubation(species);
+  return speciesTau(species, temperature) / incubation(species);
 }
 
 export interface ClutchHour {

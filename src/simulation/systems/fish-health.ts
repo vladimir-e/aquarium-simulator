@@ -33,6 +33,7 @@ import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { shareOut, swallow, type Pace } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import { sum } from '../core/sum.js';
+import { hourlyDraw } from '../core/kinetics.js';
 import { wellFed } from './deb.js';
 import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
 import type { FishHour } from './metabolism.js';
@@ -57,7 +58,7 @@ import {
 
 export type FishBreakdown = Omit<VitalityBreakdown, 'banked'>;
 
-/** One hour of a fish's health, `healed` the points its reserve repaired. */
+/** One hour of a fish's health; its breakdown's `healed` is the points its reserve repaired. */
 export interface FishVitality {
   newCondition: number;
   breakdown: FishBreakdown;
@@ -197,8 +198,8 @@ export function predationStress(
 }
 
 /** Share of its upkeep the hour's budget left unpaid. */
-export function starvation(hour: Pick<FishHour, 'fluxes' | 'upkeep'>): number {
-  return hour.upkeep > 0 ? hour.fluxes.shortfall / hour.upkeep : 0;
+export function starvation({ fluxes }: Pick<FishHour, 'fluxes'>): number {
+  return fluxes.owed > 0 ? fluxes.shortfall / fluxes.owed : 0;
 }
 
 /** Grams of reserve one point of repair costs: `healingCost` hours of its somatic upkeep at 20 °C. */
@@ -206,9 +207,9 @@ export function healingPrice(fish: Pick<Fish, 'species' | 'deb'>, config: Livest
   return config.healingCost * fishParams(fish).pM * fish.deb.structure;
 }
 
-/** Grams of reserve a fish asks to repair this hour: `healingRate` of its deficit at its pace τ. */
+/** Grams of reserve a fish asks to repair this hour: its deficit closing first order at `healingRate` × τ. */
 export function healingAsked(fish: Pick<Fish, 'species' | 'deb' | 'health'>, pace: Pace, config: LivestockConfig): number {
-  return healingPrice(fish, config) * config.healingRate * pace.tau * Math.max(0, 100 - fish.health);
+  return healingPrice(fish, config) * hourlyDraw(config.healingRate * pace.tau) * Math.max(0, 100 - fish.health);
 }
 
 /**

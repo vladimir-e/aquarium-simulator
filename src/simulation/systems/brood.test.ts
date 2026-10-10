@@ -1,25 +1,30 @@
 import { describe, it, expect } from 'vitest';
-import { brood, offspringFathered, paysTowardBrood, readyToBrood } from './brood.js';
+import { brood, offspringFathered, paysTowardBrood, readyToBrood, spawnsAt } from './brood.js';
 import { eggsReady, organics } from './deb.js';
 import { debParams, FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import type { Fish } from '../state.js';
-import { fishRecord } from '../tests/fish.js';
+import { sum } from '../core/sum.js';
+import { fishRecord, holdingEggs } from '../tests/fish.js';
 
 const SPECIES = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
 
-/** A grown fish whose buffer holds `eggs` eggs' worth, at its own cost. */
+/** A grown fish whose buffer holds `eggs` eggs. */
 function parent(species: FishSpecies, sex: Fish['sex'], eggs: number, id = `${sex}-${eggs}`): Fish {
-  const p = debParams(species);
-  const fish = fishRecord({ id, species, sex });
-  return { ...fish, deb: { ...fish.deb, broodBuffer: (eggs * p.E0) / p.kappaR } };
+  return holdingEggs(fishRecord({ id, species, sex }), eggs);
 }
 
-const sum = (xs: readonly number[]): number => xs.reduce((a, b) => a + b, 0);
-
 describe('readyToBrood', () => {
-  it('readies a female once her buffer readies a whole egg', () => {
-    expect(readyToBrood(parent('neon_tetra', 'female', 1.01), [])).toBe(true);
-    expect(readyToBrood(parent('neon_tetra', 'female', 0.99), [])).toBe(false);
+  it.each(SPECIES)('readies a %s female once her buffer holds her bout, and not an egg short of it', (species) => {
+    const bout = spawnsAt(species);
+    expect(readyToBrood(parent(species, 'female', bout + 0.01), [])).toBe(true);
+    expect(readyToBrood(parent(species, 'female', bout - 0.01), [])).toBe(false);
+  });
+
+  it('spawns an egg-layer in her species’ clutches, a livebearer on her first whole egg', () => {
+    for (const species of SPECIES) {
+      const { breeding } = FISH_SPECIES_DATA[species];
+      expect(spawnsAt(species)).toBe(breeding.mode === 'livebearer' ? 1 : breeding.clutchSize);
+    }
   });
 
   it('never readies a male, nor a female carrying a brood', () => {

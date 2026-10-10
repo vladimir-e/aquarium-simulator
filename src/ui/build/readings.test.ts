@@ -839,7 +839,7 @@ describe('deviceHint', () => {
     const multiple = cold.equipment.autoFeeder.amount / need;
 
     expect(need).toBeLessThan(readHourAhead(warm, DEFAULT_CONFIG).ration);
-    expect(hint('autoFeeder', cold)?.text).toContain(`is ${multiple.toFixed(1)}× what the fish need`);
+    expect(hint('autoFeeder', cold)?.text).toContain(`is ${multiple.toFixed(1)}× what pays the fish's upkeep`);
   });
 
   it('tells a roster that cannot digest for want of oxygen from an empty one', () => {

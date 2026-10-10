@@ -118,8 +118,9 @@ export interface IndividualRosterRow extends Vital {
 }
 
 /**
- * Every fry in the tank in one row: stock it carries, not yet fish that breed,
- * and — because the sell action takes no batch — one row to sell them from.
+ * Every fry in the tank in one row: stock it carries, counted apart from the
+ * fish grown past them, and — because the sell action takes no batch — one row
+ * to sell them from.
  */
 export interface FryRosterRow extends Vital {
   kind: 'fry';

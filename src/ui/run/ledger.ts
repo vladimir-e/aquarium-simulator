@@ -1,7 +1,7 @@
 /**
  * Why one organism is where it is: the engine's own factor lists, split into
- * what helps and what hurts, with the bank standing between the two and the
- * condition they add up to. Nothing is named here that the vitality pass did
+ * what helps and what hurts, with its store standing between the two — a
+ * fish's reserve, a plant's or a bloom's bank — and the condition they add up to. Nothing is named here that the vitality pass did
  * not already charge — a factor the reader sees is a factor the tick applied.
  */
 
@@ -59,8 +59,9 @@ export interface LedgerFactor {
   perDay: number;
 }
 
-/** Banked income, standing between what helps and what hurts. */
+/** The organism's store, standing between what helps and what hurts: a fish's reserve, a plant's or a bloom's bank. */
 export interface LedgerBank {
+  label: string;
   text: string;
   unit: string;
   /** Its share of the cap. */
@@ -269,8 +270,9 @@ function fishLedger(
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
     bank: {
+      label: 'Reserve',
       text: String(sharePercent(reserve)),
-      unit: '% reserve',
+      unit: '% full',
       at: reserve,
       note: reserveNote(fish, hour, breakdown.healed, broods),
     },
@@ -339,6 +341,7 @@ function plantLedger(
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
     bank: {
+      label: 'Bank',
       text: String(sharePercent(bankShare(plant.surplus, cap))),
       unit: '% to offshoot',
       ...bankOf(
@@ -421,6 +424,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
     bank: {
+      label: 'Bank',
       text: surplus.toFixed(BANK_DECIMALS),
       unit: `of ${cap}`,
       ...bankOf({ now: surplus, next: next.surplus, cap, covered: breakdown.healed, spent: next.spent }, 'buying growth'),

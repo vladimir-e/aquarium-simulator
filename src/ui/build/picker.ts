@@ -9,10 +9,12 @@ import {
   checkFishCapacity,
   checkPlantFootprint,
   FISH_SPECIES_DATA,
+  frySize,
   getDgh,
   getMaxFishMass,
   getPh,
   grownMass,
+  MAX_STOCKED_SIZE,
   PLANT_SPECIES_DATA,
   STOCKED_FISH_SIZE,
   stockedMass,
@@ -55,6 +57,11 @@ export interface PickerOption {
 }
 
 export const FISH_SPECIES: FishSpecies[] = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
+
+/** The keeper's size for a species, held from its hatchling's, rounded up to a whole percent, to what a shop sells. */
+export function stockingSize(species: FishSpecies, size: number): number {
+  return Math.min(MAX_STOCKED_SIZE, Math.max(Math.ceil(frySize(species)), size));
+}
 export const PLANT_SPECIES: PlantSpecies[] = Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[];
 
 /** Where the tank sits outside a band the species is stressed beyond, and by how many band-widths. */
@@ -106,9 +113,10 @@ function misses(state: SimulationState, data: FishSpeciesData, units: UnitSystem
 function fishOption(
   state: SimulationState,
   species: FishSpecies,
-  { count, size }: FishOrder,
+  { count, size: asked }: FishOrder,
   units: UnitSystem
 ): PickerOption {
+  const size = stockingSize(species, asked);
   const data = FISH_SPECIES_DATA[species];
   const [phLow, phHigh] = data.phRange;
   const [ghLow, ghHigh] = data.ghRange;

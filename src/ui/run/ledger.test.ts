@@ -16,8 +16,8 @@ import { LEDGER_DECIMALS, readLedger, type Ledger, type LedgerTarget } from './l
 import { FED, atReserve, starving } from '../test/gut';
 import { printsAsZero, projectedTrend } from './status.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
-import { fishRecord } from '../../simulation/tests/fish.js';
-import { debParams } from '../../simulation/livestock/species.js';
+import { fishRecord, holdingEggs } from '../../simulation/tests/fish.js';
+import { spawnsAt } from '../../simulation/systems/brood.js';
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
   return fishRecord({ age: 24 * 120, gut: FED, ...overrides });
@@ -80,9 +80,8 @@ describe('readLedger', () => {
 
   it('reads a fish’s reserve where a plant’s bank stands: its density, in percent', () => {
     const ledger = fishLedger(tank([atReserve(makeFish({ id: 'fish_a_1' }), 0.8)]));
+    expect(ledger.bank).toMatchObject({ label: 'Reserve', text: '80', unit: '% full' });
     expect(ledger.bank!.at).toBeCloseTo(0.8, 12);
-    expect(ledger.bank!.text).toBe('80');
-    expect(ledger.bank!.unit).toBe('% reserve');
   });
 
   it('says what the reserve does over the hour: filling, drawing down, repairing, or short of upkeep', () => {
@@ -94,8 +93,7 @@ describe('readLedger', () => {
   });
 
   it('reads a spawning female’s reserve as spawning the hour she lays', () => {
-    const p = debParams('neon_tetra');
-    const ripe = (fish: Fish): Fish => ({ ...fish, deb: { ...fish.deb, broodBuffer: (20 * p.E0) / p.kappaR } });
+    const ripe = (fish: Fish): Fish => holdingEggs(fish, spawnsAt('neon_tetra') + 20);
     const pair = tank([
       ripe(makeFish({ id: 'fish_a_1', sex: 'female' })),
       ripe(makeFish({ id: 'fish_a_2', sex: 'male' })),
@@ -120,6 +118,7 @@ describe('readLedger', () => {
       ledgerOf(state, { kind: 'plant', id: state.plants[0].id })!;
 
     it('banks by day and buys growth out of the bank by night', () => {
+      expect(plantLedger(planted(10, 0)).bank!.label).toBe('Bank');
       expect(plantLedger(planted(10, 0)).bank!.note).toBe('banking');
       expect(plantLedger(planted(0)).bank!.note).toBe('buying growth');
     });
