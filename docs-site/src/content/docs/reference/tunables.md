@@ -8,7 +8,7 @@ that reads it. All of them live in `src/simulation/config/`, addressed as
 `section.key`.
 
 Every tunable declares its own metadata alongside its default — a label, a unit,
-a spinner step and, for everything but the derived nitrification rates, a
+a spinner step and, for everything but nine nitrogen-cycle leaves, a
 `min`/`max`. Two writers consult that range: the CLI refuses a `config set`
 outside it, and the tunables drawer holds its field to it. The save path does
 not — its bounds are hand-written per leaf and mostly assert shape rather than
