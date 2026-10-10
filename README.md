@@ -43,7 +43,7 @@ npm run ui
 
 ## Scenarios
 
-`npm run scenarios` runs six preset tanks headless on a keeper's schedule and
+`npm run scenarios` runs nine setup tanks headless on a keeper's schedule and
 grades each reading green, amber or red against what a real tank shows.
 
 ```bash

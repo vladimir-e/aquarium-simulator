@@ -14,7 +14,6 @@ This project follows documentation-driven development:
 1. **Start here:** Documentation lives in `docs-site/src/content/docs/` and is published at docs.fishroom.app — read the Overview for the architecture and how the pages are organised
 2. **Check what to trust:** Each subsystem page carries a Status table — settled vs scaffolding vs missing. Read it before building on, defending, or "fixing" that system
 3. **Check progress:** Read `CHANGELOG.md` to see what's implemented
-4. **Task briefs** come from the maintainer/orchestrator per task; `docs/tasks/` holds earlier briefs as historical reference only
 
 ## Principles
 
@@ -36,7 +35,7 @@ Designing a mechanic is choosing rates of benefit and harm. A new stock, clock o
 
 Build out mechanics first; tune last. The bar for a mechanic is that it works and moves the right stock in the right direction.
 
-Whole-tank behaviour is checked with `npm run scenarios` — every preset tank headless, each reading banded green/amber/red, replayable under a different keeper; flags and defaults live in `docs/cli.md`. Amber or red is a question to reason about. Never tune a constant during build-out just to turn a cell green, and never add complexity to hit a number.
+Whole-tank behaviour is checked with `npm run scenarios` — every setup tank headless, each reading banded green/amber/red, replayable under a different keeper; flags and defaults live in `docs/cli.md`. Amber or red is a question to reason about. Never tune a constant during build-out just to turn a cell green, and never add complexity to hit a number.
 
 **Fix the middle, not the ends.** When a number is off, or a mechanic seems to need bolting on downstream — a special rate, a patch, a cliff at a set age — look first at the transformation in between: how inputs become outputs. A downstream patch usually means that logic is missing a term or has the wrong shape, and the established science for that transformation usually has it. Fix the model; the patch dissolves.
 
@@ -58,14 +57,15 @@ Task briefs are provided by the maintainer or orchestrator per task — there's 
 3. Write tests for new formulas and invariants — no coverage target
 4. Run `npm run lint` and fix any issues
 5. Run all unit tests and build to validate your work
-6. Update the docs pages your change touched — a behaviour change rewrites the matching subsystem or concept page (`docs-site/`), kept short; quirks go in code comments
-7. Add an entry to `CHANGELOG.md`
-8. Commit with a short message and raise a PR
+6. Update the docs pages your change touched (`docs-site/`); quirks go in code comments
+7. Commit with a short message and raise a PR
+8. Add its entry to `CHANGELOG.md`, tagged with the PR number
 
 **Docs discipline:**
 
 - A page describes how the system works, in present tense, for a human reader — not a changelog, not a statement of intent
 - Tables over prose wherever the content is a set of values, statuses or seams
+- A page says what a mechanic does and why; formulas stay in code. A rewrite of an existing mechanic comes out no longer than the page went in.
 - Source pointers name directories only, never filenames or signatures
 - Docs change when behaviour changes, not when code gets refactored
 - Never mention downstream consumers of the engine
