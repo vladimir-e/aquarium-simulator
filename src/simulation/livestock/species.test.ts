@@ -7,12 +7,13 @@ import {
   incubation,
   lifespan,
   maturityAge,
+  midRangeTemperature,
+  speciesTau,
   type FishSpecies,
   type SpeciesBudget,
 } from './species.js';
 import { entryFitsItsData, type LifeHistory } from './amp.js';
 import { hatchling, maxStructuralLength, wetMass } from '../systems/deb.js';
-import { arrheniusFactor } from '../core/kinetics.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
 import {
   expectRelative,
@@ -39,7 +40,7 @@ const keeperFigures = (budget: SpeciesBudget): Partial<LifeHistory> =>
   budget.kind === 'proxy' ? budget.figures : (budget.shape ?? {});
 
 describe.each(roster)('%s on its energy budget', (species) => {
-  const { budget, temperatureRange } = FISH_SPECIES_DATA[species];
+  const { budget } = FISH_SPECIES_DATA[species];
   const p = debParams(species);
 
   it('runs on its entry where the entry fits its own data, on a proxy of it where it does not', () => {
@@ -60,8 +61,7 @@ describe.each(roster)('%s on its energy budget', (species) => {
   });
 
   it('grows to its grown size, breeds at its maturity age, dies around its lifespan, fed freely in mid-range water', () => {
-    const [low, high] = temperatureRange;
-    const life = feastFromHatching(p, 1.1 * lifespan(species), arrheniusFactor((low + high) / 2, p.TA));
+    const life = feastFromHatching(p, 1.1 * lifespan(species), speciesTau(species, midRangeTemperature(species)));
     expectRelative(wetMass(grown(p), p), grownMass(species), 1e-12);
     expectRelative(maxStructuralLength(p) / p.delM, grownLength(species), 1e-12);
     expectRelative(pubertyHour(life, p), maturityAge(species), 0.02);
@@ -72,7 +72,7 @@ describe.each(roster)('%s on its energy budget', (species) => {
 describe.each(entrySpecies)('%s against its Add-my-Pet entry, fed freely at its typical temperature', (species) => {
   const { entry } = entryBudget(species)!;
   const p = debParams(species);
-  const tau = arrheniusFactor(entry.typicalTemperatureC, p.TA);
+  const tau = speciesTau(species, entry.typicalTemperatureC);
   const amp = { puberty: ampPubertyDays(entry), death: ampMeanLifespanDays(entry) };
   const life = feastFromHatching(p, 2.5 * HOURS_PER_DAY * amp.death, tau);
 

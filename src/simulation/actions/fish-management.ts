@@ -185,7 +185,7 @@ export function removeFish(
  * pressure valve for a tank that has bred past what the player wants to
  * keep. The engine is money-free, so "sell" carries no economic effect
  * here; it removes the fry and logs a `fry-sold` event for game-side
- * consumers to price. Adults are untouched.
+ * consumers to price. Juveniles and adults are untouched.
  */
 export function sellFry(state: SimulationState): ActionResult {
   const fryCount = countFry(state.fish);

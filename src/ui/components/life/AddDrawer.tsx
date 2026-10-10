@@ -78,7 +78,7 @@ export function AddDrawer({
   const options = pickerOptions(kind, state, unitSystem, bed, { count, size });
   const option = options.find((o) => o.species === picked) ?? options[0];
   const fish = kind === 'fish' ? (option.species as FishSpecies) : null;
-  const fishSize = fish ? stockingSize(fish, size) : size;
+  const orderSize = fish ? stockingSize(fish, size) : size;
   const refusal = count > option.headroom ? (option.refusal ?? `Only ${option.headroom} fit`) : null;
 
   return (
@@ -111,12 +111,12 @@ export function AddDrawer({
             <div className="flex items-center justify-between">
               <span className="text-[13px] text-ink-2">Size</span>
               <Stepper
-                value={fishSize}
+                value={orderSize}
                 onChange={(next) => setSize(stockingSize(fish, next))}
                 min={stockingSize(fish, 0)}
                 max={MAX_STOCKED_SIZE}
                 step={FISH_SIZE_STEP}
-                display={`${fishSize}%`}
+                display={`${orderSize}%`}
                 ariaLabel="Size"
               />
             </div>
@@ -129,7 +129,7 @@ export function AddDrawer({
           ) : (
             <button
               type="button"
-              onClick={() => onAdd(option.species, count, fishSize)}
+              onClick={() => onAdd(option.species, count, orderSize)}
               className={`h-9 w-full rounded-control bg-accent-tint text-[14px] font-medium text-accent transition-colors hover:brightness-110 ${CONTROL_FOCUS}`}
             >
               Add {count} {option.name}

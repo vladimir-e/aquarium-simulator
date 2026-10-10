@@ -35,6 +35,7 @@ export function frySize(species: FishSpecies): number {
   return size(hatchling(p), p);
 }
 
+/** The size, in % of grown length, under which a fish short of puberty reads as fry. */
 export const FRY_UNTIL_SIZE = 50;
 
 export function fishLifeStage(fish: Body): FishLifeStage {

@@ -216,18 +216,18 @@ describe('sellFry', () => {
     return produce(makeState(), (draft) => {
       draft.fish.push(
         fishRecord({ id: 'adult_1', species: 'guppy', size: 80 }),
+        fishRecord({ id: 'juvenile_1', species: 'angelfish', size: 80 }),
         fishRecord({ id: 'fry_1', species: 'guppy', size: 20 }),
         fishRecord({ id: 'fry_2', species: 'neon_tetra', size: 20 })
       );
     });
   }
 
-  it('removes every fry and keeps adults', () => {
+  it('removes every fry and keeps juveniles and adults', () => {
     const state = makeStateWithMixedStages();
     const result = sellFry(state);
 
-    expect(result.state.fish).toHaveLength(1);
-    expect(result.state.fish[0].id).toBe('adult_1');
+    expect(result.state.fish.map((f) => f.id)).toEqual(['adult_1', 'juvenile_1']);
     expect(result.message).toBe('Sold 2 fry');
   });
 
@@ -263,6 +263,6 @@ describe('sellFry', () => {
   it('does not mutate the input state', () => {
     const state = makeStateWithMixedStages();
     sellFry(state);
-    expect(state.fish).toHaveLength(3);
+    expect(state.fish).toHaveLength(4);
   });
 });

@@ -162,8 +162,9 @@ function layBroods(draft: SimulationState): number {
 }
 
 /**
- * Every male the hour found, `paces` theirs, burns a share of his buffer at
- * `maleBufferTurnover` × τ; a male hatched this hour has none. The grams burned.
+ * Every male the hour's paces were read for burns a share of his buffer at
+ * `maleBufferTurnover` × τ; a male hatched this hour has neither pace nor
+ * buffer. The grams burned.
  */
 function turnOverMaleBuffers(fish: Fish[], paces: readonly Pace[], config: LivestockConfig): number {
   let burned = 0;

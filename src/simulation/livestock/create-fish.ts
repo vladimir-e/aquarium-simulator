@@ -8,14 +8,15 @@
  * A stocked fish was grown in the shop: its budget is the one its species
  * reaches at the named size on unlimited food at its mid-range temperature,
  * its broods spent along the way, and its age, wear and survival are that
- * upbringing's whatever tank buys it.
+ * upbringing's, whatever tank buys it.
  */
 
 import type { Fish } from '../state.js';
 import { draw, drawId, type RngState } from '../core/rng.js';
 import type { FishSex, FishSpecies } from './species.js';
 import { debParams, FISH_SPECIES_DATA, midRangeTemperature, speciesTau } from './species.js';
-import { assimilationCeiling, hatchling, size, stepDeb, type DebState } from '../systems/deb.js';
+import { hatchling, size, stepDeb, type DebState } from '../systems/deb.js';
+import { appetite } from '../systems/digestion.js';
 import { frySize } from '../systems/fish-body.js';
 
 /** Per-fish hardiness offset span as a fraction of species baseline. */
@@ -50,7 +51,7 @@ export function raise(species: FishSpecies, target: number, temperatureC: number
   const pace = { tau: speciesTau(species, temperatureC), omega: 1 };
   let [deb, survival, hours] = [hatchling(p), 1, 0];
   while (size(deb, p) < target) {
-    const fromGut = assimilationCeiling(deb, p, pace) / p.kappaX;
+    const fromGut = appetite({ species, deb }, pace);
     survival *= Math.exp(-deb.hazard);
     deb = { ...stepDeb(deb, p, { fromGut, ...pace }).state, broodBuffer: 0 };
     hours++;
@@ -66,8 +67,11 @@ const shop = new Map<string, Upbringing>();
  */
 export function stockedBody(species: FishSpecies, target: number): Pick<Fish, 'deb' | 'survival' | 'age'> {
   const key = `${species}:${target}`;
-  const raised = shop.get(key) ?? raise(species, target, midRangeTemperature(species));
-  shop.set(key, raised);
+  let raised = shop.get(key);
+  if (raised === undefined) {
+    raised = raise(species, target, midRangeTemperature(species));
+    shop.set(key, raised);
+  }
   return { deb: raised.deb, survival: raised.survival, age: raised.hours };
 }
 

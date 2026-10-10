@@ -84,7 +84,7 @@ describe('readLedger', () => {
     expect(ledger.bank!.at).toBeCloseTo(0.8, 12);
   });
 
-  it('says what the reserve does over the hour: filling, drawing down, repairing, or short of upkeep', () => {
+  it('says what the reserve does over the hour: filling, drawing down, healing from reserve, or short of upkeep', () => {
     const lean = atReserve(makeFish({ id: 'fish_a_1' }), 0.9);
     expect(fishLedger(tank([lean])).bank!.note).toBe('filling');
     expect(fishLedger(tank([{ ...makeFish({ id: 'fish_a_1' }), gut: 0 }])).bank!.note).toBe('drawing down');

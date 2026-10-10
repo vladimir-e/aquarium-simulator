@@ -55,7 +55,7 @@ export type FishBreedingData = {
   | { mode: 'livebearer' }
   | {
       mode: Exclude<BreedingMode, 'livebearer'>;
-      /** Eggs a spawning bout lays: the hobby figure. */
+      /** The least her buffer holds before she spawns: the hobby figure. */
       clutchSize: number;
     }
 );

@@ -1,8 +1,9 @@
 /**
  * Why one organism is where it is: the engine's own factor lists, split into
  * what helps and what hurts, with its store standing between the two — a
- * fish's reserve, a plant's or a bloom's bank — and the condition they add up to. Nothing is named here that the vitality pass did
- * not already charge — a factor the reader sees is a factor the tick applied.
+ * fish's reserve, a plant's or a bloom's bank — and the condition they add up
+ * to. Nothing is named here that the vitality pass did not already charge — a
+ * factor the reader sees is a factor the tick applied.
  */
 
 import {

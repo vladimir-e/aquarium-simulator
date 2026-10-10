@@ -175,7 +175,7 @@ export const livestockDefaults: LivestockConfig = {
   // neon clutch before it hatches — while the adults ride it out.
   eggSensitivity: 3,
   // A grown neon pair in 30 gal finds an eighth of an open clutch an hour, so
-  // one egg in twenty-five hatches — five of a 125-egg spawn — and every fry
+  // one egg in twenty-five hatches — three of an 80-egg spawn — and every fry
   // already swimming finds more.
   eggPredationRate: 15,
   // The same pair costs a newborn neon 0.45 %/h and a grown guppy pair a

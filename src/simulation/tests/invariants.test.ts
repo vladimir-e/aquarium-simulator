@@ -254,9 +254,11 @@ describe('a lone female fasting to her death', () => {
   });
 
   it('resorbs the clutch no male fathered, burns her body for her upkeep, and dies of old age', () => {
-    expect(resorbed).toBeGreaterThan(0);
+    const { E0, kappaR } = fishParams(start.fish[0]);
+    expect(resorbed).toBeGreaterThanOrEqual((0.99 * spawnsAt('neon_tetra') * E0) / kappaR);
     expect(start.clutches).toHaveLength(0);
     expect(fasted.clutches).toHaveLength(0);
+    expect(fasted.fish).toHaveLength(1);
     expect(fasted.fish[0].deb.structure).toBeLessThan(start.fish[0].deb.structure);
     expect(end.fish).toHaveLength(0);
     expect(end.logs.filter((log) => log.event === 'fish-died').map((log) => log.message)).toEqual(['Neon Tetra (old age) died']);

@@ -135,7 +135,7 @@ type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
  * every fish assimilating just its upkeep in the water it is in and burning
  * all of it, and the bed leaching what it holds. All the waste either one
  * makes is mineralised in the end, whether or not it settles on the way. Food
- * fed past upkeep is left out — the engine has no ration to size it by — so
+ * fed past upkeep is left out — the seed names no feeding to size it by — so
  * under a keeper who feeds more the colony errs small and grows on from the seed.
  */
 function restingAmmoniaSupply(state: StockedTank): number {

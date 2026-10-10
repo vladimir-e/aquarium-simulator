@@ -159,7 +159,7 @@ function fishNeeds(book: ReadingBook): Need[] {
     needs.push({
       ...fishNeedFrame('fishStarving', starving, (member) => member.gut.status),
       text: 'Fish starving',
-      sentence: 'Their food no longer pays their upkeep; they are burning their bodies.',
+      sentence: 'Their reserve no longer pays their upkeep; they are burning their bodies.',
       verb: verbName('feed'),
       act: 'feed',
       to: '/life',

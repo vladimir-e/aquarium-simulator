@@ -62,6 +62,7 @@ export const FISH_SPECIES: FishSpecies[] = Object.keys(FISH_SPECIES_DATA) as Fis
 export function stockingSize(species: FishSpecies, size: number): number {
   return Math.min(MAX_STOCKED_SIZE, Math.max(Math.ceil(frySize(species)), size));
 }
+
 export const PLANT_SPECIES: PlantSpecies[] = Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[];
 
 /** Where the tank sits outside a band the species is stressed beyond, and by how many band-widths. */

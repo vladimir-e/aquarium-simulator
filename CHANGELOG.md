@@ -11,7 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Fish run on energy budgets** - fish grow, breed, starve and age on their species' Add-my-Pet DEB; breaking: `Fish.deb` replaces `mass`/`surplus`/`ovary` (v35).
+- **Fish run on energy budgets** - fish grow, breed, starve and age on their species' Add-my-Pet DEB; breaking: `Fish.deb` replaces `mass`/`surplus`, `lifespan` replaces `maxAge`, livestock config reshaped (v35).
 - **Predation** - larger fish hunt the young by the grams they outweigh them and eat what they kill; breaking: `computeFishVitality`, `readyToBrood` args (v34).
 - **Eggs are a stock** - water and fish thin a clutch as it develops, livebearers carry theirs; breaking: `Clutch` holds `eggs`, `development`; `createFish`, `processMetabolism`, `processHealth` leave the barrel (v34).
 - **Feeding through a gut** - fish digest over hours, slower cold; breaking: `Fish.gut` replaces `satiation` (v34).
@@ -59,7 +59,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **A planted tank makes more oxygen than it burns** - `baseRespirationRate` 0.15 → 0.03, against the rate a tank on ambient carbon actually reaches.
 - **A hypoxic fish excretes less nitrogen** - deamination is metabolism, so gill NH₃ carries the same oxygen factor as the respiratory draw; feces do not.
 - **An under-aerated tank stands nitrite** - nitrification joins the oxygen-limited processes and pays 4.57 mg O₂ per mg N; NOB are the fussier guild, so the second step stalls before the first.
-- **An aerobic process runs on the oxygen there is** - decay, plants and fish scale their rate by `O2/(K+O2)`, so demand falls with the stock and a suffocating tank stops emitting carbon it never paid for (v20, v7).
+- **An aerobic process runs on the oxygen there is** - decay and plants scale their rate by `O2/(K+O2)`, so demand falls with the stock and a suffocating tank stops emitting carbon it never paid for (v20, v7).
 - **Gases move a mass, and carbon pays for the oxygen** - plants, fish, decay and the CO₂ line all meter against the water in the tank, at the molar ratio (v19, v6).
 - **A 1000 W heater no longer destroys the tank** - the picker offered a wattage the save schema refused, and a refused save discards the tank.
 - **`trace` rejects unknown fields** - a mistyped `--fields` name emitted a column of blanks that reads as absent data; the refusal names the valid set, and algae is on it.
