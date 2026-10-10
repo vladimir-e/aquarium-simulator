@@ -7,7 +7,7 @@
 
 import type { Clutch, Fish } from '../state.js';
 import type { FishLifeStage, FishSpecies } from '../livestock/species.js';
-import { FISH_SPECIES_DATA } from '../livestock/species.js';
+import { FISH_SPECIES_DATA, grownMass } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { bankFull } from './vitality.js';
 import { hourlyDraw, monodFactor } from '../core/kinetics.js';
@@ -20,16 +20,16 @@ export const ADULT_SIZE = 50;
 type Sized = Pick<Fish, 'species' | 'mass'>;
 
 export function fishSize(fish: Sized): number {
-  return (100 * fish.mass) / FISH_SPECIES_DATA[fish.species].adultMass;
+  return (100 * fish.mass) / grownMass(fish.species);
 }
 
 export function massAtSize(species: FishSpecies, size: number): number {
-  return (size / 100) * FISH_SPECIES_DATA[species].adultMass;
+  return (size / 100) * grownMass(species);
 }
 
 /** The size a fry is born or hatches at: its egg's. */
 export function frySize(species: FishSpecies): number {
-  return (100 * FISH_SPECIES_DATA[species].breeding.eggMass) / FISH_SPECIES_DATA[species].adultMass;
+  return (100 * FISH_SPECIES_DATA[species].breeding.eggMass) / grownMass(species);
 }
 
 /** Grams of organic matter a body of this many grams is made of. */

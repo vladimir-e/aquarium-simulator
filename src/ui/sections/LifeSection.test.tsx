@@ -10,6 +10,7 @@ import { LEDGER_DECIMALS, readHourAhead } from '../run';
 import {
   applyAction,
   fishLifeStage,
+  grownMass,
   type Action,
   type Fish,
   type FishSpecies,
@@ -222,7 +223,7 @@ describe('LifeSection', () => {
 
     const row = speciesRow('Fish', 'Neon Tetra').parentElement!.textContent;
     expect(row).toContain('×2');
-    expect(row).toContain('0.25 g each');
+    expect(row).toContain(`${(grownMass('neon_tetra') / 2).toFixed(2)} g each`);
   });
 
   it('sells the whole tank’s fry from the one row they share', () => {

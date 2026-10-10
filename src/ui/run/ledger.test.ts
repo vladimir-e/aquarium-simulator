@@ -4,6 +4,7 @@ import {
   ALGAE_KINDS,
   applyAction,
   createSimulation,
+  FISH_SPECIES_DATA,
   getPresetById,
   plantLightTaken,
   tick,
@@ -138,9 +139,11 @@ describe('readLedger', () => {
       makeFish({ id: 'fish_a_2', sex: 'male', surplus: cap }),
     ]);
     const next = tick(pair, DEFAULT_CONFIG);
+    const mother = next.fish.find((fish) => fish.id === 'fish_a_1')!;
+    const oneEgg = (DEFAULT_CONFIG.livestock.broodCost * FISH_SPECIES_DATA.neon_tetra.breeding.eggMass) / mother.mass;
 
     expect(next.clutches.length).toBeGreaterThan(pair.clutches.length);
-    expect(next.fish.find((fish) => fish.id === 'fish_a_1')!.surplus).toBe(0);
+    expect(mother.surplus).toBeLessThan(oneEgg);
     expect(fishLedger(pair).bank!.note).toBe('buying a brood');
   });
 

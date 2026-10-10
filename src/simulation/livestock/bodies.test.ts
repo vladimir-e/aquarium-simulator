@@ -3,7 +3,7 @@ import { produce } from 'immer';
 import { processBodies } from './bodies.js';
 import { processLivestock } from './index.js';
 import { createSimulation, type SimulationState, type Fish, type Clutch } from '../state.js';
-import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
+import { FISH_SPECIES_DATA, grownMass, type FishSpecies } from '../livestock/species.js';
 import type { LogEntry } from '../core/logging.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { assimilated, metabolicFactorOf } from '../systems/metabolism.js';
@@ -18,7 +18,7 @@ const CAP = DEFAULT_CONFIG.livestock.surplusCap;
 let idSeq = 0;
 function mkFish(o: Partial<Fish> = {}): Fish {
   const species = o.species ?? 'guppy';
-  return fishRecord({ id: `f${idSeq++}`, species, mass: FISH_SPECIES_DATA[species].adultMass, sex: 'female', ...o });
+  return fishRecord({ id: `f${idSeq++}`, species, mass: grownMass(species), sex: 'female', ...o });
 }
 
 function withTank(fish: Fish[], clutches: Clutch[] = []): SimulationState {
@@ -85,8 +85,8 @@ describe('processBodies', () => {
 
   it('fathers the females of a tick together, whoever was stocked first', () => {
     const big = mkFish({ id: 'big', sex: 'female', surplus: CAP });
-    const small = mkFish({ id: 'small', sex: 'female', surplus: CAP, mass: FISH_SPECIES_DATA.guppy.adultMass / 2 });
-    const male = mkFish({ id: 'male', sex: 'male', surplus: 10, mass: FISH_SPECIES_DATA.guppy.adultMass / 2 });
+    const small = mkFish({ id: 'small', sex: 'female', surplus: CAP, mass: grownMass('guppy') / 2 });
+    const male = mkFish({ id: 'male', sex: 'male', surplus: 10, mass: grownMass('guppy') / 2 });
     const broods = (fish: Fish[]): number[] =>
       events(breed(withTank(fish), DEFAULT_CONFIG).state, 'eggs-laid').map((log) => log.count!);
 

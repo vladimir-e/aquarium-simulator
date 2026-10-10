@@ -5,6 +5,7 @@ import {
   DEFAULT_CONFIG,
   FISH_SPECIES_DATA,
   getMaxFishMass,
+  grownMass,
   calculateFloorArea,
   checkPlantFootprint,
   GROWTH_FORMS,
@@ -53,7 +54,7 @@ describe('fish options', () => {
     const neon = option(fish(state), 'neon_tetra');
 
     expect(getMaxFishMass(1)).toBe(500);
-    expect(neon.headroom).toBe(500 / FISH_SPECIES_DATA.neon_tetra.adultMass);
+    expect(neon.headroom).toBe(Math.floor(500 / grownMass('neon_tetra')));
   });
 
   it('counts headroom at the stocked size, so more small fish fit than adults', () => {
@@ -61,7 +62,7 @@ describe('fish options', () => {
     const adults = option(fish(state), 'neon_tetra').headroom;
     const small = option(fish(state, 1, 25), 'neon_tetra').headroom;
 
-    expect(small).toBe(Math.floor(500 / (0.25 * FISH_SPECIES_DATA.neon_tetra.adultMass)));
+    expect(small).toBe(Math.floor(500 / (0.25 * grownMass('neon_tetra'))));
     expect(small).toBeGreaterThan(adults);
   });
 
@@ -83,7 +84,8 @@ describe('fish options', () => {
     };
     const neon = option(fish(state, 5), 'neon_tetra');
 
-    expect(neon.headroom).toBe(2);
+    expect(neon.headroom).toBe(Math.floor(1 / grownMass('neon_tetra')));
+    expect(neon.headroom).toBeLessThan(5);
     expect(neon.refusal).toBeNull();
   });
 
@@ -114,7 +116,7 @@ describe('fish options', () => {
   it('reads the fit through the same bioload the module’s row reads', () => {
     const state: SimulationState = {
       ...tank(150),
-      fish: Array.from({ length: 20 }, (_, i) => fishRecord({ id: `c${i}`, species: 'corydoras' })),
+      fish: Array.from({ length: 30 }, (_, i) => fishRecord({ id: `c${i}`, species: 'corydoras' })),
     };
     const cory = option(fish(state, 3), 'corydoras');
     const after = bioload(state.fish, 150, { species: 'corydoras', count: 3 });

@@ -28,7 +28,7 @@
 
 import type { Fish, Plant, Resources } from '../state.js';
 import { getPh } from '../core/carbonate.js';
-import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
+import { FISH_SPECIES_DATA, lifespan, type FishSpecies } from '../livestock/species.js';
 import { getDgh, getPpm } from '../resources/index.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
@@ -204,9 +204,9 @@ const MAX_WEAR_DOUBLINGS = 64;
  */
 export function fishWear(fish: Pick<Fish, 'species' | 'age' | 'hardinessOffset'>, config: LivestockConfig): number {
   if (config.wearAtLifespan <= 0) return 0;
-  const { lifespan, hardiness } = FISH_SPECIES_DATA[fish.species];
-  const vigour = fishHardiness(fish) / hardiness;
-  const doublings = (fish.age - lifespan) / (config.wearDoublingShare * lifespan);
+  const span = lifespan(fish.species);
+  const vigour = fishHardiness(fish) / FISH_SPECIES_DATA[fish.species].hardiness;
+  const doublings = (fish.age - span) / (config.wearDoublingShare * span);
   return (config.wearAtLifespan / vigour) * 2 ** Math.min(doublings, MAX_WEAR_DOUBLINGS);
 }
 
@@ -291,11 +291,10 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
  * metabolism is, and halving every `healingHalvingShare` of its species lifespan.
  */
 export function fishHealingRate(fish: Pick<Fish, 'species' | 'mass' | 'age'>, config: LivestockConfig): number {
-  const { lifespan } = FISH_SPECIES_DATA[fish.species];
   return (
     config.healingDrawRate *
     fish.mass ** config.massScalingExponent *
-    2 ** (-fish.age / (config.healingHalvingShare * lifespan))
+    2 ** (-fish.age / (config.healingHalvingShare * lifespan(fish.species)))
   );
 }
 

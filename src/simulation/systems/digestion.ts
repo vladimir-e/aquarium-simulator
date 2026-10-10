@@ -15,7 +15,7 @@ import type { Fish } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { hourlyDraw, monodFactor } from '../core/kinetics.js';
 import { sum } from '../core/sum.js';
-import { FISH_SPECIES_DATA } from '../livestock/species.js';
+import { grownMass } from '../livestock/species.js';
 
 type Sized = Pick<Fish, 'species' | 'mass'>;
 
@@ -24,7 +24,7 @@ type Sized = Pick<Fish, 'species' | 'mass'>;
  * per gram, a fish runs at its mass over its adult mass to `massScalingExponent`.
  */
 export function metabolicMass(fish: Sized, config: LivestockConfig): number {
-  const { adultMass } = FISH_SPECIES_DATA[fish.species];
+  const adultMass = grownMass(fish.species);
   return adultMass * (fish.mass / adultMass) ** (1 + config.massScalingExponent);
 }
 

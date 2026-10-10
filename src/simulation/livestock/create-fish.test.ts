@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { createFish, HARDINESS_OFFSET_SPAN, HEALTH_JITTER } from './create-fish.js';
 import { createRng, draw } from '../core/rng.js';
-import { FISH_SPECIES_DATA } from './species.js';
+import { FISH_SPECIES_DATA, grownMass } from './species.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { dailyMaintenance } from '../systems/digestion.js';
 
 describe('createFish', () => {
   it('builds a fish at its size, as that share of adult mass, with a day’s keep in its gut', () => {
-    const { adultMass } = FISH_SPECIES_DATA.angelfish;
+    const adultMass = grownMass('angelfish');
     for (const size of [2, 40, 100]) {
       const fish = createFish({ species: 'angelfish', size, rng: createRng(1), config: livestockDefaults });
       expect(fish.mass).toBeCloseTo((size / 100) * adultMass, 12);

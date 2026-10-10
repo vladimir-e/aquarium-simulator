@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Clutch, Fish, Plant, SimulationState } from '../../simulation/index.js';
-import { applyAction, createSimulation, readPlantLight } from '../../simulation/index.js';
+import { applyAction, createSimulation, grownMass, readPlantLight } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import { readHourAhead } from './ahead.js';
@@ -84,7 +84,7 @@ describe('rosterTables', () => {
     expect(second.sex).toBe('female');
     expect(second.tag).toBe('#2');
     expect(second.title).toBe('Neon Tetra #2');
-    expect(second.figure).toBe('0.50 g');
+    expect(second.figure).toBe(`${grownMass('neon_tetra').toFixed(2)} g`);
     expect(second.age).toBe('120 d');
   });
 
@@ -111,7 +111,7 @@ describe('rosterTables', () => {
   it('gives a species row its mass per fish and a dot per individual', () => {
     const [group] = tables(tank(roster)).fish as SpeciesRosterRow[];
     expect(group.count).toBe(2);
-    expect(group.figure).toBe('0.50 g each');
+    expect(group.figure).toBe(`${grownMass('neon_tetra').toFixed(2)} g each`);
     expect(group.dots).toHaveLength(2);
   });
 

@@ -13,7 +13,7 @@ import {
 import type { VitalityResult } from './vitality.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { FISH_SPECIES_DATA } from '../livestock/species.js';
+import { FISH_SPECIES_DATA, grownMass, lifespan } from '../livestock/species.js';
 import { createSimulation, type Fish, type Plant, type Resources, type SimulationState } from '../state.js';
 import {
   highAmmoniaAlert,
@@ -228,7 +228,7 @@ describe('stressors', () => {
 
   it('sums every active stressor into the total', () => {
     const v = vitality(
-      { mass: massAtSize('neon_tetra', 20), age: FISH_SPECIES_DATA.neon_tetra.lifespan },
+      { mass: massAtSize('neon_tetra', 20), age: lifespan('neon_tetra') },
       {
         temperature: 18,
         ph: 8.5,
@@ -666,65 +666,65 @@ describe('predation', () => {
 });
 
 describe('ageing', () => {
-  const { lifespan } = FISH_SPECIES_DATA.neon_tetra;
-  const doubling = livestockDefaults.wearDoublingShare * lifespan;
+  const span = lifespan('neon_tetra');
+  const doubling = livestockDefaults.wearDoublingShare * span;
   const worn = (fish: Partial<Fish> = {}): number => fishWear(fishRecord(fish), livestockDefaults);
   const healing = (age: number): number => fishHealingRate(fishRecord({ age }), livestockDefaults);
 
   it('charges wear as its own stressor, rising exponentially and doubling over the span', () => {
     const config = livestockDefaults;
-    expect(stressorAmount(vitality({ age: lifespan }, {}, { config }), 'wear')).toBeCloseTo(worn({ age: lifespan }), 12);
-    for (const age of [0, lifespan / 2, lifespan, 2 * lifespan]) {
+    expect(stressorAmount(vitality({ age: span }, {}, { config }), 'wear')).toBeCloseTo(worn({ age: span }), 12);
+    for (const age of [0, span / 2, span, 2 * span]) {
       expect(worn({ age: age + doubling })).toBeCloseTo(2 * worn({ age }), 9);
       expect(worn({ age: age + 1 })).toBeGreaterThan(worn({ age }));
     }
   });
 
   it('is negligible in youth', () => {
-    expect(worn({ age: 0 })).toBeLessThan(worn({ age: lifespan }) / 100);
+    expect(worn({ age: 0 })).toBeLessThan(worn({ age: span }) / 100);
   });
 
   it('is shielded by no species hardiness', () => {
     const atLifespan = (species: FishSpecies): number =>
-      worn({ species, age: FISH_SPECIES_DATA[species].lifespan });
+      worn({ species, age: lifespan(species) });
     expect(atLifespan('guppy')).toBeCloseTo(atLifespan('angelfish'), 12);
   });
 
   it('wears a fish hardier than its species slower, and one frailer faster', () => {
-    const base = worn({ age: lifespan });
-    expect(worn({ age: lifespan, hardinessOffset: 0.05 })).toBeLessThan(base);
-    expect(worn({ age: lifespan, hardinessOffset: -0.05 })).toBeGreaterThan(base);
+    const base = worn({ age: span });
+    expect(worn({ age: span, hardinessOffset: 0.05 })).toBeLessThan(base);
+    expect(worn({ age: span, hardinessOffset: -0.05 })).toBeGreaterThan(base);
   });
 
   it('heals slower with every hour of age, halving over the set share of the lifespan', () => {
-    const halving = livestockDefaults.healingHalvingShare * lifespan;
-    for (const age of [0, lifespan / 3, lifespan, 3 * lifespan]) {
+    const halving = livestockDefaults.healingHalvingShare * span;
+    for (const age of [0, span / 3, span, 3 * span]) {
       expect(healing(age + 1)).toBeLessThan(healing(age));
       expect(healing(age + halving)).toBeCloseTo(healing(age) / 2, 12);
     }
   });
 
   it('stays a number at birth and at absurd ages, and charges none when switched off', () => {
-    for (const age of [0, 1e3 * lifespan, 1e9 * lifespan]) {
+    for (const age of [0, 1e3 * span, 1e9 * span]) {
       const result = vitality({ age, surplus: 50 }, {}, { config: livestockDefaults });
       expect(Number.isNaN(result.newCondition)).toBe(false);
       expect(Number.isNaN(result.surplus)).toBe(false);
       expect(Number.isNaN(healing(age))).toBe(false);
       expect(fishWear(fishRecord({ age }), AGELESS)).toBe(0);
     }
-    expect(vitality({ age: 1e3 * lifespan }, {}, { config: livestockDefaults }).newCondition).toBe(0);
-    const ancient = health([fishRecord({ age: 1e9 * lifespan })], {}, [], [0], livestockDefaults);
+    expect(vitality({ age: 1e3 * span }, {}, { config: livestockDefaults }).newCondition).toBe(0);
+    const ancient = health([fishRecord({ age: 1e9 * span })], {}, [], [0], livestockDefaults);
     expect(ancient.deadFishNames).toEqual(['Neon Tetra (old age)']);
   });
 
   it('attributes a death mostly of wear to old age', () => {
-    const result = health([fishRecord({ age: 3 * lifespan, health: 1 })], {}, [], [0], livestockDefaults);
+    const result = health([fishRecord({ age: 3 * span, health: 1 })], {}, [], [0], livestockDefaults);
     expect(result.survivingFish).toHaveLength(0);
     expect(result.deadFishNames[0]).toContain('old age');
   });
 
   it('gives an old fish killed mostly by something else no old-age label', () => {
-    const old = fishRecord({ age: lifespan, health: 0.1 });
+    const old = fishRecord({ age: span, health: 0.1 });
     const result = health([old], { oxygen: 0.5 }, [], [0], livestockDefaults);
     expect(result.survivingFish).toHaveLength(0);
     expect(result.vitalities[0].breakdown.stressors.find((f) => f.key === 'wear')!.amount).toBeGreaterThan(0);
@@ -732,7 +732,7 @@ describe('ageing', () => {
   });
 
   it('names old age over eaten when wear did most of the damage to a hunted fish', () => {
-    const fry = fishRecord({ id: 'fry', mass: massAtSize('neon_tetra', 60), age: 3 * lifespan, health: 0.1 });
+    const fry = fishRecord({ id: 'fry', mass: massAtSize('neon_tetra', 60), age: 3 * span, health: 0.1 });
     const predator = fishRecord({ id: 'big', species: 'angelfish', mass: 15 });
     const result = health([fry, predator], {}, [], [0, 0], livestockDefaults);
     const hunted = result.vitalities[0].breakdown.stressors.find((f) => f.key === 'hunted')!.amount;
@@ -779,8 +779,8 @@ describe('surplus', () => {
 
   it('scales the healing rate by its own mass to the −¼ power, a gram healing at the draw rate', () => {
     const grown = (species: FishSpecies): number =>
-      fishHealingRate(fishRecord({ species, mass: FISH_SPECIES_DATA[species].adultMass }), livestockDefaults);
-    const ratio = FISH_SPECIES_DATA.angelfish.adultMass / FISH_SPECIES_DATA.neon_tetra.adultMass;
+      fishHealingRate(fishRecord({ species, mass: grownMass(species) }), livestockDefaults);
+    const ratio = grownMass('angelfish') / grownMass('neon_tetra');
     expect(grown('neon_tetra') / grown('angelfish')).toBeCloseTo(ratio ** 0.25, 12);
     expect(fishHealingRate(fishRecord({ mass: 1 }), livestockDefaults)).toBeCloseTo(livestockDefaults.healingDrawRate, 12);
     expect(fishHealingRate(fishRecord({ mass: 0.5 / 16 }), livestockDefaults)).toBeCloseTo(

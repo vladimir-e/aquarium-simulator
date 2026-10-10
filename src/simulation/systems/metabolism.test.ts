@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { excretion, processMetabolism, type Excretion, type MetabolismResult, type MetabolismWater } from './metabolism.js';
 import { gutCapacity, metabolicMass } from './digestion.js';
 import { livestockDefaults } from '../config/livestock.js';
+import { grownMass } from '../livestock/species.js';
 import { WASTE_NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
 import { monodFactor } from '../core/kinetics.js';
@@ -183,7 +184,7 @@ describe('processMetabolism', () => {
   it('breathes per gram on mass^−¼ against a grown fish of its species', () => {
     const perGram = (mass: number): number =>
       processMetabolism([fishRecord({ mass })], water(), livestockDefaults).oxygenConsumedMg / mass;
-    const adult = 0.5;
+    const adult = grownMass('neon_tetra');
     expect(perGram(adult / 16) / perGram(adult)).toBeCloseTo(2, 9);
     expect(perGram(adult)).toBeCloseTo(
       livestockDefaults.baseRespirationRate * monodFactor(AMPLE_O2, livestockDefaults.respirationOxygenHalfSaturation),

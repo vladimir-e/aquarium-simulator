@@ -14,10 +14,10 @@ import {
 } from './digestion.js';
 import { livestockDefaults as config } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
-import { FISH_SPECIES_DATA } from '../livestock/species.js';
+import { grownMass } from '../livestock/species.js';
 
 const guppy = (mass: number): { species: 'guppy'; mass: number } => ({ species: 'guppy', mass });
-const ADULT = FISH_SPECIES_DATA.guppy.adultMass;
+const ADULT = grownMass('guppy');
 
 describe('mass scaling', () => {
   const perGram = (read: (fish: ReturnType<typeof guppy>) => number, mass: number): number => read(guppy(mass)) / mass;
@@ -42,7 +42,7 @@ describe('mass scaling', () => {
   });
 
   it('scales every grown species alike: the reference is its own adult mass', () => {
-    const neon = { species: 'neon_tetra' as const, mass: FISH_SPECIES_DATA.neon_tetra.adultMass };
+    const neon = { species: 'neon_tetra' as const, mass: grownMass('neon_tetra') };
     expect(metabolicMass(neon, config)).toBeCloseTo(neon.mass, 12);
     expect(gutCapacity(neon, config) / neon.mass).toBeCloseTo(config.gutCapacity, 12);
   });

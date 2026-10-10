@@ -12,7 +12,7 @@ import { ALGAE, ALGAE_KINDS } from '../algae/index.js';
 import { purchase } from '../systems/plant-growth.js';
 import { bodyOrganics, fishSize, frySize, massAtSize } from '../systems/fish-growth.js';
 import { clutchOrganics } from '../systems/clutch.js';
-import { FISH_SPECIES_DATA } from '../livestock/species.js';
+import { lifespan } from '../livestock/species.js';
 import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
 import { freshSubstrate } from '../equipment/substrate.js';
 import { getPpm } from '../resources/index.js';
@@ -188,7 +188,7 @@ describe('nitrogen mass', () => {
   });
 
   it('is conserved over a month of guppies breeding, hunting their fry, growing and wearing, against the food alone', () => {
-    const { lifespan } = FISH_SPECIES_DATA.guppy;
+    const span = lifespan('guppy');
     const { foodNitrogenFraction: n } = DEFAULT_CONFIG.livestock;
     const minerals = DEFAULT_CONFIG.nutrients.foodMineralContent;
     const guppy = (id: string, sex: Fish['sex'], size: number, age: number): Fish =>
@@ -196,8 +196,8 @@ describe('nitrogen mass', () => {
     let state = produce(cycledBareTank(10), (draft) => {
       draft.clutches = [{ id: 'brood', species: 'guppy', eggs: 10, development: 0.8, motherId: 'mother' }];
       draft.fish = [
-        guppy('mother', 'female', 100, lifespan / 2),
-        guppy('father', 'male', 100, lifespan / 2),
+        guppy('mother', 'female', 100, span / 2),
+        guppy('father', 'male', 100, span / 2),
         ...[1, 2, 3, 4, 5].map((i) => guppy(`fry${i}`, i % 2 ? 'male' : 'female', 5, 0)),
       ];
     });
@@ -598,7 +598,7 @@ describe('an offshoot bought on thin water', () => {
   });
 });
 
-describe('a guppy stocked as a fry', () => {
+describe('a guppy stocked as a fry, unhunted', () => {
   const DAYS = 180;
   const FRY_RATION = 0.1;
   const sizes: number[] = [];
@@ -619,7 +619,7 @@ describe('a guppy stocked as a fry', () => {
     let id: string | undefined;
     let logsRead = 0;
     keepTank(setup, {
-      config: DEFAULT_CONFIG,
+      config: withTunable(DEFAULT_CONFIG, 'livestock.predationRate', 0),
       untilTick: DAYS * 24,
       observe: (state) => {
         id ??= state.fish[0].id;

@@ -1,5 +1,18 @@
 import type { DebParams } from '../systems/deb.js';
-import { fromAmP, GENERALISED_ANIMAL, HOURS_PER_DAY, proxyEntry, type AmpEntry } from './amp.js';
+import {
+  fromAmP,
+  HOURS_PER_DAY,
+  impliedFigures,
+  proxyEntry,
+  type AmpEntry,
+  type AmpParameters,
+  type HobbyFigures,
+} from './amp.js';
+import { Betta_splendens } from './amp/entries/Betta_splendens.js';
+import { Corydoras_aeneus } from './amp/entries/Corydoras_aeneus.js';
+import { Paracheirodon_innesi } from './amp/entries/Paracheirodon_innesi.js';
+import { Poecilia_reticulata } from './amp/entries/Poecilia_reticulata.js';
+import { Pterophyllum_scalare } from './amp/entries/Pterophyllum_scalare.js';
 
 /**
  * Fish species types.
@@ -41,19 +54,19 @@ export interface FishBreedingData {
 }
 
 /**
+ * Where a species' energy budget comes from: its Add-my-Pet entry used as it stands, or, where no entry fits its own
+ * data, a base's parameters rescaled to the keeper's figures.
+ */
+export type SpeciesBudget =
+  | { kind: 'entry'; entry: AmpEntry }
+  | { kind: 'proxy'; base: AmpParameters; figures: HobbyFigures };
+
+/**
  * Fish species characteristics.
  */
 export interface FishSpeciesData {
   /** Display name */
   name: string;
-  /** Adult body mass in grams */
-  adultMass: number;
-  /** Adult physical length in cm, the hobby figure: the female's where the sexes differ. */
-  adultLength: number;
-  /** Age, in ticks, a female first breeds at in mid-range water, the hobby figure. */
-  maturityAge: number;
-  /** Median age, in ticks, a well-kept fish dies of wear at in mid-range water, the hobby figure. */
-  lifespan: number;
   /** Hardiness factor 0-1 (higher = more tolerant of stressors) */
   hardiness: number;
   /** Preferred temperature range [min, max] in °C */
@@ -68,32 +81,15 @@ export interface FishSpeciesData {
   growthRate: number;
   /** Reproduction parameters */
   breeding: FishBreedingData;
-  /** DEB parameters in AmP units: the species' Add-my-Pet entry, or a proxy built from its hobby figures. */
-  amp: AmpEntry;
+  budget: SpeciesBudget;
 }
-
-const proxied = (data: Omit<FishSpeciesData, 'amp'>): FishSpeciesData => ({
-  ...data,
-  amp: proxyEntry(GENERALISED_ANIMAL, {
-    entry: data.name,
-    adultLengthCm: data.adultLength,
-    adultMassGrams: data.adultMass,
-    maturityAgeDays: data.maturityAge / HOURS_PER_DAY,
-    lifespanDays: data.lifespan / HOURS_PER_DAY,
-    temperatureC: (data.temperatureRange[0] + data.temperatureRange[1]) / 2,
-  }),
-});
 
 /**
  * Species catalog with characteristics for each fish type.
  */
 export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
-  neon_tetra: proxied({
+  neon_tetra: {
     name: 'Neon Tetra',
-    adultMass: 0.5,
-    adultLength: 3.5,
-    maturityAge: 24 * 240,
-    lifespan: 24 * 365 * 5,
     hardiness: 0.5,
     temperatureRange: [22, 28],
     phRange: [5.0, 7.8],
@@ -101,7 +97,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     maxTurnover: 10, // Slow tributaries, but fine on a community canister
     growthRate: 0.45,
     // Egg-scatterer: sheds adhesive eggs over plants and leaves them to be
-    // eaten. Hatches in a day or so; grown in four to six months.
+    // eaten. Hatches in a day or so.
     breeding: {
       mode: 'egg-scatterer',
       developmentTime: 24,
@@ -109,13 +105,10 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       eggMass: 0.0004,
       maleShare: 0.2,
     },
-  }),
-  betta: proxied({
+    budget: { kind: 'entry', entry: Paracheirodon_innesi },
+  },
+  betta: {
     name: 'Betta',
-    adultMass: 3.0,
-    adultLength: 5.5,
-    maturityAge: 24 * 105,
-    lifespan: 24 * 365 * 3,
     hardiness: 0.6,
     temperatureRange: [24, 30],
     phRange: [6.0, 8.0],
@@ -123,8 +116,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     maxTurnover: 5, // Still blackwater, long fins - a sponge filter and no more
     growthRate: 1.0,
     // Bubble-nester: the male builds the nest and guards the eggs, so he
-    // pays most of the brood and few are eaten. Hatches in a day and a half;
-    // grown in three to four months.
+    // pays most of the brood and few are eaten. Hatches in a day and a half.
     breeding: {
       mode: 'bubble-nester',
       developmentTime: 32,
@@ -132,13 +124,16 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       eggMass: 0.0005,
       maleShare: 0.6,
     },
-  }),
-  guppy: proxied({
+    // The entry predicts a 147 g adult against the 4.7 g it was given, so
+    // its rates carry a body sized by the keeper.
+    budget: {
+      kind: 'proxy',
+      base: Betta_splendens.parameters,
+      figures: { adultLengthCm: 5.5, adultMassGrams: 3, maturityAgeDays: 120, lifespanDays: 1095, temperatureC: 27 },
+    },
+  },
+  guppy: {
     name: 'Guppy',
-    adultMass: 1.0,
-    adultLength: 5,
-    maturityAge: 24 * 75,
-    lifespan: 24 * 365 * 3,
     hardiness: 0.8,
     temperatureRange: [22, 28],
     phRange: [6.5, 8.5],
@@ -146,8 +141,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     maxTurnover: 13, // Hardy, tolerates a lot
     growthRate: 1.0,
     // Livebearer: the female carries the clutch through a four-week
-    // gestation, out of reach, and drops free-swimming fry. Grown in two to
-    // three months.
+    // gestation, out of reach, and drops free-swimming fry.
     breeding: {
       mode: 'livebearer',
       developmentTime: 600,
@@ -155,13 +149,10 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       eggMass: 0.005,
       maleShare: 0.2,
     },
-  }),
-  angelfish: proxied({
+    budget: { kind: 'entry', entry: Poecilia_reticulata },
+  },
+  angelfish: {
     name: 'Angelfish',
-    adultMass: 15.0,
-    adultLength: 15,
-    maturityAge: 24 * 300,
-    lifespan: 24 * 365 * 10,
     hardiness: 0.4,
     temperatureRange: [24, 30],
     phRange: [6.0, 8.0],
@@ -169,8 +160,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     maxTurnover: 10, // Tall body catches current, but its canonical home is a big canister tank
     growthRate: 0.2,
     // Substrate-spawner: a pair cleans a leaf and fans and guards the eggs
-    // together. Hatches in two and a half days; big fish, tiny fry, grown in
-    // six to eight months.
+    // together. Hatches in two and a half days; big fish, tiny fry.
     breeding: {
       mode: 'substrate-spawner',
       developmentTime: 54,
@@ -178,13 +168,10 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       eggMass: 0.002,
       maleShare: 0.5,
     },
-  }),
-  corydoras: proxied({
+    budget: { kind: 'entry', entry: Pterophyllum_scalare },
+  },
+  corydoras: {
     name: 'Corydoras',
-    adultMass: 4.0,
-    adultLength: 7,
-    maturityAge: 24 * 300,
-    lifespan: 24 * 365 * 5,
     hardiness: 0.7,
     temperatureRange: [22, 26],
     phRange: [6.0, 8.0],
@@ -192,7 +179,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     maxTurnover: 15, // Bottom dweller, appreciates current
     growthRate: 0.25,
     // Egg-depositor: presses eggs onto glass and leaves them. Slow hatch,
-    // three to five days; grown in five to six months.
+    // three to five days.
     breeding: {
       mode: 'egg-depositor',
       developmentTime: 90,
@@ -200,11 +187,32 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       eggMass: 0.004,
       maleShare: 0.2,
     },
-  }),
+    budget: { kind: 'entry', entry: Corydoras_aeneus },
+  },
 };
 
-const DEB_PARAMS = Object.fromEntries(
-  Object.entries(FISH_SPECIES_DATA).map(([species, { amp }]) => [species, fromAmP(amp)])
-) as Record<FishSpecies, DebParams>;
+export const budgetParameters = (budget: SpeciesBudget): AmpParameters =>
+  budget.kind === 'entry' ? budget.entry.parameters : proxyEntry(budget.base, budget.figures);
 
-export const debParams = (species: FishSpecies): Readonly<DebParams> => DEB_PARAMS[species];
+const midRange = ([low, high]: [number, number]): number => (low + high) / 2;
+
+const BUDGETS = Object.fromEntries(
+  Object.entries(FISH_SPECIES_DATA).map(([species, { budget, temperatureRange }]) => {
+    const parameters = budgetParameters(budget);
+    return [species, { deb: fromAmP(parameters), female: impliedFigures(parameters, midRange(temperatureRange)) }];
+  })
+) as Record<FishSpecies, { deb: DebParams; female: HobbyFigures }>;
+
+export const debParams = (species: FishSpecies): Readonly<DebParams> => BUDGETS[species].deb;
+
+/** Grams a female weighs grown on unlimited food. */
+export const grownMass = (species: FishSpecies): number => BUDGETS[species].female.adultMassGrams;
+
+/** Physical length, cm, a female reaches grown on unlimited food. */
+export const grownLength = (species: FishSpecies): number => BUDGETS[species].female.adultLengthCm;
+
+/** Ticks from hatching until a female fed without limit in mid-range water first breeds. */
+export const maturityAge = (species: FishSpecies): number => HOURS_PER_DAY * BUDGETS[species].female.maturityAgeDays;
+
+/** Ticks from hatching by which half a cohort fed without limit in mid-range water has died of wear. */
+export const lifespan = (species: FishSpecies): number => HOURS_PER_DAY * BUDGETS[species].female.lifespanDays;

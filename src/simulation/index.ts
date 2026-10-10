@@ -58,8 +58,9 @@ export type {
   FishLifeStage,
   BreedingMode,
   FishBreedingData,
+  SpeciesBudget,
 } from './livestock/species.js';
-export { FISH_SPECIES_DATA } from './livestock/species.js';
+export { FISH_SPECIES_DATA, grownLength, grownMass, lifespan, maturityAge } from './livestock/species.js';
 export {
   FREE_AMMONIA_EDGE,
   NITRITE_EDGE,

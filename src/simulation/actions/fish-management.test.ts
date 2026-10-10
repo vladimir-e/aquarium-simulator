@@ -10,7 +10,7 @@ import {
 } from './fish-management.js';
 import { createSimulation, type SimulationState, type Fish } from '../state.js';
 import { livestockDefaults } from '../config/livestock.js';
-import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
+import { grownMass, type FishSpecies } from '../livestock/species.js';
 import { produce } from 'immer';
 import { fishRecord } from '../tests/fish.js';
 
@@ -40,14 +40,14 @@ describe('addFish', () => {
 
     expect(result.state.fish).toHaveLength(1);
     expect(result.state.fish[0].species).toBe('neon_tetra');
-    expect(result.state.fish[0].mass).toBe(FISH_SPECIES_DATA.neon_tetra.adultMass);
+    expect(result.state.fish[0].mass).toBe(grownMass('neon_tetra'));
     expect(result.message).toContain('Neon Tetra');
   });
 
   it('stocks a fish at the size it names, as that share of adult mass', () => {
     const result = addFish(makeState(), { type: 'addFish', species: 'guppy', size: 40 }, livestockDefaults);
 
-    expect(result.state.fish[0].mass).toBeCloseTo(0.4 * FISH_SPECIES_DATA.guppy.adultMass, 12);
+    expect(result.state.fish[0].mass).toBeCloseTo(0.4 * grownMass('guppy'), 12);
   });
 
   it('refuses a size smaller than a fry or bigger than grown', () => {
@@ -161,7 +161,7 @@ describe('addFish stocking cap', () => {
   it('counts every fish, fry included, against the ceiling', () => {
     const capacity = 1;
     const ceiling = getMaxFishMass(capacity);
-    const { adultMass } = FISH_SPECIES_DATA.guppy;
+    const adultMass = grownMass('guppy');
     const filled = (mass: number): SimulationState =>
       produce(createSimulation({ tankCapacity: capacity }), (draft) => {
         draft.fish.push(fishRecord({ id: 'fry_1', species: 'angelfish', mass }));
@@ -174,7 +174,7 @@ describe('addFish stocking cap', () => {
   });
 
   it('weighs a small fish at its stocked size', () => {
-    const { adultMass } = FISH_SPECIES_DATA.guppy;
+    const adultMass = grownMass('guppy');
     const roomFor = (mass: number): Fish[] => [
       fishRecord({ id: 'resident', species: 'angelfish', mass: getMaxFishMass(1) - mass }),
     ];

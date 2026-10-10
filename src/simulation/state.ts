@@ -40,7 +40,7 @@ export interface Fish {
   id: string;
   /** Fish species type */
   species: FishSpecies;
-  /** Body mass in grams, grown by the bank toward `adultMass`. */
+  /** Body mass in grams, grown by the bank toward its species' `grownMass`. */
   mass: number;
   /** Health percentage (0-100, fish dies at 0) */
   health: number;

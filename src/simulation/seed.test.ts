@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createSimulation, type Resources, type SimulationConfig } from './state.js';
-import { FISH_SPECIES_DATA } from './livestock/species.js';
+import { grownMass, lifespan } from './livestock/species.js';
 import {
   cycledBedNutrients,
   cycledColony,
@@ -397,7 +397,7 @@ describe('createSimulation seeding', () => {
       const state = createSimulation(TANK, { fish: [{ species: 'neon_tetra' }] });
 
       expect(state.fish).toHaveLength(1);
-      expect(state.fish[0].mass).toBe(FISH_SPECIES_DATA.neon_tetra.adultMass);
+      expect(state.fish[0].mass).toBe(grownMass('neon_tetra'));
     });
 
     it('builds fish at the size and age the roster names', () => {
@@ -407,7 +407,7 @@ describe('createSimulation seeding', () => {
 
       expect(state.fish).toHaveLength(2);
       for (const fish of state.fish) {
-        expect(fish.mass).toBeCloseTo(0.3 * FISH_SPECIES_DATA.guppy.adultMass, 12);
+        expect(fish.mass).toBeCloseTo(0.3 * grownMass('guppy'), 12);
         expect(fish.age).toBe(24 * 20);
       }
     });
@@ -515,7 +515,7 @@ describe('createSimulation seeding', () => {
 
   describe('impossible states are constructible on purpose', () => {
     it('takes a fish older than its species lifespan', () => {
-      const past = FISH_SPECIES_DATA.betta.lifespan * 2;
+      const past = lifespan('betta') * 2;
       const state = createSimulation(TANK, { fish: [{ species: 'betta', age: past }] });
 
       expect(state.fish[0].age).toBe(past);

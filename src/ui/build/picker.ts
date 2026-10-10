@@ -12,6 +12,7 @@ import {
   getDgh,
   getMaxFishMass,
   getPh,
+  grownMass,
   massAtSize,
   PLANT_SPECIES_DATA,
   STOCKED_FISH_SIZE,
@@ -125,7 +126,7 @@ function fishOption(
     species,
     name: data.name,
     demand:
-      `${data.adultMass} g adult · pH ${phLow.toFixed(1)}–${phHigh.toFixed(1)} · ` +
+      `${Number(grownMass(species).toPrecision(2))} g adult · pH ${phLow.toFixed(1)}–${phHigh.toFixed(1)} · ` +
       `GH ${ghLow}–${ghHigh} · ` +
       `flow to ${data.maxTurnover} ×/h`,
     fit: worst ? worst.text : `in band · bioload ${load.ratio.toFixed(1)}× after`,

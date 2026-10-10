@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pterophyllum_scalare</title>
+  <link rel="stylesheet" type="text/css" href="../../sys/style.css">
+
+  <script src="../../sys/jscripts.js"></script>
+  <script src="../../sys/ftiens4.js"></script>
+  <script src="../../sys/specJump.js"></script>
+  <script src="../../sys/species_tree_Animalia.js"></script>
+
+  <style>
+    ul.ref{
+      list-style-type: square;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<div w3-include-html="../../sys/wallpaper_entry.html"></div>
+<div w3-include-html="../../sys/toolbar_entry.html"></div>
+<div id="top2" w3-include-html="Pterophyllum_scalare_toolbar.html"></div>
+<!--------------------------------------------------------------->
+<!--   PART main                                               -->
+<!--   Where all of the text is placed                         -->
+<!--   use "contentFull" for 1 column                          -->
+<!--   use "content" if you want two columns"                  -->
+<!--------------------------------------------------------------->
+
+<div id="main">
+  <div id="main-wrapper">
+    <div id="contentFull">
+      <H1 id="portaltop">Predictions & Data for this entry</H1>
+
+      <table id="ecoCodes">
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Typified_models.html">Model</a>: <a href="https://add-my-pet.github.io/AmPtool/docs/models/std.pdf">std</a></td>
+          <td><a href="../../AmPeco.html#C" target="_blank">climate: </a> <a href="" title="Tropical monsoon climate; driest month with precipitation less than 60 mm, but more than 4 percent of the total annual precipitation">Am</a></td>
+          <td><a href="../../AmPeco.html#M" target="_blank">migrate: </a> </td>
+          <td>phylum: <button id="phylum" onclick="OpenTreeAtTaxon('Chordata')">Chordata</button></td>
+        </tr>
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Completeness.html">COMPLETE</a> = 2.8 </td>
+          <td><a href="../../AmPeco.html#E" target="_blank">ecozone: </a><a href="" title="Neotropic (including Central America, and the Caribbean)">TN</a></td>
+          <td><a href="../../AmPeco.html#F" target="_blank">food:    </a><a href="" title="omnivore (plants/animals/fungi) for stage bi">biO</a></td>
+          <td>class: <button id="class" onclick="OpenTreeAtTaxon('Actinopterygii')">Actinopterygii</button></td>
+        </tr>
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html">MRE</a> =    0.079 </td>
+          <td><a href="../../AmPeco.html#H" target="_blank">habitat: </a><a href="" title="lakes for stage 0i">0iFl</a>, <a href="" title="rivers for stage 0i">0iFr</a></td>
+          <td><a href="../../AmPeco.html#G" target="_blank">gender:  </a><a href="" title="gender determined by genetics">Dg</a></td>
+          <td>order: <button id="order" onclick="OpenTreeAtTaxon('Cichliformes')">Cichliformes</button></td>
+        </tr>
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html">SMSE</a> =    0.011 </td>
+          <td><a href="../../AmPeco.html#B" target="_blank">embryo:  </a><a href="" title="freshwater nest guarded by female and male">Fnfm</a></td>
+          <td><a href="../../AmPeco.html#R" target="_blank">reprod:  </a><a href="" title="homogamy (no alternating generations, fertilisation obligatory)">O</a></td>
+          <td>family: <button id="family" onclick="OpenTreeAtTaxon('Cichlidae')">Cichlidae</button></td>
+        </tr>
+      </table>
+
+      <h2><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Zero-variate_data.html">Zero-variate data</a></h2>
+      <table id="t01">
+        <tr class="head"><th>Data</th> <th>Observed</th> <th>Predicted</th> <th><a href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html" target="_blank">(RE)</a></th> <th>Unit</th> <th>Description</th> <th>Reference</th></tr>
+        <tr><td><a href="" title="Temperature: 28 C">ab</a></td> <td>58.2</td> <td>58.28</td> <td>(0.001426)</td> <td>d</td> <td><a href="" title="hatch at 1288 h post fertilization, start feeding at 4-5 d post hatch">age at birth</a></td> <td>KorzSzal2012</td></tr>
+        <tr><td><a href="" title="Temperature: 28 C">am</a></td> <td>3285</td> <td>3287</td> <td>(0.0007006)</td> <td>d</td> <td>life span</td> <td>guess</td></tr>
+        <tr><td>Wwb</td> <td>0.001033</td> <td>0.001025</td> <td>(0.008085)</td> <td>g</td> <td>wet weight at birth</td> <td>KorzSzal2012</td></tr>
+        <tr><td>Wwp</td> <td> 17</td> <td>17.02</td> <td>(0.001238)</td> <td>g</td> <td>wet weight at puberty</td> <td>OrteCort2009</td></tr>
+        <tr><td>Wwi</td> <td>26.14</td> <td>27.32</td> <td>(0.04532)</td> <td>g</td> <td>ultimate wet weight</td> <td>EspiFern2017</td></tr>
+      </table>
+
+      <h2><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Uni-variate_data.html">Uni-</a> and <a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Bi-variate_data.html">bivariate data</a></h2>
+      <table id="t01">
+        <tr class="head"><th>Data</th> <th>Figure</th> <th>Independent variable</th> <th>Dependent variable</th> <th><a href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html" target="_blank">(RE)</a></th> <th>Reference</th></tr>
+        <tr><td><a href="" title="Temperature: 28 C">WwN</a></td> <td><img class="myImg" src="../../entries/Pterophyllum_scalare/results_Pterophyllum_scalare_01.png" alt=""></td> <td>wet weight</td> <td>fecundity</td> <td>(0.1398)</td> <td>OrteCort2009</td></tr>
+        <tr><td><a href="" title="Temperature: 28.6 C">tWw</a></td> <td><img class="myImg" src="../../entries/Pterophyllum_scalare/results_Pterophyllum_scalare_02.png" alt=""></td> <td>time</td> <td>wet weight</td> <td>(0.1209)</td> <td>EspiFern2017</td></tr>
+      </table>
+
+      <div id="myModal" class="modal">
+        <img class="modal-content" id="img01">
+        <div id="caption"></div>
+      </div>
+
+      <script>modal()</script>
+
+      <p>
+      <h2><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Pseudo_data.html">Pseudo-data at T<sub>ref</sub> = 20&deg;C</a> </h2>
+      <table id="t01">
+        <tr class="head"><th>Data</th> <th>Generalised animal</th> <th>Pterophyllum scalare</th> <th>Unit</th> <th>Description</th></tr>
+        <tr><td>v</td> <td>0.02</td> <td>0.02823</td> <td>cm/d</td> <td>energy conductance</td></tr>
+        <tr><td>p_M</td> <td> 18</td> <td>97.55</td> <td>J/d.cm^3</td> <td>vol-spec som maint</td></tr>
+        <tr><td>k_J</td> <td>0.002</td> <td>0.002</td> <td>1/d</td> <td>maturity maint rate coefficient</td></tr>
+        <tr><td>k</td> <td>0.3</td> <td>0.1071</td> <td>-</td> <td>maintenance ratio</td></tr>
+        <tr><td>kap</td> <td>0.8</td> <td>0.9954</td> <td>-</td> <td>allocation fraction to soma</td></tr>
+        <tr><td>kap_G</td> <td>0.8</td> <td>0.8011</td> <td>-</td> <td>growth efficiency</td></tr>
+        <tr><td>kap_R</td> <td>0.95</td> <td>0.95</td> <td>-</td> <td>reproduction efficiency</td></tr>
+        <tr><td>s_s</td> <td>0.01</td> <td>0.001403</td> <td>-</td> <td>supply stress</td></tr>
+      </table>
+
+      <p>
+      <h3 style="clear:both" class="pet">Discussion</h3>
+      <ul> 
+        <li>
+          males are assumed not to differ from females
+        </li>
+      </ul>
+
+      <p>
+      <h3 style="clear:both" class="pet">Facts</h3>
+      <ul> 
+        <li>
+          female and males guard nest (Ref: fishbase)
+        </li>
+        <li>
+          length-weight: Ww in g = 0.03162*(TL in cm)^3.00 (Ref: fishbase)
+        </li>
+      </ul>
+
+      <p>
+      <h3 style="clear:both" class="pet"><a class="link" href="Pterophyllum_scalare_bib.bib" target = "_blank">Bibliography</a></h3>
+      <div w3-include-html="Pterophyllum_scalare_bib.html"></div>
+      <p>
+      <h3 style="clear:both" class="pet">Citation</h3>
+      <div w3-include-html="Pterophyllum_scalare_cit.html"></div>
+    </div> <!-- end of content -->
+
+    <div w3-include-html="../../sys/footer_amp.html"></div>
+    <script>w3IncludeHTML();</script>
+
+  </div> <!-- main wrapper -->
+</div> <!-- main -->
+
+</body>
+</html>

@@ -1,13 +1,15 @@
 import type { Fish } from '../state.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { eggsLaid } from '../systems/fish-growth.js';
+import { grownMass } from '../livestock/species.js';
 
-/** A fish record as a test names it: a grown, fasting neon male on an empty bank, a female's ovary holding the eggs her bank buys, unless it says otherwise. */
+/** A fish record as a test names it: a grown, fasting neon male on an empty bank, a female's ovary holding the eggs her bank buys, unless it says otherwise; a named species comes grown. */
 export function fishRecord(fields: Partial<Fish> = {}): Fish {
+  const species = fields.species ?? 'neon_tetra';
   const made: Fish = {
     id: 'fish_1',
-    species: 'neon_tetra',
-    mass: 0.5,
+    species,
+    mass: grownMass(species),
     health: 100,
     age: 0,
     gut: 0,

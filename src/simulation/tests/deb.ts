@@ -34,6 +34,11 @@ export function medianDeathHour(life: readonly DebState[]): number {
   return life.findIndex(({ hazard }) => (cumulativeHazard += hazard) >= -Math.log(LIFESPAN_SURVIVAL)) + 1;
 }
 
+export function meanDeathHour(life: readonly DebState[]): number {
+  let cumulativeHazard = 0;
+  return life.reduce((mean, { hazard }) => mean + Math.exp(-(cumulativeHazard += hazard)), 0);
+}
+
 export const expectRelative = (actual: number, expected: number, tolerance = 1e-12): void => {
   expect(Math.abs(actual / expected - 1)).toBeLessThanOrEqual(tolerance);
 };

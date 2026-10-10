@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Corydoras_aeneus</title>
+  <link rel="stylesheet" type="text/css" href="../../sys/style.css">
+
+  <script src="../../sys/jscripts.js"></script>
+  <script src="../../sys/ftiens4.js"></script>
+  <script src="../../sys/specJump.js"></script>
+  <script src="../../sys/species_tree_Animalia.js"></script>
+
+  <style>
+    ul.ref{
+      list-style-type: square;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<div w3-include-html="../../sys/wallpaper_entry.html"></div>
+<div w3-include-html="../../sys/toolbar_entry.html"></div>
+<div id="top2" w3-include-html="Corydoras_aeneus_toolbar.html"></div>
+<!--------------------------------------------------------------->
+<!--   PART main                                               -->
+<!--   Where all of the text is placed                         -->
+<!--   use "contentFull" for 1 column                          -->
+<!--   use "content" if you want two columns"                  -->
+<!--------------------------------------------------------------->
+
+<div id = "main">
+  <div id = "main-wrapper">
+    <div id="contentFull">
+      <H1 id = "portaltop">Predictions & Data for this entry</H1>
+
+      <table id="ecoCodes">
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Typified_models.html">Model</a>: <a href="https://add-my-pet.github.io/AmPtool/docs/models/abj.pdf">abj</a></td>
+          <td><a href="../../AmPeco.html#C" target="_blank">climate: </a> <a href="" title="Tropical (megathermal) climates: every month of the year with an average temperature of 18 &deg;C or higher, with significant precipitation">A</a></td>
+          <td><a href="../../AmPeco.html#M" target="_blank">migrate: </a> </td>
+          <td>phylum: <button id="phylum" onclick="OpenTreeAtTaxon('Chordata')">Chordata</button></td>
+        </tr>
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Completeness.html">COMPLETE</a> = 2.5 </td>
+          <td><a href="../../AmPeco.html#E" target="_blank">ecozone: </a><a href="" title="Neotropic (including Central America, and the Caribbean)">TN</a></td>
+          <td><a href="../../AmPeco.html#F" target="_blank">food:    </a><a href="" title="living invertebrates for stage bi">biCi</a>, <a href="" title="shoots/leaves for stage ji">jiHl</a></td>
+          <td>class: <button id="class" onclick="OpenTreeAtTaxon('Actinopterygii')">Actinopterygii</button></td>
+        </tr>
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html">MRE</a> =    0.056 </td>
+          <td><a href="../../AmPeco.html#H" target="_blank">habitat: </a><a href="" title="fresh marshes (lots of plants, stagnant or slowly moving water) for stage 0i">0iFm</a></td>
+          <td><a href="../../AmPeco.html#G" target="_blank">gender:  </a><a href="" title="dioecy (either male or female, also called gonochoric)">D</a></td>
+          <td>order: <button id="order" onclick="OpenTreeAtTaxon('Siluriformes')">Siluriformes</button></td>
+        </tr>
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html">SMSE</a> =    0.007 </td>
+          <td><a href="../../AmPeco.html#B" target="_blank">embryo:  </a><a href="" title="freshwater on solid substrate">Fc</a>, <a href="" title="on/in plants in fresh water">Fh</a></td>
+          <td><a href="../../AmPeco.html#R" target="_blank">reprod:  </a><a href="" title="homogamy (no alternating generations, fertilisation obligatory)">O</a></td>
+          <td>family: <button id="family" onclick="OpenTreeAtTaxon('Callichthyidae')">Callichthyidae</button></td>
+        </tr>
+      </table>
+
+      <p>
+      <h2><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Zero-variate_data.html">Zero-variate data</a></h2>
+      <table id="t01">
+        <tr class="head"><th>Data</th> <th>Observed</th> <th>Predicted</th> <th><a href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html" target="_blank">(RE)</a></th> <th>Unit</th> <th>Description</th> <th>Reference</th></tr>
+        <tr><td><a href="" title="Temperature: 25 C">ab</a></td> <td>  3</td> <td>3.18</td> <td>(0.05996)</td> <td>d</td> <td>age at birth</td> <td>HuysMoer2009</td></tr>
+        <tr><td><a href="" title="Temperature: 25 C">tp</a></td> <td>150</td> <td>151.1</td> <td>(0.007149)</td> <td>d</td> <td>time since birth at puberty</td> <td>guess</td></tr>
+        <tr><td><a href="" title="Temperature: 25 C">am</a></td> <td>1825</td> <td>1825</td> <td>(4.083e-05)</td> <td>d</td> <td>life span</td> <td>fishbase</td></tr>
+        <tr><td>Lh</td> <td>0.35</td> <td>0.35</td> <td>(0.0001384)</td> <td>cm</td> <td>total length at hatch</td> <td>HuysMoer2009</td></tr>
+        <tr><td>Lb</td> <td>0.57</td> <td>0.4646</td> <td>(0.185)</td> <td>cm</td> <td>total length at birth</td> <td>HuysMoer2009</td></tr>
+        <tr><td>Lp</td> <td>  5</td> <td>5.523</td> <td>(0.1047)</td> <td>cm</td> <td>total length at puberty</td> <td>Kooy2010</td></tr>
+        <tr><td>Li</td> <td>  7</td> <td>7.78</td> <td>(0.1115)</td> <td>cm</td> <td>ultimate total length</td> <td>aquafish</td></tr>
+        <tr><td>Wwb</td> <td>0.00064</td> <td>0.0006665</td> <td>(0.04137)</td> <td>g</td> <td><a href="" title="computed as 1.2*(.57/7)^3">wet weight at birth</a></td> <td>HuysMoer2009</td></tr>
+        <tr><td>Wwp</td> <td>1.164</td> <td>1.12</td> <td>(0.03771)</td> <td>g</td> <td>wet weight at puberty</td> <td>guess</td></tr>
+        <tr><td>Wwi</td> <td>3.2</td> <td>3.13</td> <td>(0.02174)</td> <td>g</td> <td>ultimate wet weight</td> <td>guess</td></tr>
+        <tr><td><a href="" title="Temperature: 25 C">Ri</a></td> <td>1.644</td> <td>1.64</td> <td>(0.00247)</td> <td>#/d</td> <td><a href="" title="several spawnings per season">max reprod rate</a></td> <td>fishbase, guess</td></tr>
+      </table>
+
+      <h2><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Uni-variate_data.html">Uni-</a> and <a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Bi-variate_data.html">bivariate data</a></h2>
+      <table id="t01">
+        <tr class="head"><th>Data</th> <th>Figure</th> <th>Independent variable</th> <th>Dependent variable</th> <th><a href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html" target="_blank">(RE)</a></th> <th>Reference</th></tr>
+        <tr><td><a href="" title="Temperature: 25 C">tL</a></td> <td><img class="myImg" src="https://www.bio.vu.nl/thb/deb/deblab/add_my_pet/entries/Corydoras_aeneus/results_Corydoras_aeneus_01.png" alt=""></td> <td>time since birth</td> <td>standard length</td> <td>(0.09833)</td> <td>HuysMoer2009</td></tr>
+      </table>
+
+      <div id="myModal" class="modal">
+        <img class="modal-content" id="img01">
+        <div id="caption"></div>
+      </div>
+
+      <script>modal()</script>
+
+      <p>
+      <h2><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Pseudo_data.html">Pseudo-data at T<sub>ref</sub> = 20&deg;C</a> </h2>
+      <table id="t01">
+        <tr class="head"><th>Data</th> <th>Generalised animal</th> <th>Corydoras aeneus</th> <th>Unit</th> <th>Description</th></tr>
+        <tr><td>v</td> <td>0.02</td> <td>0.05977</td> <td>cm/d</td> <td>energy conductance</td></tr>
+        <tr><td>kap</td> <td>0.8</td> <td>0.9824</td> <td>-</td> <td>allocation fraction to soma</td></tr>
+        <tr><td>kap_R</td> <td>0.95</td> <td>0.95</td> <td>-</td> <td>reproduction efficiency</td></tr>
+        <tr><td>p_M</td> <td> 18</td> <td>112.5</td> <td>J/d.cm^3</td> <td>vol-spec som maint</td></tr>
+        <tr><td>k_J</td> <td>0.002</td> <td>0.002</td> <td>1/d</td> <td>maturity maint rate coefficient</td></tr>
+        <tr><td>kap_G</td> <td>0.8</td> <td>0.801</td> <td>-</td> <td>growth efficiency</td></tr>
+      </table>
+
+      <p>
+      <h3 style="clear:both" class="pet">Facts</h3>
+      <ul> 
+        <li>
+          The genus can extract oxygen from air using a highly vascularised portion of the gastrointestinal tract (Ref: Wiki)
+        </li>
+      </ul>
+
+      <p>
+      <h3 style="clear:both" class="pet"><a class="link" href = "Corydoras_aeneus_bib.bib" target = "_blank">Bibliography</a></h3>
+      <div w3-include-html="Corydoras_aeneus_bib.html"></div>
+      <p>
+      <h3 style="clear:both" class="pet">Citation</h3>
+      <div w3-include-html="Corydoras_aeneus_cit.html"></div>
+    </div> <!-- end of content -->
+
+    <div w3-include-html="../../sys/footer_amp.html"></div>
+    <script>w3IncludeHTML();</script>
+
+  </div> <!-- main wrapper -->
+</div> <!-- main -->
+
+</body>
+</html>
