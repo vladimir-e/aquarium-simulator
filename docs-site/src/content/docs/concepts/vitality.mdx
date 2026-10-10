@@ -1,6 +1,6 @@
 ---
 title: Vitality
-description: One model for every organism — rates of benefit and harm move condition; a plant or a bloom banks at full condition and its bank heals it and buys what it makes, while a fish's bank is its energy budget's reserve.
+description: One model for every organism — rates of benefit and harm move condition; a plant or a bloom banks at full condition and its bank heals it and buys what it makes, while a fish banks nothing and its reserve buys its growth and broods and pays its repair.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -57,7 +57,7 @@ and it ends when the rates turn round.
 
 | Organism | Healing rate | Shipped |
 |---|---|---|
-| Fish | `healingRate × τ` on its deficit, paid from reserve at `healingCost` hours of upkeep a point | 0.005 /h at 20 °C |
+| Fish | Its deficit, first order at `healingRate × τ`, paid from reserve at `healingCost` hours of upkeep a point | 0.005 /h at 20 °C |
 | Plant | `healingDrawRate × growthRate` — a plant repairs at the rate it grows | 0.09 /h for monte carlo, 0.015 /h for anubias |
 | Algae | The plants' law, at its kind's growth rate | 3 /h for green water — 95 % of its bank in an hour — and 1 /h for film, 63 % |
 
@@ -84,6 +84,6 @@ and it ends when the rates turn round.
 
 `src/simulation/systems/` holds the shared step, the flora law plants and the
 blooms all run on, and each organism's factor builders;
-`src/simulation/plants/`, `src/simulation/algae/` and
-`src/simulation/livestock/` decide what their bank buys, and
+`src/simulation/plants/` and `src/simulation/algae/` decide what their bank
+buys, `src/simulation/livestock/` what a fish's reserve pays for, and
 `src/simulation/flora/` runs plants and the blooms through one pass.

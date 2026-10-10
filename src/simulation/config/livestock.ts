@@ -89,7 +89,7 @@ export interface LivestockConfig {
   healingCost: number;
 
   // Broods
-  /** First-order rate, per hour at 20 °C, a male resorbs the brood buffer he has not spent fathering. */
+  /** First-order rate, per hour at 20 °C, a male burns the brood buffer he has not spent fathering, on courtship and gametes. */
   maleBufferTurnover: number;
 
   // Clutches

@@ -33,7 +33,7 @@ tank's fish thin, and the larger fish hunt the young that hatch.
 | Starvation | <Badge text="settled" variant="success" /> | The hour's unpaid maintenance as a damage rate; the buffer, then structure, pay it. |
 | Repair | <Badge text="settled" variant="success" /> | A first-order share of the deficit, paid from reserve; nothing banks. |
 | Old age | <Badge text="settled" variant="success" /> | The DEB hazard damages health and accumulates into survival against a per-fish threshold. |
-| Broods | <Badge text="settled" variant="success" /> | From the brood buffer: egg-layers spawn on a ready egg, a livebearer carries one brood; males pay their share from their own buffers. |
+| Broods | <Badge text="settled" variant="success" /> | From the brood buffer, in bouts: an egg-layer spawns once her buffer holds a clutch, a livebearer carries one brood; males pay their share from their own buffers. |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge; damage starts at the edge. |
 | Clutches | <Badge text="settled" variant="success" /> | A stock of eggs thinned by water harm and predation, developing at the species' age at birth under τ. |
 | Predation | <Badge text="settled" variant="success" /> | A damage rate on any fish short of grown length from the larger fish per litre; kills are eaten. |
@@ -52,11 +52,11 @@ are read at the species' mid-range temperature, hatching at 25 °C.
 
 | Species | Budget | Grown | Stocked (80 %) | Puberty | Median lifespan | Hatches in | Egg · hatchling size |
 |---|---|---|---|---|---|---|---|
-| Neon Tetra | entry | 2.6 cm · 0.22 g | 0.11 g | 57 d | 7.7 y | 7.7 d | 0.52 mg · 13 % |
-| Guppy | entry | 5.7 cm · 1.1 g | 0.55 g | 79 d | 2.7 y | 27 d, carried | 2.7 mg · 13 % |
-| Betta | proxy | 5.5 cm · 3.0 g | 1.5 g | 120 d | 3.0 y | 1.3 d | 0.011 mg · 1.5 % |
-| Corydoras | entry | 7.8 cm · 3.1 g | 1.6 g | 165 d | 6.0 y | 3.2 d | 0.67 mg · 6 % |
-| Angelfish | entry | 15 cm · 27 g | 14 g | 392 d | 10.7 y | 5.6 d | 1.0 mg · 3 % |
+| Neon Tetra | entry | 2.6 cm · 0.22 g | 0.11 g · 199 d old | 57 d | 7.7 y | 7.7 d | 0.52 mg · 13 % |
+| Guppy | entry | 5.7 cm · 1.1 g | 0.55 g · 511 d old | 79 d | 2.7 y | 27 d, carried | 2.7 mg · 13 % |
+| Betta | proxy | 5.5 cm · 3.0 g | 1.5 g · 336 d old | 120 d | 3.0 y | 1.3 d | 0.011 mg · 1.5 % |
+| Corydoras | entry | 7.8 cm · 3.1 g | 1.6 g · 218 d old | 165 d | 6.0 y | 3.2 d | 0.67 mg · 6 % |
+| Angelfish | entry | 15 cm · 27 g | 14 g · 327 d old, juvenile | 392 d | 10.7 y | 5.6 d | 1.0 mg · 3 % |
 
 | Species | Hardiness | Temperature | pH | GH | Max turnover |
 |---|---|---|---|---|---|
@@ -86,8 +86,9 @@ factor (1 at 20 °C) and ω the oxygen pace:
 | Maturity | `k_J × E_H × τ` paid from the other share; the rest matures the fish until puberty, then fills the brood buffer |
 | Shortfall | maintenance its share could not pay — drawn from the buffer, then from structure, which shrinks |
 
-Wet mass is `V + (E + E_R) / d_V`; size is `100 × L / L_m`. A fish reads as fry
-until its maturity reaches puberty. Reserve density `E / ([E_m] × V)`, capped
+Wet mass is `V + (E + E_R) / d_V`; size is `100 × L / L_m`. A fish reads as an
+adult once its maturity reaches puberty, at any size; short of it, as fry under
+half its grown length and as a juvenile from there. Reserve density `E / ([E_m] × V)`, capped
 at 1, is how well fed it is. ω is a Monod on dissolved oxygen against saturated
 water, so a healthy tank reads 1; it scales only supply, so a fish longer than
 `ω × L_m` cannot pay its maintenance however well it is fed.
@@ -135,7 +136,7 @@ The fish's own stocks; what it reads and writes in the tank is under [Seams](#se
 ### Health
 
 Health moves by benefits less damage, plus repair: the fish asks
-`healingRate × τ × (100 − health)` points an hour of its reserve at
+`(1 − e^−healingRate × τ) × (100 − health)` points an hour of its reserve at
 `healingCost` hours of its somatic maintenance a point, paid at the hour's
 oxygen; an empty reserve repairs nothing. Health above 100 is lost. A fish is
 sick while its damage outruns what it earns and repairs.
@@ -213,24 +214,25 @@ jitter and a survival threshold are sampled once at construction. Stocked and
 hatched fish come from the same factory.
 
 A stocked fish was grown in the shop: stocking names a size in % of grown
-length — 80 by default, up to 90, since grown length is an asymptote — and its
-budget is the one its species reaches at that size fed without limit, its
-broods spent along the way. Temperature paces that life without moving its
-path, so the shop raises a size once at 20 °C and the tank's τ sets the fish's
-age, wear and hazard. Its threshold is drawn under the survival it arrives
-with. A hatchling starts at L_b on a full reserve at E_Hb.
+length — from its hatchling's, 80 by default, up to 90, since grown length is an
+asymptote — and its budget is the one its species reaches at that size fed
+without limit at its mid-range temperature, its broods spent along the way. Its
+age, wear and survival are that upbringing's, whatever tank buys it, so a cold
+tank buys a fish as young as a warm one. Its threshold is drawn under the
+survival it arrives with. A hatchling starts at L_b on a full reserve at E_Hb.
 
 ### Broods
 
-A female spawns once her buffer readies a whole egg, `⌊κ_R × E_R / E_0⌋`; a
-livebearer only while she carries no brood, so she conceives what her buffer
+Spawning comes in bouts. Eggs ready are `⌊κ_R × E_R / E_0⌋`; an egg-layer
+spawns once they reach her species' clutch, a livebearer once a whole egg is
+ready and only while she carries no brood, so she conceives what her buffer
 gathered through the last gestation. She draws every egg ready. The males of
 her species father as many as their buffers pay for at their species'
 `maleShare` of an egg's cost, `maleShare × E_0 / κ_R`, shared back to each
 ready female in proportion to her eggs, each male paying the same share of
 what his could. Fathered eggs become her clutch; she resorbs the rest, and
 resorbed eggs, the overhead `1 − κ_R` and the males' payment are burned. A
-male resorbs his unspent buffer at `maleBufferTurnover × τ`, so he holds about
+male burns his unspent buffer at `maleBufferTurnover × τ`, so he holds about
 a week of it. A starving fish's buffer pays its maintenance first, so breeding
 stops before it shrinks. Breeding is uncapped: the stocking ceiling gates
 only the keeper's hand.
@@ -250,15 +252,17 @@ At development 1 each whole egg left hatches; the part egg goes to waste.
 Eggs the water kills go to waste; eaten eggs go into the eaters' guts by the
 grams each outweighs an egg, as room allows, the rest to waste.
 
-| Species | Mode | Exposure | Male share |
-|---|---|---|---|
-| Guppy | livebearer | 0 | 0.2 |
-| Neon Tetra | egg-scatterer | 1 | 0.2 |
-| Betta | bubble-nester | 0.3 | 0.6 |
-| Corydoras | egg-depositor | 1 | 0.2 |
-| Angelfish | substrate-spawner | 0.5 | 0.5 |
+| Species | Mode | Clutch | Exposure | Male share |
+|---|---|---|---|---|
+| Guppy | livebearer | what her buffer holds | 0 | 0.2 |
+| Neon Tetra | egg-scatterer | 80 | 1 | 0.2 |
+| Betta | bubble-nester | 150 | 0.3 | 0.6 |
+| Corydoras | egg-depositor | 20 | 1 | 0.2 |
+| Angelfish | substrate-spawner | 300 | 0.5 | 0.5 |
 
-Exposure is how much of the tank's predation reaches a laid clutch. A carried
+Clutch is the hobby figure for the eggs a bout lays, the least an egg-layer's
+buffer holds before she spawns. Exposure is how much of the tank's predation
+reaches a laid clutch. A carried
 brood dies or leaves the tank with its mother.
 
 ### Death
@@ -286,9 +290,9 @@ guts by weight as room allows.
 | `hazardSeverity` | Damage per unit of hourly hazard | `5000` |
 | `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | The three benefit channels, on a full reserve | `0.4` · `0.3` · `0.2` %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which shelter tops out | `3.0` |
-| `healingRate` | Share of its deficit a fish repairs an hour at 20 °C | `0.005` /hr |
+| `healingRate` | First-order rate a fish repairs its deficit at, at 20 °C | `0.005` /hr |
 | `healingCost` | Hours of somatic upkeep a point of repair costs | `0.5` h |
-| `maleBufferTurnover` | Share of his unspent buffer a male resorbs an hour at 20 °C | `0.006` /hr |
+| `maleBufferTurnover` | First-order rate a male burns his unspent buffer at, at 20 °C | `0.006` /hr |
 | `eggSensitivity` | How many times harder the water harms a laid egg than a fish | `3` × |
 | `eggPredationRate` | Share of a laid clutch eaten an hour per g/L of predator mass, before exposure | `15` L/g/hr |
 | `predationRate` | Damage an hour, before hardiness, per g/L of predator mass on a fish at no size | `100` %/hr per g/L |

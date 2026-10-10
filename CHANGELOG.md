@@ -11,13 +11,10 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Fish run on their energy budgets** - each fish is an Add-my-Pet DEB: food fills a reserve that pays maintenance first, grows the fish and fills a brood buffer; starving shrinks it, low oxygen starves a fed one, repair is paid from reserve, and old age is a survival curve; breaking: `Fish.deb`, `survival`, `survivalDraw` replace `mass`, `surplus`, `ovary`, stocking size is % of grown length, livestock config reshaped (v35).
-- **A fish is made of what it ate** - fish grow and lay from digested food, small ones eat and burn more per gram, and the dead return their whole body; breaking: `processBodies` replaces `processBreeding`, `Fish.ovary`, `assimilatedFraction` replaces `gillNFraction` (v34).
-- **Old age is wear** - fish age by a rising damage rate and heal slower, a cohort dying over a few months near the species lifespan; breaking: `lifespan` replaces `maxAge`, `fishHealingRate` needs `mass` (v34).
+- **Fish run on energy budgets** - fish grow, breed, starve and age on their species' Add-my-Pet DEB; breaking: `Fish.deb` replaces `mass`/`surplus`/`ovary` (v35).
 - **Predation** - larger fish hunt the young by the grams they outweigh them and eat what they kill; breaking: `computeFishVitality`, `readyToBrood` args (v34).
 - **Eggs are a stock** - water and fish thin a clutch as it develops, livebearers carry theirs; breaking: `Clutch` holds `eggs`, `development`; `createFish`, `processMetabolism`, `processHealth` leave the barrel (v34).
-- **Fish grow on their banks** - mass and broods are bought by the bank, both parents pay, stocking names a size; breaking: `Fish.stage` goes (v34).
-- **Feeding through a gut** - fish digest over hours, slower cold, and earn on what they digest; breaking: `Fish.gut` replaces `satiation`, `gutCapacity`/`dailyMaintenance` need `species` (v34).
+- **Feeding through a gut** - fish digest over hours, slower cold; breaking: `Fish.gut` replaces `satiation` (v34).
 - **Auto feeder** - drops a set ration once a day at its hour (v34).
 - **Auto doser keeps an hour** - breaking: `AutoDoser.startHour` replaces `schedule` (v34).
 - **Actions settle the passive readings** (#73) - a verb re-reads light, flow, surface and aeration off the tank it leaves, and hosts settle after writing equipment or optics; breaking: `settlePassiveResources` replaces `relight`.
@@ -69,7 +66,6 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **`config set` takes a finite number or nothing** - `Infinity` and `1e309` were stored as strings that arithmetic turned back into `NaN`, and a typo'd path grew the config a key nothing reads.
 - **A tunable is held to the range it declares** - `config set` and the tunables drawer read the leaf's own min/max, and the save schema bounds the attenuation constants, so a negative attenuation can no longer make the tank's light infinite.
 - **Light is PAR, not watts** - a fixture is rated at the surface, the tank runs on what reaches the substrate, and depth comes from capacity (v18, v5).
-- **Age decides whether a fish can spawn** - the gate asks `age ≥ maturityAge`; a stocked adult arrives grown, one seeded at `age: 0` waits it out.
 - **A tank runs the same life twice** - a seed and counter on the state: one `rngSeed`, one life, ids too. Breaking: no `generateFishId` (v17, v4).
 - **The CLI rejects unknown flags** - `sim new --capacity=200` no longer builds the default tank and reports success; each subcommand names its flags.
 - **Loading a preset starts a new tank** - a fresh simulation at tick 0, not a retrofit of the running one, and the dialog names what that costs.

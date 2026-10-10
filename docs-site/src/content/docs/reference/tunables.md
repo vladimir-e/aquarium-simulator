@@ -195,7 +195,7 @@ A fish's energy budget — growth, reserve, maturity, brood buffer, ageing — c
 | `plantBenefitSaturationPoint` | Plant power at which the planted-tank benefit stops growing | power |
 | `healingRate` | First-order rate a fish repairs its health deficit at, at 20 °C, paid from its reserve | /hr |
 | `healingCost` | Hours of a fish's somatic upkeep one point of repair costs | h |
-| `maleBufferTurnover` | First-order rate a male resorbs the brood buffer he has not spent fathering, at 20 °C | /hr |
+| `maleBufferTurnover` | First-order rate a male burns the brood buffer he has not spent fathering, at 20 °C | /hr |
 | `eggSensitivity` | How many times harder the water harms a laid egg than a fish, as a share of the clutch an hour; a carried brood takes its mother's harm | × |
 | `eggPredationRate` | Share of a laid clutch an hour one gram of predator mass per litre — the grams each fish outweighs an egg — eats, before the clutch's exposure | L/g/hr |
 | `predationRate` | Damage an hour, before hardiness, one gram per litre of predator mass — the grams each larger fish outweighs the prey — does a fish at no size | %/hr per g/L |

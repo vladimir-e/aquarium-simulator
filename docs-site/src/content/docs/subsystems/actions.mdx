@@ -61,9 +61,9 @@ diverge the moment their keepers act differently.
 | Trim plants | a target size, optionally one plant id or one family id | every plant above the target down to it — of that family, or just the named plant | target outside `[MIN_PLANTABLE_SIZE, 100]`, nothing above the target, plant not found |
 | Add plant | species, optional size | a unit founding its own family, at condition 100 with an empty bank | unknown species, size outside `[MIN_PLANTABLE_SIZE, 100]`, not enough floor for its footprint |
 | Remove plant | plant id | the plant leaves the array; a rooted one disturbs its footprint's share of the bed | not found |
-| Add fish | species, optional size | a fish at that share of adult mass — grown by default — at age 0, with sampled sex, hardiness offset and health jitter | unknown species, size outside a fry's to 100, or the physical mass ceiling reached |
+| Add fish | species, optional size in % of grown length | a fish the shop raised to that size on unlimited food at its species' mid-range temperature, whatever the tank — its age, wear and survival are that upbringing's, its reserve full and its brood buffer empty, so a female fills a whole clutch before she first spawns — with sampled sex, hardiness offset, health jitter and survival threshold | unknown species, size outside its hatchling's to `MAX_STOCKED_SIZE`, or the physical mass ceiling reached |
 | Remove fish | fish id | the fish leaves the array | not found |
-| Sell fry | — | every fish under half its adult size | no fry in the tank |
+| Sell fry | — | every fish that reads as fry: short of puberty and under half its grown length. A juvenile — past half but short of puberty — and an adult stay | no fry in the tank |
 
 Trimmed tissue leaves the system outright — the convention is that the keeper
 carried it out of the room. Scrubbed film does not: it comes off the glass
@@ -137,6 +137,8 @@ they are not reachable through the config layer or a declared range.
 | Dose bounds, automatic | Floor and ceiling on a scheduled dose | `0.5`–`10` ml |
 | `MAX_ROOT_TABS` | Most tabs one push takes | `10` |
 | `MAX_FISH_VOLUME_FRACTION` | Share of the water stocked fish may occupy — a plausibility ceiling, not a husbandry one | `0.5` |
+| `STOCKED_FISH_SIZE` | Size a fish is stocked at when the caller says nothing, in % of grown length | `80` % |
+| `MAX_STOCKED_SIZE` | Largest a shop sells: grown length is an asymptote no fish reaches | `90` % |
 | `MIN_PLANTABLE_SIZE` | Least a planting or a trim may name; the most is a full unit | `1` % |
 | `DEFAULT_PLANT_SIZE` | Size a plant goes in at when the caller says nothing | `50` % |
 | Water change presets | The steps the dashboard offers; the action itself takes any fraction | `0.1` · `0.25` · `0.5` · `0.9` |
