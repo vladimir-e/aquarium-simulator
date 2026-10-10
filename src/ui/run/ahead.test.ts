@@ -3,7 +3,6 @@ import { produce } from 'immer';
 import {
   ALGAE_KINDS,
   applyEffects,
-  deltaOf,
   createSimulation,
   dailyLightIntegral,
   getPresetById,
@@ -15,6 +14,7 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { settleEnvironment } from '../../simulation/tick.js';
+import { deltaOf } from '../../simulation/tests/effects.js';
 import { spawnsAt } from '../../simulation/systems/brood.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { ammoniaPerGramOfFood } from '../../simulation/config/livestock.js';

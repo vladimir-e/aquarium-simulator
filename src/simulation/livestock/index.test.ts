@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deltaOf } from '../core/effects.js';
+import { deltaOf } from '../tests/effects.js';
 import { burnEffects, processLivestock, tankPaces } from './index.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';

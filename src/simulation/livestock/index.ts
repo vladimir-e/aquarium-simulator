@@ -9,7 +9,7 @@
 
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
-import { deltaOf, type Effect } from '../core/effects.js';
+import type { Effect } from '../core/effects.js';
 import type { TunableConfig } from '../config/index.js';
 import type { MineralVector } from '../config/nutrients.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
@@ -89,14 +89,16 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
     state.fish.map((fish) => carried.get(fish.id) ?? 0)
   );
 
+  const waste = (grams: number, source: string): Effect[] =>
+    grams !== 0 ? [{ tier: 'active', resource: 'waste', delta: atRecipe(grams, config), source }] : [];
   const effects = (
     [
       { tier: 'active', resource: 'food', delta: -metabolism.foodConsumed, source: 'fish-metabolism' },
-      { tier: 'active', resource: 'waste', delta: atRecipe(metabolism.feces, config), source: 'fish-metabolism' },
+      ...waste(metabolism.feces, 'fish-metabolism'),
       ...burnEffects(metabolism.burned, water, livestock, config.nutrients.foodMineralContent, 'fish-respiration'),
-      { tier: 'active', resource: 'waste', delta: atRecipe(health.deathWaste, config), source: 'fish-death' },
+      ...waste(health.deathWaste, 'fish-death'),
     ] satisfies Effect[]
-  ).filter((effect) => deltaOf(effect) !== 0);
+  ).filter((effect) => effect.delta !== 0);
 
   const newState = produce(state, (draft) => {
     draft.fish = health.survivingFish;

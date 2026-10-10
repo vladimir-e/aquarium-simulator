@@ -86,17 +86,12 @@ export function wasteInflow(
   return { perHour, sources };
 }
 
-/** What the living shed before the passive tier, at food's recipe; the bed's leach lands there too. */
 const SHED_BEFORE_CYCLE: WasteSourceKey[] = ['fish', 'plants', 'algae'];
 
 function inflowFrom(inflow: WasteInflowReadout, keys: readonly WasteSourceKey[]): number {
   return inflow.sources
     .filter((source) => keys.includes(source.key))
     .reduce((total, source) => total + source.gramsPerHour, 0);
-}
-
-function beforeCycleInflow(inflow: WasteInflowReadout): number {
-  return inflowFrom(inflow, [...SHED_BEFORE_CYCLE, 'substrate']);
 }
 
 /**
@@ -145,7 +140,7 @@ export function wasteLevel(readout: WasteReadout, config: TunableConfig): number
   const mineralising = config.nitrogenCycle.wasteConversionRate;
   const settling = readout.settlingShare;
   return (
-    (readout.perHour - mineralising * beforeCycleInflow(readout)) /
+    (readout.perHour - mineralising * inflowFrom(readout, [...SHED_BEFORE_CYCLE, 'substrate'])) /
     (settling + mineralising * (1 - settling))
   );
 }

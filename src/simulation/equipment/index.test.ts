@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { addOrganics, NO_ORGANICS, scaleOrganics } from '../core/organics.js';
-import { organicsCloseTo } from '../tests/organics.js';
+import { addOrganics, NO_ORGANICS, ofComposition, scaleOrganics } from '../core/organics.js';
+import { LEAN, organicsCloseTo } from '../tests/organics.js';
 import { produce } from 'immer';
 import {
   biofilmKept,
@@ -239,11 +239,12 @@ describe('disturbBed', () => {
       draft.resources.aob = 1000;
       draft.resources.nob = 500;
       draft.resources.waste = NO_ORGANICS;
+      draft.equipment.substrate.organicReserve = ofComposition(2, LEAN);
     });
   const disturbed = (state: SimulationState, share: number): SimulationState =>
     produce(state, (draft) => disturbBed(draft, share));
 
-  it('moves that share of the bed’s organics into the water, conserving them', () => {
+  it('moves that share of the bed’s organics into the water, its content pro rata, conserving them', () => {
     const state = settled();
     const after = disturbed(state, 0.25);
     const reserve = state.equipment.substrate.organicReserve;

@@ -17,7 +17,7 @@ import {
   type NutrientsConfig,
   type NutrientVector,
 } from '../config/nutrients.js';
-import { addOrganics, atRecipe, NO_ORGANICS, scaleOrganics, type Organics } from '../core/organics.js';
+import { addOrganics, foodRecipe, NO_ORGANICS, ofComposition, scaleOrganics, type Organics } from '../core/organics.js';
 
 export type SubstrateType = 'none' | 'sand' | 'gravel' | 'aqua_soil';
 
@@ -60,6 +60,12 @@ export const SUBSTRATE_ORGANIC_PER_LITER: Record<SubstrateType, number> = {
   aqua_soil: 0.05,
 };
 
+/** mg of each nutrient in a gram of a fresh bag's organic matter — its own, whatever the keeper feeds. */
+export const SUBSTRATE_ORGANIC_COMPOSITION: NutrientVector = foodRecipe({
+  livestock: livestockDefaults,
+  nutrients: nutrientsDefaults,
+});
+
 /**
  * Alkalinity a fresh bed can take up per liter of tank (mg CaCO3/L). Only
  * aqua soil buffers; inert beds leave KH alone.
@@ -91,14 +97,11 @@ export function getSubstrateSurface(type: SubstrateType, tankCapacity: number): 
 }
 
 /**
- * Gets the organic reserve a fresh bed of this type starts with, at food's
- * recipe. Scales with tank capacity, so concentration is volume-independent.
+ * Gets the organic reserve a fresh bed of this type starts with.
+ * Scales with tank capacity, so concentration is volume-independent.
  */
 export function getSubstrateOrganicReserve(type: SubstrateType, tankCapacity: number): Organics {
-  return atRecipe(SUBSTRATE_ORGANIC_PER_LITER[type] * tankCapacity, {
-    livestock: livestockDefaults,
-    nutrients: nutrientsDefaults,
-  });
+  return ofComposition(SUBSTRATE_ORGANIC_PER_LITER[type] * tankCapacity, SUBSTRATE_ORGANIC_COMPOSITION);
 }
 
 /** Gets the alkalinity a fresh bed of this type can take up (mg CaCO3). */

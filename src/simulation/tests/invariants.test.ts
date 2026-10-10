@@ -17,6 +17,7 @@ import { spawnsAt } from '../systems/brood.js';
 import { clutchOrganics } from '../systems/clutch.js';
 import { nutrientShare } from '../systems/nutrients.js';
 import { addOrganics, atRecipe, foodRecipe, ofComposition } from '../core/organics.js';
+import { LEAN } from './organics.js';
 import { freshSubstrate } from '../equipment/substrate.js';
 import { getPpm } from '../resources/index.js';
 import { plantRecord } from './plant.js';
@@ -50,9 +51,6 @@ function organics(state: SimulationState): number {
 function pooled({ resources, equipment }: SimulationState): NutrientVector {
   return addOrganics(resources.waste, equipment.substrate.organicReserve).nutrients;
 }
-
-/** A composition far from food's: lean in nitrogen and rich in potassium. */
-const LEAN = { nitrate: 40, phosphate: 3, potassium: 20, iron: 0.05 };
 
 /** Nitrogen in the water column, dissolved, mg as N. */
 function dissolvedNitrogen({ resources }: SimulationState): number {

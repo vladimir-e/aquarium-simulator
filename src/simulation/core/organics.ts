@@ -21,7 +21,7 @@ export interface RecipeConfig {
   nutrients: NutrientsConfig;
 }
 
-/** mg of each nutrient in a gram of food — and of the fish made of it, and for now of plant and algae tissue. */
+/** mg of each nutrient in a gram of food — and of the fish made of it. */
 export function foodRecipe({ livestock, nutrients }: RecipeConfig): NutrientVector {
   return { nitrate: nitratePerGramOfFood(livestock), ...nutrients.foodMineralContent };
 }
@@ -34,7 +34,6 @@ export function atRecipe(grams: number, config: RecipeConfig): Organics {
   return ofComposition(grams, foodRecipe(config));
 }
 
-/** Grams and content alike times `factor`: a share of a pool, or −1 for what leaving it takes. */
 export function scaleOrganics(pool: Organics, factor: number): Organics {
   return { grams: pool.grams * factor, nutrients: mapNutrients((n) => pool.nutrients[n] * factor) };
 }

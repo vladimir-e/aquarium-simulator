@@ -25,7 +25,7 @@ import { sum } from './core/sum.js';
 import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
 import { mapNutrients, type NutrientVector } from './config/nutrients.js';
-import { addOrganics, scaleOrganics, type Organics } from './core/organics.js';
+import { scaleOrganics, type Organics } from './core/organics.js';
 import { alkalinityMoved, MW_NO3, NH3_TO_NO2_MASS_RATIO, PROTONS_PER_N } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import { KhResource } from './resources/kh.js';
@@ -212,8 +212,7 @@ const CYCLED_WATER_RETAINED = 0.25;
 
 /** mg of each nutrient the organics a cycled bed leached left in the water, rotted. */
 function cycledRot(type: SubstrateType, capacity: number): NutrientVector {
-  const fresh = getSubstrateOrganicReserve(type, capacity);
-  const leached = addOrganics(fresh, scaleOrganics(cycledReserve(type, capacity), -1));
+  const leached = scaleOrganics(getSubstrateOrganicReserve(type, capacity), 1 - CYCLED_RESERVE_FRACTION);
   return scaleOrganics(leached, CYCLED_WATER_RETAINED).nutrients;
 }
 

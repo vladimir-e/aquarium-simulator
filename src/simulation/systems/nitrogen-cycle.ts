@@ -219,10 +219,6 @@ export function ammoniaIn(organics: Organics): number {
   return organics.nutrients.nitrate * NO3_TO_NH3_MASS_RATIO;
 }
 
-/**
- * Organics mineralised, as effects: their nitrogen minted as NH₃ with the KH
- * its proton returns, and their phosphate, potassium and iron dissolved.
- */
 export function mineralise(organics: Organics, tier: EffectTier, source: string): Effect[] {
   return [
     ...mintAmmonia(ammoniaIn(organics), tier, source),
@@ -482,7 +478,6 @@ export const nitrogenCycleSystem: System = {
 
     // ========================================================================
     // Stage 1: Waste → Ammonia + minerals (Mineralization)
-    // Releases what the mineralised share of the waste holds
     // ========================================================================
     const mineralised = wasteMineralised(resources.waste, ncConfig);
     if (mineralised.grams > 0) {

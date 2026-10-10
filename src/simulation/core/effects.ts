@@ -30,11 +30,6 @@ interface EffectOn<R extends ResourceKey, D> {
 /** The waste pool moves by organics, so its grams never move without their content. */
 export type Effect = EffectOn<Exclude<ResourceKey, 'waste'>, number> | EffectOn<'waste', Organics>;
 
-/** The change an effect makes, the waste pool's in grams. */
-export function deltaOf(effect: Effect): number {
-  return effect.resource === 'waste' ? effect.delta.grams : effect.delta;
-}
-
 /**
  * Clamps a value between min and max (inclusive).
  */

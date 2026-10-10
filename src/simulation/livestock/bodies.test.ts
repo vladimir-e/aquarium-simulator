@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deltaOf } from '../core/effects.js';
+import { deltaOf } from '../tests/effects.js';
 import { produce } from 'immer';
 import { processBodies } from './bodies.js';
 import { processLivestock, tankPaces } from './index.js';

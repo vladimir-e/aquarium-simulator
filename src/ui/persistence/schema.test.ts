@@ -328,6 +328,15 @@ describe('PersistedSimulationSchema', () => {
     expect(PersistedSimulationSchema.safeParse(bareMulm).success).toBe(false);
   });
 
+  it('rejects organics holding less than nothing of a nutrient', () => {
+    const { resources } = validSimulation;
+    const negative = {
+      ...validSimulation,
+      resources: { ...resources, waste: { grams: 1, nutrients: { ...resources.waste.nutrients, iron: -0.1 } } },
+    };
+    expect(PersistedSimulationSchema.safeParse(negative).success).toBe(false);
+  });
+
   it('keeps the seed a tank started from, and refuses one that names a stock it cannot seed', () => {
     const seeded = {
       ...validSimulation,

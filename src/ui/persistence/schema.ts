@@ -40,7 +40,7 @@ const NutrientVectorSchema = numbersFor(NUTRIENTS);
 const OrganicsSchema = z
   .object({
     grams: z.number().min(0),
-    nutrients: NutrientVectorSchema,
+    nutrients: numbersFor(NUTRIENTS, z.number().min(0)),
   })
   .strict();
 

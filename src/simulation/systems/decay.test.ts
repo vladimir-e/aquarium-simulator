@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deltaOf } from '../core/effects.js';
+import { deltaOf } from '../tests/effects.js';
 import { atRecipe } from '../core/organics.js';
 import { organicsCloseTo } from '../tests/organics.js';
 import {

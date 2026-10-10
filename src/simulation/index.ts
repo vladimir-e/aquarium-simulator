@@ -143,7 +143,7 @@ export { blendTemperature, blendConcentration } from './core/blending.js';
 export { carbonatePh, getPh } from './core/carbonate.js';
 
 export type { Effect, EffectTier } from './core/effects.js';
-export { applyEffects, deltaOf } from './core/effects.js';
+export { applyEffects } from './core/effects.js';
 export {
   NO_ORGANICS,
   addOrganics,

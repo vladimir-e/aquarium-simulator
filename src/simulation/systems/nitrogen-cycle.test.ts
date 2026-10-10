@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { deltaOf } from '../core/effects.js';
+import { deltaOf } from '../tests/effects.js';
 import { addOrganics, atRecipe, NO_ORGANICS, ofComposition, scaleOrganics, type Organics } from '../core/organics.js';
-import { organicsCloseTo } from '../tests/organics.js';
+import { LEAN, organicsCloseTo } from '../tests/organics.js';
 import { produce } from 'immer';
 import {
   nitrogenCycleSystem,
@@ -241,8 +241,6 @@ describe('mintAmmonia', () => {
     expect(kh).toEqual({ tier: 'active', resource: 'kh', delta: 2 * CACO3_PER_EQUIVALENT, source: 'fish-gill-excretion' });
   });
 });
-
-const LEAN = { nitrate: 50, phosphate: 2, potassium: 1, iron: 0.05 };
 
 describe('wasteMineralised', () => {
   it('takes nothing from an empty pool', () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { deltaOf, type Effect } from '../core/effects.js';
+import type { Effect } from '../core/effects.js';
+import { deltaOf } from '../tests/effects.js';
 import {
   gasExchangeSystem,
   calculateO2Saturation,

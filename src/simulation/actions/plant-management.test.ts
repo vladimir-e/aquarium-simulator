@@ -13,8 +13,8 @@ import type { ActionResult } from './types.js';
 import { DEFAULT_PLANT_SIZE, MIN_PLANTABLE_SIZE } from '../plants/create-plant.js';
 import { produce } from 'immer';
 import { plantRecord } from '../tests/plant.js';
-import { organicsCloseTo } from '../tests/organics.js';
-import { addOrganics, scaleOrganics } from '../core/organics.js';
+import { LEAN, organicsCloseTo } from '../tests/organics.js';
+import { addOrganics, ofComposition, scaleOrganics } from '../core/organics.js';
 
 const SMALL = 19;
 const FERN_FOOTPRINT = GROWTH_FORMS.attached.footprintCm2;
@@ -133,11 +133,11 @@ describe('removePlant', () => {
     expect(state.plants).toHaveLength(2);
   });
 
-  it('stirs its footprint share of the bed when it uproots a rooted plant', () => {
-    const soil = produce(
-      createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } }),
-      (draft) => void (draft.resources.aob = 1000)
-    );
+  it('stirs its footprint share of the bed when it uproots a rooted plant, the content pro rata', () => {
+    const soil = produce(createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } }), (draft) => {
+      draft.resources.aob = 1000;
+      draft.equipment.substrate.organicReserve = ofComposition(2, LEAN);
+    });
     const sword = add(soil, 'amazon_sword').state;
     const result = removePlant(sword, { type: 'removePlant', plantId: sword.plants[0].id });
     const share = GROWTH_FORMS.rosette.footprintCm2 / calculateFloorArea(sword.tank.capacity);

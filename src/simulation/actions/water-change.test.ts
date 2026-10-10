@@ -5,9 +5,8 @@ import { logText } from '../core/logging.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { getDgh, getDkh, getGhMass, getKhMass } from '../resources/helpers.js';
 import type { ActionResult, WaterChangeAction } from './types.js';
-import { atRecipe, NO_ORGANICS } from '../core/organics.js';
-import { DEFAULT_CONFIG } from '../config/index.js';
-import { organicsCloseTo } from '../tests/organics.js';
+import { NO_ORGANICS, ofComposition, scaleOrganics } from '../core/organics.js';
+import { LEAN, organicsCloseTo } from '../tests/organics.js';
 
 const DISSOLVED = ['ammonia', 'nitrite', 'nitrate', 'phosphate', 'potassium', 'iron'] as const;
 
@@ -105,15 +104,16 @@ describe('waterChange', () => {
     }
   });
 
-  it('leaves the bed alone unless asked to vacuum it', () => {
+  it('leaves the bed alone unless asked to vacuum it, and vacuums its content pro rata', () => {
+    const mulm = ofComposition(2, LEAN);
     const before = produce(tank(), (draft) => {
       draft.equipment.substrate.type = 'gravel';
-      draft.equipment.substrate.organicReserve = atRecipe(2, DEFAULT_CONFIG);
+      draft.equipment.substrate.organicReserve = mulm;
     });
-    expect(change(before, 0.25).state.equipment.substrate.organicReserve).toEqual(atRecipe(2, DEFAULT_CONFIG));
+    expect(change(before, 0.25).state.equipment.substrate.organicReserve).toEqual(mulm);
 
     const vacuumed = waterChange(before, { type: 'waterChange', amount: 0.25, vacuum: 0.3 });
-    expect(vacuumed.state.equipment.substrate.organicReserve).toEqual(organicsCloseTo(atRecipe(2 * 0.7, DEFAULT_CONFIG)));
+    expect(vacuumed.state.equipment.substrate.organicReserve).toEqual(organicsCloseTo(scaleOrganics(mulm, 0.7)));
     expect(vacuumed.message).toContain('vacuumed 30%');
   });
 

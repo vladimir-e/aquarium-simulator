@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deltaOf } from '../core/effects.js';
+import { deltaOf } from '../tests/effects.js';
 import { autoFeederUpdate, type AutoFeeder } from './auto-feeder.js';
 import { processEquipment } from './index.js';
 import { createSimulation, type SimulationState } from '../state.js';

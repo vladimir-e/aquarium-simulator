@@ -5,7 +5,7 @@ import { canopyLight, floorCover, plantHeight } from '../plants/canopy.js';
 import { calculatePhotosynthesis, plantFixer } from '../systems/photosynthesis.js';
 import { calculateRespiration } from '../systems/respiration.js';
 import { calculateNutrientSufficiency, nutrientsIn, tankPools } from '../systems/nutrients.js';
-import { deltaOf } from '../core/effects.js';
+import { deltaOf } from '../tests/effects.js';
 import { atRecipe, foodRecipe } from '../core/organics.js';
 import { tissueMass } from '../systems/plant-lifecycle.js';
 import { getPpm } from '../resources/index.js';
