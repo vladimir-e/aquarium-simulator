@@ -25,12 +25,9 @@ import {
   type DebStep,
   type DebStress,
 } from './deb.js';
-import { fromAmP, GENERALISED_ANIMAL } from '../livestock/amp.js';
-
-const HOURS_PER_DAY = 24;
+import { fromAmP, GENERALISED_ANIMAL, HOURS_PER_DAY } from '../livestock/amp.js';
 
 const animal: DebParams = fromAmP(GENERALISED_ANIMAL);
-const earlyMaturing: DebParams = { ...animal, EHp: animal.EHp / 5 };
 const { E0 } = animal;
 const Lm = maxStructuralLength(animal);
 const YEAR = 365 * HOURS_PER_DAY;
@@ -247,19 +244,17 @@ describe('oxygen', () => {
   });
 
   it('scales {p_Am} and v by ω and leaves maintenance owed at τ', () => {
-    const s = fish(0.6, 0.8, { maturity: earlyMaturing.EHp });
+    const s = fish(0.8, 0.8);
     const tau = 1.5;
-    const [none, thin, full] = [0, 0.5, 1].map(
-      (omega) => stepDeb(s, earlyMaturing, { fromGut: FEAST, tau, omega }).fluxes
-    );
+    const [none, thin, full] = [0, 0.5, 1].map((omega) => stepDeb(s, animal, { fromGut: FEAST, tau, omega }).fluxes);
     expect(none.assimilated).toBe(0);
     expectNear(thin.assimilated, full.assimilated / 2);
     expect(none.mobilised).toBeGreaterThan(0);
     expectNear(thin.mobilised - none.mobilised, (full.mobilised - none.mobilised) / 2);
     const owed = [none, thin, full].every(
       ({ burned, shortfall }) =>
-        near(burned.maintenance + shortfall, earlyMaturing.pM * s.structure * tau) &&
-        near(burned.development, earlyMaturing.kJ * earlyMaturing.EHp * tau)
+        near(burned.maintenance + shortfall, animal.pM * s.structure * tau) &&
+        near(burned.development, animal.kJ * animal.EHp * tau)
     );
     expect(owed).toBe(true);
   });
@@ -324,8 +319,8 @@ describe('maintenance priority', () => {
   });
 
   it('pays a juvenile’s somatic shortfall from its surplus before maturity takes the rest', () => {
-    const juvenile = fish(0.5 * Lm, 0.4, { maturity: earlyMaturing.EHp / 2 });
-    const { state, fluxes } = stepDeb(juvenile, earlyMaturing, atReference(0));
+    const juvenile = fish(0.5 * Lm, 0.4, { maturity: animal.EHp / 10 });
+    const { state, fluxes } = stepDeb(juvenile, animal, atReference(0));
     expect(fluxes.shortfall).toBeGreaterThan(0);
     expect(fluxes.fromStructure).toBe(0);
     expectNear(fluxes.burned.starvation, fluxes.shortfall);

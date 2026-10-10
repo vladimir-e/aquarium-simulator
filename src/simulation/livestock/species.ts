@@ -1,5 +1,5 @@
 import type { DebParams } from '../systems/deb.js';
-import { fromAmP, GENERALISED_ANIMAL, proxyEntry, type AmpEntry } from './amp.js';
+import { fromAmP, GENERALISED_ANIMAL, HOURS_PER_DAY, proxyEntry, type AmpEntry } from './amp.js';
 
 /**
  * Fish species types.
@@ -50,7 +50,9 @@ export interface FishSpeciesData {
   adultMass: number;
   /** Adult physical length in cm, the hobby figure: the female's where the sexes differ. */
   adultLength: number;
-  /** Median age, in ticks, a well-kept fish dies of wear at. */
+  /** Age, in ticks, a female first breeds at in mid-range water, the hobby figure. */
+  maturityAge: number;
+  /** Median age, in ticks, a well-kept fish dies of wear at in mid-range water, the hobby figure. */
   lifespan: number;
   /** Hardiness factor 0-1 (higher = more tolerant of stressors) */
   hardiness: number;
@@ -66,15 +68,20 @@ export interface FishSpeciesData {
   growthRate: number;
   /** Reproduction parameters */
   breeding: FishBreedingData;
-  /** Dynamic Energy Budget parameters, from the species' Add-my-Pet entry. */
-  deb: AmpEntry;
+  /** DEB parameters in AmP units: the species' Add-my-Pet entry, or a proxy built from its hobby figures. */
+  amp: AmpEntry;
 }
 
-const HOURS_PER_DAY = 24;
-
-const proxied = (data: Omit<FishSpeciesData, 'deb'>): FishSpeciesData => ({
+const proxied = (data: Omit<FishSpeciesData, 'amp'>): FishSpeciesData => ({
   ...data,
-  deb: proxyEntry(GENERALISED_ANIMAL, data.adultLength, data.adultMass, data.lifespan / HOURS_PER_DAY),
+  amp: proxyEntry(GENERALISED_ANIMAL, {
+    entry: data.name,
+    adultLengthCm: data.adultLength,
+    adultMassGrams: data.adultMass,
+    maturityAgeDays: data.maturityAge / HOURS_PER_DAY,
+    lifespanDays: data.lifespan / HOURS_PER_DAY,
+    temperatureC: (data.temperatureRange[0] + data.temperatureRange[1]) / 2,
+  }),
 });
 
 /**
@@ -85,6 +92,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     name: 'Neon Tetra',
     adultMass: 0.5,
     adultLength: 3.5,
+    maturityAge: 24 * 240,
     lifespan: 24 * 365 * 5,
     hardiness: 0.5,
     temperatureRange: [22, 28],
@@ -106,6 +114,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     name: 'Betta',
     adultMass: 3.0,
     adultLength: 5.5,
+    maturityAge: 24 * 105,
     lifespan: 24 * 365 * 3,
     hardiness: 0.6,
     temperatureRange: [24, 30],
@@ -128,6 +137,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     name: 'Guppy',
     adultMass: 1.0,
     adultLength: 5,
+    maturityAge: 24 * 75,
     lifespan: 24 * 365 * 3,
     hardiness: 0.8,
     temperatureRange: [22, 28],
@@ -150,6 +160,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     name: 'Angelfish',
     adultMass: 15.0,
     adultLength: 15,
+    maturityAge: 24 * 300,
     lifespan: 24 * 365 * 10,
     hardiness: 0.4,
     temperatureRange: [24, 30],
@@ -172,6 +183,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     name: 'Corydoras',
     adultMass: 4.0,
     adultLength: 7,
+    maturityAge: 24 * 300,
     lifespan: 24 * 365 * 5,
     hardiness: 0.7,
     temperatureRange: [22, 26],
@@ -191,14 +203,8 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
   }),
 };
 
-const converted = new WeakMap<AmpEntry, DebParams>();
+const DEB_PARAMS = Object.fromEntries(
+  Object.entries(FISH_SPECIES_DATA).map(([species, { amp }]) => [species, fromAmP(amp)])
+) as Record<FishSpecies, DebParams>;
 
-export function debParams(species: FishSpecies): Readonly<DebParams> {
-  const { deb } = FISH_SPECIES_DATA[species];
-  let params = converted.get(deb);
-  if (params === undefined) {
-    params = fromAmP(deb);
-    converted.set(deb, params);
-  }
-  return params;
-}
+export const debParams = (species: FishSpecies): Readonly<DebParams> => DEB_PARAMS[species];

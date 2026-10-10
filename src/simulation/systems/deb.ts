@@ -37,6 +37,7 @@ export interface DebParams {
   E0: number;
   /** cm */
   Lb: number;
+  delM: number;
 }
 
 /** Multipliers on the budget: assimilation in [0, 1]; maintenance, growthCost and eggCost ≥ 1. */
