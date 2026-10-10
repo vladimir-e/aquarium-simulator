@@ -462,33 +462,15 @@ sword fouls the water more than a carpet patch of the same size.
 
 ## Key tunables
 
+The tunables are listed in the reference under [Plants](/reference/tunables/#plants),
+the half-saturations and demand tiers under [Nutrients](/reference/tunables/#nutrients),
+and the canopy's own constant, `leafAttenuationPerLai`, under
+[Optics](/reference/tunables/#optics).
+
 | Constant | Meaning | Value |
 |---|---|---|
-| `basePhotosynthesisRate` | Photosynthetic rate per rate unit of leaf at growth rate 1, at full carbon and saturating light | `1.0` /hr |
-| `saturationIrradianceFactor` | Multiple of a species' band low at which it saturates — the `Ik` of the light curve | `2.0` × band low |
-| `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which each carbon-need tier photosynthesises at half rate | `1.5` · `3` · `8` mg/L |
-| `co2PerRateUnit` | Carbon one rate unit moves, in either direction | `30` mg |
-| `halfSaturation` | Where a full-demand plant takes each form at half its need, NH₃ · NO₃ · PO₄ · K · Fe | `0.1` · `2` · `0.1` · `1` · `0.02` ppm |
-| `demand` | Each tier's share of the full need, per nutrient — the table under Nutrition | — |
-| `baseRespirationRate` | Dark respiration as a share of the light-saturated rate | `0.03` /hr |
-| `respirationQ10` | Factor respiration and light starvation multiply by per 10 °C | `2.0` |
-| `respirationOxygenHalfSaturation` | O₂ at which respiration runs at half rate | `0.5` mg/L |
-| `surplusCap` | Ceiling on the bank; a full one buys an offshoot | `50` condition points |
-| `healingDrawRate` | First-order rate the bank heals condition at, per unit of species growth rate | `0.05` /hr |
-| `growthDrawRate` | First-order rate the bank draws toward new tissue at, before the taper | `0.02` /hr |
-| `sizePerSurplus` | Size gained per bank point converted, before the species growth rate — the conversion growth and offshoots share | `0.4` %/pt |
-| `tissuePerSize` | Organic matter in a % of a rate unit of tissue — what growth draws the recipe for, and shedding and death return as waste | `0.01` g |
-| `lightStarvationSeverity` | Damage in a day without light, at growth rate 1 and the reference temperature | `0.3` %/hr |
-| `lightExcessiveSeverity` | Damage per PAR over the species band | `0.015` %/PAR/hr |
-| `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the edge, and where a hardiness-0 plant's edge sits | `1.0` %/e-fold/hr · `100` ppm |
-| `maxSheddingRate` | Share of itself a plant drops per hour at condition 0 | `0.02` /hr |
-| `nutrientDeficiencySeverity` · `sufficiencyEdge` | Damage at a sufficiency of 0 under saturating light, falling to nothing at the edge; and the sufficiency a plant counts as fed | `0.3` %/hr · `0.9` |
-| `ghStressSeverity` | Damage per dGH outside the species' band | `0.1` %/dGH/hr |
 | GH per nitrate drawn | Calcium and magnesium taken up per mg of nitrogen actually taken, counted as nitrate, off leaf-tissue ratios; a constant | `0.28` mg CaCO₃/mg |
 | GH half-saturation | GH, as CaCO₃, at which that uptake runs at half; a constant | `1` mg/L |
-| Benefit peaks (×3) | Recovery per channel at its best, before the drive — the three make the budget in [Income and harm](#income-and-harm) | `0.125` %/hr |
-
-The canopy's own constant, `leafAttenuationPerLai`, is under [Light](/subsystems/light/#key-tunables).
 
 ## Seams
 
@@ -511,5 +493,5 @@ The canopy's own constant, `leafAttenuationPerLai`, is under [Light](/subsystems
 construction; `src/simulation/flora/` — the hour's pass, beside the blooms;
 `src/simulation/systems/` — the flora law the blooms share, photosynthesis,
 respiration, nutrition and the tissue draw, vitality, growth, offshoots and
-lifecycle; `src/simulation/config/` — the tunables above and their declared
+lifecycle; `src/simulation/config/` — the tunables and their declared
 ranges.

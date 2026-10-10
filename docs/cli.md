@@ -1,10 +1,10 @@
-# The `sim` CLI
+# Headless commands
 
-`src/cli/sim.ts` drives the engine headless. Run it with `npx tsx src/cli/sim.ts <command>`.
+`src/cli/sim.ts` drives the engine headless (`npx tsx src/cli/sim.ts <command>`); `src/cli/amp/command.ts` transcribes Add-my-Pet entries (`npm run amp`).
 
 ## Scenarios
 
-`npm run scenarios` runs every preset tank headless on a keeper's schedule and prints its readings at days 1, 7, 30, 90 and 300, each graded green/amber/red against a plausibility band. A run is 90 days by default and any length with `--days`; the final day is always sampled.
+`npm run scenarios` runs every setup tank headless on a keeper's schedule and prints its readings at days 1, 7, 30, 90 and 300, each graded green/amber/red against a plausibility band. A run is 90 days by default and any length with `--days`; the final day is always sampled.
 
 ```bash
 npm run scenarios                                  # every setup, 90 days
@@ -71,3 +71,15 @@ npx tsx src/cli/sim.ts smoke   # end-to-end wiring check
 ```
 
 Durations accept `5d`, `48h`, or a bare integer (hours). `config set` holds a tunable to the range its `*ConfigMeta` declares.
+
+## Add-my-Pet entries
+
+`npm run amp` transcribes a species' energy budget from the [Add-my-Pet](https://www.bio.vu.nl/thb/deb/deblab/add_my_pet/) collection into an entry module the livestock roster imports. Run it when a species joins the roster on an entry of its own, or to pick up a revised entry.
+
+```bash
+npm run amp -- Poecilia_reticulata                 # fetch, cache and transcribe one entry
+npm run amp -- Betta_splendens Corydoras_aeneus    # several, one request a second
+npm run amp -- Poecilia_reticulata --offline       # re-transcribe from the cached pages after a parser change
+```
+
+An entry's five pages are cached in `data/amp/<Entry>/` with the date they were fetched, and its module is written to `src/simulation/livestock/amp/entries/<Entry>.ts`. A failed download falls back to the cache. Each entry prints one line — its version, model, `s_M`, and whether it fits its data; parser warnings go to stderr.

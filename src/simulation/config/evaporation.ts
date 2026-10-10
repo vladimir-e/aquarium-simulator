@@ -24,6 +24,6 @@ export interface EvaporationConfigMeta {
 }
 
 export const evaporationConfigMeta: EvaporationConfigMeta[] = [
-  { key: 'baseRatePerDay', label: 'Base Rate per Day', unit: '%', min: 0.005, max: 0.05, step: 0.005 },
+  { key: 'baseRatePerDay', label: 'Base Rate per Day', unit: '/day', min: 0.005, max: 0.05, step: 0.005 },
   { key: 'tempDoublingInterval', label: 'Temp Doubling Interval', unit: '°C', min: 3, max: 15, step: 0.5 },
 ];

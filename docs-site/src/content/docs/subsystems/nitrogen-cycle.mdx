@@ -123,7 +123,7 @@ Capacity carries no volume term. Throughput is a property of the cell, so the
 same colony clears the same milligrams in a nano and in a 150 L — which is what
 makes a ppm reading fall with volume the way it does in a real tank.
 
-NOB use the same gauge scaled by ≈ `2.951`. That is the 2.702 mass ratio
+NOB take the same per-cell throughput scaled by ≈ `2.951`. That is the 2.702 mass ratio
 re-quoted through each guild's own oxygen factor at air saturation, rather than
 the bare ratio, which would hand NOB AOB's correction on top of their own and
 leave them 8.4 % under parity.
@@ -263,31 +263,13 @@ tank whose keeper feeds more grows its colony on from the seed.
 
 ## Key tunables
 
+The tunables are listed in the reference under
+[Nitrogen cycle](/reference/tunables/#nitrogen-cycle), and the bed's leach and
+settling under [Decay](/reference/tunables/#decay).
+
 | Constant | Meaning | Value |
 |---|---|---|
-| `wasteConversionRate` | Share of standing waste mineralized per tick | `0.3` /tick |
-| `bacteriaProcessingRate` | NH₃ one bacteria unit oxidises per tick, Monod maximum | `2.07e-4` mg/unit/tick |
-| `seedingRate` | Nitrifiers settling into the tank per litre of water, each guild | `0.0001` units/L/tick |
-| `aobGrowthRate` | Per-capita growth at full utilization — a 20 h doubling | `0.035898` /tick |
-| `nobGrowthRate` | Per-capita growth at full utilization — a 36 h doubling | `0.021781` /tick |
-| `bacteriaPerCm2` | Biofilm carrying capacity — 10⁷ cells/cm² | `10` units/cm² |
-| `bacteriaDeathRate` | Maintenance loss — a 21-day half-life | `0.0013753` /tick |
-| `q10` | Factor every nitrifier rate multiplies by per 10 °C | `2.5` |
-| `referenceTemp` | Temperature the nitrifier rates are quoted at | `25` °C |
-| `aobOxygenHalfSaturation` | O₂ at which AOB run at half rate | `0.3` mg/L |
-| `nobOxygenHalfSaturation` | O₂ at which NOB run at half rate | `1.1` mg/L |
-| `aobAmmoniaHalfSaturation` | Total ammonia at which AOB run at half rate | `0.61` ppm |
-| `nobNitriteHalfSaturation` | Nitrite at which NOB run at half rate | `0.66` ppm |
-| `AIR_SATURATED_O2` | The water every rate above is quoted in | `8.38` mg/L |
-| `substrateLeachRate` | Share of the bed's remaining reserve released per tick | `0.003` /hr |
-| `wasteSettlingRate` | Share of standing waste settling into the bed per tick in still water | `0.1` /hr |
-| `settlingHalfTurnover` | Tank turnovers an hour at which flow halves settling | `4` /hr |
-
-A **bacteria unit is 10⁶ cells**, which is what makes `bacteriaPerCm2` a biofilm
-density you can look up rather than a score. Throughput, ceiling density and
-seeding rate carry an exact gauge symmetry — three numbers, two physical degrees of
-freedom — so one of them is a units convention, and the ceiling density is the
-one pinned to a real measurement.
+| `AIR_SATURATED_O2` | The water every nitrifier rate is quoted in | `8.38` mg/L |
 
 ## Seams
 

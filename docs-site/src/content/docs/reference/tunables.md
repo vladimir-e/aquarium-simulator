@@ -8,12 +8,14 @@ that reads it. All of them live in `src/simulation/config/`, addressed as
 `section.key`.
 
 Every tunable declares its own metadata alongside its default — a label, a unit,
-a spinner step and, for everything but the derived nitrification rates, a
+a spinner step and, for everything but nine nitrogen-cycle leaves, a
 `min`/`max`. Two writers consult that range: the CLI refuses a `config set`
 outside it, and the tunables drawer holds its field to it. The save path does
 not — its bounds are hand-written per leaf and mostly assert shape rather than
 range, so a stored `digestionRate` of −1 loads without complaint against a
-declared minimum of `0.01`.
+declared minimum of `0.01`. A module constant elsewhere in the engine — an alert
+line, an action bound, a device rating — is not a tunable: it declares no range,
+and the config layer cannot reach it.
 
 ## Sections
 
@@ -54,12 +56,12 @@ off — which is the part that makes a number checkable.
 | Tunable | Meaning | Unit |
 |---|---|---|
 | `wasteConversionRate` | Share of standing waste mineralized to ammonia per tick | /tick |
-| `bacteriaProcessingRate` | Ammonia one bacteria unit oxidises per tick, at saturating oxygen | mg/unit/tick |
+| `bacteriaProcessingRate` | Ammonia one bacteria unit oxidises per tick — the Monod maximum, at saturating ammonia and oxygen | mg/unit/tick |
 | `seedingRate` | Nitrifiers settling into the tank per litre of water per tick, each guild | units/L/tick |
-| `aobGrowthRate` | AOB per-capita growth at full utilization | /tick |
-| `nobGrowthRate` | NOB per-capita growth at full utilization | /tick |
+| `aobGrowthRate` | AOB per-capita growth at full utilization — ln 2 over the guild's doubling time | /tick |
+| `nobGrowthRate` | NOB per-capita growth at full utilization — ln 2 over the guild's doubling time | /tick |
 | `bacteriaPerCm2` | Biofilm carrying capacity — the colony's ceiling per cm² of surface | units/cm² |
-| `bacteriaDeathRate` | Maintenance loss, charged whether or not the colony is working | /tick |
+| `bacteriaDeathRate` | Maintenance loss — ln 2 over a starved colony's half-life — charged whether or not the colony is working | /tick |
 | `q10` | Factor every nitrifier rate multiplies by per 10 °C | — |
 | `referenceTemp` | Temperature the nitrifier rates are quoted at | °C |
 | `aobOxygenHalfSaturation` | Dissolved O₂ at which AOB oxidise and grow at half rate | mg/L |
@@ -68,12 +70,15 @@ off — which is the part that makes a number checkable.
 | `nobNitriteHalfSaturation` | Nitrite, as NO₂⁻, at which NOB oxidise at half rate | ppm |
 
 The four half-saturation constants are measured concentrations and carry a range.
-The ten leaves above them were never given bounds, so a writer that asks
+The nine leaves above them were never given bounds, so a writer that asks
 gets nothing back. A test asserts exactly that split, so the gap is stated
 rather than discovered.
 
 A bacteria unit is 10⁶ cells, which is what makes `bacteriaPerCm2` a biofilm
-density you can look up rather than a score.
+density you can look up rather than a score. Throughput, ceiling density and
+seeding rate carry an exact gauge symmetry — three numbers, two physical degrees
+of freedom — so one of them is a units convention, and the ceiling density is
+the one pinned to a real measurement.
 
 ## Gas exchange
 
@@ -85,9 +90,9 @@ density you can look up rather than a score.
 | `o2ReferenceTemp` | Temperature the saturation base is quoted at | °C |
 | `baseExchangeRate` | Share of the gap to equilibrium crossed per tick at optimal flow | /tick |
 | `optimalFlowTurnover` | Tank turnovers per hour at which exchange is maximal | ×/hr |
-| `minFlowFactor` | Floor on the flow factor — still-surface diffusion, so a filterless tank still breathes | × |
+| `minFlowFactor` | Floor on the flow factor, as a share of the optimal-flow rate — still-surface diffusion, so a filterless tank still breathes | × |
 | `aerationExchangeMultiplier` | Multiplier on the exchange rate while aeration runs | × |
-| `aerationDirectO2` | O₂ injected directly by bubble dissolution | mg/L/hr |
+| `aerationDirectO2` | O₂ injected directly by bubble dissolution, only below saturation | mg/L/hr |
 | `aerationCo2OffgasMultiplier` | Extra CO₂ off-gassing while aerating | × |
 
 ## Temperature
@@ -97,15 +102,15 @@ density you can look up rather than a score.
 | `coolingCoefficient` | Drift toward the room per °C of difference, at the reference volume | °C/hr/°C |
 | `referenceVolume` | Volume the cooling coefficient is quoted at | L |
 | `volumeExponent` | How drift scales with volume — the surface-to-volume ratio | — |
-| `roomDailySwing` | How far the room runs above and below its mean over the day | °C |
+| `roomDailySwing` | How far the room runs above its mean at 17:00 and below it at 05:00 | °C |
 | `lightWarmingPerPar` | Warming a lit fixture adds to the temperature the water drifts toward, per surface PAR | °C/PAR |
 
 ## Evaporation
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `baseRatePerDay` | Share of standing water lost per day at thermal equilibrium | % |
-| `tempDoublingInterval` | Warmth above the room that doubles the rate | °C |
+| `baseRatePerDay` | Share of standing water lost per day at thermal equilibrium, before the lid | /day |
+| `tempDoublingInterval` | Water–room temperature difference, either way, that doubles the rate | °C |
 
 ## Algae
 
@@ -139,11 +144,11 @@ for every kind.
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `basePhotosynthesisRate` | Rate one rate unit — 500 cm² of leaf at growth rate 1 — fixes carbon at, under ideal conditions | /hr |
+| `basePhotosynthesisRate` | Rate one rate unit — 500 cm² of leaf at growth rate 1 — fixes carbon at, at full carbon and saturating light | /hr |
 | `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which a species of each carbon need photosynthesises at half rate | mg/L |
-| `saturationIrradianceFactor` | Multiple of a species' band low at which its light response saturates | × band low |
-| `co2PerRateUnit` | CO₂ carried by one rate unit; oxygen derives from it at the molar ratio | mg |
-| `baseRespirationRate` | Dark respiration per rate unit of leaf at growth rate 1, running around the clock | /hr |
+| `saturationIrradianceFactor` | Multiple of a species' band low at which its light response saturates — the `Ik` of the light curve | × band low |
+| `co2PerRateUnit` | CO₂ carried by one rate unit, fixed and released alike; oxygen derives from it at the molar ratio | mg |
+| `baseRespirationRate` | Dark respiration per rate unit of leaf at growth rate 1, as a share of the light- and carbon-saturated rate, running around the clock | /hr |
 | `respirationQ10` | Factor respiration and light starvation multiply by per 10 °C | — |
 | `respirationReferenceTemp` | Temperature respiration and light starvation are quoted at | °C |
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which respiration runs at half rate | mg/L |
@@ -160,7 +165,7 @@ for every kind.
 | `quotaMax.nitrate` · `.phosphate` · `.potassium` · `.iron` | Q_max: the same, with every store full | g/g |
 | `lightStarvationSeverity` | Damage in a day without light, falling to nothing at the species' daily light edge; quoted at growth rate 1 and the respiration reference temperature | %/hr |
 | `lightExcessiveSeverity` | Damage per PAR unit above the species' tolerable band | %/PAR/hr |
-| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
+| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per °C, pH unit or dGH outside the species' tolerable band, one per factor | %/unit/hr |
 | `nutrientDeficiencySeverity` · `sufficiencyEdge` | Damage at a Liebig sufficiency of 0 under saturating light, falling linearly to nothing at the edge; and the sufficiency a plant counts as fed, since a Monod share never reaches 1 | %/hr · — |
 | `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the plant's own edge, and where a hardiness-0 plant's edge sits | %/e-fold/hr · ppm |
 | `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on the light term times the Liebig sufficiency | %/hr |
@@ -191,9 +196,9 @@ A fish's energy budget — growth, reserve, maturity, brood buffer, ageing — c
 | `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, mineralized as waste, or burned by a fish | g N/g food |
 | `oxygenPerGramBurned` | Oxygen a fish breathes per gram of organics its budget burns | mg O₂/g |
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |
-| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band | %/unit/hr |
+| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per °C, pH unit or dGH outside the species' tolerable band | %/unit/hr |
 | `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own tolerance edge, which hardiness moves out — free NH₃, not total ammonia; oxygen counts e-folds under | %/e-fold/hr |
-| `waterLevelStressSeverity` · `flowStressSeverity` | Damage per unit of deviation | %/unit/hr |
+| `waterLevelStressSeverity` · `flowStressSeverity` | Damage per % of capacity under the threshold, and per turnover above the species' tolerance | %/%/hr · %/turnover/hr |
 | `waterLevelStressThreshold` | Share of capacity the water-level stressor switches on under | % |
 | `starvationSeverity` | Damage at a maintenance left wholly unpaid, before hardiness; the hour's shortfall scales it | %/hr |
 | `hazardSeverity` | Damage per unit of the fish's DEB hazard, an hourly rate: what age does to health | %/hr per hazard |
