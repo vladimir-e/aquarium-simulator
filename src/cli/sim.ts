@@ -28,6 +28,7 @@ import {
   type Session,
 } from './session.js';
 import { applyConfigSet } from './config-set.js';
+import { invokedDirectly } from './entry.js';
 import { parseDuration } from './duration.js';
 import { appendSnapshot, snapshot } from './history.js';
 import { renderObserve, renderTrace } from './format.js';
@@ -450,9 +451,7 @@ export function main(argv: string[]): void {
   }
 }
 
-// Entry when executed directly via tsx.
-const invokedDirectly = import.meta.url === `file://${process.argv[1]}`;
-if (invokedDirectly) {
+if (invokedDirectly(import.meta.url)) {
   try {
     main(process.argv.slice(2));
   } catch (err) {
