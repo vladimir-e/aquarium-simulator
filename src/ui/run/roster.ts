@@ -14,6 +14,7 @@ import {
   type FishSpecies,
   type PlantSpecies,
   FISH_SPECIES_DATA,
+  fishMass,
 } from '../../simulation/index.js';
 import { fishTitle, type FryBatch, type Gut, type SpeciesGroup } from './livestock.js';
 import {
@@ -210,7 +211,7 @@ function fishRows(groups: SpeciesGroup[], expanded: ReadonlySet<string>): Roster
         title: fishTitle(fish, number),
         sex: fish.sex,
         parent: null,
-        figure: `${fish.mass.toFixed(2)} g`,
+        figure: `${fishMass(fish).toFixed(2)} g`,
         age: days(fish.age),
         gut,
         light: null,

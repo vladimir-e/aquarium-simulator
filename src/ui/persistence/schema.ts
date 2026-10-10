@@ -16,7 +16,6 @@ import {
 } from '../../simulation/index.js';
 import {
   MAX_ALGAE_ATTENUATION_PER_GRAM,
-  MAX_FISH_GROWTH_PER_SURPLUS,
   MAX_LEAF_ATTENUATION_PER_LAI,
   MAX_SIZE_PER_SURPLUS,
   MAX_SUFFICIENCY_EDGE,
@@ -261,18 +260,29 @@ const PlantSchema = z
 
 const FISH_SPECIES = ['neon_tetra', 'betta', 'guppy', 'angelfish', 'corydoras'] as const;
 
+const DebStateSchema = z
+  .object({
+    structure: z.number().min(0),
+    reserve: z.number().min(0),
+    maturity: z.number().min(0),
+    broodBuffer: z.number().min(0),
+    wearLoad: z.number().min(0),
+    hazard: z.number().min(0),
+  })
+  .strict();
+
 const FishSchema = z
   .object({
     id: z.string(),
     species: z.enum(FISH_SPECIES),
-    mass: z.number().min(0),
     health: z.number().min(0).max(100),
     age: z.number().int().min(0),
     gut: z.number().min(0),
     sex: z.enum(['male', 'female']),
     hardinessOffset: z.number(),
-    surplus: z.number().min(0),
-    ovary: z.number().min(0),
+    deb: DebStateSchema,
+    survival: z.number().min(0).max(1),
+    survivalDraw: z.number().min(0).max(1),
   })
   .strict();
 
@@ -512,17 +522,10 @@ const NutrientsConfigSchema = z
 
 const LivestockConfigSchema = z
   .object({
-    gutCapacity: z.number(),
     digestionRate: z.number(),
-    metabolicQ10: z.number(),
-    metabolicReferenceTemp: z.number(),
-    massScalingExponent: z.number().max(0).gt(-1),
-    maintenanceRation: z.number(),
-    hungerSeverity: z.number(),
-    baseRespirationRate: z.number(),
-    respirationOxygenHalfSaturation: z.number(),
+    oxygenHalfSaturation: z.number(),
     foodNitrogenFraction: z.number(),
-    assimilatedFraction: z.number(),
+    oxygenPerGramBurned: z.number().min(0),
     respiratoryQuotient: z.number(),
     temperatureStressSeverity: z.number(),
     phStressSeverity: z.number(),
@@ -534,20 +537,15 @@ const LivestockConfigSchema = z
     waterLevelStressSeverity: z.number(),
     flowStressSeverity: z.number(),
     waterLevelStressThreshold: z.number(),
+    starvationSeverity: z.number().min(0),
+    hazardSeverity: z.number().min(0),
     phBenefitPeak: z.number(),
     oxygenBenefitPeak: z.number(),
     plantBenefitPeak: z.number(),
     plantBenefitSaturationPoint: z.number(),
-    surplusCap: z.number().min(0).max(MAX_SURPLUS_CAP),
-    healingDrawRate: z.number().min(0),
-    growthDrawRate: z.number().min(0),
-    growthPerSurplus: z.number().positive().max(MAX_FISH_GROWTH_PER_SURPLUS),
-    broodCost: z.number().positive(),
-    bodyOrganicShare: z.number().positive(),
-    growthEfficiency: z.number().min(0).max(1),
-    wearAtLifespan: z.number().min(0),
-    wearDoublingShare: z.number().positive(),
-    healingHalvingShare: z.number().positive(),
+    healingRate: z.number().min(0),
+    healingCost: z.number().min(0),
+    maleBufferTurnover: z.number().min(0),
     eggSensitivity: z.number().min(0),
     eggPredationRate: z.number().min(0),
     predationRate: z.number().min(0),

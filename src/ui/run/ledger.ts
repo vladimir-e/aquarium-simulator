@@ -8,7 +8,12 @@
 import {
   ALGAE,
   ALGAE_KINDS,
+  debParams,
   PLANT_SPECIES_DATA,
+  starvation,
+  wellFed,
+  type Fish,
+  type FishHour,
   plantLightTaken,
   REMOVED_BY,
   type AlgaeHabitat,
@@ -230,15 +235,15 @@ function fishLedger(
   if (index < 0) return null;
 
   const fish = state.fish[index];
-  const livestock = config.livestock;
-  const { vitality, spent, broods } = ahead.fish[index];
+  const { vitality, hour, broods } = ahead.fish[index];
   const { breakdown } = vitality;
 
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
   const vital = vitalReading(fish.health, vitality.newCondition);
-  const gut = fishGut(fish, breakdown, vital.sick, ahead.metabolicFactor, livestock);
+  const gut = fishGut(fish, hour, vital.sick, config.livestock);
   const reading = fishReading(vital.reading, gut);
+  const reserve = wellFed(fish.deb, debParams(fish.species));
 
   return {
     target: { kind: 'fish', id },
@@ -264,23 +269,23 @@ function fishLedger(
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
     bank: {
-      text: fish.surplus.toFixed(BANK_DECIMALS),
-      unit: `of ${livestock.surplusCap}`,
-      ...bankOf(
-        {
-          now: fish.surplus,
-          next: vitality.surplus - spent,
-          cap: livestock.surplusCap,
-          covered: breakdown.healed,
-          spent,
-        },
-        broods ? 'buying a brood' : 'buying growth'
-      ),
+      text: String(sharePercent(reserve)),
+      unit: '% reserve',
+      at: reserve,
+      note: reserveNote(fish, hour, breakdown.healed, broods),
     },
     demand: null,
     verb: 'feed',
     scope: null,
   };
+}
+
+/** What the reserve does over the hour, named by what draws on it or that it fills. */
+function reserveNote(fish: Fish, hour: FishHour, healed: number, broods: boolean): string {
+  if (starvation(hour) > 0) return 'short of upkeep';
+  if (healed > 0) return 'healing from reserve';
+  if (broods) return 'spawning';
+  return hour.fish.deb.reserve >= fish.deb.reserve ? 'filling' : 'drawing down';
 }
 
 function plantLedger(

@@ -1,23 +1,22 @@
 import type { Fish } from '../state.js';
-import { livestockDefaults } from '../config/livestock.js';
-import { eggsLaid } from '../systems/fish-growth.js';
-import { grownMass } from '../livestock/species.js';
+import { STOCKED_FISH_SIZE, stockedBody } from '../livestock/create-fish.js';
 
-/** A fish record as a test names it: a grown, fasting neon male on an empty bank, a female's ovary holding the eggs her bank buys, unless it says otherwise. */
-export function fishRecord(fields: Partial<Fish> = {}): Fish {
+/**
+ * A fish record as a test names it: a neon male from the shop at the stocking size, fasting at full health and never
+ * dying of old age, unless it says otherwise; `size` raises it to that % of grown length.
+ */
+export function fishRecord({ size = STOCKED_FISH_SIZE, ...fields }: Partial<Fish> & { size?: number } = {}): Fish {
   const species = fields.species ?? 'neon_tetra';
-  const made: Fish = {
+  const body = stockedBody(species, size, 20);
+  return {
     id: 'fish_1',
     species,
-    mass: grownMass(species),
     health: 100,
-    age: 0,
     gut: 0,
     sex: 'male',
     hardinessOffset: 0,
-    surplus: 0,
-    ovary: 0,
+    survivalDraw: 0,
+    ...body,
     ...fields,
   };
-  return { ...made, ovary: fields.ovary ?? (made.sex === 'female' ? eggsLaid(made, livestockDefaults) : 0) };
 }

@@ -9,7 +9,7 @@ import {
   type Schedule,
 } from '../scenarios/keeper.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { floorCover, isOvergrown, resetHardscape } from '../../simulation/index.js';
+import { floorCover, isOvergrown, resetHardscape, totalFishMass } from '../../simulation/index.js';
 import { findSetup, toConfig, toSeed } from '../scenarios/setups.js';
 
 const stocked = createSimulation(toConfig(findSetup('nano')), toSeed(findSetup('nano')), 1);
@@ -36,7 +36,7 @@ describe('dueActions', () => {
   });
 
   it('turns a share-of-stock feed into grams of the fish mass', () => {
-    const mass = stocked.fish.reduce((sum, fish) => sum + fish.mass, 0);
+    const mass = totalFishMass(stocked.fish);
     const [feed] = dueActions([{ every: 1, action: { type: 'feed', shareOfStock: 0.5 } }], at(stocked, 1));
     expect(feed).toEqual({ type: 'feed', amount: mass * 0.5 });
   });

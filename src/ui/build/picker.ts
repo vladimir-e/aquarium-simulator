@@ -13,9 +13,9 @@ import {
   getMaxFishMass,
   getPh,
   grownMass,
-  massAtSize,
   PLANT_SPECIES_DATA,
   STOCKED_FISH_SIZE,
+  stockedMass,
   totalFishMass,
   type FishSpeciesData,
   type FishSpecies,
@@ -117,7 +117,7 @@ function fishOption(
   const capacity = checkFishCapacity(state.fish, state.tank.capacity, species, size);
   const headroom = Math.max(
     0,
-    Math.floor((getMaxFishMass(state.tank.capacity) - totalFishMass(state.fish)) / massAtSize(species, size))
+    Math.floor((getMaxFishMass(state.tank.capacity) - totalFishMass(state.fish)) / stockedMass(species, size))
   );
 
   const load = bioload(state.fish, state.tank.capacity, { species, count });

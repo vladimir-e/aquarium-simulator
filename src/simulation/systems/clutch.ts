@@ -5,12 +5,12 @@
 
 import type { Clutch, Fish, Resources } from '../state.js';
 import type { FishSpecies } from '../livestock/species.js';
-import { FISH_SPECIES_DATA } from '../livestock/species.js';
+import { debParams, FISH_SPECIES_DATA, incubation } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
-import { hourlyDraw } from '../core/kinetics.js';
+import { arrheniusFactor, hourlyDraw } from '../core/kinetics.js';
 import { sum } from '../core/sum.js';
 import { waterStressors } from './fish-health.js';
-import { eggOrganics } from './fish-growth.js';
+import { eggMass, eggOrganics } from './fish-body.js';
 
 /** Every laid clutch, and each brood whose mother is among `fish`. */
 export function clutchesWithMothers<C extends Pick<Clutch, 'motherId'>>(
@@ -23,12 +23,12 @@ export function clutchesWithMothers<C extends Pick<Clutch, 'motherId'>>(
 
 /** Grams a clutch's eggs weigh. */
 export function clutchMass(clutch: Pick<Clutch, 'species' | 'eggs'>): number {
-  return clutch.eggs * FISH_SPECIES_DATA[clutch.species].breeding.eggMass;
+  return clutch.eggs * eggMass(clutch.species);
 }
 
 /** Grams of organic matter a clutch's eggs hold. */
-export function clutchOrganics(clutch: Pick<Clutch, 'species' | 'eggs'>, config: LivestockConfig): number {
-  return clutch.eggs * eggOrganics(clutch.species, config);
+export function clutchOrganics(clutch: Pick<Clutch, 'species' | 'eggs'>): number {
+  return clutch.eggs * eggOrganics(clutch.species);
 }
 
 /**
@@ -64,9 +64,9 @@ export function eggPredationRate(
   return (config.eggPredationRate * clutchExposure * predatorMass) / waterVolume;
 }
 
-/** Development a clutch gains an hour, its parents' metabolism running at `metabolicFactor`. */
-export function developmentRate(species: FishSpecies, metabolicFactor: number): number {
-  return metabolicFactor / FISH_SPECIES_DATA[species].breeding.developmentTime;
+/** Development a clutch gains an hour in water this warm: its species' incubation paced by τ. */
+export function developmentRate(species: FishSpecies, temperature: number): number {
+  return arrheniusFactor(temperature, debParams(species).TA) / incubation(species);
 }
 
 export interface ClutchHour {

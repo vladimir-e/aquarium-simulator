@@ -7,11 +7,16 @@ import type { SimulationState, Fish } from '../state.js';
 import type { FishSpecies } from '../livestock/species.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { createLog } from '../core/logging.js';
-import { createFish, isStockableSize, STOCKED_FISH_SIZE, unstockableSizeMessage } from '../livestock/create-fish.js';
-import { countFry, fishLifeStage, massAtSize } from '../systems/fish-growth.js';
+import {
+  isStockableSize,
+  STOCKED_FISH_SIZE,
+  stockedBody,
+  stockFish,
+  unstockableSizeMessage,
+} from '../livestock/create-fish.js';
+import { countFry, fishLifeStage, fishMass } from '../systems/fish-body.js';
 import { sum } from '../core/sum.js';
 import { clutchesWithMothers } from '../systems/clutch.js';
-import type { LivestockConfig } from '../config/livestock.js';
 import type { ActionResult, AddFishAction, RemoveFishAction } from './types.js';
 
 /**
@@ -50,8 +55,13 @@ export function getMaxFishMass(tankCapacity: number): number {
 }
 
 /** Current total body mass (grams) of a set of fish, fry included. */
-export function totalFishMass(fish: Fish[]): number {
-  return sum(fish.map((f) => f.mass));
+export function totalFishMass(fish: readonly Pick<Fish, 'species' | 'deb'>[]): number {
+  return sum(fish.map(fishMass));
+}
+
+/** Grams a fish of this species weighs bought at this size. */
+export function stockedMass(species: FishSpecies, size: number): number {
+  return fishMass({ species, deb: stockedBody(species, size, 20).deb });
 }
 
 export interface FishCapacityResult {
@@ -80,7 +90,7 @@ export function checkFishCapacity(
     return { ok: false, message: unstockableSizeMessage(species) };
   }
   const maxMass = getMaxFishMass(tankCapacity);
-  const ok = totalFishMass(fish) + massAtSize(species, size) <= maxMass;
+  const ok = totalFishMass(fish) + stockedMass(species, size) <= maxMass;
   return {
     ok,
     message: ok ? '' : `Tank at fish capacity (~${Math.floor(maxMass)}g of fish max)`,
@@ -96,15 +106,11 @@ export function canAddFish(state: SimulationState, species: FishSpecies, size?: 
 }
 
 /**
- * Add a fish to the tank at a size — grown when none is named. The
- * individual variation — sex, hardiness offset, health jitter — is sampled by
- * the shared {@link createFish} factory, the same one breeding uses for fry.
+ * Add a fish to the tank at a size — {@link STOCKED_FISH_SIZE} when none is
+ * named. The individual variation — sex, hardiness offset, health jitter,
+ * survival threshold — is sampled by the same factory hatching uses for fry.
  */
-export function addFish(
-  state: SimulationState,
-  action: AddFishAction,
-  config: LivestockConfig
-): ActionResult {
+export function addFish(state: SimulationState, action: AddFishAction): ActionResult {
   const { species, size = STOCKED_FISH_SIZE } = action;
 
   const capacity = checkFishCapacity(state.fish, state.tank.capacity, species, size);
@@ -114,7 +120,7 @@ export function addFish(
   const speciesData = FISH_SPECIES_DATA[species];
 
   const newState = produce(state, (draft) => {
-    const fish = createFish({ species, size, rng: draft.rng, config });
+    const fish = stockFish({ species, size, temperature: draft.resources.temperature, rng: draft.rng });
     draft.fish.push(fish);
 
     draft.logs.push(
@@ -122,7 +128,7 @@ export function addFish(
         draft.tick,
         'user',
         'info',
-        `Added ${speciesData.name} (${Number(fish.mass.toFixed(2))}g, ${fish.sex})`
+        `Added ${speciesData.name} (${Number(fishMass(fish).toFixed(2))}g, ${fish.sex})`
       )
     );
   });

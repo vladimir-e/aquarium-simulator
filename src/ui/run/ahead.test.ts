@@ -11,19 +11,26 @@ import {
   processFlora,
   processLivestock,
   tick,
+  type Fish,
   type SimulationState,
 } from '../../simulation/index.js';
 import { settleEnvironment } from '../../simulation/tick.js';
-import { eggsLaid } from '../../simulation/systems/fish-growth.js';
+import { debParams } from '../../simulation/livestock/species.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
 
 const config = DEFAULT_CONFIG;
 
+/** A fish whose brood buffer readies `eggs` of its own eggs. */
+function ripe(fish: Fish, eggs: number): void {
+  const p = debParams(fish.species);
+  fish.deb.broodBuffer = (eggs * p.E0) / p.kappaR;
+}
+
 /**
  * The planted preset, stocked, fed and recovering from a bad spell so every
  * organism is moving — but for a grown sword towering over the rest on a full
- * bank, which buds, and a female neon on a full bank beside a male, who spawns.
+ * bank, which buds, and a ripe female neon beside a ripe male, who spawn.
  */
 function recovering(): SimulationState {
   const preset = getPresetById('planted')!;
@@ -39,13 +46,11 @@ function recovering(): SimulationState {
   return produce(stocked, (draft) => {
     for (const plant of draft.plants) plant.condition = 60;
     Object.assign(draft.plants[0], { condition: 100, surplus: config.plants.surplusCap });
-    for (const fish of draft.fish) {
-      fish.health = 70;
-      fish.surplus = config.livestock.surplusCap / 2;
-    }
-    Object.assign(draft.fish[0], { sex: 'female', health: 100, surplus: config.livestock.surplusCap });
-    draft.fish[0].ovary = eggsLaid(draft.fish[0], config.livestock);
+    for (const fish of draft.fish) fish.health = 70;
+    Object.assign(draft.fish[0], { sex: 'female', health: 100 });
+    ripe(draft.fish[0], 0.9);
     draft.fish[1].sex = 'male';
+    ripe(draft.fish[1], 20);
     for (const kind of ALGAE_KINDS) draft.algae[kind].mass = 20;
     draft.resources.food = 1;
   });
@@ -72,9 +77,11 @@ function bodiesOf(state: SimulationState): {
 } {
   const flora = processFlora(settleEnvironment(state, config), config);
   const livestock = processLivestock(applyEffects(flora.state, flora.effects, config), config);
-  const bodies = processBodies(applyEffects(livestock.state, livestock.effects, config), config, livestock.metabolism);
+  const bodies = processBodies(applyEffects(livestock.state, livestock.effects, config), config);
   const delta = (resource: string, source: string): number =>
-    bodies.effects.filter((e) => e.resource === resource && e.source === source).reduce((sum, e) => sum + e.delta, 0);
+    [...livestock.effects, ...bodies.effects]
+      .filter((e) => e.resource === resource && e.source === source)
+      .reduce((sum, e) => sum + e.delta, 0);
   return { bodies, delta };
 }
 
@@ -136,9 +143,7 @@ describe('readHourAhead', () => {
       expect(ahead.fish.map((fish) => fish.vitality.newCondition)).toEqual(
         after.map((fish) => fish.health)
       );
-      expect(ahead.fish.map(({ vitality, spent }) => vitality.surplus - spent)).toEqual(
-        after.map((fish) => fish.surplus)
-      );
+      expect(ahead.fish.map(({ hour }) => hour.fish.age)).toEqual(after.map((fish) => fish.age));
     }
   });
 
@@ -148,7 +153,6 @@ describe('readHourAhead', () => {
       draft.resources.lightByHour.fill(0);
       draft.resources.ammonia = 500 * draft.resources.water;
       Object.assign(draft.plants[1], { condition: 0.001, surplus: 1 });
-      for (const fish of draft.fish) Object.assign(fish, { health: 0.5, surplus: 1 });
       for (const kind of ALGAE_KINDS) Object.assign(draft.algae[kind], { condition: 0.001, surplus: 1 });
     });
     const ahead = readHourAhead(dying, config);
@@ -156,9 +160,7 @@ describe('readHourAhead', () => {
     const gone = <T extends { id: string }>(before: T[], after: T[]): boolean[] =>
       before.map((o) => !after.some((a) => a.id === o.id));
 
-    expect(gone(dying.fish, next.fish)).toContain(true);
     expect(gone(dying.plants, next.plants)).toContain(true);
-    gone(dying.fish, next.fish).forEach((died, i) => died && expect(ahead.fish[i].spent).toBe(0));
     gone(dying.plants, next.plants).forEach((died, i) => died && expect(ahead.plants[i].spent).toBe(0));
     expect(next.logs.filter((log) => log.event === 'algae-died')).toHaveLength(ALGAE_KINDS.length);
     for (const kind of ALGAE_KINDS) expect(ahead.algae[kind].spent).toBe(0);
@@ -175,6 +177,7 @@ describe('readHourAhead', () => {
 
       expect(ahead.fishWaste).toBeCloseTo(delta('waste', 'fish-metabolism') + delta('waste', 'dead-eggs'), 12);
       expect(ahead.gillAmmonia).toBeCloseTo(delta('ammonia', 'fish-gill-excretion'), 12);
+      expect(bodies.state.fish.length).toBeGreaterThan(0);
       expect(ahead.foodWaste).toBe(
         calculateDecay(left.food, left.temperature, left.oxygen, config.decay) *
           config.decay.wasteConversionRatio
@@ -190,7 +193,11 @@ describe('readHourAhead', () => {
     const { bodies, delta } = bodiesOf(hatching);
 
     expect(delta('waste', 'dead-eggs')).toBeGreaterThan(0);
-    expect(readHourAhead(hatching, config).fishWaste).toBeCloseTo(bodies.excreted.waste + delta('waste', 'dead-eggs'), 12);
+    expect(bodies.waste).toBeCloseTo(delta('waste', 'dead-eggs'), 15);
+    expect(readHourAhead(hatching, config).fishWaste).toBeCloseTo(
+      delta('waste', 'fish-metabolism') + delta('waste', 'dead-eggs'),
+      12
+    );
   });
 
   it('reads every bloom exactly as the next tick runs it, at every hour of the day', () => {
@@ -219,12 +226,12 @@ describe('readHourAhead', () => {
   });
 
   it('reads a livebearer as brooding in the hour she gives birth', () => {
-    const cap = config.livestock.surplusCap;
     const stocked = createSimulation({ tankCapacity: 100 }, { fish: [{ species: 'guppy', count: 2 }] });
     const due = produce(stocked, (draft) => {
-      Object.assign(draft.fish[0], { sex: 'female', health: 100, surplus: cap });
-      draft.fish[0].ovary = eggsLaid(draft.fish[0], config.livestock);
-      Object.assign(draft.fish[1], { sex: 'male', health: 100, surplus: cap });
+      Object.assign(draft.fish[0], { sex: 'female', health: 100 });
+      ripe(draft.fish[0], 10);
+      Object.assign(draft.fish[1], { sex: 'male', health: 100 });
+      ripe(draft.fish[1], 10);
       draft.clutches = [{ id: 'due', species: 'guppy', eggs: 10, development: 0.9999, motherId: draft.fish[0].id }];
     });
     const next = tick(due, config);

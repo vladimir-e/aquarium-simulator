@@ -9,13 +9,17 @@ import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { LEDGER_DECIMALS, readHourAhead } from '../run';
 import {
   applyAction,
+  debParams,
   fishLifeStage,
-  grownMass,
+  STOCKED_FISH_SIZE,
+  stockedMass,
   type Action,
   type Fish,
   type FishSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
+import { hatchling } from '../../simulation/systems/deb.js';
+import { starving } from '../test/gut';
 
 afterEach(cleanup);
 
@@ -156,7 +160,7 @@ describe('LifeSection', () => {
     const run = stocked();
     const state: SimulationState = {
       ...run.state,
-      fish: run.state.fish.map((fish, i) => (i === 0 ? { ...fish, gut: 0 } : fish)),
+      fish: run.state.fish.map((fish, i) => (i === 0 ? { ...starving(fish), gut: 0 } : fish)),
     };
     renderLife({ ...run, state });
 
@@ -218,12 +222,12 @@ describe('LifeSection', () => {
     const drawer = within(screen.getByRole('dialog'));
     fireEvent.click(within(drawer.getByRole('group', { name: 'How many' })).getByRole('button', { name: 'increase' }));
     const size = within(drawer.getByRole('group', { name: 'Size' }));
-    for (let i = 0; i < 5; i++) fireEvent.click(size.getByRole('button', { name: 'decrease' }));
+    for (let i = 0; i < 2; i++) fireEvent.click(size.getByRole('button', { name: 'decrease' }));
     fireEvent.click(drawer.getByRole('button', { name: 'Add 2 Neon Tetra' }));
 
     const row = speciesRow('Fish', 'Neon Tetra').parentElement!.textContent;
     expect(row).toContain('×2');
-    expect(row).toContain(`${(grownMass('neon_tetra') / 2).toFixed(2)} g each`);
+    expect(row).toContain(`${stockedMass('neon_tetra', STOCKED_FISH_SIZE - 20).toFixed(2)} g each`);
   });
 
   it('sells the whole tank’s fry from the one row they share', () => {
@@ -232,7 +236,7 @@ describe('LifeSection', () => {
       ...run.state.fish[0],
       id,
       species,
-      mass: 0.05,
+      deb: hatchling(debParams(species)),
     });
     const state: SimulationState = {
       ...run.state,

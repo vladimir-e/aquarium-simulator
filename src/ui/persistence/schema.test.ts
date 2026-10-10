@@ -35,6 +35,7 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { DEFAULT_SETTINGS } from '../actions/verbs.js';
+import { fishRecord } from '../../simulation/tests/fish.js';
 import { HARDSCAPE_TYPES, SUBSTRATE_TYPES } from '../build/scape.js';
 import { LID_TYPES } from '../build/setup.js';
 import { getTankSizeOptions } from '../utils/units.js';
@@ -196,33 +197,27 @@ describe('TunableConfigSchema', () => {
   it('takes any draw rate from 0, since a first-order draw never takes more than the bank', () => {
     expect(plants({ growthDrawRate: 0, healingDrawRate: 0 })).toBe(true);
     expect(plants({ growthDrawRate: 50, healingDrawRate: 50 })).toBe(true);
-    expect(livestock({ healingDrawRate: 0 })).toBe(true);
+    expect(livestock({ healingRate: 0, maleBufferTurnover: 0 })).toBe(true);
   });
 
   it('refuses a negative draw rate, which runs the bank backwards: healing overfills it and drains condition', () => {
     expect(plants({ growthDrawRate: -0.01 })).toBe(false);
     expect(plants({ healingDrawRate: -0.01 })).toBe(false);
-    expect(livestock({ healingDrawRate: -0.01 })).toBe(false);
+    expect(livestock({ healingRate: -0.01 })).toBe(false);
+    expect(livestock({ maleBufferTurnover: -0.01 })).toBe(false);
   });
 
   it('takes a bank cap from 0 up to the whole condition scale, and refuses one past it', () => {
     expect(plants({ surplusCap: 0 })).toBe(true);
     expect(plants({ surplusCap: MAX_SURPLUS_CAP })).toBe(true);
-    expect(livestock({ surplusCap: MAX_SURPLUS_CAP })).toBe(true);
     expect(plants({ surplusCap: -1 })).toBe(false);
     expect(plants({ surplusCap: MAX_SURPLUS_CAP + 1 })).toBe(false);
-    expect(livestock({ surplusCap: MAX_SURPLUS_CAP + 1 })).toBe(false);
   });
 
   it('takes a bank point that buys something up to its ceiling, and refuses one that buys nothing or past it', () => {
     expect(plants({ sizePerSurplus: MAX_SIZE_PER_SURPLUS })).toBe(true);
     expect(plants({ sizePerSurplus: 0 })).toBe(false);
     expect(plants({ sizePerSurplus: MAX_SIZE_PER_SURPLUS * 2 })).toBe(false);
-  });
-
-  it('refuses a brood cost of nothing, which would buy endless eggs', () => {
-    expect(livestock({ broodCost: 1 })).toBe(true);
-    expect(livestock({ broodCost: 0 })).toBe(false);
   });
 
   it('refuses a species demand of nothing, which no plant has', () => {
@@ -237,10 +232,8 @@ describe('TunableConfigSchema', () => {
     expect(TunableConfigSchema.safeParse(config).success).toBe(false);
   });
 
-  it('rejects the old v12 config shape (livestock missing surplusCap)', () => {
-    const livestockWithoutCap = { ...DEFAULT_CONFIG.livestock } as Record<string, unknown>;
-    delete livestockWithoutCap.surplusCap;
-    const oldShape = { ...DEFAULT_CONFIG, livestock: livestockWithoutCap };
+  it('rejects the old v34 config shape (livestock carrying a bank cap)', () => {
+    const oldShape = { ...DEFAULT_CONFIG, livestock: { ...DEFAULT_CONFIG.livestock, surplusCap: 50 } };
     expect(TunableConfigSchema.safeParse(oldShape).success).toBe(false);
   });
 });
@@ -337,18 +330,7 @@ describe('PersistedSimulationSchema', () => {
   });
 
   it('drops a brood whose mother is not in the tank, and keeps laid clutches and mothered broods', () => {
-    const mother = {
-      id: 'mother',
-      species: 'guppy',
-      mass: 0.2,
-      health: 100,
-      age: 0,
-      gut: 0,
-      sex: 'female',
-      hardinessOffset: 0,
-      surplus: 0,
-      ovary: 0,
-    };
+    const mother = fishRecord({ id: 'mother', species: 'guppy', sex: 'female' });
     const loaded = PersistedSimulationSchema.parse({
       ...validSimulation,
       fish: [mother],
@@ -469,65 +451,19 @@ describe('PersistedSimulationSchema', () => {
     expect(PersistedSimulationSchema.safeParse(invalidFlow).success).toBe(false);
   });
 
-  it('validates fish with hardinessOffset and surplus', () => {
-    const withFish = {
-      ...validSimulation,
-      fish: [
-        {
-          id: 'f1',
-          species: 'neon_tetra',
-          mass: 0.5,
-          health: 100,
-          age: 0,
-          gut: 0,
-          sex: 'male',
-          hardinessOffset: 0.05,
-          surplus: 0,
-          ovary: 0,
-        },
-      ],
-    };
-    expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(true);
+  const withFish = (fish: object): object => ({ ...validSimulation, fish: [fish] });
+
+  it('validates a fish and its energy budget', () => {
+    expect(PersistedSimulationSchema.safeParse(withFish(fishRecord({ hardinessOffset: 0.05 }))).success).toBe(true);
   });
 
   it('accepts negative hardinessOffset', () => {
-    const withFish = {
-      ...validSimulation,
-      fish: [
-        {
-          id: 'f1',
-          species: 'neon_tetra',
-          mass: 0.5,
-          health: 50,
-          age: 0,
-          gut: 0,
-          sex: 'male',
-          hardinessOffset: -0.07,
-          surplus: 1.5,
-          ovary: 0,
-        },
-      ],
-    };
-    expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(true);
+    expect(PersistedSimulationSchema.safeParse(withFish(fishRecord({ hardinessOffset: -0.07, health: 50 }))).success).toBe(true);
   });
 
   it('round-trips a fry fish alongside an unhatched clutch', () => {
     const withOffspring = {
-      ...validSimulation,
-      fish: [
-        {
-          id: 'fry1',
-          species: 'guppy',
-          mass: 0.05,
-          health: 98,
-          age: 12,
-          gut: 0,
-          sex: 'female',
-          hardinessOffset: 0.01,
-          surplus: 0,
-          ovary: 0,
-        },
-      ],
+      ...withFish(fishRecord({ id: 'fry1', species: 'guppy', size: 0, age: 12, health: 98 })),
       clutches: [{ id: 'c1', species: 'neon_tetra', eggs: 24.3, development: 0.6 }],
     };
     expect(PersistedSimulationSchema.safeParse(withOffspring).success).toBe(true);
@@ -542,63 +478,18 @@ describe('PersistedSimulationSchema', () => {
   });
 
   it('rejects a fish carrying a key it does not have (strict mode)', () => {
-    const withFish = {
-      ...validSimulation,
-      fish: [
-        {
-          id: 'f1',
-          species: 'neon_tetra',
-          mass: 0.5,
-          health: 100,
-          age: 0,
-          gut: 0,
-          sex: 'male',
-          stage: 'adult',
-          hardinessOffset: 0,
-          surplus: 0,
-          ovary: 0,
-        },
-      ],
-    };
-    expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(false);
+    expect(PersistedSimulationSchema.safeParse(withFish({ ...fishRecord(), mass: 0.5 })).success).toBe(false);
   });
 
-  it('rejects fish missing hardinessOffset (strict mode)', () => {
-    const withFish = {
-      ...validSimulation,
-      fish: [
-        {
-          id: 'f1',
-          species: 'neon_tetra',
-          mass: 0.5,
-          health: 100,
-          age: 0,
-          gut: 0,
-          sex: 'male',
-          surplus: 0,
-        },
-      ],
-    };
-    expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(false);
+  it('rejects a fish missing hardinessOffset or its budget (strict mode)', () => {
+    const without = (key: string): object => Object.fromEntries(Object.entries(fishRecord()).filter(([k]) => k !== key));
+    expect(PersistedSimulationSchema.safeParse(withFish(without('hardinessOffset'))).success).toBe(false);
+    expect(PersistedSimulationSchema.safeParse(withFish(without('deb'))).success).toBe(false);
   });
 
-  it('rejects fish missing surplus (strict mode, v6)', () => {
-    const withFish = {
-      ...validSimulation,
-      fish: [
-        {
-          id: 'f1',
-          species: 'neon_tetra',
-          mass: 0.5,
-          health: 100,
-          age: 0,
-          gut: 0,
-          sex: 'male',
-          hardinessOffset: 0,
-        },
-      ],
-    };
-    expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(false);
+  it('refuses a survival or threshold outside 0–1', () => {
+    expect(PersistedSimulationSchema.safeParse(withFish(fishRecord({ survival: 1.1 }))).success).toBe(false);
+    expect(PersistedSimulationSchema.safeParse(withFish(fishRecord({ survivalDraw: -0.1 }))).success).toBe(false);
   });
 });
 
@@ -822,20 +713,7 @@ describe('every fixture the UI offers survives a save', () => {
     expect(
       refused(species, (s) => ({
         ...built({}),
-        fish: [
-          {
-            id: 'f1',
-            species: s,
-            mass: 1,
-            health: 100,
-            age: 0,
-            gut: 0,
-            sex: 'male',
-            hardinessOffset: 0,
-            surplus: 0,
-            ovary: 0,
-          },
-        ],
+        fish: [fishRecord({ id: 'f1', species: s })],
       }))
     ).toEqual([]);
   });

@@ -1,107 +1,63 @@
 import { describe, it, expect } from 'vitest';
-import {
-  appetite,
-  arrivalGut,
-  dailyMaintenance,
-  digest,
-  gutCapacity,
-  hungerLine,
-  maintenance,
-  metabolicMass,
-  nourishment,
-  shareCapped,
-  swallow,
-} from './digestion.js';
+import { appetite, digest, fullPaceLine, gutCapacity, gutRoom, shareCapped, swallow, type Pace } from './digestion.js';
 import { livestockDefaults as config } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
-import { grownMass } from '../livestock/species.js';
+import { HOURS_PER_DAY } from '../core/clock.js';
+import { NO_STRESS, assimilationCeiling } from './deb.js';
+import { debParams } from '../livestock/species.js';
+import { fishRecord } from '../tests/fish.js';
+import type { Fish } from '../state.js';
 
-const guppy = (mass: number): { species: 'guppy'; mass: number } => ({ species: 'guppy', mass });
-const ADULT = grownMass('guppy');
-
-describe('mass scaling', () => {
-  const perGram = (read: (fish: ReturnType<typeof guppy>) => number, mass: number): number => read(guppy(mass)) / mass;
-  const rates = {
-    capacity: (fish: ReturnType<typeof guppy>): number => gutCapacity(fish, config),
-    digestion: (fish: ReturnType<typeof guppy>): number => digest(gutCapacity(fish, config), 1, config),
-    maintenance: (fish: ReturnType<typeof guppy>): number => maintenance(fish, 1, config),
-  };
-
-  it('runs a fish per gram on its mass to the −¼ against a grown fish of its species', () => {
-    for (const [name, read] of Object.entries(rates)) {
-      expect(perGram(read, ADULT / 16) / perGram(read, ADULT), name).toBeCloseTo(2, 9);
-      expect(perGram(read, ADULT / 10_000) / perGram(read, ADULT), name).toBeCloseTo(10, 9);
-    }
-    expect(metabolicMass(guppy(ADULT / 81), config) / (ADULT / 81)).toBeCloseTo(3, 12);
-  });
-
-  it('leaves a grown fish at the per-gram constants', () => {
-    expect(metabolicMass(guppy(ADULT), config)).toBeCloseTo(ADULT, 12);
-    expect(gutCapacity(guppy(ADULT), config)).toBeCloseTo(ADULT * config.gutCapacity, 12);
-    expect(dailyMaintenance([guppy(ADULT)], 1, config)).toBeCloseTo(ADULT * config.maintenanceRation, 12);
-  });
-
-  it('scales every grown species alike: the reference is its own adult mass', () => {
-    const neon = { species: 'neon_tetra' as const, mass: grownMass('neon_tetra') };
-    expect(metabolicMass(neon, config)).toBeCloseTo(neon.mass, 12);
-    expect(gutCapacity(neon, config) / neon.mass).toBeCloseTo(config.gutCapacity, 12);
-  });
-
-  it('is flat at a zero exponent', () => {
-    const flat = { ...config, massScalingExponent: 0 };
-    expect(metabolicMass(guppy(ADULT / 100), flat)).toBeCloseTo(ADULT / 100, 12);
-  });
-
-  it('holds no NaN at tiny or zero mass', () => {
-    for (const mass of [0, 1e-12]) {
-      const fish = guppy(mass);
-      const numbers = [metabolicMass(fish, config), gutCapacity(fish, config), maintenance(fish, 1, config), arrivalGut(fish, config)];
-      numbers.forEach((n) => expect(Number.isFinite(n)).toBe(true));
-    }
-    expect(metabolicMass(guppy(0), config)).toBe(0);
-  });
-
-  it('arrives with a day\'s maintenance ration in its gut', () => {
-    expect(arrivalGut(guppy(ADULT / 50), config)).toBeCloseTo(dailyMaintenance([guppy(ADULT / 50)], 1, config), 12);
-  });
-});
-
-describe('digestion', () => {
-  it('digests first order: the same share of whatever the gut holds', () => {
-    expect(digest(1, 1, config)).toBeCloseTo(hourlyDraw(config.digestionRate), 12);
-    expect(digest(2, 1, config)).toBeCloseTo(2 * digest(1, 1, config), 12);
-    expect(digest(0, 1, config)).toBe(0);
-  });
-
-  it('digests nothing when its metabolism stops', () => {
-    expect(digest(1, 0, config)).toBe(0);
-  });
-
-  it('never digests more than the gut holds', () => {
-    expect(digest(1, 1e6, config)).toBeLessThanOrEqual(1);
-  });
-});
-
-describe('maintenance', () => {
-  it('needs a day\'s ration by metabolic mass in reference water', () => {
-    expect(dailyMaintenance([guppy(1), guppy(0.25)], 1, config)).toBeCloseTo(
-      (metabolicMass(guppy(1), config) + metabolicMass(guppy(0.25), config)) * config.maintenanceRation,
-      12
-    );
-  });
-
-  it('needs less as its metabolism slows, in step with the factor', () => {
-    expect(dailyMaintenance([guppy(2)], 0.5, config)).toBeCloseTo(0.5 * dailyMaintenance([guppy(2)], 1, config), 12);
-    expect(maintenance(guppy(1), 0.5, config)).toBeCloseTo(0.5 * maintenance(guppy(1), 1, config), 12);
-    expect(maintenance(guppy(1), 0, config)).toBe(0);
-  });
-});
+const REFERENCE: Pace = { tau: 1, omega: 1, stress: NO_STRESS };
+const guppy = (size: number, gut = 0): Fish => fishRecord({ species: 'guppy', size, gut });
 
 describe('appetite', () => {
-  it('wants the room left in its gut, and nothing when full', () => {
-    const fish = { ...guppy(2), gut: 0 };
-    expect(appetite(fish, config)).toBeCloseTo(gutCapacity(fish, config), 12);
-    expect(appetite({ ...guppy(2), gut: gutCapacity(fish, config) }, config)).toBe(0);
+  it('is the assimilation ceiling in food: {p_Am}·L² over κ_X', () => {
+    const fish = guppy(50);
+    const p = debParams('guppy');
+    expect(appetite(fish, REFERENCE)).toBeCloseTo(assimilationCeiling(fish.deb, p, REFERENCE) / p.kappaX, 15);
+  });
+
+  it('rises with its surface, so a fry eats more for its weight than its parents', () => {
+    const [fry, adult] = [guppy(20), guppy(80)];
+    const surfaces = (adult.deb.structure / fry.deb.structure) ** (2 / 3);
+    expect(appetite(adult, REFERENCE) / appetite(fry, REFERENCE)).toBeCloseTo(surfaces, 12);
+    expect(appetite(fry, REFERENCE) / fry.deb.structure).toBeGreaterThan(appetite(adult, REFERENCE) / adult.deb.structure);
+  });
+
+  it('runs at τ·ω and falls with assimilation stress', () => {
+    const fish = guppy(50);
+    const base = appetite(fish, REFERENCE);
+    expect(appetite(fish, { tau: 1.5, omega: 0.5 })).toBeCloseTo(0.75 * base, 15);
+    expect(appetite(fish, { ...REFERENCE, stress: { ...NO_STRESS, assimilation: 0.4 } })).toBeCloseTo(0.4 * base, 15);
+  });
+});
+
+describe('the gut', () => {
+  it('holds a day of its appetite, and wants the room left in it', () => {
+    const fish = guppy(50);
+    expect(gutCapacity(fish, REFERENCE)).toBeCloseTo(HOURS_PER_DAY * appetite(fish, REFERENCE), 15);
+    const half = { ...fish, gut: gutCapacity(fish, REFERENCE) / 2 };
+    expect(gutRoom(half, REFERENCE)).toBeCloseTo(gutCapacity(fish, REFERENCE) / 2, 15);
+    expect(gutRoom({ ...fish, gut: 2 * gutCapacity(fish, REFERENCE) }, REFERENCE)).toBe(0);
+  });
+
+  it('digests first order at τ: the same share of whatever it holds', () => {
+    expect(digest(1, 1, config)).toBeCloseTo(hourlyDraw(config.digestionRate), 12);
+    expect(digest(2, 1.5, config)).toBeCloseTo(2 * hourlyDraw(1.5 * config.digestionRate), 12);
+    expect(digest(1, 0, config)).toBe(0);
+    expect(digest(1, 1e6, config)).toBeLessThanOrEqual(1);
+  });
+
+  it('draws the full-pace line where a gut that full digests what the budget can take up in the hour', () => {
+    for (const tau of [1, 1.6]) {
+      const fish = guppy(50);
+      const pace = { ...REFERENCE, tau };
+      const line = fullPaceLine(tau, config) * gutCapacity(fish, pace);
+      expect(digest(line, tau, config)).toBeCloseTo(appetite(fish, pace), 12);
+    }
+    expect(fullPaceLine(0.5, config)).toBe(1);
+    expect(fullPaceLine(0, config)).toBe(1);
   });
 });
 
@@ -150,43 +106,21 @@ describe('shareCapped', () => {
 });
 
 describe('swallow', () => {
-  const school = (): { species: 'guppy'; mass: number; gut: number }[] => [
-    { ...guppy(10), gut: 0 },
-    { ...guppy(30), gut: 0 },
-    { ...guppy(20), gut: gutCapacity(guppy(20), config) },
-  ];
+  const school = (): Fish[] => [guppy(30), guppy(60), { ...guppy(50), gut: gutCapacity(guppy(50), REFERENCE) }];
+  const paces = [REFERENCE, REFERENCE, REFERENCE];
 
   it('takes each share while the gut has room, leaving the eaters as they were', () => {
     const eaters = Object.freeze(school().map((e) => Object.freeze(e)));
-    expect(swallow(eaters, [0.001, 0.003, 0], config)).toEqual({ taken: [0.001, 0.003, 0], overflow: 0 });
-    expect(eaters.map((e) => e.gut)).toEqual([0, 0, gutCapacity(guppy(20), config)]);
+    const shares = [1e-5, 3e-5, 0];
+    expect(swallow(eaters, paces, shares)).toEqual({ taken: shares, overflow: 0 });
+    expect(eaters.map((e) => e.gut)).toEqual([0, 0, gutCapacity(guppy(50), REFERENCE)]);
   });
 
   it('takes no more than a gut has room for, the rest overflowing, every gram accounted for', () => {
     const eaters = school();
-    const shares = [5, 5, 5];
-    const { taken, overflow } = swallow(eaters, shares, config);
-    eaters.forEach((e, i) => expect(e.gut + taken[i]).toBeLessThanOrEqual(gutCapacity(e, config) + 1e-15));
+    const { taken, overflow } = swallow(eaters, paces, [5, 5, 5]);
+    eaters.forEach((e, i) => expect(e.gut + taken[i]).toBeLessThanOrEqual(gutCapacity(e, REFERENCE) + 1e-15));
     expect(overflow).toBeGreaterThan(0);
     expect(taken.reduce((sum, g) => sum + g, 0) + overflow).toBeCloseTo(15, 12);
-  });
-});
-
-describe('nourishment', () => {
-  it('earns half its benefits on its maintenance ration, more on more, none on nothing', () => {
-    const need = maintenance(guppy(1), 1, config);
-    expect(nourishment(need, need)).toBeCloseTo(0.5, 12);
-    expect(nourishment(3 * need, need)).toBeGreaterThan(nourishment(2 * need, need));
-    expect(nourishment(0, need)).toBe(0);
-  });
-
-  it('draws the hunger line where a gut that full digests its maintenance, at any metabolic factor and mass', () => {
-    for (const fish of [guppy(2), guppy(0.005)]) {
-      for (const factor of [1, 0.4]) {
-        const gut = hungerLine(factor, config) * gutCapacity(fish, config);
-        expect(digest(gut, factor, config)).toBeCloseTo(maintenance(fish, factor, config), 12);
-      }
-    }
-    expect(hungerLine(0, config)).toBe(0);
   });
 });

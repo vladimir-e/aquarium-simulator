@@ -1,46 +1,39 @@
 /**
  * The gut — a fish's one hunger stock. Food fills it, it digests first order
- * on the fish's metabolic factor — slower cold and short of oxygen — and what
- * it digests is the fish's income: its vitality earns on it and its waste
- * comes out of it. The ration it must digest to hold condition runs on the
- * same factor.
+ * at its species' pace, and what it digests is offered to the energy budget,
+ * which takes up to its assimilation ceiling and hands the rest back.
  *
- * What a gut holds, what a fish needs and what it breathes scale with its
- * metabolic mass, not its mass: per gram, each runs on mass to the −¼
- * against a grown fish of its species, so a fry eats, digests and burns
- * more for its size than its parents do.
+ * Appetite is that ceiling in food: {p_Am}·L² over κ_X, a surface, so a fry
+ * eats more for its weight than its parents. A gut holds a day of it.
  */
 
 import type { Fish } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
-import { hourlyDraw, monodFactor } from '../core/kinetics.js';
+import { HOURS_PER_DAY } from '../core/clock.js';
+import { hourlyDraw } from '../core/kinetics.js';
 import { sum } from '../core/sum.js';
-import { grownMass } from '../livestock/species.js';
+import { assimilationCeiling, type DebHour } from './deb.js';
+import { fishParams } from './fish-body.js';
 
-type Sized = Pick<Fish, 'species' | 'mass'>;
+/** The pace a fish's budget runs at this hour: τ, ω and the water's stress on it. */
+export type Pace = Pick<DebHour, 'tau' | 'omega' | 'stress'>;
 
-/**
- * Grams of grown fish of its species whose metabolism matches this fish's:
- * per gram, a fish runs at its mass over its adult mass to `massScalingExponent`.
- */
-export function metabolicMass(fish: Sized, config: LivestockConfig): number {
-  const adultMass = grownMass(fish.species);
-  return adultMass * (fish.mass / adultMass) ** (1 + config.massScalingExponent);
+type Body = Pick<Fish, 'species' | 'deb'>;
+
+/** Grams of food an hour its budget can take up. */
+export function appetite(fish: Body, pace: Pace): number {
+  const p = fishParams(fish);
+  return assimilationCeiling(fish.deb, p, pace) / p.kappaX;
 }
 
-/** A day's maintenance ration: what a fish arrives with in its gut, from the shop or its egg. */
-export function arrivalGut(fish: Sized, config: LivestockConfig): number {
-  return dailyMaintenance([fish], 1, config);
-}
-
-/** Grams of food a full gut holds. */
-export function gutCapacity(fish: Sized, config: LivestockConfig): number {
-  return metabolicMass(fish, config) * config.gutCapacity;
+/** Grams of food a full gut holds: a day of its appetite. */
+export function gutCapacity(fish: Body, pace: Pace): number {
+  return HOURS_PER_DAY * appetite(fish, pace);
 }
 
 /** Grams it would eat this hour: the room left in its gut. */
-export function appetite(fish: Sized & Pick<Fish, 'gut'>, config: LivestockConfig): number {
-  return Math.max(0, gutCapacity(fish, config) - fish.gut);
+export function gutRoom(fish: Body & Pick<Fish, 'gut'>, pace: Pace): number {
+  return Math.max(0, gutCapacity(fish, pace) - fish.gut);
 }
 
 export interface Shared {
@@ -71,41 +64,23 @@ export function shareCapped(weights: readonly number[], caps: readonly number[],
 
 /** What each gut swallows of its share of prey, up to the room left in it, and the grams that overflow. */
 export function swallow(
-  eaters: readonly (Sized & Pick<Fish, 'gut'>)[],
-  shares: readonly number[],
-  config: LivestockConfig
+  eaters: readonly (Body & Pick<Fish, 'gut'>)[],
+  paces: readonly Pace[],
+  shares: readonly number[]
 ): Shared {
   return capped(
     shares,
-    eaters.map((eater) => appetite(eater, config))
+    eaters.map((eater, i) => gutRoom(eater, paces[i]))
   );
 }
 
-/** Grams a gut digests over the hour, its metabolism running at `factor`. */
-export function digest(gut: number, factor: number, config: LivestockConfig): number {
-  return Math.max(0, gut) * hourlyDraw(config.digestionRate * factor);
+/** Share of a full gut under which it digests less in an hour than its budget can take up, at pace τ. */
+export function fullPaceLine(tau: number, config: LivestockConfig): number {
+  const draw = hourlyDraw(config.digestionRate * tau);
+  return draw > 0 ? Math.min(1, 1 / (HOURS_PER_DAY * draw)) : 1;
 }
 
-/** Grams a day a roster must digest to hold its condition, its metabolism running at `factor`. */
-export function dailyMaintenance(fish: readonly Sized[], factor: number, config: LivestockConfig): number {
-  return sum(fish.map((f) => metabolicMass(f, config))) * config.maintenanceRation * factor;
-}
-
-/** Grams an hour a fish must digest to hold its condition, its metabolism running at `factor`. */
-export function maintenance(fish: Sized, factor: number, config: LivestockConfig): number {
-  return dailyMaintenance([fish], factor, config) / 24;
-}
-
-/** Share of its benefits a fish earns on what it digested: half at its maintenance ration. */
-export function nourishment(digested: number, need: number): number {
-  return monodFactor(digested, need);
-}
-
-/**
- * Share of a full gut under which a fish digests less than its maintenance,
- * its metabolism running at `factor`, and hunger starts to harm it.
- */
-export function hungerLine(factor: number, config: LivestockConfig): number {
-  if (factor <= 0) return 0;
-  return (config.maintenanceRation * factor) / 24 / digest(config.gutCapacity, factor, config);
+/** Grams a gut digests over the hour at pace τ. */
+export function digest(gut: number, tau: number, config: LivestockConfig): number {
+  return Math.max(0, gut) * hourlyDraw(config.digestionRate * tau);
 }

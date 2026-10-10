@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   computeFishVitality,
   createSimulation,
-  dailyMaintenance,
   FILTER_SPECS,
   FILTER_TYPES,
   FISH_SPECIES_DATA,
@@ -278,13 +277,12 @@ describe('filter readings', () => {
 
       const { breakdown } = computeFishVitality(
         fish,
+        readHourAhead(state, DEFAULT_CONFIG).fish[0].hour,
         state.resources,
         state.plants,
         water,
         state.tank.capacity,
         DEFAULT_CONFIG.livestock,
-        0,
-        1,
         0
       );
       const charged = breakdown.stressors.find((s) => s.key === 'flow')?.amount ?? 0;
@@ -837,11 +835,10 @@ describe('deviceHint', () => {
   it('weighs the feeder’s ration against what the fish burn in the water they are in', () => {
     const warm = applyAction(base, { type: 'addFish', species: 'neon_tetra' }).state;
     const cold = { ...warm, resources: { ...warm.resources, temperature: warm.resources.temperature - 10 } };
-    const { metabolicFactor } = readHourAhead(cold, DEFAULT_CONFIG);
-    const need = dailyMaintenance(cold.fish, metabolicFactor, DEFAULT_CONFIG.livestock);
+    const need = readHourAhead(cold, DEFAULT_CONFIG).ration;
     const multiple = cold.equipment.autoFeeder.amount / need;
 
-    expect(metabolicFactor).toBeLessThan(readHourAhead(warm, DEFAULT_CONFIG).metabolicFactor);
+    expect(need).toBeLessThan(readHourAhead(warm, DEFAULT_CONFIG).ration);
     expect(hint('autoFeeder', cold)?.text).toContain(`is ${multiple.toFixed(1)}× what the fish need`);
   });
 
@@ -849,7 +846,7 @@ describe('deviceHint', () => {
     expect(hint('autoFeeder', base)?.text).toMatch(/^No fish to eat it/);
     const stocked = applyAction(base, { type: 'addFish', species: 'neon_tetra' }).state;
     const anoxic = { ...stocked, resources: { ...stocked.resources, oxygen: 0 } };
-    expect(readHourAhead(anoxic, DEFAULT_CONFIG).ration).toBe(0);
+    expect(readHourAhead(anoxic, DEFAULT_CONFIG).fish.map((fish) => fish.hour.pace.omega)).toEqual([0]);
     expect(hint('autoFeeder', anoxic)?.text).toMatch(/^Without oxygen the fish cannot digest — what they eat sits in their guts/);
   });
 });

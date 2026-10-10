@@ -113,7 +113,7 @@ describe('snapshotFromState', () => {
   it('counts adults apart from fry, and the plants standing', () => {
     const state = makeState((d) => {
       d.plants = [makePlant(40), makePlant(60), makePlant(80)];
-      d.fish = [fishRecord({ id: 'a', mass: 0.5 }), fishRecord({ id: 'b', mass: 0.5 }), fishRecord({ id: 'c', mass: 0.05 })];
+      d.fish = [fishRecord({ id: 'a' }), fishRecord({ id: 'b' }), fishRecord({ id: 'c', size: 20 })];
     });
     const snap = snapshotFromState(state);
     expect(snap.fishCount).toBe(2);

@@ -60,7 +60,7 @@ export type {
   FishBreedingData,
   SpeciesBudget,
 } from './livestock/species.js';
-export { FISH_SPECIES_DATA, grownLength, grownMass, lifespan, maturityAge } from './livestock/species.js';
+export { FISH_SPECIES_DATA, debParams, grownLength, grownMass, incubation, lifespan, maturityAge } from './livestock/species.js';
 export {
   FREE_AMMONIA_EDGE,
   NITRITE_EDGE,
@@ -332,6 +332,7 @@ export {
   checkFishCapacity,
   getMaxFishMass,
   totalFishMass,
+  stockedMass,
 } from './actions/index.js';
 export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 
@@ -452,22 +453,33 @@ export type {
 } from './plants/index.js';
 
 // Livestock
-export { processLivestock } from './livestock/index.js';
-export { processBodies, type Digestion } from './livestock/bodies.js';
-export { isStockableSize, STOCKED_FISH_SIZE } from './livestock/create-fish.js';
-export { computeFishVitality, fishHealingRate, fishWear, predationStress, predatorWeight, preyVulnerability } from './systems/fish-health.js';
+export { processLivestock, tankPaces } from './livestock/index.js';
+export { processBodies } from './livestock/bodies.js';
+export { isStockableSize, MAX_STOCKED_SIZE, STOCKED_FISH_SIZE } from './livestock/create-fish.js';
 export {
-  fishSize,
-  massAtSize,
-  frySize,
-  fishLifeStage,
-  countFry,
-  broodShare,
-  readyToBrood,
-  paysTowardBrood,
-} from './systems/fish-growth.js';
+  computeFishVitality,
+  predationStress,
+  predatorWeight,
+  preyVulnerability,
+  starvation,
+  type FishBreakdown,
+  type FishVitality,
+} from './systems/fish-health.js';
+export { fishMass, fishSize, fishOrganics, frySize, eggMass, fishLifeStage, countFry } from './systems/fish-body.js';
+export { readyToBrood, paysTowardBrood } from './systems/brood.js';
 export { clutchMass, clutchesWithMothers } from './systems/clutch.js';
-export { gutCapacity, dailyMaintenance, hungerLine } from './systems/digestion.js';
+export { appetite, fullPaceLine, gutCapacity, type Pace } from './systems/digestion.js';
+export { burn } from './systems/metabolism.js';
+export type { FishHour } from './systems/metabolism.js';
+export {
+  reserveDensity,
+  wellFed,
+  mature,
+  NO_STRESS,
+  type DebState,
+  type DebParams,
+  type DebStress,
+} from './systems/deb.js';
 
 // Vitality
 export {

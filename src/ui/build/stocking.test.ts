@@ -11,7 +11,7 @@ describe('projectedAdultMass', () => {
   it('sums species adult mass, counting fry at adult mass', () => {
     const fish = [
       fishRecord({ id: 'a', species: 'corydoras' }),
-      fishRecord({ id: 'f', species: 'corydoras', age: 24, mass: 0.2 }),
+      fishRecord({ id: 'f', species: 'corydoras', age: 24, size: 20 }),
     ];
     expect(projectedAdultMass(fish)).toBe(2 * grownMass('corydoras'));
   });

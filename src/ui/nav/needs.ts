@@ -159,7 +159,7 @@ function fishNeeds(book: ReadingBook): Need[] {
     needs.push({
       ...fishNeedFrame('fishStarving', starving, (member) => member.gut.status),
       text: 'Fish starving',
-      sentence: 'Digesting short of their ration, hunger alone outruns everything they earn.',
+      sentence: 'Short of their upkeep, hunger alone outruns everything they earn.',
       verb: verbName('feed'),
       act: 'feed',
       to: '/life',
@@ -172,7 +172,7 @@ function fishNeeds(book: ReadingBook): Need[] {
     needs.push({
       ...fishNeedFrame('fishSick', sick, (member) => member.reading.status),
       text: 'Fish sick',
-      sentence: 'Damage is outrunning what their banks heal; the ledger names what is charging it.',
+      sentence: 'Damage is outrunning what they earn and repair; the ledger names what is charging it.',
       verb: 'Inspect',
       to: `/life?inspect=${worstFish.id}`,
     });

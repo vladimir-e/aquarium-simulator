@@ -4,7 +4,6 @@ import {
   calculateSurface,
   createHardscapeItem,
   createSimulation,
-  dailyMaintenance,
   MAX_DOSE_ML,
   MAX_ROOT_TABS,
   onTheGlass,
@@ -414,10 +413,9 @@ describe('the seven verbs', () => {
     const cold = produce(warm, (draft) => {
       draft.resources.temperature -= 10;
     });
-    const { metabolicFactor } = readHourAhead(cold, DEFAULT_CONFIG);
-    const need = dailyMaintenance(cold.fish, metabolicFactor, DEFAULT_CONFIG.livestock);
+    const need = readHourAhead(cold, DEFAULT_CONFIG).ration;
 
-    expect(metabolicFactor).toBeLessThan(readHourAhead(warm, DEFAULT_CONFIG).metabolicFactor);
+    expect(need).toBeLessThan(readHourAhead(warm, DEFAULT_CONFIG).ration);
     expect(detail(cold, 'feed').meta).toBe(`8 fish need ${need.toFixed(FoodResource.precision)} g a day`);
   });
 

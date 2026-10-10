@@ -3,7 +3,13 @@ import { pickerOptions, type PickerKind, type PickerOption } from '../../build';
 import { toneOf } from '../../readings';
 import type { BedReading } from '../../run';
 import { useUnits } from '../../hooks/useUnits';
-import { STOCKED_FISH_SIZE, type FishSpecies, type PlantSpecies, type SimulationState } from '../../../simulation/index.js';
+import {
+  MAX_STOCKED_SIZE,
+  STOCKED_FISH_SIZE,
+  type FishSpecies,
+  type PlantSpecies,
+  type SimulationState,
+} from '../../../simulation/index.js';
 import { Drawer } from '../ui/Drawer';
 import { SpeciesGlyph, type SpeciesKey } from '../ui/SpeciesGlyph';
 import { Stepper } from '../ui/Stepper';
@@ -107,7 +113,7 @@ export function AddDrawer({
                 value={size}
                 onChange={setSize}
                 min={FISH_SIZE_MIN}
-                max={STOCKED_FISH_SIZE}
+                max={MAX_STOCKED_SIZE}
                 step={FISH_SIZE_STEP}
                 display={`${size}%`}
                 ariaLabel="Size"

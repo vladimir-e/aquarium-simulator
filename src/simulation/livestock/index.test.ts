@@ -1,15 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { processLivestock } from './index.js';
+import { burnEffects, processLivestock, tankPaces } from './index.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { produce } from 'immer';
-import { monodFactor } from '../core/kinetics.js';
-import { metabolicMass } from '../systems/digestion.js';
 import type { Fish } from '../state.js';
+import { burn, fishPace } from '../systems/metabolism.js';
+import { calculateO2Saturation } from '../systems/gas-exchange.js';
+import { getPpm } from '../resources/index.js';
 import { fishRecord } from '../tests/fish.js';
 
-function makeFish(overrides: Partial<Fish> = {}): Fish {
-  return fishRecord({ gut: 0.01, ...overrides });
+function makeFish(overrides: Partial<Fish> & { size?: number } = {}): Fish {
+  return fishRecord({ gut: 0.001, ...overrides });
 }
 
 function makeState(fish: Fish[] = []): SimulationState {
@@ -21,6 +22,11 @@ function makeState(fish: Fish[] = []): SimulationState {
   });
 }
 
+const effectOf = (result: ReturnType<typeof processLivestock>, resource: string, source?: string): number =>
+  result.effects
+    .filter((e) => e.resource === resource && (source === undefined || e.source === source))
+    .reduce((sum, e) => sum + e.delta, 0);
+
 describe('processLivestock', () => {
   it('returns unchanged state when no fish', () => {
     const state = makeState();
@@ -30,101 +36,64 @@ describe('processLivestock', () => {
     expect(result.effects).toHaveLength(0);
   });
 
-  it('eats, and leaves the hour’s digestion to be excreted once growth has built from it', () => {
-    const state = makeState([makeFish({ mass: 1.0 })]);
-    const result = processLivestock(state, DEFAULT_CONFIG);
-
-    expect(result.effects.find((e) => e.resource === 'food')!.delta).toBeLessThan(0);
-    expect(result.metabolism.digested[0]).toBeGreaterThan(0);
-    expect(result.effects.some((e) => e.resource === 'waste' || e.resource === 'ammonia')).toBe(false);
+  it('paces every fish on its species and the tank’s water', () => {
+    const state = makeState([makeFish({ species: 'guppy' }), makeFish({ species: 'angelfish' })]);
+    const saturation = calculateO2Saturation(state.resources.temperature, DEFAULT_CONFIG.gasExchange);
+    expect(tankPaces(state, DEFAULT_CONFIG)).toEqual(
+      state.fish.map((f) => fishPace(f.species, state.resources, saturation, DEFAULT_CONFIG.livestock))
+    );
   });
 
-  it('returns the metabolism and a vitality per fish handed in, the dead included', () => {
-    const state = produce(
-      makeState([makeFish({ id: 'f1', mass: 1.0 }), makeFish({ id: 'f2', health: 1 })]),
-      (draft) => {
-        draft.resources.ammonia = 5000;
-      }
+  it('eats, passes its feces as waste and burns what its budget burned', () => {
+    const result = processLivestock(makeState([makeFish({ id: 'a' }), makeFish({ id: 'b', size: 40 })]), DEFAULT_CONFIG);
+
+    expect(effectOf(result, 'food')).toBeLessThan(0);
+    expect(effectOf(result, 'waste', 'fish-metabolism')).toBeCloseTo(result.feces, 15);
+    expect(result.feces).toBeGreaterThan(0);
+    const { water } = makeState().resources;
+    const burnt = burn(result.burned, DEFAULT_CONFIG.livestock);
+    expect(effectOf(result, 'oxygen')).toBeCloseTo(-getPpm(burnt.oxygen, water), 15);
+    expect(effectOf(result, 'co2')).toBeCloseTo(getPpm(burnt.co2, water), 15);
+    expect(effectOf(result, 'ammonia')).toBeCloseTo(burnt.ammonia, 15);
+  });
+
+  it('turns a burn into gill ammonia, minerals, an oxygen draw and CO2, and nothing of nothing', () => {
+    const effects = burnEffects(0.01, 100, DEFAULT_CONFIG.livestock, DEFAULT_CONFIG.nutrients.foodMineralContent, 'x');
+    expect(effects.map((e) => e.resource)).toEqual(
+      expect.arrayContaining(['ammonia', 'kh', 'phosphate', 'potassium', 'iron', 'oxygen', 'co2'])
     );
+    expect(burnEffects(0, 100, DEFAULT_CONFIG.livestock, DEFAULT_CONFIG.nutrients.foodMineralContent, 'x')).toEqual([]);
+  });
+
+  it('returns an hour and a vitality per fish handed in, the dead included', () => {
+    const state = produce(makeState([makeFish({ id: 'f1' }), makeFish({ id: 'f2', health: 1 })]), (draft) => {
+      draft.resources.oxygen = 0;
+    });
     const result = processLivestock(state, DEFAULT_CONFIG);
 
-    expect(result.metabolism.updatedFish.map((fish) => fish.id)).toEqual(['f1', 'f2']);
+    expect(result.hours.map((hour) => hour.fish.id)).toEqual(['f1', 'f2']);
     expect(result.vitalities).toHaveLength(2);
     expect(result.vitalities[1].newCondition).toBe(0);
-    expect(result.state.fish.map((fish) => [fish.id, fish.health, fish.surplus])).toEqual([
-      ['f1', result.vitalities[0].newCondition, result.vitalities[0].surplus],
-    ]);
+    expect(result.state.fish.map((fish) => [fish.id, fish.health])).toEqual([['f1', result.vitalities[0].newCondition]]);
   });
 
-  it('processes respiration: O2 consumed and CO2 produced', () => {
-    const state = makeState([makeFish({ mass: 2.0 })]);
-    const result = processLivestock(state, DEFAULT_CONFIG);
-
-    const o2Effect = result.effects.find((e) => e.resource === 'oxygen');
-    expect(o2Effect).toBeDefined();
-    expect(o2Effect!.delta).toBeLessThan(0);
-
-    const co2Effect = result.effects.find((e) => e.resource === 'co2');
-    expect(co2Effect).toBeDefined();
-    expect(co2Effect!.delta).toBeGreaterThan(0);
-  });
-
-  it("moves each fish's gut and age on", () => {
-    const state = makeState([makeFish({ gut: 0.001, age: 100 })]);
-    const result = processLivestock(state, DEFAULT_CONFIG);
+  it("moves each fish's gut, budget and age on", () => {
+    const fish = makeFish({ age: 100 });
+    const result = processLivestock(makeState([fish]), DEFAULT_CONFIG);
 
     expect(result.state.fish[0].age).toBe(101);
-    expect(result.state.fish[0].gut).toBeGreaterThan(0.001);
+    expect(result.state.fish[0].gut).toBeGreaterThan(fish.gut);
+    expect(result.state.fish[0].deb).not.toEqual(fish.deb);
   });
 
-  it('removes dead fish and logs death', () => {
+  it('removes dead fish, logs the death and leaves their remains as waste', () => {
     const state = produce(makeState([makeFish({ health: 1 })]), (draft) => {
-      draft.resources.ammonia = 5000;
+      draft.resources.oxygen = 0;
     });
-
     const result = processLivestock(state, DEFAULT_CONFIG);
 
     expect(result.state.fish).toHaveLength(0);
-    const deathLogs = result.state.logs.filter((l) => l.message.includes('died'));
-    expect(deathLogs.length).toBeGreaterThan(0);
-  });
-
-  it('produces death waste effect when fish dies', () => {
-    const state = produce(makeState([makeFish({ health: 1, mass: 4.0 })]), (draft) => {
-      draft.resources.ammonia = 10000;
-    });
-
-    const result = processLivestock(state, DEFAULT_CONFIG);
-
-    const deathWasteEffect = result.effects.find(
-      (e) => e.resource === 'waste' && e.source === 'fish-death'
-    );
-    expect(deathWasteEffect).toBeDefined();
-    expect(deathWasteEffect!.delta).toBeGreaterThan(0);
-  });
-
-  it('handles multiple fish', () => {
-    const state = makeState([
-      makeFish({ id: 'f1', mass: 1.0 }),
-      makeFish({ id: 'f2', mass: 2.0 }),
-      makeFish({ id: 'f3', mass: 3.0 }),
-    ]);
-
-    const result = processLivestock(state, DEFAULT_CONFIG);
-
-    expect(result.state.fish).toHaveLength(3);
-
-    const o2Effect = result.effects.find((e) => e.resource === 'oxygen');
-    expect(o2Effect).toBeDefined();
-    const expectedDelta =
-      -(
-        DEFAULT_CONFIG.livestock.baseRespirationRate *
-        state.fish.reduce((total, fish) => total + metabolicMass(fish, DEFAULT_CONFIG.livestock), 0) *
-        monodFactor(
-          state.resources.oxygen,
-          DEFAULT_CONFIG.livestock.respirationOxygenHalfSaturation
-        )
-      ) / state.resources.water;
-    expect(o2Effect!.delta).toBeCloseTo(expectedDelta, 6);
+    expect(result.state.logs.filter((l) => l.event === 'fish-died')).toHaveLength(1);
+    expect(effectOf(result, 'waste', 'fish-death')).toBeGreaterThan(0);
   });
 });

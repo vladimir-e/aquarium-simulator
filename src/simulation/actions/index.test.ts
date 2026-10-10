@@ -100,7 +100,7 @@ describe('applyAction', () => {
 
   it('dispatches sellFry action to correct handler', () => {
     const state = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
-      draft.fish.push(fishRecord({ id: 'fry_1', species: 'guppy', mass: 0.1, sex: 'female' }));
+      draft.fish.push(fishRecord({ id: 'fry_1', species: 'guppy', size: 20, sex: 'female' }));
     });
 
     const result = applyAction(state, { type: 'sellFry' });

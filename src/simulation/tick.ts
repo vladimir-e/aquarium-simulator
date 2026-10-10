@@ -84,10 +84,8 @@ export function tick(
   newState = livestockResult.state;
   newState = applyEffects(newState, livestockResult.effects, config);
 
-  // The fish's bodies — clutches, broods and growth — read the banks
-  // livestock just updated, and growth builds from the hour's digestion
-  // before the rest is excreted.
-  const bodiesResult = processBodies(newState, config, livestockResult.metabolism);
+  // Their clutches and broods read the buffers the hour's budgets just filled.
+  const bodiesResult = processBodies(newState, config);
   newState = applyEffects(bodiesResult.state, bodiesResult.effects, config);
 
   // Then other active systems

@@ -25,6 +25,13 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v35: A fish runs on its energy budget. `Fish` trades `mass`, `surplus` and
+ *      `ovary` for `deb` — structure, reserve, maturity, brood buffer, wear
+ *      and hazard — `survival` and `survivalDraw`. `LivestockConfig` drops the
+ *      gut, bank, growth, brood, wear and healing-taper knobs and the Q10, and
+ *      gains `oxygenPerGramBurned`, `starvationSeverity`, `hazardSeverity`,
+ *      `healingRate`, `healingCost` and `maleBufferTurnover`;
+ *      `respirationOxygenHalfSaturation` becomes `oxygenHalfSaturation`.
  * v34: Feeding runs through a gut. `Fish.satiation` becomes `Fish.gut`,
  *      grams of food in it; `LivestockConfig` drops `baseFoodRate`,
  *      `satiationDecayRate` and the eight satiation band knobs, and gains
@@ -268,7 +275,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 34;
+export const PERSISTENCE_VERSION = 35;
 
 /**
  * Storage key for the unified persisted state.
