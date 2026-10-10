@@ -62,14 +62,17 @@ export interface DebState {
   hazard: number;
 }
 
+type Holding = Pick<DebState, 'structure' | 'reserve'>;
+type Capacity = Pick<DebParams, 'pAm' | 'v'>;
+
 export const structuralLength = (state: DebState): number => Math.cbrt(state.structure);
 
-export const maxReserveDensity = (p: DebParams): number => p.pAm / p.v;
+export const maxReserveDensity = (p: Capacity): number => p.pAm / p.v;
 
-export const reserveDensity = (state: DebState, p: DebParams): number =>
+export const reserveDensity = (state: Holding, p: Capacity): number =>
   state.structure > 0 ? state.reserve / (maxReserveDensity(p) * state.structure) : 0;
 
-export const wellFed = (state: DebState, p: DebParams): number => Math.min(1, reserveDensity(state, p));
+export const wellFed = (state: Holding, p: Capacity): number => Math.min(1, reserveDensity(state, p));
 
 export const maxStructuralLength = (p: DebParams): number => (p.kappa * p.pAm) / p.pM;
 
@@ -78,8 +81,8 @@ export const size = (state: DebState, p: DebParams): number =>
 
 export const mature = (state: DebState, p: DebParams): boolean => state.maturity >= p.EHp;
 
-/** Grams of organics a cm³ of structure holds: its cost net of the overhead burned building it. */
-export const structureOrganics = (p: DebParams): number => p.kappaG * p.EG;
+/** Grams of organics a unit of structure holds: its cost net of the overhead burned building it. */
+export const structureOrganics = (p: Pick<DebParams, 'kappaG' | 'EG'>): number => p.kappaG * p.EG;
 
 export const organics = (state: DebState, p: DebParams): number =>
   state.reserve + state.broodBuffer + structureOrganics(p) * state.structure;
@@ -123,7 +126,8 @@ export interface DebStep {
   fluxes: DebFluxes;
 }
 
-export const totalBurned = ({ burned }: DebFluxes): number => sum(Object.values(burned));
+export const totalBurned = <K extends string>({ burned }: { burned: Readonly<Record<K, number>> }): number =>
+  sum(Object.values<number>(burned));
 
 export function assimilationCeiling(
   state: DebState,

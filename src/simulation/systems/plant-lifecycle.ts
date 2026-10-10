@@ -17,3 +17,8 @@ export function tissueMass(
 ): number {
   return rateUnits({ species, size }) * tissuePerRateUnit(config);
 }
+
+/** Size this much tissue makes of a species: `tissueMass` read backwards. */
+export function sizeOf(species: PlantSpecies, structure: number, config: PlantsConfig = plantsDefaults): number {
+  return (100 * structure) / tissueMass(species, 100, config);
+}

@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { losePlant, tissueMass } from './plant-lifecycle.js';
+import { losePlant, sizeOf, tissueMass } from './plant-lifecycle.js';
 import { plantsDefaults } from '../config/plants.js';
 import { rateUnits } from '../plants/canopy.js';
 import { tissuePerRateUnit } from './flora.js';
 import type { Plant } from '../state.js';
 import { plantRecord } from '../tests/plant.js';
+import { GROWTH_FORMS, PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
 
 function makePlant(overrides: Partial<Plant> = {}): Plant {
   return plantRecord({ id: 'test', species: 'java_fern', size: 100, condition: 100, surplus: 0, ...overrides });
@@ -69,5 +70,16 @@ describe('losePlant', () => {
     const { survivor: after, shed, died } = losePlant(makePlant({ size: 60, condition: 30 }));
     expect(died).toBe(0);
     expect(tissueMass('java_fern', after!.size) + shed).toBeCloseTo(tissueMass('java_fern', 60), 12);
+  });
+});
+
+describe('sizeOf', () => {
+  it('reads tissueMass backwards for every growth form', () => {
+    const species = Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[];
+    expect(new Set(species.map((s) => PLANT_SPECIES_DATA[s].growthForm))).toEqual(new Set(Object.keys(GROWTH_FORMS)));
+    const inverts = species.every((s) =>
+      [0, 0.5, 37, 100].every((size) => Math.abs(sizeOf(s, tissueMass(s, size)) - size) < 1e-12 * Math.max(size, 1))
+    );
+    expect(inverts).toBe(true);
   });
 });

@@ -9,6 +9,7 @@ import {
   landSpores,
   loseBloom,
   massBought,
+  massOf,
   purchaseBloom,
   supplyBloom,
 } from './index.js';
@@ -44,6 +45,11 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
       expect(bloomTissue(100, 284, traits)).toBeGreaterThan(bloomTissue(100, 38, traits));
       expect(bloomTissue(100, 1, traits)).toBe(traits.tissueDensity);
       expect(bloomTissue(0, 284, traits)).toBe(0);
+    });
+
+    it('reads backwards as massOf, and no habitat holds any mass', () => {
+      for (const mass of [0, 0.3, 42, 100]) expect(massOf(bloomTissue(mass, 284, traits), 284, traits)).toBeCloseTo(mass, 12);
+      expect(massOf(1, 0, traits)).toBe(0);
     });
   });
 

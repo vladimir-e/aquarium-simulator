@@ -28,6 +28,11 @@ export function bloomTissue(mass: number, habitat: number, traits: AlgaeTraits):
   return (mass / 100) * traits.tissueDensity * habitat;
 }
 
+/** Mass this much tissue makes of a bloom in a habitat of this size: `bloomTissue` read backwards. */
+export function massOf(structure: number, habitat: number, traits: AlgaeTraits): number {
+  return habitat > 0 ? (100 * structure) / (traits.tissueDensity * habitat) : 0;
+}
+
 /** Rate units a bloom's metabolism runs at: its tissue's, on the plants' own relation, at its growth rate. */
 export function bloomRateUnits(mass: number, habitat: number, traits: AlgaeTraits, config: PlantsConfig): number {
   return metabolicRateUnits(bloomTissue(mass, habitat, traits) / tissuePerRateUnit(config), traits);
