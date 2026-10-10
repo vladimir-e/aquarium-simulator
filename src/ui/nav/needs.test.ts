@@ -7,9 +7,8 @@ import { getMassFromPpm } from '../../simulation/resources/index.js';
 import { readTank, type ReadingBook } from '../readings';
 import { snapshotFromState } from '../run';
 import { ALERT_IDS, activeNeeds, needySections, type Need } from './needs.js';
-import { gutAt } from '../test/gut';
-import { hungerLine, type Fish } from '../../simulation/index.js';
-import { livestockDefaults } from '../../simulation/config/livestock.js';
+import { atReserve } from '../test/gut';
+import type { Fish } from '../../simulation/index.js';
 
 const base = createSimulation({ tankCapacity: 40 });
 
@@ -33,16 +32,15 @@ function withAlerts(
   return { ...state, alertState: { ...state.alertState, ...flags } };
 }
 
-function stocked(fullness: number, fish: Partial<Fish> = {}): SimulationState {
+/** Three neons at reserve density `e` with empty guts: 0.6 hungry, 0.32 starving, 0 starving past what they earn. */
+function stocked(e: number, fish: Partial<Fish> = {}): SimulationState {
   let state = base;
   for (let i = 0; i < 3; i++) state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
-  return produce(state, (draft) => {
-    for (const f of draft.fish) Object.assign(f, { gut: gutAt(fullness, f), health: 100, ...fish });
-  });
+  return { ...state, fish: state.fish.map((f) => ({ ...atReserve(f, e), gut: 0, health: 100, ...fish })) };
 }
 
-const BANKED = { surplus: livestockDefaults.surplusCap };
-const HUNGRY_FULLNESS = 0.9 * hungerLine(1, livestockDefaults);
+const HUNGRY = 0.6;
+const LEAN = 0.32;
 
 describe('activeNeeds', () => {
   it('says nothing about a tank with nothing latched', () => {
@@ -83,26 +81,26 @@ describe('activeNeeds', () => {
     ]);
   });
 
-  it('stays quiet while fish are fed, or hungry with banks that heal what hunger charges', () => {
-    expect(needs(stocked(HUNGRY_FULLNESS, BANKED))).toEqual([]);
+  it('stays quiet while fish are fed, or hungry on what they still earn', () => {
+    expect(needs(stocked(HUNGRY))).toEqual([]);
     expect(needs(stocked(1))).toEqual([]);
   });
 
-  it('warns of starving fish still living off their banks', () => {
-    const [starving] = needs(stocked(0, BANKED));
+  it('warns of starving fish their benefits and repair still hold up', () => {
+    const [starving] = needs(stocked(LEAN, { health: 60 }));
 
     expect(starving).toMatchObject({ text: 'Fish starving', tone: 'warn', act: 'feed', figure: '3 of 3' });
   });
 
-  it('asks for a feeding at alert once hunger outruns what their banks heal', () => {
-    const [starving] = needs(stocked(0, { surplus: 0 }));
+  it('asks for a feeding at alert once hunger outruns what they earn', () => {
+    const [starving] = needs(stocked(0));
 
     expect(starving).toMatchObject({ text: 'Fish starving', tone: 'alert', act: 'feed', figure: '3 of 3' });
   });
 
   it('sends a hungry fish sick of ammonia to its ledger, not to the food', () => {
-    const state = produce(stocked(1, { surplus: 0 }), (draft) => {
-      draft.fish[0].gut = gutAt(HUNGRY_FULLNESS, draft.fish[0]);
+    const fed = stocked(1);
+    const state = produce({ ...fed, fish: [atReserve(fed.fish[0], HUNGRY), ...fed.fish.slice(1)] }, (draft) => {
       draft.resources.ammonia = 10 * draft.resources.water;
     });
     const [sick] = needs(state);
@@ -114,15 +112,15 @@ describe('activeNeeds', () => {
     expect(sick.act).toBeUndefined();
   });
 
-  it('does not let a banked starving fish hide the others sick of something a feeding will not answer', () => {
-    const state = produce(stocked(1, { surplus: 0, health: 25 }), (draft) => {
-      Object.assign(draft.fish[0], { gut: 0, health: 100, surplus: livestockDefaults.surplusCap });
+  it('does not let a starving fish hide the others sick of something a feeding will not answer', () => {
+    const fed = stocked(1);
+    const state = produce({ ...fed, fish: [atReserve(fed.fish[0], 0), ...fed.fish.slice(1)] }, (draft) => {
       draft.resources.ammonia = 10 * draft.resources.water;
     });
 
     expect(needs(state)).toMatchObject([
-      { id: 'fishSick', tone: 'alert', verb: 'Inspect', figure: '2 of 3', to: `/life?inspect=${state.fish[1].id}` },
-      { id: 'fishStarving', tone: 'warn', act: 'feed', figure: '1 of 3' },
+      { id: 'fishStarving', tone: 'alert', act: 'feed', figure: '1 of 3' },
+      { id: 'fishSick', tone: 'warn', verb: 'Inspect', figure: '2 of 3', to: `/life?inspect=${state.fish[1].id}` },
     ]);
   });
 

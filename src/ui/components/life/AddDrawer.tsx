@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
-import { pickerOptions, type PickerKind, type PickerOption } from '../../build';
+import { pickerOptions, stockingSize, type PickerKind, type PickerOption } from '../../build';
 import { toneOf } from '../../readings';
 import type { BedReading } from '../../run';
 import { useUnits } from '../../hooks/useUnits';
-import { STOCKED_FISH_SIZE, type FishSpecies, type PlantSpecies, type SimulationState } from '../../../simulation/index.js';
+import {
+  MAX_STOCKED_SIZE,
+  STOCKED_FISH_SIZE,
+  type FishSpecies,
+  type PlantSpecies,
+  type SimulationState,
+} from '../../../simulation/index.js';
 import { Drawer } from '../ui/Drawer';
 import { SpeciesGlyph, type SpeciesKey } from '../ui/SpeciesGlyph';
 import { Stepper } from '../ui/Stepper';
@@ -13,7 +19,6 @@ import { CONTROL_FOCUS, INSET_FOCUS } from '../ui/focus';
 const TITLE: Record<PickerKind, string> = { fish: 'Add fish', plant: 'Add plant' };
 
 const FISH_SIZE_STEP = 10;
-const FISH_SIZE_MIN = 10;
 
 function Option({
   option,
@@ -72,6 +77,8 @@ export function AddDrawer({
 
   const options = pickerOptions(kind, state, unitSystem, bed, { count, size });
   const option = options.find((o) => o.species === picked) ?? options[0];
+  const fish = kind === 'fish' ? (option.species as FishSpecies) : null;
+  const orderSize = fish ? stockingSize(fish, size) : size;
   const refusal = count > option.headroom ? (option.refusal ?? `Only ${option.headroom} fit`) : null;
 
   return (
@@ -100,16 +107,16 @@ export function AddDrawer({
             />
           </div>
 
-          {kind === 'fish' && (
+          {fish && (
             <div className="flex items-center justify-between">
               <span className="text-[13px] text-ink-2">Size</span>
               <Stepper
-                value={size}
-                onChange={setSize}
-                min={FISH_SIZE_MIN}
-                max={STOCKED_FISH_SIZE}
+                value={orderSize}
+                onChange={(next) => setSize(stockingSize(fish, next))}
+                min={stockingSize(fish, 0)}
+                max={MAX_STOCKED_SIZE}
                 step={FISH_SIZE_STEP}
-                display={`${size}%`}
+                display={`${orderSize}%`}
                 ariaLabel="Size"
               />
             </div>
@@ -122,7 +129,7 @@ export function AddDrawer({
           ) : (
             <button
               type="button"
-              onClick={() => onAdd(option.species, count, size)}
+              onClick={() => onAdd(option.species, count, orderSize)}
               className={`h-9 w-full rounded-control bg-accent-tint text-[14px] font-medium text-accent transition-colors hover:brightness-110 ${CONTROL_FOCUS}`}
             >
               Add {count} {option.name}

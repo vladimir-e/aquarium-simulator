@@ -6,7 +6,8 @@ import { group, renderStage } from '../test/stage';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
 import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { fishLifeStage, type Clutch, type Fish, type SimulationState } from '../../simulation/index.js';
+import { debParams, fishLifeStage, type Clutch, type Fish, type SimulationState } from '../../simulation/index.js';
+import { hatchling } from '../../simulation/systems/deb.js';
 
 let media: MatchMediaStub;
 
@@ -25,7 +26,7 @@ function busy(): Run {
     ...run.state.fish[0],
     id,
     species,
-    mass: 0.05,
+    deb: hatchling(debParams(species)),
   });
   const clutch: Clutch = {
     id: 'clutch_a_1',

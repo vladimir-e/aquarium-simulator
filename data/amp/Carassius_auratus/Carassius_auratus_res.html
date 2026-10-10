@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Carassius_auratus</title>
+  <link rel="stylesheet" type="text/css" href="../../sys/style.css">
+
+  <script src="../../sys/jscripts.js"></script>
+  <script src="../../sys/ftiens4.js"></script>
+  <script src="../../sys/specJump.js"></script>
+  <script src="../../sys/species_tree_Animalia.js"></script>
+
+  <style>
+    ul.ref{
+      list-style-type: square;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<div w3-include-html="../../sys/wallpaper_entry.html"></div>
+<div w3-include-html="../../sys/toolbar_entry.html"></div>
+<div id="top2" w3-include-html="Carassius_auratus_toolbar.html"></div>
+<!--------------------------------------------------------------->
+<!--   PART main                                               -->
+<!--   Where all of the text is placed                         -->
+<!--   use "contentFull" for 1 column                          -->
+<!--   use "content" if you want two columns"                  -->
+<!--------------------------------------------------------------->
+
+<div id="main">
+  <div id="main-wrapper">
+    <div id="contentFull">
+      <H1 id="portaltop">Predictions & Data for this entry</H1>
+
+      <table id="ecoCodes">
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Typified_models.html">Model</a>: <a href="https://add-my-pet.github.io/AmPtool/docs/models/abj.pdf">abj</a></td>
+          <td><a href="../../AmPeco.html#C" target="_blank">climate: </a> <a href="" title="Temperate oceanic climate; coldest month averaging above 0 &deg;C,
+	        all months with average temperatures below 22 &deg;C, and at least four months averaging above 10 &deg;C.
+	        No significant precipitation difference between seasons (neither abovementioned set of conditions fulfilled)
+              ">Cfb</a>, <a href="" title="Warm-summer humid continental climate; coldest month averaging below -3 &deg;C,
+	        all months with average temperatures below 22 &deg;C, and at least four months averaging above 10 &deg;C.
+	        No significant precipitation difference between seasons (neither abovementioned set of conditions fulfilled)
+              ">Dfb</a></td>
+          <td><a href="../../AmPeco.html#M" target="_blank">migrate: </a> <a href="" title="potamodromous: live and migrate wholly within fresh water">Mp</a></td>
+          <td>phylum: <button id="phylum" onclick="OpenTreeAtTaxon('Chordata')">Chordata</button></td>
+        </tr>
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Completeness.html">COMPLETE</a> = 2.5 </td>
+          <td><a href="../../AmPeco.html#E" target="_blank">ecozone: </a><a href="" title="Holarctic">TH</a></td>
+          <td><a href="../../AmPeco.html#F" target="_blank">food:    </a><a href="" title="living invertebrates for stage bi">biCi</a>, <a href="" title="shoots/leaves for stage bi">biHl</a>, <a href="" title="detrivore (bacteria, small fungi, organic matter) for stage bi">biD</a></td>
+          <td>class: <button id="class" onclick="OpenTreeAtTaxon('Actinopterygii')">Actinopterygii</button></td>
+        </tr>
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html">MRE</a> =    0.043 </td>
+          <td><a href="../../AmPeco.html#H" target="_blank">habitat: </a><a href="" title="ponds/pools for stage 0i">0iFp</a>, <a href="" title="fresh marshes (lots of plants, stagnant or slowly moving water) for stage 0i">0iFm</a>, <a href="" title="lakes for stage 0i">0iFl</a></td>
+          <td><a href="../../AmPeco.html#G" target="_blank">gender:  </a><a href="" title="dioecy (either male or female, also called gonochoric)">D</a></td>
+          <td>order: <button id="order" onclick="OpenTreeAtTaxon('Cypriniformes')">Cypriniformes</button></td>
+        </tr>
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html">SMSE</a> =    0.004 </td>
+          <td><a href="../../AmPeco.html#B" target="_blank">embryo:  </a><a href="" title="on/in plants in fresh water">Fh</a></td>
+          <td><a href="../../AmPeco.html#R" target="_blank">reprod:  </a><a href="" title="homogamy (no alternating generations, fertilisation obligatory)">O</a></td>
+          <td>family: <button id="family" onclick="OpenTreeAtTaxon('Cyprinidae')">Cyprinidae</button></td>
+        </tr>
+      </table>
+
+      <h2><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Zero-variate_data.html">Zero-variate data</a></h2>
+      <table id="t01">
+        <tr class="head"><th>Data</th> <th>Observed</th> <th>Predicted</th> <th><a href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html" target="_blank">(RE)</a></th> <th>Unit</th> <th>Description</th> <th>Reference</th></tr>
+        <tr><td><a href="" title="Temperature: 23 C">ab</a></td> <td>  2</td> <td>2.103</td> <td>(0.05146)</td> <td>d</td> <td>age at birth</td> <td>OrteReye2006</td></tr>
+        <tr><td><a href="" title="Temperature: 18 C">am</a></td> <td>1.496e+04</td> <td>1.497e+04</td> <td>(0.0002443)</td> <td>d</td> <td>life span</td> <td>fishbase</td></tr>
+        <tr><td>Li</td> <td> 48</td> <td>47.68</td> <td>(0.006628)</td> <td>cm</td> <td>ultimate total length</td> <td>fishbase</td></tr>
+        <tr><td>Wwb</td> <td>0.00052</td> <td>0.0005023</td> <td>(0.03402)</td> <td>g</td> <td><a href="" title="Computed from egg diameter of 1 mm of Carassius_carassius : pi/6*0.1^3">wet weight at birth</a></td> <td>guess</td></tr>
+        <tr><td>Wwp</td> <td>37.2</td> <td>36.58</td> <td>(0.01658)</td> <td>g</td> <td>wet weight at puberty</td> <td>OrteReye2006</td></tr>
+        <tr><td>Wwi</td> <td>1500</td> <td>1524</td> <td>(0.01592)</td> <td>g</td> <td><a href="" title="based on 0.01349*Li^3.00, F1; EoL gives 2.4 kg">wet weight at birth</a></td> <td>fishbase</td></tr>
+        <tr><td><a href="" title="Temperature: 18 C">Ri</a></td> <td>260.7</td> <td>258.4</td> <td>(0.009056)</td> <td>#/d</td> <td><a href="" title="based on 63.44 egg/g">max reprod rate</a></td> <td>OrteReye2006</td></tr>
+      </table>
+
+      <h2><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Uni-variate_data.html">Uni-</a> and <a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Bi-variate_data.html">bivariate data</a></h2>
+      <table id="t01">
+        <tr class="head"><th>Data</th> <th>Figure</th> <th>Independent variable</th> <th>Dependent variable</th> <th><a href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html" target="_blank">(RE)</a></th> <th>Reference</th></tr>
+        <tr><td><a href="" title="Temperature: 20 C">tL</a></td> <td><img class="myImg" src="../../entries/Carassius_auratus/results_Carassius_auratus_01.png" alt=""></td> <td>time since birth</td> <td><a href="" title="mean temperature is guessed">total length</a></td> <td>(0.07656)</td> <td>LoreCorb2007</td></tr>
+      </table>
+
+      <div id="myModal" class="modal">
+        <img class="modal-content" id="img01">
+        <div id="caption"></div>
+      </div>
+
+      <script>modal()</script>
+
+      <p>
+      <h2><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Pseudo_data.html">Pseudo-data at T<sub>ref</sub> = 20&deg;C</a> </h2>
+      <table id="t01">
+        <tr class="head"><th>Data</th> <th>Generalised animal</th> <th>Carassius auratus</th> <th>Unit</th> <th>Description</th></tr>
+        <tr><td>v</td> <td>0.02</td> <td>0.1124</td> <td>cm/d</td> <td>energy conductance</td></tr>
+        <tr><td>p_M</td> <td> 18</td> <td>17.37</td> <td>J/d.cm^3</td> <td>vol-spec som maint</td></tr>
+        <tr><td>k_J</td> <td>0.002</td> <td>0.002</td> <td>1/d</td> <td>maturity maint rate coefficient</td></tr>
+        <tr><td>k</td> <td>0.3</td> <td>0.6022</td> <td>-</td> <td>maintenance ratio</td></tr>
+        <tr><td>kap</td> <td>0.8</td> <td>0.9576</td> <td>-</td> <td>allocation fraction to soma</td></tr>
+        <tr><td>kap_G</td> <td>0.8</td> <td>0.8</td> <td>-</td> <td>growth efficiency</td></tr>
+        <tr><td>kap_R</td> <td>0.95</td> <td>0.95</td> <td>-</td> <td>reproduction efficiency</td></tr>
+      </table>
+
+      <p>
+      <h3 style="clear:both" class="pet">Discussion</h3>
+      <ul> 
+        <li>
+          Males are assumed to differ from females by E_Hp only
+        </li>
+        <li>
+          The high maintenance, compared to other family members, is probably linked to farming selection, to boost production
+        </li>
+      </ul>
+
+      <p>
+      <h3 style="clear:both" class="pet">Facts</h3>
+      <ul> 
+        <li>
+          length-weight: Ww in g = 0.01349*(TL in cm)^3.00 (Ref: fishbase)
+        </li>
+      </ul>
+
+      <p>
+      <h3 style="clear:both" class="pet"><a class="link" href="Carassius_auratus_bib.bib" target = "_blank">Bibliography</a></h3>
+      <div w3-include-html="Carassius_auratus_bib.html"></div>
+      <p>
+      <h3 style="clear:both" class="pet">Citation</h3>
+      <div w3-include-html="Carassius_auratus_cit.html"></div>
+    </div> <!-- end of content -->
+
+    <div w3-include-html="../../sys/footer_amp.html"></div>
+    <script>w3IncludeHTML();</script>
+
+  </div> <!-- main wrapper -->
+</div> <!-- main -->
+
+</body>
+</html>

@@ -11,12 +11,10 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **A fish is made of what it ate** - fish grow and lay from digested food, small ones eat and burn more per gram, and the dead return their whole body; breaking: `processBodies` replaces `processBreeding`, `Fish.ovary`, `assimilatedFraction` replaces `gillNFraction` (v34).
-- **Old age is wear** - fish age by a rising damage rate and heal slower, a cohort dying over a few months near the species lifespan; breaking: `lifespan` replaces `maxAge`, `fishHealingRate` needs `mass` (v34).
+- **Fish run on energy budgets** - fish grow, breed, starve and age on their species' Add-my-Pet DEB; breaking: `Fish.deb` replaces `mass`/`surplus`, `lifespan` replaces `maxAge`, livestock config reshaped (v35).
 - **Predation** - larger fish hunt the young by the grams they outweigh them and eat what they kill; breaking: `computeFishVitality`, `readyToBrood` args (v34).
 - **Eggs are a stock** - water and fish thin a clutch as it develops, livebearers carry theirs; breaking: `Clutch` holds `eggs`, `development`; `createFish`, `processMetabolism`, `processHealth` leave the barrel (v34).
-- **Fish grow on their banks** - mass and broods are bought by the bank, both parents pay, stocking names a size; breaking: `Fish.stage` goes (v34).
-- **Feeding through a gut** - fish digest over hours, slower cold, and earn on what they digest; breaking: `Fish.gut` replaces `satiation`, `gutCapacity`/`dailyMaintenance` need `species` (v34).
+- **Feeding through a gut** - fish digest over hours, slower cold; breaking: `Fish.gut` replaces `satiation` (v34).
 - **Auto feeder** - drops a set ration once a day at its hour (v34).
 - **Auto doser keeps an hour** - breaking: `AutoDoser.startHour` replaces `schedule` (v34).
 - **Actions settle the passive readings** (#73) - a verb re-reads light, flow, surface and aeration off the tank it leaves, and hosts settle after writing equipment or optics; breaking: `settlePassiveResources` replaces `relight`.
@@ -61,14 +59,13 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **A planted tank makes more oxygen than it burns** - `baseRespirationRate` 0.15 → 0.03, against the rate a tank on ambient carbon actually reaches.
 - **A hypoxic fish excretes less nitrogen** - deamination is metabolism, so gill NH₃ carries the same oxygen factor as the respiratory draw; feces do not.
 - **An under-aerated tank stands nitrite** - nitrification joins the oxygen-limited processes and pays 4.57 mg O₂ per mg N; NOB are the fussier guild, so the second step stalls before the first.
-- **An aerobic process runs on the oxygen there is** - decay, plants and fish scale their rate by `O2/(K+O2)`, so demand falls with the stock and a suffocating tank stops emitting carbon it never paid for (v20, v7).
+- **An aerobic process runs on the oxygen there is** - decay and plants scale their rate by `O2/(K+O2)`, so demand falls with the stock and a suffocating tank stops emitting carbon it never paid for (v20, v7).
 - **Gases move a mass, and carbon pays for the oxygen** - plants, fish, decay and the CO₂ line all meter against the water in the tank, at the molar ratio (v19, v6).
 - **A 1000 W heater no longer destroys the tank** - the picker offered a wattage the save schema refused, and a refused save discards the tank.
 - **`trace` rejects unknown fields** - a mistyped `--fields` name emitted a column of blanks that reads as absent data; the refusal names the valid set, and algae is on it.
 - **`config set` takes a finite number or nothing** - `Infinity` and `1e309` were stored as strings that arithmetic turned back into `NaN`, and a typo'd path grew the config a key nothing reads.
 - **A tunable is held to the range it declares** - `config set` and the tunables drawer read the leaf's own min/max, and the save schema bounds the attenuation constants, so a negative attenuation can no longer make the tank's light infinite.
 - **Light is PAR, not watts** - a fixture is rated at the surface, the tank runs on what reaches the substrate, and depth comes from capacity (v18, v5).
-- **Age decides whether a fish can spawn** - the gate asks `age ≥ maturityAge`; a stocked adult arrives grown, one seeded at `age: 0` waits it out.
 - **A tank runs the same life twice** - a seed and counter on the state: one `rngSeed`, one life, ids too. Breaking: no `generateFishId` (v17, v4).
 - **The CLI rejects unknown flags** - `sim new --capacity=200` no longer builds the default tank and reports success; each subcommand names its flags.
 - **Loading a preset starts a new tank** - a fresh simulation at tick 0, not a retrofit of the running one, and the dialog names what that costs.

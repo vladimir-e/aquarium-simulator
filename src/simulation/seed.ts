@@ -16,8 +16,12 @@ import {
 } from './equipment/substrate.js';
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
-import { excretion, metabolicFactorOf } from './systems/metabolism.js';
-import { dailyMaintenance } from './systems/digestion.js';
+import { gillAmmonia } from './systems/metabolism.js';
+import { stepDeb } from './systems/deb.js';
+import { ration } from './systems/digestion.js';
+import { fishParams } from './systems/fish-body.js';
+import { speciesTau } from './livestock/species.js';
+import { sum } from './core/sum.js';
 import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
 import { mapNutrients, nutrientsDefaults, type NutrientVector } from './config/nutrients.js';
@@ -25,7 +29,7 @@ import { organicNutrients } from './systems/nutrients.js';
 import { alkalinityMoved, MW_NO3, NH3_TO_NO2_MASS_RATIO, PROTONS_PER_N } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import { KhResource } from './resources/kh.js';
-import { createFish, STOCKED_FISH_SIZE } from './livestock/create-fish.js';
+import { STOCKED_FISH_SIZE, stockFish } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
 
 const SEEDABLE_BACTERIA = ['aob', 'nob'] as const;
@@ -73,10 +77,8 @@ export interface SeedFishGroup {
   species: FishSpecies;
   /** Defaults to 1. */
   count?: number;
-  /** % of adult mass, as stocking takes it. Defaults to grown. */
+  /** % of grown length, as stocking takes it. Defaults to `STOCKED_FISH_SIZE`. */
   size?: number;
-  /** Ticks already lived, as `Fish.age`. Defaults to 0. */
-  age?: number;
   sex?: FishSex;
 }
 
@@ -130,19 +132,23 @@ type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
 
 /**
  * mg of ammonia a tick the tank's stock and bed put into the water at rest:
- * every fish digesting its maintenance ration in the water it is in, building
- * none of it into its body, and the bed leaching what it holds. All the waste
- * either one makes is mineralised in the end, whether or not it settles on the
- * way. Food fed past maintenance is left out — the engine has no ration to
- * size it by — so under a keeper who feeds more the colony errs small and
- * grows on from the seed.
+ * every fish assimilating just its upkeep in the water it is in and burning
+ * all of it, and the bed leaching what it holds. All the waste either one
+ * makes is mineralised in the end, whether or not it settles on the way. Food
+ * fed past upkeep is left out — the seed names no feeding to size it by — so
+ * under a keeper who feeds more the colony errs small and grows on from the seed.
  */
 function restingAmmoniaSupply(state: StockedTank): number {
-  const factor = metabolicFactorOf(state.resources, livestockDefaults);
-  const digested = dailyMaintenance(state.fish, factor, livestockDefaults) / 24;
-  const { ammonia, waste } = excretion(digested, 0, livestockDefaults);
+  const { temperature } = state.resources;
+  const resting = state.fish.map((fish) => {
+    const pace = { tau: speciesTau(fish.species, temperature), omega: 1 };
+    const { owed } = stepDeb(fish.deb, fishParams(fish), { fromGut: 0, ...pace }).fluxes;
+    return { owed, feces: ration(fish, owed) - owed };
+  });
+  const gills = gillAmmonia(sum(resting.map((fish) => fish.owed)), livestockDefaults);
+  const feces = sum(resting.map((fish) => fish.feces));
   const leached = calculateSubstrateLeach(state.equipment.substrate.organicReserve, decayDefaults);
-  return ammonia + (waste + leached) * ammoniaPerGramOfFood(livestockDefaults);
+  return gills + (feces + leached) * ammoniaPerGramOfFood(livestockDefaults);
 }
 
 /**
@@ -311,13 +317,11 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
   for (const group of fish ?? []) {
     for (let i = 0; i < (group.count ?? 1); i++) {
       state.fish.push(
-        createFish({
+        stockFish({
           species: group.species,
           size: group.size ?? STOCKED_FISH_SIZE,
-          age: group.age,
           sex: group.sex,
           rng: state.rng,
-          config: livestockDefaults,
         })
       );
     }

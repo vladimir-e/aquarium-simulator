@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Fish, FishSpecies } from '../../simulation/index.js';
+import { grownMass, type Fish, type FishSpecies } from '../../simulation/index.js';
 import { bioload, bioloadNote, GUIDELINE_G_PER_L, projectedAdultMass } from './stocking';
 import { fishRecord } from '../../simulation/tests/fish.js';
 
@@ -11,9 +11,9 @@ describe('projectedAdultMass', () => {
   it('sums species adult mass, counting fry at adult mass', () => {
     const fish = [
       fishRecord({ id: 'a', species: 'corydoras' }),
-      fishRecord({ id: 'f', species: 'corydoras', age: 24, mass: 0.2 }),
+      fishRecord({ id: 'f', species: 'corydoras', age: 24, size: 20 }),
     ];
-    expect(projectedAdultMass(fish)).toBe(8);
+    expect(projectedAdultMass(fish)).toBe(2 * grownMass('corydoras'));
   });
 });
 

@@ -4,19 +4,29 @@ import {
   createSimulation,
   DEFAULT_CONFIG,
   FISH_SPECIES_DATA,
+  frySize,
   getMaxFishMass,
+  MAX_STOCKED_SIZE,
+  stockedMass,
   calculateFloorArea,
   checkPlantFootprint,
   GROWTH_FORMS,
   STOCKED_FISH_SIZE,
+  type Fish,
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
 import { getGhMass } from '../../simulation/resources/index.js';
-import { pickerOptions, type PickerOption } from './picker';
+import { FISH_SPECIES, pickerOptions, stockingSize, type PickerOption } from './picker';
 import { bioload } from './stocking';
 import { bedReading, type BedReading } from '../run';
 import { fishRecord } from '../../simulation/tests/fish.js';
+
+/** A resident weighing `mass` grams of bare structure. */
+function whale(mass: number): Fish {
+  const fish = fishRecord({ id: 'whale', species: 'angelfish' });
+  return { ...fish, deb: { ...fish.deb, structure: mass, reserve: 0 } };
+}
 
 function tank(capacity = 200): SimulationState {
   return createSimulation({ tankCapacity: capacity });
@@ -53,7 +63,7 @@ describe('fish options', () => {
     const neon = option(fish(state), 'neon_tetra');
 
     expect(getMaxFishMass(1)).toBe(500);
-    expect(neon.headroom).toBe(500 / FISH_SPECIES_DATA.neon_tetra.adultMass);
+    expect(neon.headroom).toBe(Math.floor(500 / stockedMass('neon_tetra', STOCKED_FISH_SIZE)));
   });
 
   it('counts headroom at the stocked size, so more small fish fit than adults', () => {
@@ -61,14 +71,29 @@ describe('fish options', () => {
     const adults = option(fish(state), 'neon_tetra').headroom;
     const small = option(fish(state, 1, 25), 'neon_tetra').headroom;
 
-    expect(small).toBe(Math.floor(500 / (0.25 * FISH_SPECIES_DATA.neon_tetra.adultMass)));
+    expect(small).toBe(Math.floor(500 / stockedMass('neon_tetra', 25)));
     expect(small).toBeGreaterThan(adults);
+  });
+
+  it('reads every species at a size it is stocked at, from its hatchling’s whole size to the most a shop sells', () => {
+    const state = tank(1);
+    for (const species of FISH_SPECIES) {
+      const smallest = Math.ceil(frySize(species));
+      expect([0, smallest - 1, smallest, 55, 120].map((size) => stockingSize(species, size))).toEqual([
+        smallest,
+        smallest,
+        smallest,
+        55,
+        MAX_STOCKED_SIZE,
+      ]);
+      expect(option(fish(state, 1, 0), species).headroom).toBe(Math.floor(500 / stockedMass(species, smallest)));
+    }
   });
 
   it('refuses in the action’s own words once nothing more fits', () => {
     const state: SimulationState = {
       ...tank(1),
-      fish: [fishRecord({ id: 'whale', mass: 499.8 })],
+      fish: [whale(500 - stockedMass('neon_tetra', STOCKED_FISH_SIZE) / 2)],
     };
     const neon = option(fish(state), 'neon_tetra');
 
@@ -79,11 +104,12 @@ describe('fish options', () => {
   it('says nothing while one more fits, and leaves the shortfall to the count', () => {
     const state: SimulationState = {
       ...tank(1),
-      fish: [fishRecord({ id: 'whale', mass: 499 })],
+      fish: [whale(499.7)],
     };
     const neon = option(fish(state, 5), 'neon_tetra');
 
-    expect(neon.headroom).toBe(2);
+    expect(neon.headroom).toBe(Math.floor(0.3 / stockedMass('neon_tetra', STOCKED_FISH_SIZE)));
+    expect(neon.headroom).toBeLessThan(5);
     expect(neon.refusal).toBeNull();
   });
 
@@ -114,7 +140,7 @@ describe('fish options', () => {
   it('reads the fit through the same bioload the module’s row reads', () => {
     const state: SimulationState = {
       ...tank(150),
-      fish: Array.from({ length: 20 }, (_, i) => fishRecord({ id: `c${i}`, species: 'corydoras' })),
+      fish: Array.from({ length: 30 }, (_, i) => fishRecord({ id: `c${i}`, species: 'corydoras' })),
     };
     const cory = option(fish(state, 3), 'corydoras');
     const after = bioload(state.fish, 150, { species: 'corydoras', count: 3 });

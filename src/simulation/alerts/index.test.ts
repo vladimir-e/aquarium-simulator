@@ -21,7 +21,9 @@ import {
 } from './index.js';
 import { DEFAULT_CONFIG, configRange, type TunableConfig } from '../config/index.js';
 import { computeFishVitality } from '../systems/fish-health.js';
-import { createFish } from '../livestock/create-fish.js';
+import { fishRecord } from '../tests/fish.js';
+import { liveHour } from '../systems/metabolism.js';
+import { NO_STRESS } from '../systems/deb.js';
 import { plantLightTaken } from '../plants/canopy.js';
 import { plantRecord } from '../tests/plant.js';
 import { FREE_AMMONIA_EDGE, NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../livestock/tolerance.js';
@@ -198,16 +200,16 @@ describe('waterLevelAlert', () => {
       const at = tuned(line);
       for (const percent of [line - 5, line, line + 5]) {
         const state = tank(CASES[0]!, percent);
-        const fish = createFish({ species: 'neon_tetra', size: 100, rng: { ...state.rng }, config: at.livestock });
+        const fish = fishRecord();
+        const hour = liveHour(fish, { tau: 1, omega: 1, stress: NO_STRESS }, 0, at.livestock);
         const { stressors } = computeFishVitality(
           fish,
+          hour,
           state.resources,
           [],
           state.resources.water,
           CAPACITY,
           at.livestock,
-          0,
-          1,
           0
         ).breakdown;
         const harmed = stressors.find((s) => s.key === 'waterLevel')!.amount > 0;

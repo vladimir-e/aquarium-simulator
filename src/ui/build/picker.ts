@@ -9,12 +9,15 @@ import {
   checkFishCapacity,
   checkPlantFootprint,
   FISH_SPECIES_DATA,
+  frySize,
   getDgh,
   getMaxFishMass,
   getPh,
-  massAtSize,
+  grownMass,
+  MAX_STOCKED_SIZE,
   PLANT_SPECIES_DATA,
   STOCKED_FISH_SIZE,
+  stockedMass,
   totalFishMass,
   type FishSpeciesData,
   type FishSpecies,
@@ -54,6 +57,12 @@ export interface PickerOption {
 }
 
 export const FISH_SPECIES: FishSpecies[] = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
+
+/** The keeper's size for a species, held from its hatchling's, rounded up to a whole percent, to what a shop sells. */
+export function stockingSize(species: FishSpecies, size: number): number {
+  return Math.min(MAX_STOCKED_SIZE, Math.max(Math.ceil(frySize(species)), size));
+}
+
 export const PLANT_SPECIES: PlantSpecies[] = Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[];
 
 /** Where the tank sits outside a band the species is stressed beyond, and by how many band-widths. */
@@ -105,9 +114,10 @@ function misses(state: SimulationState, data: FishSpeciesData, units: UnitSystem
 function fishOption(
   state: SimulationState,
   species: FishSpecies,
-  { count, size }: FishOrder,
+  { count, size: asked }: FishOrder,
   units: UnitSystem
 ): PickerOption {
+  const size = stockingSize(species, asked);
   const data = FISH_SPECIES_DATA[species];
   const [phLow, phHigh] = data.phRange;
   const [ghLow, ghHigh] = data.ghRange;
@@ -116,7 +126,7 @@ function fishOption(
   const capacity = checkFishCapacity(state.fish, state.tank.capacity, species, size);
   const headroom = Math.max(
     0,
-    Math.floor((getMaxFishMass(state.tank.capacity) - totalFishMass(state.fish)) / massAtSize(species, size))
+    Math.floor((getMaxFishMass(state.tank.capacity) - totalFishMass(state.fish)) / stockedMass(species, size))
   );
 
   const load = bioload(state.fish, state.tank.capacity, { species, count });
@@ -125,7 +135,7 @@ function fishOption(
     species,
     name: data.name,
     demand:
-      `${data.adultMass} g adult · pH ${phLow.toFixed(1)}–${phHigh.toFixed(1)} · ` +
+      `${Number(grownMass(species).toPrecision(2))} g adult · pH ${phLow.toFixed(1)}–${phHigh.toFixed(1)} · ` +
       `GH ${ghLow}–${ghHigh} · ` +
       `flow to ${data.maxTurnover} ×/h`,
     fit: worst ? worst.text : `in band · bioload ${load.ratio.toFixed(1)}× after`,

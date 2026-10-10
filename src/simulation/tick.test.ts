@@ -10,6 +10,8 @@ import { POWERHEAD_FLOW_LPH } from './equipment/powerhead.js';
 import type { HardscapeType } from './equipment/hardscape.js';
 import { dailyLightIntegral } from './equipment/light.js';
 import { BREEDING_TANK_MS } from './tests/breeding-tank.js';
+import { holdingEggs } from './tests/fish.js';
+import { spawnsAt } from './systems/brood.js';
 
 describe('tick', () => {
   const still = (): SimulationState =>
@@ -216,7 +218,11 @@ describe('tick determinism', () => {
   };
 
   function fortnight(rngSeed: number): SimulationState {
-    let state = createSimulation(TANK, ROSTER, rngSeed);
+    const stocked = createSimulation(TANK, ROSTER, rngSeed);
+    let state: SimulationState = {
+      ...stocked,
+      fish: stocked.fish.map((fish) => holdingEggs(fish, fish.sex === 'female' ? spawnsAt(fish.species) - 1 : 20)),
+    };
     for (let hour = 1; hour <= 14 * 24; hour++) {
       if (hour % 24 === 9) state = applyAction(state, { type: 'feed', amount: 0.15 }).state;
       state = tick(state, UNEATEN_EGGS);

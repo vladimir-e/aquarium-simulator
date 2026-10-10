@@ -28,7 +28,7 @@ This project follows documentation-driven development:
 
 ## One abstraction
 
-Every organism runs one vitality model. Condition is the buffer between dying and thriving, normal at 100: benefit rates raise it, damage rates lower it, so nothing dies or heals instantly. Income banks only at 100; the bank heals condition at a species rate and buys what the organism makes — a plant's growth and offshoots, a bloom's mass, a fish's brood. Any organism dies at 0; a plant or a bloom below 100 sheds tissue. An organism is sick while its damage outruns its healing.
+Every organism runs one vitality model. Condition is the buffer between dying and thriving, normal at 100: benefit rates raise it, damage rates lower it, so nothing dies or heals instantly. Plants and blooms keep a bank: income banks only at 100, and the bank heals condition at a species rate and buys what the organism makes — a plant's growth and offshoots, a bloom's mass. A fish banks nothing: its reserve buys its growth and broods and pays its repair. Any organism dies at 0; a plant or a bloom below 100 sheds tissue. An organism is sick while its damage outruns its healing.
 
 Designing a mechanic is choosing rates of benefit and harm. A new stock, clock or special path for one organism leaves the model — stop and raise it instead of building it. A threshold that switches a mechanism on or off, or a clamp standing in for kinetics, is a defect; a rate that starts at a tolerance edge is not. Algae is a plant without a position: the plants' rates and constants on its own traits, a habitat it fills in place of a size, and a bank that buys mass in proportion to the mass standing. A second kind of bloom is a second entry of that model, not a second path.
 

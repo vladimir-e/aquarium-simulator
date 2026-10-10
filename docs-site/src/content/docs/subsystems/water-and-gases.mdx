@@ -11,7 +11,8 @@ Oxygen and CO₂ are stored as concentrations and relax toward equilibrium at a
 rate flow and aeration set. Between those relaxations sits the tick's real
 budget: every aerobic process in the tank — fish, plants at night, decay, both
 nitrifier guilds — takes its oxygen out of the same stock, and each one's rate
-saturates against what is left. Carbonate hardness (KH) is the third stock and
+saturates against what is left, but for the maintenance a fish owes whatever
+the water holds. Carbonate hardness (KH) is the third stock and
 general hardness (GH) the fourth, and pH is not a stock at all: it is read off
 CO₂ against KH wherever something needs it.
 
@@ -19,7 +20,7 @@ CO₂ against KH wherever something needs it.
 
 | Mechanic | Status | Why |
 |---|---|---|
-| Oxygen limits every aerobic path | <Badge text="settled" variant="success" /> | One Monod factor per process, each quoting its own half-saturation. Demand falls with supply, so no stock is ever overdrawn and no clamp is needed. |
+| Oxygen limits every aerobic path | <Badge text="settled" variant="success" /> | One Monod factor per process, each quoting its own half-saturation, so demand falls with supply. A fish's is its oxygen pace ω, which limits what it takes in and mobilises, never the maintenance it owes. |
 | Gas exchange | <Badge text="scaffolding" variant="caution" /> | A fraction of the distance to equilibrium per tick, scaled by turnover — and nothing caps that fraction. At full flow with aeration the CO₂ rate reaches `1.125` × the gap, so CO₂ crosses atmospheric and rings back across it rather than approaching it. |
 | O₂ saturation vs temperature | <Badge text="settled" variant="success" /> | A linear Henry's-law fit, `10.08` mg/L at 15 °C falling `0.17` per °C — inside 5 % of measured values across the aquarium band. |
 | Carbon derived from oxygen | <Badge text="settled" variant="success" /> | One 1:1 reaction for the whole engine, read from whichever side the process spends: `44.01/32` ≈ `1.375` mg of CO₂ per mg of O₂ drawn, and the reciprocal `0.727` for oxygen released per gram of carbon fixed. A process that cannot get the oxygen stops emitting the carbon rather than manufacturing it. |
@@ -104,15 +105,17 @@ day across the KH its soil has stripped.
 
 ### The tick's carbon–oxygen budget
 
-Every aerobic process multiplies its rate by `O₂ / (K + O₂)` and quotes its own
-`K`. The carbon each releases is derived from the oxygen it actually spent, so
-the two gases are one reaction rather than two coefficients.
+Every aerobic draw but a fish's maintenance multiplies its rate by
+`O₂ / (K + O₂)` and quotes its own `K`; maintenance burns reserve regardless, the
+fish's oxygen factor scaling only what it assimilates and mobilises. The carbon
+each releases is derived from the oxygen it actually spent, so the two gases are
+one reaction rather than two coefficients.
 
 | Process | Oxygen | Carbon | `K` (mg/L) |
 |---|---|---|---|
 | Photosynthesis | + fixed CO₂ × `0.727` | − the planting's Monod draw on the dissolved pool | not oxygen-gated; a carbon Monod per species instead ([Plants](/subsystems/plants/#photosynthesis)) |
 | Plant respiration | − CO₂ released × `0.727` | + | `0.50` |
-| Fish metabolism | − `0.3` mg per g of fish per hour | + drawn O₂ × RQ `0.8` × `1.375` | `1.00` |
+| Fish metabolism | − `oxygenPerGramBurned` (`1450` mg) per g of organics burned | + drawn O₂ × RQ `0.8` × `1.375` | `1.00`, on intake and mobilisation only ([Livestock](/subsystems/livestock/#the-budget)) |
 | Aerobic decay | − `250` mg per g of matter oxidised | + drawn O₂ × `1.375` | `0.20` |
 | Ammonia oxidation | − `2.819` mg per mg NH₃ | — | `0.30` |
 | Nitrite oxidation | − `0.348` mg per mg NO₂⁻ | — | `1.10` |
@@ -124,16 +127,18 @@ the two gases are one reaction rather than two coefficients.
 | `0.20` — decay | 97.7 % | 90.9 % |
 | `0.30` — AOB | 96.5 % | 87.0 % |
 | `0.50` — plant respiration | 94.4 % | 80.0 % |
-| `1.00` — fish | 89.3 % | 66.7 % |
 | `1.10` — NOB | 88.4 % | 64.5 % |
 
 Three consequences, and all three are the point. **Demand falls with supply** —
-a tank cannot draw oxygen it does not have, because the draw shrinks as the
-stock does. **The derived carbon falls with it** — a suffocating tank stops
-emitting CO₂ rather than making it out of oxygen that was never there. **The
-guild that needs the most air suffers first** — NOB carry nearly four times
-AOB's constant, which is where standing nitrite in an under-aerated tank comes
-from.
+but for a fish's maintenance, a tank cannot draw oxygen it does not have,
+because the draw shrinks as the stock does. **The derived carbon falls with
+it** — a suffocating tank stops emitting CO₂, bar what its fish's maintenance
+burns, rather than making it out of oxygen that was never there. **The guild
+that needs the most air suffers first** — NOB carry nearly four times AOB's
+constant, which is where standing nitrite in an under-aerated tank comes from.
+A fish is the one draw that does not fall all the way: its oxygen pace, read
+against saturated water, starves it of food and growth as the water empties,
+while the maintenance it owes burns on whatever the oxygen.
 
 Every base rate multiplied by that factor is a Monod *maximum*, reached only at
 infinite oxygen, so what a tank at air saturation reproduces is the fourth
@@ -264,7 +269,7 @@ the system that quotes it rather than here; their values are in the table above.
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | pH, for the free-ammonia fraction | Both guilds draw `oxygen`, and their Monod factor is what standing nitrite is made of; mineralisation and decaying food return `kh` on the ammonia they release, AOB spend it |
 | [Light](/subsystems/light/) | — | Indirectly: the photoperiod is what makes oxygen and CO₂ swing across a day |
 | [Plants](/subsystems/plants/) | pH and GH, against each species' band | Photosynthesis adds `oxygen` and takes `co2` and a little `gh`; respiration does the reverse, day and night; the nitrogen growth takes moves `kh` |
-| [Livestock](/subsystems/livestock/) | pH and GH, against each species' band | Fish draw `oxygen` and exhale `co2`; the same factor scales their ammonia output, which returns `kh` |
+| [Livestock](/subsystems/livestock/) | pH and GH, against each species' band | Fish draw `oxygen` and exhale `co2` on every gram they burn, and excrete its ammonia, which returns `kh` |
 | [Algae](/subsystems/algae/) | pH, against its band | Photosynthesis beside the plants' on the same CO₂ stock, respiration day and night — a dense bloom strips CO₂ by day and draws oxygen down by night; the nitrogen growth takes moves `kh` as the plants' does |
 | [Actions](/subsystems/actions/) | — | A water change blends `oxygen` and `co2` toward tap values and moves `kh` and `gh` toward the tap; a top-off adds tap `kh` and `gh` |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Oxygen below `4` mg/L and CO₂ above `40` mg/L each raise an alert once per crossing |

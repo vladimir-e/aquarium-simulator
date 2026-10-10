@@ -19,6 +19,7 @@ import {
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
+import { gutAt } from '../test/gut';
 
 const config = DEFAULT_CONFIG;
 
@@ -49,7 +50,8 @@ function stocked(): SimulationState {
   for (let i = 0; i < 6; i++) {
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   }
-  return applyAction(state, { type: 'feed', amount: 2 }).state;
+  const fed = applyAction(state, { type: 'feed', amount: 2 }).state;
+  return { ...fed, fish: fed.fish.map((fish) => ({ ...fish, gut: gutAt(1, fish) })) };
 }
 
 describe('wasteInflow', () => {

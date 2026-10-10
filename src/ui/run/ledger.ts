@@ -1,14 +1,20 @@
 /**
  * Why one organism is where it is: the engine's own factor lists, split into
- * what helps and what hurts, with the bank standing between the two and the
- * condition they add up to. Nothing is named here that the vitality pass did
- * not already charge — a factor the reader sees is a factor the tick applied.
+ * what helps and what hurts, with its store standing between the two — a
+ * fish's reserve, a plant's or a bloom's bank — and the condition they add up
+ * to. Nothing is named here that the vitality pass did not already charge — a
+ * factor the reader sees is a factor the tick applied.
  */
 
 import {
   ALGAE,
   ALGAE_KINDS,
+  debParams,
   PLANT_SPECIES_DATA,
+  starvation,
+  wellFed,
+  type Fish,
+  type FishHour,
   plantLightTaken,
   REMOVED_BY,
   type AlgaeHabitat,
@@ -54,8 +60,9 @@ export interface LedgerFactor {
   perDay: number;
 }
 
-/** Banked income, standing between what helps and what hurts. */
+/** The organism's store, standing between what helps and what hurts: a fish's reserve, a plant's or a bloom's bank. */
 export interface LedgerBank {
+  label: string;
   text: string;
   unit: string;
   /** Its share of the cap. */
@@ -230,15 +237,15 @@ function fishLedger(
   if (index < 0) return null;
 
   const fish = state.fish[index];
-  const livestock = config.livestock;
-  const { vitality, spent, broods } = ahead.fish[index];
+  const { vitality, hour, broods } = ahead.fish[index];
   const { breakdown } = vitality;
 
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
   const vital = vitalReading(fish.health, vitality.newCondition);
-  const gut = fishGut(fish, breakdown, vital.sick, ahead.metabolicFactor, livestock);
+  const gut = fishGut(fish, hour, vital.sick, config.livestock);
   const reading = fishReading(vital.reading, gut);
+  const reserve = wellFed(fish.deb, debParams(fish.species));
 
   return {
     target: { kind: 'fish', id },
@@ -264,23 +271,24 @@ function fishLedger(
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
     bank: {
-      text: fish.surplus.toFixed(BANK_DECIMALS),
-      unit: `of ${livestock.surplusCap}`,
-      ...bankOf(
-        {
-          now: fish.surplus,
-          next: vitality.surplus - spent,
-          cap: livestock.surplusCap,
-          covered: breakdown.healed,
-          spent,
-        },
-        broods ? 'buying a brood' : 'buying growth'
-      ),
+      label: 'Reserve',
+      text: String(sharePercent(reserve)),
+      unit: '% full',
+      at: reserve,
+      note: reserveNote(fish, hour, breakdown.healed, broods),
     },
     demand: null,
     verb: 'feed',
     scope: null,
   };
+}
+
+/** What the reserve does over the hour, named by what draws on it or that it fills. */
+function reserveNote(fish: Fish, hour: FishHour, healed: number, broods: boolean): string {
+  if (starvation(hour) > 0) return 'short of upkeep';
+  if (healed > 0) return 'healing from reserve';
+  if (broods) return 'spawning';
+  return hour.fish.deb.reserve >= fish.deb.reserve ? 'filling' : 'drawing down';
 }
 
 function plantLedger(
@@ -334,6 +342,7 @@ function plantLedger(
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
     bank: {
+      label: 'Bank',
       text: String(sharePercent(bankShare(plant.surplus, cap))),
       unit: '% to offshoot',
       ...bankOf(
@@ -416,6 +425,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
     bank: {
+      label: 'Bank',
       text: surplus.toFixed(BANK_DECIMALS),
       unit: `of ${cap}`,
       ...bankOf({ now: surplus, next: next.surplus, cap, covered: breakdown.healed, spent: next.spent }, 'buying growth'),

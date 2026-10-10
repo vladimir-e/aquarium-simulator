@@ -30,7 +30,7 @@ Tweaks apply to every setup in the run:
 | `--scrub[=1w]`, `--top-off[=1d]` | Maintenance chores, optional period |
 | `--<chore>=off` | Drop that chore from the schedule |
 | `--plant=java_fern:3:40` | Add a plant group (species:count:size, size a % of one full unit, from `MIN_PLANTABLE_SIZE` (1) to 100) |
-| `--fish=neon_tetra:6:40` | Add a group of females (species:count:size, size a % of adult mass, grown when left out) |
+| `--fish=neon_tetra:6:40` | Add a group of females (species:count:size, size a % of grown length from a hatchling's to 90, 80 when left out) |
 | `--rock=calcite_rock:2` | Add hardscape pieces (type:count) |
 | `--tap-kh=8` | Tap water carbonate hardness, dKH |
 | `--tap-gh=10` | Tap water general hardness, dGH |

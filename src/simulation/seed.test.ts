@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createSimulation, type Resources, type SimulationConfig } from './state.js';
-import { FISH_SPECIES_DATA } from './livestock/species.js';
+import { STOCKED_FISH_SIZE, stockedBody } from './livestock/create-fish.js';
 import {
   cycledBedNutrients,
   cycledColony,
@@ -144,12 +144,12 @@ describe('createSimulation seeding', () => {
     expect(packed.aob).toBeGreaterThan(ceiling * 0.9);
   });
 
-  it("sizes a 'cycled' colony on the ration its fish burn in the water they are in", () => {
+  it("sizes a 'cycled' colony on the upkeep its fish burn, owed in any oxygen", () => {
     const tank = createSimulation(TANK, { fish: [{ species: 'angelfish', count: 6 }] });
     const colony = (oxygen: number): number => cycledColony({ ...tank, resources: { ...tank.resources, oxygen } }).aob;
 
     expect(colony(1)).toBeGreaterThan(cycledColony({ ...tank, fish: [] }).aob);
-    expect(colony(1)).toBeLessThan(colony(tank.resources.oxygen));
+    expect(colony(1)).toBe(colony(tank.resources.oxygen));
   });
 
   describe('the bed', () => {
@@ -393,22 +393,21 @@ describe('createSimulation seeding', () => {
       }
     });
 
-    it('stocks grown fish by default, one per group', () => {
+    it('stocks fish at the stocking size by default, one per group', () => {
       const state = createSimulation(TANK, { fish: [{ species: 'neon_tetra' }] });
 
       expect(state.fish).toHaveLength(1);
-      expect(state.fish[0].mass).toBe(FISH_SPECIES_DATA.neon_tetra.adultMass);
+      expect(state.fish[0].deb).toEqual(stockedBody('neon_tetra', STOCKED_FISH_SIZE).deb);
     });
 
-    it('builds fish at the size and age the roster names', () => {
-      const state = createSimulation(TANK, {
-        fish: [{ species: 'guppy', count: 2, size: 30, age: 24 * 20 }],
-      });
+    it('builds fish at the size the roster names, as the shop raised them', () => {
+      const state = createSimulation(TANK, { fish: [{ species: 'guppy', count: 2, size: 30 }] });
 
       expect(state.fish).toHaveLength(2);
+      const body = stockedBody('guppy', 30);
       for (const fish of state.fish) {
-        expect(fish.mass).toBeCloseTo(0.3 * FISH_SPECIES_DATA.guppy.adultMass, 12);
-        expect(fish.age).toBe(24 * 20);
+        expect(fish.deb).toEqual(body.deb);
+        expect(fish.age).toBe(body.age);
       }
     });
 
@@ -487,7 +486,7 @@ describe('createSimulation seeding', () => {
       resources: { nitrate: 400 },
       fish: [
         { species: 'neon_tetra', count: 8 },
-        { species: 'corydoras', count: 4, sex: 'female', age: 24 * 200 },
+        { species: 'corydoras', count: 4, sex: 'female', size: 60 },
       ],
       plants: [{ species: 'java_fern', count: 3, size: 90 }],
     };
@@ -514,13 +513,6 @@ describe('createSimulation seeding', () => {
   });
 
   describe('impossible states are constructible on purpose', () => {
-    it('takes a fish older than its species lifespan', () => {
-      const past = FISH_SPECIES_DATA.betta.lifespan * 2;
-      const state = createSimulation(TANK, { fish: [{ species: 'betta', age: past }] });
-
-      expect(state.fish[0].age).toBe(past);
-    });
-
     it('sizes a cycled colony in water with no oxygen in it', () => {
       const anoxic = createSimulation(TANK, {
         bacteria: 'cycled',

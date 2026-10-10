@@ -23,6 +23,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "scenarios": "tsx src/cli/sim.ts scenarios",
+    "amp": "tsx src/cli/amp/command.ts",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "lint:fresh": "eslint --no-cache 'src/**/*.{ts,tsx}'",
     "ui": "vite",

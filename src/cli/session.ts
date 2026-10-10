@@ -18,6 +18,10 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v20 put fish on their energy budgets. `Fish` trades `mass`, `surplus` and
+ *    `ovary` for `deb`, `survival` and `survivalDraw`, and `LivestockConfig`
+ *    trades its gut, bank, growth, brood and wear knobs for the budget's. A v19
+ *    session parses and its first tick reads a budget no fish carries.
  * v19 made a clutch a stock that rates drain. `Clutch` trades `eggCount` and
  *    `laidTick` for `eggs` and `development`, a carried one names its
  *    `motherId`, and `LivestockConfig` gains `eggSensitivity`,
@@ -160,7 +164,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 19;
+export const SESSION_VERSION = 20;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

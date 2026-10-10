@@ -1,42 +1,42 @@
 ---
 title: Livestock
-description: Fish as individuals — a gut whose digestion is the fish's income, one metabolic factor over the whole metabolism, a bank that heals a fish and buys its growth and broods, clutches the water and the fish thin, and young fish the larger ones hunt.
+description: Fish as individuals, each run by a Dynamic Energy Budget from its species' Add-my-Pet entry — a gut that feeds a reserve, maintenance first, growth and broods from what is left, health as the damage axis, and old age as a survival curve.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
 
 ## What it models
 
-Every fish is an individual with a mass, a health, a gut and a bank. What the
-gut digests is the fish's income, as nutrient sufficiency is a plant's: every
-benefit is earned on it, and digesting less than it needs harms. Its whole
-metabolism rides on one metabolic factor — temperature's Q10 times an oxygen
-factor. Health is the [vitality model](/concepts/vitality/): income at full
-health banks, and the bank heals the fish and buys its growth and broods. A
-brood is a clutch of eggs the water and the tank's fish thin, and the larger
-fish hunt the young that hatch.
+Every fish is an individual whose body is its energy budget (DEB, Kooijman):
+structure, reserve, maturity and a brood buffer, in grams. Food fills the gut;
+what the gut digests feeds the reserve; the reserve pays maintenance first, and
+a fixed share κ of the rest buys growth while the remainder matures the fish
+and then fills its brood buffer. Mass and size are read off the budget. Health
+is the damage axis: the water and the fish's own budget harm it, benefits and
+paid repair restore it. Old age is DEB ageing — a hazard that accumulates into
+a survival the fish dies under. A brood is a clutch of eggs the water and the
+tank's fish thin, and the larger fish hunt the young that hatch.
 
 ## Status
 
 | Mechanic | Status | Why |
 |---|---|---|
-| Metabolism | <Badge text="settled" variant="success" /> | Digestion, maintenance, oxygen draw and CO₂ on one metabolic factor. |
-| The gut | <Badge text="settled" variant="success" /> | One stock for hunger, digested first order, holding more per gram the smaller the fish. |
-| Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces come out of what the gut digests, less what growth builds in; none is lost. |
-| Body composition | <Badge text="settled" variant="success" /> | A body, egg or embryo is organic matter of the food's recipe and water; it enters and leaves the tank's ledger whole. |
-| Nourishment | <Badge text="settled" variant="success" /> | Benefits on a Monod curve of digestion, half at the maintenance ration; hunger below it. |
-| Serving | <Badge text="settled" variant="success" /> | Every fish eats at once; short food splits in proportion to appetite. |
+| Energy budget | <Badge text="settled" variant="success" /> | Add-my-Pet parameters, converted once to grams and hours; every species reaches its entry's implied weight, puberty, hatch and lifespan. |
+| Pace | <Badge text="settled" variant="success" /> | Arrhenius on each species' T_A; oxygen scales only the supply side. Temperature has no falling limb past the optimum yet. |
+| The gut | <Badge text="settled" variant="success" /> | One stock, holding a day of the fish's appetite — its assimilation ceiling — digested first order. |
+| Mass ledger | <Badge text="settled" variant="success" /> | Feces, burn, bodies and eggs close against food; every gram burned excretes the food's recipe. |
+| Body composition | <Badge text="scaffolding" variant="caution" /> | Every pool holds the food's recipe; per-pool composition is the stoichiometry work. |
+| Stress hooks | <Badge text="scaffolding" variant="caution" /> | Assimilation, maintenance, growth and egg multipliers exist; no toxin drives them yet. |
+| Serving | <Badge text="settled" variant="success" /> | Every fish eats at once; short food splits in proportion to the room in each gut. |
 | Water quality | <Badge text="settled" variant="success" /> | Log-dose harm from each fish's own edge. Chloride, which blunts nitrite, is not modelled. |
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits. |
-| Old age | <Badge text="settled" variant="success" /> | Gompertz wear and healing that falls with age. |
-| Growth | <Badge text="settled" variant="success" /> | A specific rate on the fish's own mass, tapering to adult size; the bank sets the pace, digested food supplies the mass. Fry and adult are readouts of size, not states. |
-| Healing | <Badge text="settled" variant="success" /> | The bank heals at a rate falling with mass to the −¼ and with age. |
-| Broods | <Badge text="settled" variant="success" /> | A female broods on a full bank, her eggs built from her food; males pay their share. No timers or husbandry re-tests. |
-| Death | <Badge text="settled" variant="success" /> | Health reaching zero. A death mostly of wear is logged as old age. |
-| Low health | <Badge text="settled" variant="success" /> | Only death reads it. |
+| Starvation | <Badge text="settled" variant="success" /> | The hour's unpaid maintenance as a damage rate; the buffer, then structure, pay it. |
+| Repair | <Badge text="settled" variant="success" /> | A first-order share of the deficit, paid from reserve; nothing banks. |
+| Old age | <Badge text="settled" variant="success" /> | The DEB hazard damages health and accumulates into survival against a per-fish threshold. |
+| Broods | <Badge text="settled" variant="success" /> | From the brood buffer, in bouts: an egg-layer spawns once her buffer holds a clutch, a livebearer carries one brood; males pay their share from their own buffers. |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge; damage starts at the edge. |
-| Clutches | <Badge text="settled" variant="success" /> | A stock of eggs thinned by water harm and predation, developing on the metabolic factor. |
-| Predation | <Badge text="settled" variant="success" /> | A damage rate on any fish short of adult size from the larger fish per litre; kills are eaten. |
+| Clutches | <Badge text="settled" variant="success" /> | A stock of eggs thinned by water harm and predation, developing at the species' age at birth under τ. |
+| Predation | <Badge text="settled" variant="success" /> | A damage rate on any fish short of grown length from the larger fish per litre; kills are eaten. |
 | Colonies | <Badge text="missing" variant="danger" /> | Snails and shrimp do not exist; uneaten food only decays. |
 | General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only band per species, one pooled GH rather than calcium and magnesium. |
 | Dissolved CO₂ | <Badge text="missing" variant="danger" /> | Fish carry no carbon stressor. |
@@ -45,49 +45,76 @@ fish hunt the young that hatch.
 
 ### The roster
 
-| Species | Adult mass | Growth rate | Lifespan | Hardiness | Temperature | pH | GH | Max turnover |
-|---|---|---|---|---|---|---|---|---|
-| Neon Tetra | 0.5 g | 0.45 | 5 y | 0.5 | 22–28 °C | 5.0–7.8 | 1–12 dGH | 10 ×/h |
-| Guppy | 1.0 g | 1 | 3 y | 0.8 | 22–28 °C | 6.5–8.5 | 6–25 dGH | 13 ×/h |
-| Betta | 3.0 g | 1 | 3 y | 0.6 | 24–30 °C | 6.0–8.0 | 3–15 dGH | 5 ×/h |
-| Corydoras | 4.0 g | 0.25 | 5 y | 0.7 | 22–26 °C | 6.0–8.0 | 2–15 dGH | 15 ×/h |
-| Angelfish | 15.0 g | 0.2 | 10 y | 0.4 | 24–30 °C | 6.0–8.0 | 3–15 dGH | 10 ×/h |
+Each species runs on its Add-my-Pet entry where the entry fits its own data;
+otherwise on its closest relative's, rescaled by hobby length, weight,
+maturity age and lifespan. Grown figures are a female fed without limit; ages
+are read at the species' mid-range temperature, hatching at 25 °C.
+
+| Species | Budget | Grown | Stocked (80 %) | Puberty | Median lifespan | Hatches in | Egg · hatchling size |
+|---|---|---|---|---|---|---|---|
+| Neon Tetra | entry | 2.6 cm · 0.22 g | 0.11 g · 199 d old | 57 d | 7.7 y | 7.7 d | 0.52 mg · 13 % |
+| Guppy | entry | 5.7 cm · 1.1 g | 0.55 g · 511 d old | 79 d | 2.7 y | 27 d, carried | 2.7 mg · 13 % |
+| Betta | proxy | 5.5 cm · 3.0 g | 1.5 g · 336 d old | 120 d | 3.0 y | 1.3 d | 0.011 mg · 1.5 % |
+| Corydoras | entry | 7.8 cm · 3.1 g | 1.6 g · 218 d old | 165 d | 6.0 y | 3.2 d | 0.67 mg · 6 % |
+| Angelfish | entry | 15 cm · 27 g | 14 g · 327 d old, juvenile | 392 d | 10.7 y | 5.6 d | 1.0 mg · 3 % |
+
+| Species | Hardiness | Temperature | pH | GH | Max turnover |
+|---|---|---|---|---|---|
+| Neon Tetra | 0.5 | 22–28 °C | 5.0–7.8 | 1–12 dGH | 10 ×/h |
+| Guppy | 0.8 | 22–28 °C | 6.5–8.5 | 6–25 dGH | 13 ×/h |
+| Betta | 0.6 | 24–30 °C | 6.0–8.0 | 3–15 dGH | 5 ×/h |
+| Corydoras | 0.7 | 22–26 °C | 6.0–8.0 | 2–15 dGH | 15 ×/h |
+| Angelfish | 0.4 | 24–30 °C | 6.0–8.0 | 3–15 dGH | 10 ×/h |
 
 pH and GH bands are generous hobby care-sheet ranges. Flow tolerance is a
 turnover — flow divided by standing water — so a fixed-output powerhead is
 harsher in a small tank.
 
-### Metabolism
+### The budget
 
-The metabolic factor is the Q10 term times the oxygen Monod factor, read once an
-hour for the whole tank. Its half-saturation sits at 1.0 mg/L, the highest in the
-tank, so fish feel a shortage before the bacteria do.
+Every energy-like quantity is grams of organics; structure is a volume V in
+cm³ with structural length L = V^⅓. Per hour, with τ the species' Arrhenius
+factor (1 at 20 °C) and ω the oxygen pace:
 
-A fish's rates run on its metabolic mass, not its mass: Kleiber's law puts a
-body's metabolism on mass to the ¾, so per gram it runs on mass to the −¼.
-Against a grown fish of its own species,
-`M = adultMass × (mass / adultMass)^(1 + massScalingExponent)`, so a grown fish
-sits at the per-gram constants and a guppy fry at 1 % of adult mass holds,
-needs, breathes and asks to grow 3.2× as much per gram.
+| Flux | Per hour |
+|---|---|
+| Assimilation ceiling | `{p_Am} × L² × τ × ω` |
+| Assimilated | `κ_X ×` what the gut offers, up to the ceiling; the rest of the offer returns to the gut |
+| Mobilised | `E × (ω·v·[E_G]·L² + [p_M]·V) × τ / ([E_G]·V + κ·E)` |
+| Maintenance | `[p_M] × V × τ`, paid from the soma share `κ × mobilised` |
+| Growth | what the soma share leaves, at `[E_G]` a cm³; the overhead `1 − κ_G` is burned |
+| Maturity | `k_J × E_H × τ` paid from the other share; the rest matures the fish until puberty, then fills the brood buffer |
+| Shortfall | maintenance its share could not pay — drawn from the buffer, then from structure, which shrinks |
 
-| Flow | Per hour | Scaled by the metabolic factor |
-|---|---|---|
-| Digested | `gut × (1 − e^−k)`, `k = digestionRate × metabolic factor` | yes |
-| Maintenance | `maintenanceRation × M / 24 × metabolic factor` | yes |
-| Eaten | the room left in the gut, `gutCapacity × M − gut`, or its share of short food | no |
-| Oxygen drawn | `baseRespirationRate × M × metabolic factor` | yes |
-| CO₂ exhaled | the oxygen drawn × `respiratoryQuotient`, through the molar mass step | yes — it derives from the draw |
-| Gill ammonia | (digested × `assimilatedFraction` − retained) × `foodNitrogenFraction`, as NH₃ | through digestion |
-| Feces | digested × `(1 − assimilatedFraction)` | through digestion |
-| Minerals, beside the gill ammonia | (digested × `assimilatedFraction` − retained) × `foodMineralContent` | through digestion |
+Wet mass is `V + (E + E_R) / d_V`; size is `100 × L / L_m`. A fish reads as an
+adult once its maturity reaches puberty, at any size; short of it, as fry under
+half its grown length and as a juvenile from there. Reserve density
+`E / ([E_m] × V)`, capped at 1, is how well fed it is. ω is a Monod on dissolved
+oxygen against saturated water, so a healthy tank reads 1; it scales only
+supply, so a fish longer than `ω × L_m` cannot pay its maintenance however well
+it is fed.
 
-A gram of fish, egg or embryo is `bodyOrganicShare` grams of organic matter
-of the food's recipe and water. Every milligram fed returns to the water or
-stays in a body: digested, through the gills or feces, less what growth and
-ovaries retain; uneaten, as it decays; at death, the whole body, ovary, gut and
-brood. A stocked fish brings its body and gut in; a removed or sold one takes
-them out. The oxygen stressor is a separate reading, so a suffocating fish
-draws less *and* suffers more.
+### Feeding and the gut
+
+A fish's appetite is its assimilation ceiling in food, `ceiling / κ_X`; its
+gut holds a day of it, so a fry eats more for its weight than its parents.
+Every fish wants the room left in its gut; when food runs short each takes the
+same share of its room. The gut digests first order at
+`digestionRate × τ`. A stocked fish and a hatchling arrive with empty guts and
+full reserves.
+
+### The ledger
+
+Digested food splits κ_X to reserve and the rest to feces, which carry the
+food's nitrogen and minerals to the waste pool. Reserve leaves only as
+structure, buffer or burn: maintenance, maturity upkeep and development, every
+conversion overhead, repair, and structure a starving fish loses. Every gram
+burned breathes `oxygenPerGramBurned` of O₂, exhales CO₂ at the respiratory
+quotient, and excretes the food's nitrogen as gill ammonia with its minerals
+beside it. A cm³ of structure holds `κ_G × [E_G]` grams. Eggs hold `E_0`; what
+an embryo spends reaching its hatchling is burned at hatching. A stocked fish
+brings its body in; a removed or sold one takes its body, gut and carried brood
+out; a dead one leaves them all.
 
 ### Stocks
 
@@ -95,38 +122,25 @@ The fish's own stocks; what it reads and writes in the tank is under [Seams](#se
 
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
-| `health` | Benefits; healing from the bank | Stressors | %, normal at 100 |
-| `gut` | Eating, up to `gutCapacity × M`; eggs and fry it eats; a hatchling's yolk | Digestion, first order | g |
-| `surplus` | Income at full health | Healing; growth; a brood | condition points, capped at `surplusCap` |
+| `health` | Benefits; repair paid from reserve | Stressors | %, normal at 100 |
+| `gut` | Eating, up to a day of appetite; what the budget hands back; eggs and fry it eats | Digestion, first order | g |
+| `deb.structure` | Growth | A shortfall the buffer cannot pay | cm³ |
+| `deb.reserve` | Assimilation | Mobilisation; repair | g |
+| `deb.maturity` | The maturity share, until puberty | Unpaid maturity upkeep, short of puberty | g |
+| `deb.broodBuffer` | The maturity share after puberty | Spawning; fathering; a male's turnover; a shortfall | g |
+| `deb.wearLoad` · `deb.hazard` | Mobilisation | Dilution as the fish grows | 1/h² · 1/h |
+| `survival` | — | `× e^−hazard` each hour | share of a cohort alive |
 | clutch `eggs` | A brood | Water harm and predation, first order; hatching | eggs |
-| clutch `development` | The metabolic factor over the species' development time | Hatching, at 1 | share of the way to hatching |
-| `age` | One tick per hour, always | — | ticks |
-| `mass` | Growth, at the bank's pace out of digested food | — | g |
-| `ovary` | A female's eggs, out of digested food | A brood | eggs |
-
-### Feeding and the gut
-
-Every fish wants the room left in its gut. While food lasts every appetite is
-met; when it runs short each fish takes the same share of its appetite. Food
-left over decays. A stocked fish arrives with a day's maintenance ration in its
-gut; a hatchling's yolk is the same ration.
-
-Digestion is the fish's income. Against its maintenance ration —
-`maintenanceRation × M` a day, scaled by the metabolic factor — it sets two
-rates:
-
-| Rate | Shape | At maintenance |
-|---|---|---|
-| Nourishment | `digested / (digested + maintenance)`, scaling every benefit | half |
-| Hunger | `hungerSeverity × (1 − digested / maintenance)` below it, hardened | nothing |
-
-A ration past maintenance banks faster, grows sooner and buys more broods; one
-under it earns less and harms.
+| clutch `development` | `τ / incubation` each hour | Hatching, at 1 | share of the way to hatching |
+| `age` | One tick per hour | — | ticks |
 
 ### Health
 
-A fish heals out of its income first, then out of its bank, and banks only what
-full health leaves over. It is sick while damage outruns healing.
+Health moves by benefits less damage, plus repair: the fish asks
+`(1 − e^−healingRate × τ) × (100 − health)` points an hour of its reserve at
+`healingCost` hours of its somatic maintenance a point, paid at the hour's
+oxygen; an empty reserve repairs nothing. Health above 100 is lost. A fish is
+sick while its damage outruns what it earns and repairs.
 
 | Stressor | Activates | Per |
 |---|---|---|
@@ -139,13 +153,13 @@ full health leaves over. It is sick while damage outruns healing.
 | Oxygen | under the fish's own edge | e-fold under |
 | Water level | below `waterLevelStressThreshold` of capacity | % under |
 | Flow | above the species `maxTurnover` | tank volumes/h over |
-| Hunger | digesting under its maintenance ration | share short of it |
-| Wear | always, doubling every `wearDoublingShare` of the species lifespan | — |
-| Hunted | larger fish in the tank, on any fish short of adult size | g of them per litre |
+| Starvation | maintenance the hour left unpaid | share of the hour's upkeep |
+| Hunted | larger fish in the tank, on any fish short of grown length | g of them per litre |
+| Age | always: `hazardSeverity × hazard` | — |
 
 Hardiness scales stressors as `1 − hardiness`, except water quality, where it
-moves the edge. Every benefit is its peak times the fish's nourishment, and
-their sum in a clean tank is the headroom a fed fish banks from.
+moves the edge, and age, which nothing shields. Every benefit is its peak
+times the fish's reserve density.
 
 | Benefit | Earns when | Peak |
 |---|---|---|
@@ -171,9 +185,9 @@ loses one %/h net.
 
 #### Predation
 
-Every larger fish hunts a smaller one by the grams it outweighs it. Vulnerability
-reads the prey's size against its own species' adult mass, so only the young are
-hunted:
+Every larger fish hunts a smaller one by the grams it outweighs it.
+Vulnerability reads the prey's size — its length against what its species
+grows to — so only the young are hunted:
 
 ```
 predator mass = Σ over every fish of max(0, its mass − prey mass)
@@ -186,133 +200,99 @@ back.
 
 #### Ageing
 
-```
-wear    = wearAtLifespan × 2^((age − L) / (wearDoublingShare × L)) × species hardiness / its own
-healing = healingDrawRate × mass^massScalingExponent × 2^(−age / (healingHalvingShare × L))
-```
-
-for species lifespan `L`. Species hardiness doesn't shield wear; only an
-individual's offset does. Wear passes a fed fish's income a little before `L`,
-then drains its bank and health over months; chronic stress brings that sooner.
+Wear accrues with mobilisation, `dq = (q × V/V_m × s_G + h_a × τ²) ×
+mobilised / ([E_m] × V)`, and drives the hazard, `dh = q`, both diluted as
+the fish grows. The hazard damages health at `hazardSeverity`, so an old fish
+is frail and sickens first; and each hour survival keeps `e^−hazard` of
+itself. A fish dies of old age when its survival falls below the threshold it
+drew at creation, so a cohort follows its species' survival curve — half gone
+at its median lifespan — and a fish kept warm ages faster.
 
 ### Individual variation
 
-Sex, a hardiness offset of ±15 % of the species baseline and a small health
-jitter are sampled once at construction. The offset staggers a cohort's deaths.
-Stocked and bred fish come from the same factory.
+Sex, a hardiness offset of ±15 % of the species baseline, a small health
+jitter and a survival threshold are sampled once at construction. Stocked and
+hatched fish come from the same factory.
 
-### Growth and broods
+A stocked fish was grown in the shop: stocking names a size in % of grown
+length — from its hatchling's, 80 by default, up to 90, since grown length is an
+asymptote — and its budget is the one its species reaches at that size fed
+without limit at its mid-range temperature, its broods spent along the way. Its
+age, wear and survival are that upbringing's, whatever tank buys it. Its
+threshold is drawn under the survival it arrives with. A hatchling starts at L_b
+on a full reserve at E_Hb.
 
-A fish's size is its mass in % of its species' adult mass, and it splits the
-bank: `size / 100` is its brood share, the rest its growth share. Each hour,
-after vitality, clutches advance, females on full banks brood, then every bank
-draws toward growth:
+### Broods
 
-```
-drawn     = bank × (1 − e^−growthDrawRate) × (1 − size / 100)
-growthAsk = bodyOrganicShare × M × drawn × growthRate × growthPerSurplus / 100
-ovaryAsk  = max(0, eggs her brood share buys − ovary) × egg organics   (a female)
-asked     = growthAsk + ovaryAsk
-supply    = digested × assimilatedFraction × growthEfficiency
-built     = supply / (supply + asked)
-mass     += growthAsk × built / bodyOrganicShare
-ovary    += ovaryAsk × built / egg organics
-bank     −= drawn × built
-```
-
-Supply scales with `M` too, so a fry on a thin ration stunts at any size, and
-the bank pays only for what was built. What a fish retains leaves the gill
-stream, so a growing fish excretes less ammonia per gram of food. Size
-approaches 100 without a clamp; fry and adult split at 50 %, where the brood
-share passes the growth share.
-
-A brood costs a parent `broodCost` bank points per its own body mass of
-offspring:
-
-```
-eggs = brood share × bank × mass / (broodCost × egg mass)
-```
-
-A female's ovary asks for the eggs her brood share buys that it doesn't yet
-hold. On a full bank, with at least one egg in her ovary, she pays for the
-whole eggs her share buys — refilling the bank is the cooldown — and lays as
-many as her ovary holds, so a well-fed female lays her full brood and a
-food-short one a small one; her body never pays. Each male of her species
-fathers what his brood share pays for at his species' `maleShare` of the price.
-Ready females of a species brood together: the males father up to all eggs
-laid, shared back in proportion, each paying the same share of what he could.
-She reabsorbs unfathered eggs; the bank points she paid for them are what's
-lost.
-
-Stocking names a size, grown by default. Age starts at 0 and is read only by
-wear and healing. Breeding is uncapped: the stocking ceiling gates only the
-keeper's hand.
+Spawning comes in bouts. Eggs ready are `⌊κ_R × E_R / E_0⌋`; an egg-layer
+spawns once they reach her species' clutch, a livebearer once a whole egg is
+ready and only while she carries no brood, so she conceives what her buffer
+gathered through the last gestation. She draws every egg ready. The males of
+her species father as many as their buffers pay for at their species'
+`maleShare` of an egg's cost, `maleShare × E_0 / κ_R`, shared back to each
+ready female in proportion to her eggs, each male paying the same share of
+what his could. Fathered eggs become her clutch; she resorbs the rest, and
+resorbed eggs, the overhead `1 − κ_R` and the males' payment are burned. A
+male burns his unspent buffer at `maleBufferTurnover × τ`, so he holds about
+a week of it. A starving fish's buffer pays its maintenance first, so breeding
+stops before it shrinks. Breeding is uncapped: the stocking ceiling gates
+only the keeper's hand.
 
 ### Clutches
 
-A clutch is a count of eggs, each weighing what a real egg of its species does
-and holding its hatchling's body and a day's maintenance ration of yolk.
+A clutch is a count of eggs, each holding `E_0` and weighing its hatchling.
 Every hour two competing first-order losses thin it and one rate develops it:
 
 | Rate | Per hour |
 |---|---|
 | Harm | `eggSensitivity × Σ water stressors / 100` at the species' hardiness; a carried brood's at its mother's hardiness, without `eggSensitivity` |
 | Predation | `eggPredationRate × exposure × predator mass / water`, every fish by the grams it outweighs an egg; none on a carried brood |
-| Development | `metabolic factor / developmentTime` |
+| Development | `τ / incubation`, the species' age at birth at 20 °C |
 
-At development 1 each whole egg left hatches into a fry of the egg's mass with
-its yolk in its gut; the part egg goes to waste. Eggs the water kills go to
-waste; eaten eggs go into the eaters' guts by the grams each outweighs an egg,
-as room allows, the rest to waste.
+At development 1 each whole egg left hatches; the part egg goes to waste.
+Eggs the water kills go to waste; eaten eggs go into the eaters' guts by the
+grams each outweighs an egg, as room allows, the rest to waste.
 
-| Species | Mode | Hatches in, at 25 °C | Exposure | Egg and fry | Male share | Grown brood |
-|---|---|---|---|---|---|---|
-| Guppy | livebearer | 4 weeks, carried | 0 | 5 mg | 0.2 | 20 fry |
-| Neon Tetra | egg-scatterer | 27 h | 1 | 0.4 mg | 0.2 | 125 eggs |
-| Betta | bubble-nester | 36 h | 0.3 | 0.5 mg | 0.6 | 600 eggs |
-| Corydoras | egg-depositor | 4 days | 1 | 4 mg | 0.2 | 100 eggs |
-| Angelfish | substrate-spawner | 2½ days | 0.5 | 2 mg | 0.5 | 750 eggs |
+| Species | Mode | Clutch | Exposure | Male share |
+|---|---|---|---|---|
+| Guppy | livebearer | what her buffer holds | 0 | 0.2 |
+| Neon Tetra | egg-scatterer | 80 | 1 | 0.2 |
+| Betta | bubble-nester | 150 | 0.3 | 0.6 |
+| Corydoras | egg-depositor | 20 | 1 | 0.2 |
+| Angelfish | substrate-spawner | 300 | 0.5 | 0.5 |
 
-Exposure is how much of the tank's predation reaches a laid clutch. A
-livebearer carries one brood at a time through gestation — a gestating female
-doesn't brood — and it dies or leaves the tank with her.
+Clutch is the hobby figure for the eggs a bout lays, the least an egg-layer's
+buffer holds before she spawns. Exposure is how much of the tank's predation
+reaches a laid clutch. A carried brood dies or leaves the tank with its mother.
 
 ### Death
 
-Health reaching zero removes the fish. Its remains — its whole body, ovary,
-gut and any carried brood — rot to waste, less the share its surviving
-predators eat: their share of its dying hour's damage, into their guts by
-weight as room allows.
+Health reaching zero, or survival falling under the fish's threshold, removes
+it. A death the survival threshold fired, or mostly of age damage, is logged as
+old age; one mostly of starvation as starved; one mostly of predators as eaten.
+Its remains — body, gut and any carried brood — rot to waste, less the share
+its surviving predators eat: their share of its dying hour's damage, into their
+guts by weight as room allows.
 
 ## Key tunables
 
 | Constant | Meaning | Value |
 |---|---|---|
-| `gutCapacity` | Food a full gut holds, per gram of grown fish | `0.03` g/g |
-| `massScalingExponent` | Power of mass the per-gram gut, maintenance, respiration and healing run on | `−0.25` |
-| `digestionRate` · `metabolicQ10` | First-order digestion at 25 °C; the metabolism's temperature scaling | `0.1` /hr · `2` |
-| `maintenanceRation` | Food a day per gram of grown fish that holds condition at 25 °C in ample oxygen | `0.005` g/g/day |
-| `hungerSeverity` | Damage at an empty gut, before hardiness | `0.6` %/hr |
-| `baseRespirationRate` | Oxygen draw per gram of grown fish at 25 °C, a Monod maximum | `0.3` mg O₂/g/hr |
-| `respirationOxygenHalfSaturation` | O₂ at which the whole metabolism runs at half rate | `1.0` mg/L |
-| `foodNitrogenFraction` | Nitrogen in food, and in the waste it becomes | `0.05` g N/g |
-| `assimilatedFraction` | Share of digested food a fish assimilates — growth's material, the rest through the gills; the remainder is feces | `0.8` |
+| `digestionRate` | First-order digestion at 20 °C | `0.07` /hr |
+| `oxygenHalfSaturation` | O₂ at which the oxygen pace is half what saturated water gives | `1.0` mg/L |
+| `foodNitrogenFraction` | Nitrogen in food, the waste it becomes and every gram a fish burns | `0.05` g N/g |
+| `oxygenPerGramBurned` | O₂ a gram of burned organics takes | `1450` mg/g |
 | `respiratoryQuotient` | CO₂ exhaled per O₂ consumed, molar | `0.8` |
 | `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own edge; oxygen's per e-fold under | `0.56` · `0.75` · `1.0` · `2.7` %/e-fold/hr |
 | `flowStressSeverity` | Damage per turnover unit above species tolerance | `0.3` %/×/hr |
 | `ghStressSeverity` | Damage per dGH outside the species range | `0.1` %/dGH/hr |
-| `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | The three benefit channels, at full nourishment | `0.4` · `0.3` · `0.2` %/hr |
+| `starvationSeverity` | Damage at a wholly unpaid maintenance, before hardiness | `0.5` %/hr |
+| `hazardSeverity` | Damage per unit of hourly hazard | `5000` |
+| `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | The three benefit channels, on a full reserve | `0.4` · `0.3` · `0.2` %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which shelter tops out | `3.0` |
-| `surplusCap` | Ceiling on the bank; a female broods on a full one | `50` condition points |
-| `healingDrawRate` | First-order rate a young 1 g fish's bank heals it | `0.05` /hr |
-| `growthDrawRate` | First-order rate the bank draws toward growth, before the growth share | `0.02` /hr |
-| `growthPerSurplus` | New mass, in % of the fish's metabolic mass, a bank point buys at growth rate 1 | `0.6` %/pt |
-| `wearAtLifespan` | Wear at the species lifespan, at species hardiness | `0.6` %/hr |
-| `wearDoublingShare` | Span wear doubles over, as a share of lifespan | `0.125` × lifespan |
-| `healingHalvingShare` | Age healing halves over, as a share of lifespan | `1` × lifespan |
-| `broodCost` | Bank points a brood of its parent's own weight costs — the female in full, the male at his share | `500` pts |
-| `bodyOrganicShare` | Organic matter, of the food's recipe, in a gram of fish, egg or embryo | `0.55` g/g |
-| `growthEfficiency` | Share of what a fish assimilates that growth and eggs can build into its body and ovary | `0.45` |
+| `healingRate` | First-order rate a fish repairs its deficit at, at 20 °C | `0.005` /hr |
+| `healingCost` | Hours of somatic upkeep a point of repair costs | `0.5` h |
+| `maleBufferTurnover` | First-order rate a male burns his unspent buffer at, at 20 °C | `0.006` /hr |
 | `eggSensitivity` | How many times harder the water harms a laid egg than a fish | `3` × |
 | `eggPredationRate` | Share of a laid clutch eaten an hour per g/L of predator mass, before exposure | `15` L/g/hr |
 | `predationRate` | Damage an hour, before hardiness, per g/L of predator mass on a fish at no size | `100` %/hr per g/L |
@@ -322,18 +302,19 @@ weight as room allows.
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, each past its tolerance edge, for fish and clutches | `ammonia`, `phosphate`, `potassium` and `iron` through the gills; `waste` as feces, dead bodies and dead eggs |
-| [Water & gases](/subsystems/water-and-gases/) | `oxygen` as the metabolic Monod factor, a stressor and a benefit; pH, from `co2` and `kh`, and `gh`, as tolerance bands | `oxygen` drawn, `co2` exhaled, `kh` returned on the gill ammonia |
-| [Environment](/subsystems/environment/) | `temperature` as a tolerance band and through the Q10; `water` for every ppm and the water-level stressor | — |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, each past its tolerance edge, for fish and clutches | `ammonia`, `phosphate`, `potassium` and `iron` through the gills on every gram burned; `waste` as feces, dead bodies and dead eggs |
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen` against saturation as the oxygen pace ω, a stressor and a benefit; pH, from `co2` and `kh`, and `gh`, as tolerance bands | `oxygen` drawn and `co2` exhaled on every gram burned, `kh` returned on the gill ammonia |
+| [Environment](/subsystems/environment/) | `temperature` as a tolerance band and through each species' Arrhenius factor; `water` for every ppm and the water-level stressor | — |
 | [Equipment](/subsystems/equipment/) | `flow`, divided by standing water into a turnover; `food` the feeder drops | — |
 | [Plants](/subsystems/plants/) | Plant power — the shelter benefit, saturating | — |
 | [Actions](/subsystems/actions/) | `food` put in the tank by feeding | Stocking, removal and selling fry write the array directly |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | `fish-died`, `eggs-laid`, `eggs-hatched` and — a livebearer's birth — `fry-born` entries; all but deaths carry a count |
-| [State & persistence](/subsystems/state-and-persistence/) | The tank's draw stream, for sex, hardiness offset, health jitter and every id | The advanced stream position |
+| [State & persistence](/subsystems/state-and-persistence/) | The tank's draw stream, for sex, hardiness offset, health jitter, survival threshold and every id | The advanced stream position |
 
 ## Source
 
-`src/simulation/livestock/` — the roster, construction, the per-tick pipeline
-and the bodies' step after it; `src/simulation/systems/` — metabolism,
-digestion, fish health and the shared vitality engine; `src/simulation/config/`
-— the tunables above and their declared ranges.
+`src/simulation/livestock/` — the roster and its Add-my-Pet entries,
+construction, the per-tick pipeline and the clutches' and broods' step after
+it; `src/simulation/systems/` — the energy budget, metabolism, digestion, fish
+health and broods; `src/simulation/config/` — the tunables above and their
+declared ranges.

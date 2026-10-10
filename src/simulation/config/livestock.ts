@@ -1,78 +1,36 @@
 /**
- * Livestock system tunable configuration.
+ * Livestock system tunable configuration. A fish's energy budget comes from
+ * its species' Add-my-Pet entry; these are what the tank does with it.
  *
  * Calibration targets:
- * - Feeding: a fish eats 1–3 % of its body mass a day; a full gut clears in
- *   about a day at 25 °C, slower cold
- * - Health: per-factor benefits sum to ≈ 0.7 %/h at full nourishment in ideal
- *   conditions, ≈ 0.9 with a saturating planting; what a fish digests scales
- *   them all
- * - Death: vitality-driven (no probabilistic check); wear rising on a
- *   Gompertz curve and healing falling with age carry a well-kept fish off
- *   near its species lifespan.
+ * - Feeding: a full gut clears in about a day at 25 °C, slower cold
+ * - Health: per-factor benefits sum to ≈ 0.7 %/h well fed in ideal
+ *   conditions, ≈ 0.9 with a saturating planting; reserve density scales them all
+ * - Death: health reaching 0, or old age when a fish's survival falls under
+ *   the threshold it drew at creation.
  */
 
-import { MAX_SURPLUS_CAP, SURPLUS_CAP_DEFAULT } from './vitality.js';
 import { MW_N, MW_NO3, N_TO_NH3_MASS_RATIO } from '../core/chemistry.js';
 
 export interface LivestockConfig {
   // Feeding
-  /** Grams of food a full gut holds, per gram of grown fish. */
-  gutCapacity: number;
-  /** First-order rate, per hour, a gut digests at the reference temperature in unlimited oxygen. */
+  /** First-order rate, per hour, a gut digests at 20 °C; the species' τ paces it. */
   digestionRate: number;
-  metabolicQ10: number;
-  metabolicReferenceTemp: number;
-  /**
-   * Power of mass a fish's per-gram gut, maintenance, respiration and healing
-   * scale with; a grown fish of its species sets the reference, 1 g does for healing.
-   */
-  massScalingExponent: number;
-  /**
-   * Grams of food a day, per gram of grown fish (metabolic mass), a fish must
-   * digest to hold its condition: its income runs at half rate there, and
-   * hunger harms it below.
-   */
-  maintenanceRation: number;
-  /** Hunger damage at an empty gut, %/h before hardiness. */
-  hungerSeverity: number;
 
   // Metabolism
-  /**
-   * Base oxygen consumption rate per gram of grown fish (metabolic mass) per
-   * hour (mg O2), at the reference temperature in unlimited oxygen; it runs
-   * on the metabolic factor.
-   *
-   * Intrinsic physiological rate — independent of tank volume. The
-   * livestock pipeline converts the absolute mg/hr draw into a mg/L
-   * concentration delta using the tank's water volume.
-   *
-   * Real-world freshwater teleosts at 25°C sit in 0.2–0.5 mg O2/g/hr,
-   * scaling with Q10 ≈ 2 against temperature, as `metabolicQ10` has it.
-   */
-  baseRespirationRate: number;
-  /** Dissolved O2 (mg/L) at which a fish takes up half its base rate. */
-  respirationOxygenHalfSaturation: number;
+  /** Dissolved O2 (mg/L) at which a fish's oxygen pace ω is half what saturated water gives. */
+  oxygenHalfSaturation: number;
   /**
    * Fraction of digested food mass that is nitrogen (g N / g food).
    *
    * Typical aquarium flake/pellet food is 35–50 % protein, protein is
    * ≈16 % N by mass, giving 5.6–8 % N in food. 0.05 is a conservative
-   * floor. Waste is food that went uneaten or undigested, so it carries the
-   * same fraction into mineralization.
+   * floor. Waste is food that went uneaten or undigested, and a fish is made
+   * of what it ate, so both carry the same fraction.
    */
   foodNitrogenFraction: number;
-  /**
-   * Fraction of digested food a fish assimilates (0–1). The remainder leaves
-   * as feces that mineralize through the waste → NH3 path; of what it
-   * assimilates, growth builds its share into the body and the rest leaves
-   * through the gills as NH3/NH4⁺.
-   *
-   * Aquarium fish are ammoniotelic: canonical split is ≈75–80 % gill
-   * ammonia, ≈15–20 % feces, ≈5 % urine. We collapse urine into the
-   * gill stream for simulation, giving a ~80 / 20 split for a fish not growing.
-   */
-  assimilatedFraction: number;
+  /** mg of O2 a gram of organics a fish burns takes. */
+  oxygenPerGramBurned: number;
   /**
    * Moles of CO2 exhaled per mole of O2 consumed. A *molar* ratio, as the
    * literature defines it — converting it to a mass takes the molar step
@@ -102,9 +60,13 @@ export interface LivestockConfig {
 
   /** Water below this % of capacity activates the stressor. */
   waterLevelStressThreshold: number;
+  /** Damage, %/h before hardiness, at a maintenance left wholly unpaid. */
+  starvationSeverity: number;
+  /** Damage, %/h, per unit of DEB hazard (per hour): what age does to health. */
+  hazardSeverity: number;
 
-  // Vitality benefit peaks (%/h) — each earned in full only at full
-  // nourishment. Sum at all-good (no plants) ≈ 0.7 %/h; with saturated
+  // Vitality benefit peaks (%/h) — each earned in full only on a full
+  // reserve. Sum at all-good (no plants) ≈ 0.7 %/h; with saturated
   // planting it rises to ≈ 0.9 %/h.
   /** pH at the centre of the species range, falling to 0 at its edges. */
   phBenefitPeak: number;
@@ -120,45 +82,15 @@ export interface LivestockConfig {
    */
   plantBenefitSaturationPoint: number;
 
-  // Surplus
-  /**
-   * Ceiling on the bank. Income past full health banks up to it, and a
-   * female broods once hers is full.
-   * Shared default across organism types — see `SURPLUS_CAP_DEFAULT`.
-   */
-  surplusCap: number;
-  /**
-   * Rate, per hour, a 1 g fish's bank heals health below 100 at; scaled by
-   * its mass to `massScalingExponent` (see `fishHealingRate`).
-   */
-  healingDrawRate: number;
-  /**
-   * First-order rate, per hour, the bank draws toward growth at, before the
-   * brood share `size / 100` holds part of it back.
-   */
-  growthDrawRate: number;
-  /** New mass, in % of the fish's metabolic mass, a bank point buys at species growth rate 1. */
-  growthPerSurplus: number;
-  /**
-   * Bank points a brood weighing as much as its parent costs that parent —
-   * the female in full, the male at his species' share.
-   */
-  broodCost: number;
-  /**
-   * Grams of organic matter — the food's recipe — in a gram of fish, egg or
-   * embryo; the rest is water.
-   */
-  bodyOrganicShare: number;
-  /** Share of what a fish assimilates that growth and eggs can build into its body and ovary; the rest it burns. */
-  growthEfficiency: number;
+  // Repair
+  /** First-order rate, per hour at 20 °C, a fish repairs its health deficit at, paid from reserve. */
+  healingRate: number;
+  /** Hours of somatic maintenance one point of repair costs. */
+  healingCost: number;
 
-  // Ageing
-  /** Wear, %/h, a fish of average vigour takes at its species lifespan. */
-  wearAtLifespan: number;
-  /** Span wear doubles over, as a share of the species lifespan. */
-  wearDoublingShare: number;
-  /** Age healing halves over, as a share of the species lifespan. */
-  healingHalvingShare: number;
+  // Broods
+  /** First-order rate, per hour at 20 °C, a male burns the brood buffer he has not spent fathering, on courtship and gametes. */
+  maleBufferTurnover: number;
 
   // Clutches
   /** How many times harder the water harms a laid egg than a fish; an egg's harm is the share of the clutch lost an hour. */
@@ -174,45 +106,19 @@ export interface LivestockConfig {
 }
 
 export const livestockDefaults: LivestockConfig = {
-  // A fish's stomach takes a meal of about 3 % of its body mass.
-  gutCapacity: 0.03,
   // Half a gut digests in about 7 h at 25 °C and 95 % in 30 h; ten degrees
-  // colder doubles both.
-  digestionRate: 0.1,
-  metabolicQ10: 2.0,
-  metabolicReferenceTemp: 25,
-  // Kleiber: whole-body metabolism runs on mass^¾, so per gram on mass^−¼ —
-  // a guppy fry at 1 % of adult mass eats, needs and breathes 3.2× per gram.
-  massScalingExponent: -0.25,
-  // Half a percent of body mass a day holds a fish; the hobby's 1–3 % a day
-  // feeds it past that, and the excess is what banks.
-  maintenanceRation: 0.005,
-  // An empty gut costs a mid-hardiness fish 0.3 %/h: unfed, a fish with an
-  // empty bank lasts about two weeks and one with a full bank about three.
-  hungerSeverity: 0.6,
+  // colder roughly halves the pace.
+  digestionRate: 0.07,
 
-  // 0.3 mg O2 / g fish / hr, inside the real-world 0.2–0.5 at 25°C for small
-  // freshwater teleosts. Applied as absolute mg/hr and converted to mg/L by the
-  // livestock pipeline using tank volume.
-  baseRespirationRate: 0.3,
   // A fish regulates its uptake until the water falls past its critical oxygen
-  // tension, which for warm-water teleosts sits around 1–2 mg/L; below it the
-  // gills simply cannot extract what is not there and the fish conforms. Half
-  // rate at 1.0 puts the taper across that band. That makes the rate above a
-  // Monod maximum rather than a figure read in real water: air-saturated water
-  // leaves 89 % of it, so what the model reproduces is 0.268.
-  //
-  // It scales the gill ammonia stream as well as the draw — deamination is the
-  // same metabolism — so this one constant sets both what a roster breathes and
-  // what it loads the water with.
-  //
-  // Damage is a separate reading: each fish's own oxygen edge still charges it
-  // for the water it is in, so a suffocating fish draws less and suffers more.
-  respirationOxygenHalfSaturation: 1.0,
+  // tension, which for warm-water teleosts sits around 1–2 mg/L; half its
+  // saturated pace at 1.0 puts the taper across that band.
+  oxygenHalfSaturation: 1.0,
   // 5 % N in food — conservative; typical flake is 6–8 % N.
   foodNitrogenFraction: 0.05,
-  // 80 % of digested food assimilated; 20 % leaves as feces.
-  assimilatedFraction: 0.8,
+  // Burning AmP's reserve, CH1.8O0.5N0.15 at 23.9 g/mol, to CO2, water and
+  // ammonia takes 1.09 mol O2 a C-mole.
+  oxygenPerGramBurned: 1450,
   respiratoryQuotient: 0.8, // textbook mixed-diet value
 
   // Stressor severities
@@ -241,8 +147,13 @@ export const livestockDefaults: LivestockConfig = {
   flowStressSeverity: 0.3,
 
   waterLevelStressThreshold: 50, // % capacity — below this water level damages fish
+  // A mid-hardiness fish whose upkeep goes wholly unpaid loses 0.25 %/h,
+  // seventeen days from full health.
+  starvationSeverity: 0.5,
+  // Hazard at the species lifespan runs 2–9 × 10⁻⁵ /h, so 0.1–0.5 %/h there.
+  hazardSeverity: 5000,
 
-  // Benefit peaks (%/h), each scaled by nourishment. Sum at all-good in a
+  // Benefit peaks (%/h), each scaled by reserve density. Sum at all-good in a
   // bare tank, pH at its band centre: pH 0.4 + O2 0.3 = 0.7 %/h. With a
   // saturating planting (see `plantBenefitSaturationPoint`): +0.2 → 0.9 %/h.
   phBenefitPeak: 0.4,
@@ -250,41 +161,21 @@ export const livestockDefaults: LivestockConfig = {
   plantBenefitPeak: 0.2,
   plantBenefitSaturationPoint: 3.0,
 
-  // Bank ceiling — half the condition scale by default.
-  surplusCap: SURPLUS_CAP_DEFAULT,
-  // 0.05 /h at 1 g: a full bank heals a 1 g fish 2.4 %/h at first, more than
-  // its whole benefit budget, and runs out with a 20 h time constant under a
-  // steady insult. A neon heals at 0.06 /h, an angelfish at 0.025.
-  healingDrawRate: 0.05,
-  // On a full bank and all it can eat, a newborn guppy reaches adult size in
-  // two and a half months and a neon in four; food that falls short of the
-  // asking stunts it.
-  growthDrawRate: 0.02,
-  growthPerSurplus: 0.6,
-  // A full bank buys a grown female a brood a tenth her weight: twenty guppy
-  // fry, 125 neon eggs, several hundred angelfish eggs.
-  broodCost: 500,
-  // Against food's 5 % N, a fish is 2.75 % N and 0.36 % P by wet mass — real
-  // fish sit at 2.5–3 % N and 0.4–0.5 % P.
-  bodyOrganicShare: 0.55,
-  // Of the 80 % of dietary N a fish assimilates, growth can hold at most
-  // 45 % — 36 % of what it ate, and about half that when food is what limits
-  // it; real growing fish retain 25–35 %.
-  growthEfficiency: 0.45,
+  // A fish closes half a percent of its deficit an hour at 20 °C, so water
+  // at its LC50 still kills it, in about a week; a full 100-point repair
+  // costs it two days of upkeep.
+  healingRate: 0.005,
+  healingCost: 0.5,
 
-  // Wear passes a fed fish's income a little before its lifespan and eats
-  // through its bank and health over the months after. It doubles over an
-  // eighth of the lifespan — seven months for a neon, a modest share, as
-  // Gompertz fits to fish find — so at birth it is 2^−8 of its figure here.
-  wearAtLifespan: 0.6,
-  wearDoublingShare: 0.125,
-  healingHalvingShare: 1,
+  // A male holds about a week of the buffer he fills: enough to father a
+  // livebearer's month-long brood at a fifth of its cost.
+  maleBufferTurnover: 0.006,
 
   // Water at a fish's 96-hour LC50 costs a clutch about 5 %/h — most of a
-  // neon clutch before it hatches — while the adults ride it out on their banks.
+  // neon clutch before it hatches — while the adults ride it out.
   eggSensitivity: 3,
   // A grown neon pair in 30 gal finds an eighth of an open clutch an hour, so
-  // one egg in twenty-five hatches — five of a 125-egg spawn — and every fry
+  // one egg in twenty-five hatches — three of an 80-egg spawn — and every fry
   // already swimming finds more.
   eggPredationRate: 15,
   // The same pair costs a newborn neon 0.45 %/h and a grown guppy pair a
@@ -305,9 +196,6 @@ export function nitratePerGramOfFood(config: LivestockConfig): number {
   return (config.foodNitrogenFraction * MW_NO3 * 1000) / MW_N;
 }
 
-/** The most a bank point buys at growth rate 1, held alike by the tunables drawer and the save boundary. */
-export const MAX_FISH_GROWTH_PER_SURPLUS = 1;
-
 export interface LivestockConfigMeta {
   key: keyof LivestockConfig;
   label: string;
@@ -319,30 +207,9 @@ export interface LivestockConfigMeta {
 
 export const livestockConfigMeta: LivestockConfigMeta[] = [
   // Feeding
-  { key: 'gutCapacity', label: 'Gut Capacity', unit: 'g/g', min: 0.005, max: 0.1, step: 0.005 },
-  { key: 'digestionRate', label: 'Digestion Rate', unit: '/hr', min: 0.01, max: 1, step: 0.01 },
-  { key: 'metabolicQ10', label: 'Metabolic Q10', unit: '', min: 1, max: 4, step: 0.1 },
-  { key: 'metabolicReferenceTemp', label: 'Metabolic Reference Temp', unit: '°C', min: 15, max: 30, step: 1 },
-  { key: 'massScalingExponent', label: 'Mass Scaling Exponent', unit: '', min: -0.5, max: 0, step: 0.05 },
-  { key: 'maintenanceRation', label: 'Maintenance Ration', unit: 'g/g/day', min: 0.001, max: 0.03, step: 0.001 },
-  { key: 'hungerSeverity', label: 'Hunger Severity', unit: '%/hr', min: 0, max: 5, step: 0.1 },
+  { key: 'digestionRate', label: 'Digestion Rate', unit: '/hr at 20 °C', min: 0.01, max: 1, step: 0.01 },
   // Metabolism
-  {
-    key: 'baseRespirationRate',
-    label: 'Base Respiration Rate',
-    unit: 'mg O2/g/hr',
-    min: 0.05,
-    max: 1.0,
-    step: 0.05,
-  },
-  {
-    key: 'respirationOxygenHalfSaturation',
-    label: 'Respiration O2 Half-Saturation',
-    unit: 'mg/L',
-    min: 0.1,
-    max: 4,
-    step: 0.1,
-  },
+  { key: 'oxygenHalfSaturation', label: 'O2 Pace Half-Saturation', unit: 'mg/L', min: 0.1, max: 4, step: 0.1 },
   {
     key: 'foodNitrogenFraction',
     label: 'Food N Fraction',
@@ -351,7 +218,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     max: 0.12,
     step: 0.005,
   },
-  { key: 'assimilatedFraction', label: 'Assimilated Fraction', unit: '', min: 0.5, max: 0.95, step: 0.05 },
+  { key: 'oxygenPerGramBurned', label: 'O2 per Gram Burned', unit: 'mg O2/g', min: 500, max: 2500, step: 50 },
   { key: 'respiratoryQuotient', label: 'Respiratory Quotient', unit: '', min: 0.5, max: 1.2, step: 0.1 },
   // Stressor severities
   {
@@ -385,23 +252,18 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     step: 0.05,
   },
   { key: 'waterLevelStressThreshold', label: 'Water Level Stress Threshold', unit: '%', min: 20, max: 80, step: 5 },
+  { key: 'starvationSeverity', label: 'Starvation Severity', unit: '%/hr unpaid', min: 0, max: 5, step: 0.05 },
+  { key: 'hazardSeverity', label: 'Hazard Severity', unit: '%/hr per hazard', min: 0, max: 50000, step: 500 },
   // Vitality benefit peaks
   { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'oxygenBenefitPeak', label: 'O2 Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'plantBenefitPeak', label: 'Plant Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'plantBenefitSaturationPoint', label: 'Plant Benefit Saturation', unit: 'power', min: 1, max: 10, step: 0.5 },
-  // Surplus
-  { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: MAX_SURPLUS_CAP, step: 5 },
-  { key: 'healingDrawRate', label: 'Healing Draw Rate', unit: '/hr at 1 g', min: 0.005, max: 0.5, step: 0.005 },
-  { key: 'growthDrawRate', label: 'Growth Draw Rate', unit: '/hr', min: 0.005, max: 0.2, step: 0.005 },
-  { key: 'growthPerSurplus', label: 'Growth per Bank Point', unit: '%/pt', min: 0.01, max: MAX_FISH_GROWTH_PER_SURPLUS, step: 0.01 },
-  { key: 'broodCost', label: 'Brood Cost', unit: 'pts/body mass', min: 200, max: 5000, step: 50 },
-  { key: 'bodyOrganicShare', label: 'Body Organic Share', unit: 'g/g', min: 0.2, max: 1, step: 0.05 },
-  { key: 'growthEfficiency', label: 'Growth Efficiency', unit: '', min: 0.05, max: 1, step: 0.05 },
-  // Ageing
-  { key: 'wearAtLifespan', label: 'Wear at Lifespan', unit: '%/hr', min: 0.1, max: 5, step: 0.1 },
-  { key: 'wearDoublingShare', label: 'Wear Doubling Span', unit: '× lifespan', min: 0.05, max: 0.5, step: 0.005 },
-  { key: 'healingHalvingShare', label: 'Healing Halving Age', unit: '× lifespan', min: 0.25, max: 10, step: 0.25 },
+  // Repair
+  { key: 'healingRate', label: 'Healing Rate', unit: '/hr at 20 °C', min: 0, max: 0.5, step: 0.005 },
+  { key: 'healingCost', label: 'Healing Cost', unit: 'h upkeep/pt', min: 0.05, max: 5, step: 0.05 },
+  // Broods
+  { key: 'maleBufferTurnover', label: 'Male Buffer Turnover', unit: '/hr at 20 °C', min: 0, max: 0.1, step: 0.001 },
   // Clutches
   { key: 'eggSensitivity', label: 'Egg Sensitivity', unit: '× fish', min: 0, max: 10, step: 0.5 },
   { key: 'eggPredationRate', label: 'Egg Predation Rate', unit: 'L/g/hr', min: 0, max: 50, step: 0.5 },

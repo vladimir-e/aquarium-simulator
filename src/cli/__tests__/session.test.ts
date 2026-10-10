@@ -50,7 +50,7 @@ describe('session roundtrip', () => {
     const community = getPresetById('community')!;
     const state = createSimulation(community.config, {
       ...community.seed,
-      fish: [{ species: 'neon_tetra', count: 3, sex: 'female', age: 500 }],
+      fish: [{ species: 'neon_tetra', count: 3, sex: 'female', size: 50 }],
       plants: [{ species: 'java_fern', count: 2, size: 80 }],
     });
     saveSession(createSession(state, DEFAULT_CONFIG, 'seeded'), { path });

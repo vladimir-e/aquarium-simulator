@@ -1,20 +1,24 @@
 /**
  * Livestock grouping: fold the flat fish array into species rows and fry
  * batches, resolve what each fish's vitality is doing to it — its hunger
- * included, read off the hunger stressor — and lay the roster out as the flat
- * row list the table renders.
+ * included, read off its reserve and the upkeep its budget left unpaid — and
+ * lay the roster out as the flat row list the table renders.
  */
 
 import {
   FISH_SPECIES_DATA,
   countFry,
+  debParams,
   fishLifeStage,
+  fishMass,
+  fullPaceLine,
   gutCapacity,
-  hungerLine,
+  starvation,
+  wellFed,
   type Fish,
+  type FishHour,
   type FishSpecies,
   type SimulationState,
-  type VitalityBreakdown,
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
@@ -24,18 +28,22 @@ import { groupBy, mean, numbered } from './fold.js';
 import type { ReadingBand } from './water.js';
 
 /**
- * Off the hunger stressor: fed while it charges nothing, hungry once it does,
- * starving once hunger alone outruns everything the fish earns.
+ * Off its budget: starving while half its upkeep goes unpaid, hungry while any
+ * visible share does or its reserve is under half full, fed otherwise.
  */
 export type GutBand = 'fed' | 'hungry' | 'starving';
 
-export function gutBand({ stressors, benefitRate }: VitalityBreakdown): GutBand {
-  const hunger = stressors.find((stressor) => stressor.key === 'hunger')?.amount ?? 0;
-  if (hunger <= 0) return 'fed';
-  return hunger < benefitRate ? 'hungry' : 'starving';
+const STARVING_SHORTFALL = 0.5;
+const HUNGRY_SHORTFALL = 0.05;
+const HUNGRY_RESERVE = 0.5;
+
+export function gutBand(fish: Pick<Fish, 'species' | 'deb'>, hour: Pick<FishHour, 'fluxes'>): GutBand {
+  const unpaid = starvation(hour);
+  if (unpaid >= STARVING_SHORTFALL) return 'starving';
+  return unpaid > HUNGRY_SHORTFALL || wellFed(fish.deb, debParams(fish.species)) < HUNGRY_RESERVE ? 'hungry' : 'fed';
 }
 
-/** A starving fish its bank still heals whole reads no worse than a hungry one. */
+/** A starving fish still holding its health reads no worse than a hungry one. */
 export function gutStatus(band: GutBand, sick: boolean): Status {
   switch (band) {
     case 'fed':
@@ -58,21 +66,15 @@ export interface FishGut extends Gut {
 }
 
 /**
- * A fish's gut on its track, fed from the hunger line up — where it digests
- * its maintenance at the pace the water sets — in the band its vitality puts it.
+ * A fish's gut on its track, fed from the line where it still digests all its
+ * budget can take up at the pace the water sets, in the band its budget puts it.
  */
-export function fishGut(
-  fish: Fish,
-  breakdown: VitalityBreakdown,
-  sick: boolean,
-  metabolicFactor: number,
-  config: LivestockConfig
-): FishGut {
-  const word = gutBand(breakdown);
-  const capacity = gutCapacity(fish, config);
+export function fishGut(fish: Fish, hour: FishHour, sick: boolean, config: LivestockConfig): FishGut {
+  const word = gutBand(fish, hour);
+  const capacity = gutCapacity(fish, hour.pace);
   return {
-    at: capacity > 0 ? fish.gut / capacity : 0,
-    band: { from: hungerLine(metabolicFactor, config), to: 1 },
+    at: capacity > 0 ? Math.min(1, fish.gut / capacity) : 0,
+    band: { from: fullPaceLine(hour.pace.tau, config), to: 1 },
     status: gutStatus(word, sick),
     word,
   };
@@ -87,31 +89,32 @@ export function fishReading(vital: Reading, gut: Gut): Reading {
   return worstReading(vital, { status: gut.status, word: gut.word });
 }
 
-type Kin = Pick<Fish, 'id' | 'species' | 'mass'>;
+type Kin = Pick<Fish, 'id' | 'species' | 'deb'>;
 
 /**
- * Every fish's number among its species at the stage its size reads as, in the order it was
- * stocked or born — the way plants count. The ids stay the engine's; these are
- * the reader's.
+ * Every fish's number in the row it sits in — its species' fry, or the fish of
+ * its species grown past them — in the order it was stocked or born, the way
+ * plants count. The ids stay the engine's; these are the reader's.
  */
 export function fishNumbers(fish: readonly Kin[]): Map<string, number> {
   return new Map(
-    groupBy(fish, (f) => `${f.species}:${fishLifeStage(f)}`).flatMap((kind) => [
+    groupBy(fish, (f) => `${f.species}:${fishLifeStage(f) === 'fry'}`).flatMap((kind) => [
       ...numbered(kind.map((f) => f.id)),
     ])
   );
 }
 
-/** A fish as the console names it. */
+/** A fish as the console names it: an adult by its species, the young by their stage too. */
 export function fishTitle(fish: Kin, number: number): string {
   const name = FISH_SPECIES_DATA[fish.species].name;
-  return `${name}${fishLifeStage(fish) === 'fry' ? ' fry' : ''} #${number}`;
+  const stage = fishLifeStage(fish);
+  return `${name}${stage === 'adult' ? '' : ` ${stage}`} #${number}`;
 }
 
 /** One fish, with the vitality pass behind its row already spent. */
 export interface FishRead {
   id: string;
-  /** Its number among its species at its stage. */
+  /** Its number in its row. */
   number: number;
   condition: number;
   sick: boolean;
@@ -124,9 +127,9 @@ export interface FishRead {
 export function readFish(state: SimulationState, config: TunableConfig, ahead: HourAhead): FishRead[] {
   const numbers = fishNumbers(state.fish);
   return state.fish.map((fish, i) => {
-    const { vitality } = ahead.fish[i];
+    const { vitality, hour } = ahead.fish[i];
     const { sick, reading } = vitalReading(fish.health, vitality.newCondition);
-    const gut = fishGut(fish, vitality.breakdown, sick, ahead.metabolicFactor, config.livestock);
+    const gut = fishGut(fish, hour, sick, config.livestock);
     return {
       id: fish.id,
       number: numbers.get(fish.id)!,
@@ -189,7 +192,7 @@ function groupFigures(members: FishRead[]): RosterGroup {
   const group = members.map((member) => member.fish);
   return {
     count: group.length,
-    massG: group.reduce((sum, f) => sum + f.mass, 0),
+    massG: group.reduce((sum, f) => sum + fishMass(f), 0),
     ageDays: Math.floor(mean(group.map((f) => f.age)) / 24),
     gut: groupGut(members),
     condition: mean(group.map((f) => f.health)),
@@ -198,10 +201,10 @@ function groupFigures(members: FishRead[]): RosterGroup {
   };
 }
 
-/** Adult fish folded into per-species rows, in first-seen order. */
+/** Fish grown past fry folded into per-species rows, in first-seen order. */
 export function groupBySpecies(fish: FishRead[]): SpeciesGroup[] {
-  const adults = fish.filter((read) => fishLifeStage(read.fish) === 'adult');
-  return groupBy(adults, (read) => read.fish.species).map((members) => ({
+  const grown = fish.filter((read) => fishLifeStage(read.fish) !== 'fry');
+  return groupBy(grown, (read) => read.fish.species).map((members) => ({
     species: members[0].fish.species,
     name: FISH_SPECIES_DATA[members[0].fish.species].name,
     ...groupFigures(members),
@@ -219,17 +222,13 @@ export function groupFry(fish: FishRead[]): FryBatch | null {
   };
 }
 
-/**
- * What the tank holds, in one line. Fry are counted apart from adults: they are
- * stock the tank is carrying, but not yet fish that breed.
- */
+/** What the tank holds, in one line, its fry counted apart from the fish grown past them. */
 export function rosterSummary(state: SimulationState): string {
   const { fish, clutches } = state;
   const fry = countFry(fish);
-  const adults = fish.length - fry;
   const species = new Set(fish.map((f) => f.species)).size;
 
-  const clauses = [`${adults} fish`];
+  const clauses = [`${fish.length - fry} fish`];
   if (species > 0) clauses.push(`${species} species`);
   if (clutches.length > 0) {
     clauses.push(`${clutches.length} clutch${clutches.length > 1 ? 'es' : ''}`);

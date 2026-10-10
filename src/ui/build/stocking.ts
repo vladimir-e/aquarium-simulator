@@ -4,7 +4,7 @@
  * section renders these and wires the actions.
  */
 
-import { FISH_SPECIES_DATA, type Fish, type FishSpecies } from '../../simulation/index.js';
+import { grownMass, type Fish, type FishSpecies } from '../../simulation/index.js';
 import type { Status } from '../run';
 import { getVolumeUnit, toInternalVolume, type UnitSystem } from '../utils/units.js';
 
@@ -26,7 +26,7 @@ export const GUIDELINE_G_PER_L = 0.6;
  * mass, fry included — fry grow up, so they count toward the eventual bioload.
  */
 export function projectedAdultMass(fish: Fish[]): number {
-  return fish.reduce((sum, f) => sum + FISH_SPECIES_DATA[f.species].adultMass, 0);
+  return fish.reduce((sum, f) => sum + grownMass(f.species), 0);
 }
 
 export interface Bioload {
@@ -55,7 +55,7 @@ export interface Stocking {
  * ammonia/nitrate pressure).
  */
 export function bioload(fish: Fish[], tankLiters: number, stocking?: Stocking): Bioload {
-  const adding = stocking ? stocking.count * FISH_SPECIES_DATA[stocking.species].adultMass : 0;
+  const adding = stocking ? stocking.count * grownMass(stocking.species) : 0;
   const massG = projectedAdultMass(fish) + adding;
   const guidelineG = tankLiters * GUIDELINE_G_PER_L;
   const ratio = guidelineG > 0 ? massG / guidelineG : 0;

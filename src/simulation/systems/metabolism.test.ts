@@ -1,213 +1,127 @@
 import { describe, it, expect } from 'vitest';
-import { excretion, processMetabolism, type Excretion, type MetabolismResult, type MetabolismWater } from './metabolism.js';
-import { gutCapacity, metabolicMass } from './digestion.js';
-import { livestockDefaults } from '../config/livestock.js';
+import { burn, fishPace, gillAmmonia, liveHour, oxygenPace, processMetabolism } from './metabolism.js';
+import { gutCapacity, gutRoom, type Pace } from './digestion.js';
+import { livestockDefaults as config } from '../config/livestock.js';
+import { speciesTau } from '../livestock/species.js';
 import { WASTE_NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
-import { monodFactor } from '../core/kinetics.js';
+import { sum } from '../core/sum.js';
+import { NO_STRESS, totalBurned } from './deb.js';
+import { fishOrganics } from './fish-body.js';
 import { fishRecord } from '../tests/fish.js';
 
-const AMPLE_O2 = 8;
-const NH3_PER_G_N = (MW_NH3 / MW_N) * 1000;
+const SATURATED = 8;
+const REFERENCE: Pace = { tau: 1, omega: 1, stress: NO_STRESS };
 
-function water(overrides: Partial<MetabolismWater> = {}): MetabolismWater {
-  return { food: 10, oxygen: AMPLE_O2, temperature: 25, ...overrides };
-}
+describe('oxygenPace', () => {
+  it('reads 1 in saturated water and above it, and nothing in none', () => {
+    expect(oxygenPace(SATURATED, SATURATED, 1)).toBe(1);
+    expect(oxygenPace(12, SATURATED, 1)).toBe(1);
+    expect(oxygenPace(0, SATURATED, 1)).toBe(0);
+  });
 
-const full = (mass: number): number => gutCapacity({ species: 'neon_tetra', mass }, livestockDefaults);
+  it('is a Monod on dissolved oxygen against saturated water', () => {
+    expect(oxygenPace(1, SATURATED, 1)).toBeCloseTo(0.5 / (SATURATED / (1 + SATURATED)), 12);
+    expect(oxygenPace(2, SATURATED, 1)).toBeLessThan(oxygenPace(4, SATURATED, 1));
+  });
+});
 
-const excreted = (r: MetabolismResult, retained = 0): Excretion =>
-  excretion(r.digested.reduce((a, b) => a + b, 0), retained, livestockDefaults);
+describe('fishPace', () => {
+  it('runs on its species’ Arrhenius temperature, and on oxygen alone for ω', () => {
+    const pace = fishPace('guppy', { temperature: 26, oxygen: 3 }, SATURATED, config);
+    expect(pace.tau).toBe(speciesTau('guppy', 26));
+    expect(pace.omega).toBe(oxygenPace(3, SATURATED, config.oxygenHalfSaturation));
+    expect(pace.stress).toBe(NO_STRESS);
+  });
+});
+
+describe('burn', () => {
+  const recipe = nutrientsDefaults.foodMineralContent;
+
+  it('excretes the food recipe’s nitrogen as NH3 through the gills and its minerals, gram for gram', () => {
+    const burnt = burn(2, config, recipe);
+    expect(burnt.ammonia).toBeCloseTo(2 * config.foodNitrogenFraction * (MW_NH3 / MW_N) * 1000, 9);
+    expect(burnt.ammonia).toBe(gillAmmonia(2, config));
+    for (const n of WASTE_NUTRIENTS) expect(burnt.minerals[n]).toBeCloseTo(2 * recipe[n], 12);
+  });
+
+  it('breathes oxygenPerGramBurned and exhales the respiratory quotient in moles', () => {
+    const burnt = burn(0.5, config, recipe);
+    expect(burnt.oxygen).toBeCloseTo(0.5 * config.oxygenPerGramBurned, 9);
+    expect(burnt.co2 / MW_CO2 / (burnt.oxygen / MW_O2)).toBeCloseTo(config.respiratoryQuotient, 12);
+  });
+});
+
+describe('liveHour', () => {
+  const fed = fishRecord({ species: 'guppy', gut: 0.003, age: 100 });
+
+  it('closes its ledger: gut and body before are gut and body after, feces and burn', () => {
+    for (const fish of [fed, { ...fed, gut: 0 }, { ...fed, health: 40 }]) {
+      const hour = liveHour(fish, REFERENCE, 1e-5, config);
+      const before = fish.gut + fishOrganics(fish);
+      const after = hour.fish.gut + fishOrganics(hour.fish) + hour.fluxes.feces + totalBurned(hour.fluxes);
+      expect(after).toBeCloseTo(before, 15);
+    }
+  });
+
+  it('digests at τ and hands the gut back what the budget could not take up', () => {
+    const hour = liveHour(fed, REFERENCE, 0, config);
+    expect(hour.fish.gut).toBeCloseTo(fed.gut - hour.digested + hour.fluxes.returned, 15);
+    expect(liveHour(fed, { ...REFERENCE, tau: 2 }, 0, config).digested).toBeGreaterThan(hour.digested);
+  });
+
+  it('ages an hour and keeps exp(−h) of its survival', () => {
+    const old = { ...fed, deb: { ...fed.deb, hazard: 1e-3 }, survival: 0.8 };
+    const hour = liveHour(old, REFERENCE, 0, config);
+    expect(hour.fish.age).toBe(101);
+    expect(hour.fish.survival).toBeCloseTo(0.8 * Math.exp(-1e-3), 15);
+  });
+});
 
 describe('processMetabolism', () => {
-  it('returns empty results for no fish', () => {
-    const result = processMetabolism([], water(), livestockDefaults);
-    expect(result.updatedFish).toHaveLength(0);
-    expect(result.digested).toHaveLength(0);
-    expect(result.foodConsumed).toBe(0);
-    expect(result.oxygenConsumedMg).toBe(0);
-    expect(result.co2ProducedMg).toBe(0);
+  const school = [
+    fishRecord({ id: 'a', species: 'guppy', size: 30 }),
+    fishRecord({ id: 'b', species: 'guppy', size: 70 }),
+  ];
+  const paces = [REFERENCE, REFERENCE];
+
+  it('returns nothing for no fish', () => {
+    expect(processMetabolism([], [], [], { food: 1 }, config)).toEqual({
+      hours: [],
+      updatedFish: [],
+      foodConsumed: 0,
+      feces: 0,
+      burned: 0,
+    });
   });
 
-  it('fills every gut to capacity while the food lasts', () => {
-    const fish = [fishRecord({ mass: 1 }), fishRecord({ id: 'b', mass: 2, gut: full(2) / 2 })];
-    const result = processMetabolism(fish, water({ food: 100 }), livestockDefaults);
-
-    result.updatedFish.forEach((f) => expect(f.gut).toBeCloseTo(full(f.mass), 12));
+  it('fills every gut while the food lasts', () => {
+    const result = processMetabolism(school, paces, [0, 0], { food: 10 }, config);
+    result.updatedFish.forEach((f) => expect(f.gut).toBeCloseTo(gutCapacity(f, REFERENCE), 15));
   });
 
-  it('serves short food in proportion to appetite, so every fish fills the same share of its room', () => {
-    const fish = [
-      fishRecord({ id: 'empty', mass: 1 }),
-      fishRecord({ id: 'half', mass: 1, gut: full(1) / 2 }),
-      fishRecord({ id: 'big', mass: 3 }),
-    ];
-    const food = 0.01;
-    const result = processMetabolism(fish, water({ food, oxygen: 0 }), livestockDefaults);
-
-    expect(result.foodConsumed).toBeCloseTo(food, 12);
-    const shares = result.updatedFish.map((f, i) => (f.gut - fish[i].gut) / (full(f.mass) - fish[i].gut));
-    shares.forEach((share) => expect(share).toBeCloseTo(shares[0], 12));
+  it('serves short food in proportion to the room in each gut, so every fish fills the same share of it', () => {
+    const food = 1e-4;
+    const result = processMetabolism(school, paces, [0, 0], { food }, config);
+    const rooms = result.hours.map((hour) => gutRoom(hour.fish, REFERENCE));
+    expect(result.foodConsumed).toBeCloseTo(food, 15);
+    expect(result.updatedFish[1].gut / rooms[1]).toBeCloseTo(result.updatedFish[0].gut / rooms[0], 9);
   });
 
   it('eats nothing with nothing in the water', () => {
-    const result = processMetabolism([fishRecord({ gut: 0.001 })], water({ food: 0 }), livestockDefaults);
-    expect(result.foodConsumed).toBe(0);
-    expect(result.updatedFish[0].gut).toBeLessThan(0.001);
+    expect(processMetabolism(school, paces, [0, 0], { food: 0 }, config).foodConsumed).toBe(0);
   });
 
-  it("releases a meal's nitrogen as it digests, not as it is eaten", () => {
-    const meal = processMetabolism([fishRecord()], water(), livestockDefaults);
-    expect(meal.foodConsumed).toBeGreaterThan(0);
-    expect(excreted(meal).ammonia).toBe(0);
-    expect(excreted(meal).waste).toBe(0);
-
-    const after = processMetabolism(meal.updatedFish, water({ food: 0 }), livestockDefaults);
-    expect(after.digested[0]).toBeGreaterThan(0);
-    expect(excreted(after).ammonia).toBeGreaterThan(0);
-    expect(excreted(after).waste).toBeGreaterThan(0);
+  it('passes the hours’ feces and burn', () => {
+    const fed = school.map((f) => ({ ...f, gut: 0.01 }));
+    const result = processMetabolism(fed, paces, [0, 0], { food: 0 }, config);
+    expect(result.feces).toBe(sum(result.hours.map((hour) => hour.fluxes.feces)));
+    expect(result.burned).toBe(sum(result.hours.map((hour) => totalBurned(hour.fluxes))));
+    expect(result.feces).toBeGreaterThan(0);
   });
 
-  it('conserves nitrogen: what the gut loses leaves through the gills and the feces', () => {
-    for (const oxygen of [AMPLE_O2, 1, 0.1]) {
-      let fish = [fishRecord({ mass: 2, gut: full(2) })];
-      const start = fish[0].gut;
-      let ammonia = 0;
-      let waste = 0;
-      for (let hour = 0; hour < 72; hour++) {
-        const r = processMetabolism(fish, water({ food: 0, oxygen }), livestockDefaults);
-        ammonia += excreted(r).ammonia;
-        waste += excreted(r).waste;
-        fish = r.updatedFish;
-      }
-      const digestedN = (start - fish[0].gut) * livestockDefaults.foodNitrogenFraction;
-      const releasedN = ammonia / NH3_PER_G_N + waste * livestockDefaults.foodNitrogenFraction;
-      expect(releasedN).toBeCloseTo(digestedN, 12);
-    }
-  });
-
-  it('splits digested nitrogen between gill NH3 and feces at assimilatedFraction', () => {
-    const r = processMetabolism([fishRecord({ mass: 2, gut: full(2) })], water({ food: 0 }), livestockDefaults);
-    const digested = r.digested[0];
-
-    expect(excreted(r).waste).toBeCloseTo(digested * (1 - livestockDefaults.assimilatedFraction), 12);
-    expect(excreted(r).ammonia).toBeCloseTo(
-      digested * livestockDefaults.foodNitrogenFraction * livestockDefaults.assimilatedFraction * NH3_PER_G_N,
-      9
-    );
-  });
-
-  it('returns every milligram of digested mineral to the water, gills and feces together', () => {
-    const release = nutrientsDefaults.foodMineralContent;
-    const fish = [fishRecord({ mass: 2, gut: full(2) }), fishRecord({ id: 'b', gut: full(0.5) / 3 })];
-    const r = processMetabolism(fish, water(), livestockDefaults);
-    const digested = r.digested.reduce((a, b) => a + b, 0);
-    const out = excretion(digested, 0, livestockDefaults, release);
-    for (const n of WASTE_NUTRIENTS) {
-      expect(out.minerals[n] + out.waste * release[n]).toBeCloseTo(digested * release[n], 12);
-    }
-  });
-
-  it('holds back from the gills exactly what growth retains, nitrogen and minerals alike, and never from the feces', () => {
-    const release = nutrientsDefaults.foodMineralContent;
-    const digested = 0.01;
-    const retained = 0.003;
-    const adult = excretion(digested, 0, livestockDefaults, release);
-    const growing = excretion(digested, retained, livestockDefaults, release);
-
-    expect(growing.waste).toBe(adult.waste);
-    expect((adult.ammonia - growing.ammonia) / NH3_PER_G_N).toBeCloseTo(retained * livestockDefaults.foodNitrogenFraction, 15);
-    for (const n of WASTE_NUTRIENTS) {
-      expect(adult.minerals[n] - growing.minerals[n]).toBeCloseTo(retained * release[n], 15);
-    }
-  });
-
-  it('breathes on the metabolic factor, harder warm and slower cold', () => {
-    const at = (temperature: number): MetabolismResult =>
-      processMetabolism([fishRecord({ mass: 2 })], water({ temperature }), livestockDefaults);
-    const { metabolicReferenceTemp: ref } = livestockDefaults;
-    for (const temperature of [ref - 10, ref, ref + 5]) {
-      const r = at(temperature);
-      expect(r.oxygenConsumedMg).toBeCloseTo(
-        livestockDefaults.baseRespirationRate * metabolicMass(fishRecord({ mass: 2 }), livestockDefaults) * r.metabolicFactor,
-        12
-      );
-    }
-    expect(at(ref + 5).oxygenConsumedMg).toBeGreaterThan(at(ref).oxygenConsumedMg);
-  });
-
-  it('consumes oxygen on metabolic mass, at half its base rate at the half-saturation constant', () => {
-    const fish = fishRecord({ mass: 2 });
-    const at = (oxygen: number): number =>
-      processMetabolism([fish], water({ oxygen }), livestockDefaults).oxygenConsumedMg;
-    const base = livestockDefaults.baseRespirationRate * metabolicMass(fish, livestockDefaults);
-
-    expect(at(AMPLE_O2)).toBeCloseTo(
-      base * monodFactor(AMPLE_O2, livestockDefaults.respirationOxygenHalfSaturation),
-      9
-    );
-    expect(at(livestockDefaults.respirationOxygenHalfSaturation)).toBeCloseTo(base * 0.5, 9);
-    expect(at(0)).toBe(0);
-  });
-
-  it('digests and breathes on one oxygen factor: suffocating slows both', () => {
-    const at = (oxygen: number): MetabolismResult =>
-      processMetabolism([fishRecord({ mass: 2, gut: full(2) })], water({ food: 0, oxygen }), livestockDefaults);
-    const gasping = at(1);
-    const breathing = at(AMPLE_O2);
-
-    expect(excreted(at(0)).ammonia).toBe(0);
-    expect(gasping.digested[0]).toBeLessThan(breathing.digested[0]);
-    expect(gasping.oxygenConsumedMg).toBeLessThan(breathing.oxygenConsumedMg);
-  });
-
-  it('runs on one metabolic factor: the metabolic Q10 per ten degrees, times the oxygen factor', () => {
-    const { metabolicReferenceTemp: ref, metabolicQ10, respirationOxygenHalfSaturation: k } = livestockDefaults;
-    const factor = (temperature: number, oxygen: number): number =>
-      processMetabolism([], water({ temperature, oxygen }), livestockDefaults).metabolicFactor;
-
-    expect(factor(ref, AMPLE_O2) / factor(ref - 10, AMPLE_O2)).toBeCloseTo(metabolicQ10, 12);
-    expect(factor(ref, k)).toBeCloseTo(0.5, 12);
-    expect(factor(ref, 0)).toBe(0);
-  });
-
-  it('exhales the respiratory quotient in moles, not in milligrams', () => {
-    const result = processMetabolism([fishRecord({ mass: 2 })], water(), livestockDefaults);
-
-    expect(result.co2ProducedMg / MW_CO2).toBeCloseTo(
-      (result.oxygenConsumedMg / MW_O2) * livestockDefaults.respiratoryQuotient,
-      10
-    );
-  });
-
-  it('breathes per gram on mass^−¼ against a grown fish of its species', () => {
-    const perGram = (mass: number): number =>
-      processMetabolism([fishRecord({ mass })], water(), livestockDefaults).oxygenConsumedMg / mass;
-    const adult = 0.5;
-    expect(perGram(adult / 16) / perGram(adult)).toBeCloseTo(2, 9);
-    expect(perGram(adult)).toBeCloseTo(
-      livestockDefaults.baseRespirationRate * monodFactor(AMPLE_O2, livestockDefaults.respirationOxygenHalfSaturation),
-      9
-    );
-  });
-
-  it('increments age by 1 each tick', () => {
-    const result = processMetabolism([fishRecord({ age: 100 })], water(), livestockDefaults);
-    expect(result.updatedFish[0].age).toBe(101);
-  });
-
-  it('never yields a non-finite number at the edges', () => {
-    for (const w of [water({ food: 0, oxygen: 0 }), water({ temperature: 0 }), water({ food: Infinity })]) {
-      const r = processMetabolism([fishRecord(), fishRecord({ id: 'b', mass: 0 })], w, livestockDefaults);
-      const numbers = [
-        ...r.digested,
-        ...r.updatedFish.map((f) => f.gut),
-        excreted(r).waste,
-        excreted(r).ammonia,
-        r.oxygenConsumedMg,
-        r.co2ProducedMg,
-      ];
-      numbers.forEach((n) => expect(Number.isFinite(n)).toBe(true));
-    }
+  it('passes nothing the hour a meal is eaten: its waste comes out as it digests', () => {
+    const result = processMetabolism(school, paces, [0, 0], { food: 10 }, config);
+    expect(result.feces).toBe(0);
   });
 });

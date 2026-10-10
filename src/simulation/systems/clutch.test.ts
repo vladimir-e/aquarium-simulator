@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { createSimulation, type Clutch, type Resources } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { getMassFromPpm } from '../resources/index.js';
-import { FISH_SPECIES_DATA } from '../livestock/species.js';
+import { debParams, FISH_SPECIES_DATA, incubation } from '../livestock/species.js';
+import { arrheniusFactor } from '../core/kinetics.js';
 import { developmentRate, eggHarmRate, eggPredationRate, settleClutch } from './clutch.js';
-import { metabolicFactorOf } from './metabolism.js';
 import { speciesHardiness, waterStressors } from './fish-health.js';
 
 const config = DEFAULT_CONFIG.livestock;
@@ -78,21 +78,18 @@ describe('eggPredationRate', () => {
 });
 
 describe('developmentRate', () => {
-  const at = (temperature: number, oxygen = clean.oxygen): number =>
-    developmentRate('corydoras', metabolicFactorOf({ temperature, oxygen }, config));
-
-  it('doubles every ten degrees on the metabolic Q10', () => {
-    expect(at(28) / at(18)).toBeCloseTo(config.metabolicQ10, 10);
-    expect(at(26)).toBeGreaterThan(at(22));
+  it('paces its species’ incubation by the Arrhenius factor alone, faster warm', () => {
+    const { TA } = debParams('corydoras');
+    expect(developmentRate('corydoras', 28) / developmentRate('corydoras', 18)).toBeCloseTo(
+      arrheniusFactor(28, TA) / arrheniusFactor(18, TA),
+      12
+    );
+    expect(developmentRate('corydoras', 26)).toBeGreaterThan(developmentRate('corydoras', 22));
   });
 
-  it('slows short of oxygen', () => {
-    expect(at(25, 1)).toBeLessThan(at(25, 8));
-  });
-
-  it('completes in the species development time at the reference in unlimited oxygen', () => {
+  it('completes in its incubation at 20 °C', () => {
     for (const species of Object.keys(FISH_SPECIES_DATA) as (keyof typeof FISH_SPECIES_DATA)[]) {
-      expect(developmentRate(species, 1) * FISH_SPECIES_DATA[species].breeding.developmentTime).toBeCloseTo(1, 12);
+      expect(developmentRate(species, 20) * incubation(species)).toBeCloseTo(1, 12);
     }
   });
 });

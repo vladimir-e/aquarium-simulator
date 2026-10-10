@@ -14,6 +14,7 @@ import {
   type FishSpecies,
   type PlantSpecies,
   FISH_SPECIES_DATA,
+  fishMass,
 } from '../../simulation/index.js';
 import { fishTitle, type FryBatch, type Gut, type SpeciesGroup } from './livestock.js';
 import {
@@ -117,8 +118,9 @@ export interface IndividualRosterRow extends Vital {
 }
 
 /**
- * Every fry in the tank in one row: stock it carries, not yet fish that breed,
- * and — because the sell action takes no batch — one row to sell them from.
+ * Every fry in the tank in one row: stock it carries, counted apart from the
+ * fish grown past them, and — because the sell action takes no batch — one row
+ * to sell them from.
  */
 export interface FryRosterRow extends Vital {
   kind: 'fry';
@@ -210,7 +212,7 @@ function fishRows(groups: SpeciesGroup[], expanded: ReadonlySet<string>): Roster
         title: fishTitle(fish, number),
         sex: fish.sex,
         parent: null,
-        figure: `${fish.mass.toFixed(2)} g`,
+        figure: `${fishMass(fish).toFixed(2)} g`,
         age: days(fish.age),
         gut,
         light: null,

@@ -1,0 +1,49 @@
+/**
+ * What a fish's energy budget reads as: its weight, its size against its
+ * species' grown length, the organics it holds, and its life stage.
+ */
+
+import type { Fish } from '../state.js';
+import type { FishLifeStage, FishSpecies } from '../livestock/species.js';
+import { debParams } from '../livestock/species.js';
+import { hatchling, mature, organics, size, wetMass, type DebParams } from './deb.js';
+
+type Body = Pick<Fish, 'species' | 'deb'>;
+
+export const fishParams = (fish: Pick<Fish, 'species'>): Readonly<DebParams> => debParams(fish.species);
+
+export const fishMass = (fish: Body): number => wetMass(fish.deb, fishParams(fish));
+
+/** Structural length in % of what its species reaches grown. */
+export const fishSize = (fish: Body): number => size(fish.deb, fishParams(fish));
+
+/** Grams of organic matter its body holds: structure, reserve and brood buffer. */
+export const fishOrganics = (fish: Body): number => organics(fish.deb, fishParams(fish));
+
+/** Grams of organic matter an egg is laid with: E_0. */
+export const eggOrganics = (species: FishSpecies): number => debParams(species).E0;
+
+/** Grams an egg weighs: its hatchling's. */
+export function eggMass(species: FishSpecies): number {
+  const p = debParams(species);
+  return wetMass(hatchling(p), p);
+}
+
+/** The size a fry hatches at. */
+export function frySize(species: FishSpecies): number {
+  const p = debParams(species);
+  return size(hatchling(p), p);
+}
+
+/** The size, in % of grown length, under which a fish short of puberty reads as fry. */
+export const FRY_UNTIL_SIZE = 50;
+
+export function fishLifeStage(fish: Body): FishLifeStage {
+  const p = fishParams(fish);
+  if (mature(fish.deb, p)) return 'adult';
+  return size(fish.deb, p) < FRY_UNTIL_SIZE ? 'fry' : 'juvenile';
+}
+
+export function countFry(fish: readonly Body[]): number {
+  return fish.filter((f) => fishLifeStage(f) === 'fry').length;
+}

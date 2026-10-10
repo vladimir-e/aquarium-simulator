@@ -31,40 +31,34 @@ import { isStockableSize, unstockableSizeMessage } from './livestock/create-fish
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
 import type { FishSpecies, FishSex } from './livestock/species.js';
+import type { DebState } from './systems/deb.js';
 
 /**
- * Individual fish in the tank.
+ * Individual fish in the tank. Its body is its energy budget: mass, size and
+ * whether it is grown are read off `deb` against its species' parameters.
  */
 export interface Fish {
-  /** Unique identifier */
   id: string;
-  /** Fish species type */
   species: FishSpecies;
-  /** Body mass in grams, grown by the bank toward `adultMass`. */
-  mass: number;
-  /** Health percentage (0-100, fish dies at 0) */
+  /** 0–100; the fish dies at 0. */
   health: number;
-  /** Age in ticks (hours) */
+  /** Ticks since it hatched. */
   age: number;
-  /** Grams of food in its gut, up to `gutCapacity` × its metabolic mass. */
+  /** Grams of food in its gut, up to a day of its appetite. */
   gut: number;
-  /** Sex, used for reproduction */
   sex: FishSex;
   /**
    * Per-individual hardiness offset applied on top of species hardiness.
-   * Sampled once at `addFish` time (never re-rolled) so weaker fish fail
+   * Sampled once at creation (never re-rolled) so weaker fish fail
    * first when conditions degrade, producing staggered deaths instead of
    * synchronized mass die-offs. Range: ±15 % of species baseline.
    */
   hardinessOffset: number;
-  /**
-   * Vitality bank, in condition points. Fills with income at full health,
-   * up to `LivestockConfig.surplusCap`, heals health below 100, and a full
-   * bank is what a female broods on.
-   */
-  surplus: number;
-  /** Eggs she is building from her food, a part egg included, laid when her bank buys a brood; 0 in a male. */
-  ovary: number;
+  deb: DebState;
+  /** exp(−∫h dt): the share of its cohort its hazard so far would leave alive. */
+  survival: number;
+  /** 0–1, drawn once at creation: the fish dies of old age when its survival falls below it. */
+  survivalDraw: number;
 }
 
 /**
@@ -87,9 +81,9 @@ export type Blooms = Record<AlgaeKind, AlgaeState>;
 
 /**
  * A clutch: a stock of eggs, not individuals. Water harm and predators thin
- * `eggs` as rates; `development` fills toward 1 on the parents' metabolic
- * factor, and the whole eggs left then hatch as fry. A livebearer's clutch is
- * the brood its mother carries, and dies with her.
+ * `eggs` as rates; `development` fills toward 1 at its species' pace, and the
+ * whole eggs left then hatch as fry. A livebearer's clutch is the brood its
+ * mother carries, and dies with her.
  */
 export interface Clutch {
   id: string;

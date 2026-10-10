@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lightSaturationFactor, monodFactor, monodUptake, q10Factor } from './kinetics.js';
+import { arrheniusFactor, lightSaturationFactor, monodFactor, monodUptake, q10Factor } from './kinetics.js';
 
 describe('q10Factor', () => {
   it('leaves a rate alone at the temperature it is quoted at', () => {
@@ -10,6 +10,25 @@ describe('q10Factor', () => {
     expect(q10Factor(35, 2, 25)).toBeCloseTo(2, 12);
     expect(q10Factor(15, 2, 25)).toBeCloseTo(0.5, 12);
     expect(q10Factor(45, 3, 25)).toBeCloseTo(9, 12);
+  });
+});
+
+describe('arrheniusFactor', () => {
+  it('leaves a rate alone at 20 °C', () => {
+    expect(arrheniusFactor(20, 8000)).toBe(1);
+  });
+
+  it('runs ln of the factor linear in 1/T, at a slope of minus the Arrhenius temperature', () => {
+    const TA = 8000;
+    const reciprocal = (celsius: number): number => 1 / (celsius + 273.15);
+    for (const [a, b] of [
+      [5, 15],
+      [15, 30],
+      [22, 38],
+    ]) {
+      const rise = Math.log(arrheniusFactor(b, TA)) - Math.log(arrheniusFactor(a, TA));
+      expect(rise / (reciprocal(b) - reciprocal(a))).toBeCloseTo(-TA, 6);
+    }
   });
 });
 

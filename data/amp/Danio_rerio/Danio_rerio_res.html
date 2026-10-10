@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Danio_rerio</title>
+  <link rel="stylesheet" type="text/css" href="../../sys/style.css">
+
+  <script src="../../sys/jscripts.js"></script>
+  <script src="../../sys/ftiens4.js"></script>
+  <script src="../../sys/specJump.js"></script>
+  <script src="../../sys/species_tree_Animalia.js"></script>
+
+  <style>
+    ul.ref{
+      list-style-type: square;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<div w3-include-html="../../sys/wallpaper_entry.html"></div>
+<div w3-include-html="../../sys/toolbar_entry.html"></div>
+<div id="top2" w3-include-html="Danio_rerio_toolbar.html"></div>
+<!--------------------------------------------------------------->
+<!--   PART main                                               -->
+<!--   Where all of the text is placed                         -->
+<!--   use "contentFull" for 1 column                          -->
+<!--   use "content" if you want two columns"                  -->
+<!--------------------------------------------------------------->
+
+<div id="main">
+  <div id="main-wrapper">
+    <div id="contentFull">
+      <H1 id="portaltop">Predictions & Data for this entry</H1>
+
+      <table id="ecoCodes">
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Typified_models.html">Model</a>: <a href="https://add-my-pet.github.io/AmPtool/docs/models/abj.pdf">abj</a></td>
+          <td><a href="../../AmPeco.html#C" target="_blank">climate: </a> <a href="" title="Tropical monsoon climate; driest month with precipitation less than 60 mm, but more than 4 percent of the total annual precipitation">Am</a></td>
+          <td><a href="../../AmPeco.html#M" target="_blank">migrate: </a> </td>
+          <td>phylum: <button id="phylum" onclick="OpenTreeAtTaxon('Chordata')">Chordata</button></td>
+        </tr>
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Completeness.html">COMPLETE</a> = 4.6 </td>
+          <td><a href="../../AmPeco.html#E" target="_blank">ecozone: </a><a href="" title="Indomalaya">TPi</a></td>
+          <td><a href="../../AmPeco.html#F" target="_blank">food:    </a><a href="" title="living invertebrates for stage bi">biCi</a></td>
+          <td>class: <button id="class" onclick="OpenTreeAtTaxon('Actinopterygii')">Actinopterygii</button></td>
+        </tr>
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html">MRE</a> =    0.122 </td>
+          <td><a href="../../AmPeco.html#H" target="_blank">habitat: </a><a href="" title="ponds/pools for stage 0i">0iFp</a>, <a href="" title="fresh marshes (lots of plants, stagnant or slowly moving water) for stage 0i">0iFm</a></td>
+          <td><a href="../../AmPeco.html#G" target="_blank">gender:  </a><a href="" title="dioecy (either male or female, also called gonochoric)">D</a></td>
+          <td>order: <button id="order" onclick="OpenTreeAtTaxon('Cypriniformes')">Cypriniformes</button></td>
+        </tr>
+        <tr>
+          <td><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html">SMSE</a> =    0.031 </td>
+          <td><a href="../../AmPeco.html#B" target="_blank">embryo:  </a><a href="" title="on/in plants in fresh water">Fh</a></td>
+          <td><a href="../../AmPeco.html#R" target="_blank">reprod:  </a><a href="" title="homogamy (no alternating generations, fertilisation obligatory)">O</a></td>
+          <td>family: <button id="family" onclick="OpenTreeAtTaxon('Danionidae')">Danionidae</button></td>
+        </tr>
+      </table>
+
+      <h2><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Zero-variate_data.html">Zero-variate data</a></h2>
+      <table id="t01">
+        <tr class="head"><th>Data</th> <th>Observed</th> <th>Predicted</th> <th><a href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html" target="_blank">(RE)</a></th> <th>Unit</th> <th>Description</th> <th>Reference</th></tr>
+        <tr><td><a href="" title="Temperature: 25 C">ab</a></td> <td>  5</td> <td>5.349</td> <td>(0.0698)</td> <td>d</td> <td>age at birth</td> <td>BestAdat2010</td></tr>
+        <tr><td><a href="" title="Temperature: 25 C">aj</a></td> <td> 22</td> <td>23.33</td> <td>(0.06061)</td> <td>d</td> <td><a href="" title="length at 1 cm">age at metam</a></td> <td>BestAdat2010</td></tr>
+        <tr><td><a href="" title="Temperature: 25.5 C">ap</a></td> <td> 75</td> <td>76.03</td> <td>(0.01378)</td> <td>d</td> <td><a href="" title="(74 - 75 day of development)">age at puberty</a></td> <td>EatoFarl1974a</td></tr>
+        <tr><td><a href="" title="Temperature: 26 C">am</a></td> <td>1642</td> <td>1107</td> <td>(0.3259)</td> <td>d</td> <td>life span</td> <td>GerhKauf2002</td></tr>
+        <tr><td>L0</td> <td>0.07</td> <td>0.0909</td> <td>(0.2986)</td> <td>cm</td> <td><a href="" title="yolk diameter 0.055 - 0.075 cm ForbPres2010, but egg diameter = 0.08 - 0.09 and yolk diameter around 0.05 UuliWolt2010">egg diameter</a></td> <td>ForbPres2010</td></tr>
+        <tr><td>Lb</td> <td>0.4</td> <td>0.2948</td> <td>(0.263)</td> <td>cm</td> <td><a href="" title="Swim bladder inflates, active feeding, pronephric tubules">total length at birth</a></td> <td>Schi2002</td></tr>
+        <tr><td>Lj</td> <td>  1</td> <td>1.008</td> <td>(0.00785)</td> <td>cm</td> <td><a href="" title="Adult fin and pigmentation pattern">total length at metam</a></td> <td>Schi2002</td></tr>
+        <tr><td>Lp</td> <td>3.25</td> <td>3.227</td> <td>(0.007068)</td> <td>cm</td> <td><a href="" title="Female are between 2.4 - 2.6 cm SL in the study at first egg laying">total length at puberty</a></td> <td>EatoFarl1974a</td></tr>
+        <tr><td>Li</td> <td>  5</td> <td>5.322</td> <td>(0.06444)</td> <td>cm</td> <td><a href="" title="also Lawr pers. comm">ultimate total length</a></td> <td>SpenGerl2008, Schi2002</td></tr>
+        <tr><td>Wd0</td> <td>0.0001</td> <td>7.867e-05</td> <td>(0.2133)</td> <td>g</td> <td>egg dry weight</td> <td>Augu2009</td></tr>
+        <tr><td>Wwi</td> <td>  1</td> <td>1.164</td> <td>(0.1641)</td> <td>g</td> <td>ultimate wet weight</td> <td>Augu2009</td></tr>
+        <tr><td><a href="" title="Temperature: 26 C">Ri</a></td> <td>240</td> <td>168.3</td> <td>(0.2985)</td> <td>#/d</td> <td>max reproduction</td> <td>EatoFarl1974b</td></tr>
+        <tr><td><a href="" title="Temperature: 26 C">GSI</a></td> <td>0.15</td> <td>0.1796</td> <td>(0.1975)</td> <td>g/g</td> <td><a href="" title="values range from 0.1 - 0.15 and grow bigger with food regime">Gonado Somatic Index</a></td> <td>ForbPres2010</td></tr>
+        <tr><td><a href="" title="Temperature: 29 C">Wwt</a></td> <td>0.8632</td> <td>0.8415</td> <td>(0.02513)</td> <td>g</td> <td><a href="" title="mean value, from raw data provided as courtesy of R. Beaudouin">final wet weight</a></td> <td>BeauGous2015</td></tr>
+      </table>
+
+      <h2><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Uni-variate_data.html">Uni-</a> and <a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Bi-variate_data.html">bivariate data</a></h2>
+      <table id="t01">
+        <tr class="head"><th>Data</th> <th>Figure</th> <th>Independent variable</th> <th>Dependent variable</th> <th><a href="https://add-my-pet.github.io/DEBportal/docs/AmPestimation.html" target="_blank">(RE)</a></th> <th>Reference</th></tr>
+        <tr><td><a href="" title="Temperature: 28.5 C">tL_LawrEber2002_high</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_01.png" alt="LawrEber2002 data at high, low food"> <img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_01_legend.png" alt=""></td> <td>time since birth</td> <td>total length</td> <td>(0.06209)</td> <td>LawrEber2008</td></tr>
+        <tr><td><a href="" title="Temperature: 28.5 C">tL_LawrEber2002_low</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_01.png" alt="LawrEber2002 data at high, low food"> <img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_01_legend.png" alt=""></td> <td>time since birth</td> <td>total length</td> <td>(0.0494)</td> <td>LawrEber2008</td></tr>
+        <tr><td><a href="" title="Temperature: 27.1 C">tLf1</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_02.png" alt=""> <img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_02_legend.png" alt=""></td> <td>time since fertilization</td> <td>standard length</td> <td>(0.05867)</td> <td>BeauGous2015</td></tr>
+        <tr><td><a href="" title="Temperature: 27.1 C">tLf2</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_02.png" alt=""> <img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_02_legend.png" alt=""></td> <td>time since fertilization</td> <td><a href="" title="fasted once every three days">standard length</a></td> <td>(0.0642)</td> <td>BeauGous2015</td></tr>
+        <tr><td><a href="" title="Temperature: 27.1 C">tLf3</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_02.png" alt=""> <img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_02_legend.png" alt=""></td> <td>time since fertilization</td> <td><a href="" title="fasted every other day">standard length</a></td> <td>(0.07844)</td> <td>BeauGous2015</td></tr>
+        <tr><td><a href="" title="Temperature: 28.5 C">tW</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_03.png" alt=""> <img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_03_legend.png" alt=""></td> <td>time</td> <td>wet weight</td> <td>(0.1667)</td> <td>DrewRodn2008</td></tr>
+        <tr><td><a href="" title="Temperature: 28.5 C">tWs</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_03.png" alt=""> <img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_03_legend.png" alt=""></td> <td>time</td> <td><a href="" title="starved condition">wet weight</a></td> <td>(0.1994)</td> <td>DrewRodn2008</td></tr>
+        <tr><td><a href="" title="Temperature: 26.4 C">LWw</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_04.png" alt=""></td> <td>total length</td> <td><a href="" title="Rep 1">wet weight</a></td> <td>(0.2571)</td> <td>Baye2005</td></tr>
+        <tr><td><a href="" title="Temperature: 28.5 C">tL</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_05.png" alt=""></td> <td>time</td> <td>standard length</td> <td>(0.008839)</td> <td>DrewRodn2008</td></tr>
+        <tr><td>tL1</td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_06.png" alt=""></td> <td>time</td> <td><a href="" title="mean value, from raw data provided as courtesy of R. Beaudouin">standard length</a></td> <td>(0.01717)</td> <td>BeauGous2015</td></tr>
+        <tr><td><a href="" title="Temperature: 25 C">tL_BagaPels2001</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_07.png" alt=""></td> <td>time since fertilization</td> <td>total length</td> <td>(0.1033)</td> <td>BagaPels2001</td></tr>
+        <tr><td><a href="" title="Temperature: 25 C">tL_BestAdat2010</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_08.png" alt=""></td> <td>time since fertilization</td> <td>total length</td> <td>(0.2163)</td> <td>BestAdat2010</td></tr>
+        <tr><td><a href="" title="Temperature: 25.5 C">tL_EatoFarl1974</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_09.png" alt=""></td> <td>time since birth</td> <td>standard length</td> <td>(0.128)</td> <td>EatoFarl1974b</td></tr>
+        <tr><td><a href="" title="Temperature: 28.5 C">tL_Schi2002</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_10.png" alt=""></td> <td>time since fertilization</td> <td>total length</td> <td>(0.09885)</td> <td>Schi2002</td></tr>
+        <tr><td><a href="" title="Temperature: 25 C">tMC</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_11.png" alt=""></td> <td>age</td> <td>C</td> <td>(0.039)</td> <td>BangGron2004</td></tr>
+        <tr><td><a href="" title="Temperature: 25 C">tMN</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_12.png" alt=""></td> <td>age</td> <td>N</td> <td>(0.1877)</td> <td>BangGron2004</td></tr>
+        <tr><td><a href="" title="Temperature: 29 C">tN</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_13.png" alt=""></td> <td>time</td> <td><a href="" title="mean value, from raw data provided as courtesy of R. Beaudouin">cumulated number of eggs</a></td> <td>(0.08182)</td> <td>BeauGous2015</td></tr>
+        <tr><td><a href="" title="Temperature: 26 C">tS</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_14.png" alt=""></td> <td>time since birth</td> <td>surviving fraction</td> <td>(0.06832)</td> <td>GerhKauf2002</td></tr>
+        <tr><td><a href="" title="Temperature: 25 C">tS_starv</a></td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_15.png" alt=""></td> <td>time since hatch</td> <td><a href="" title="time is in hours after fist exogenous feeding. Raw data from fig. 3 provided by the author as pers. comm.">surviving larvae</a></td> <td>(0.04812)</td> <td>GeffSimo2013</td></tr>
+        <tr><td>tWd_BagaPels2001</td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_16.png" alt=""></td> <td>time since fertilization</td> <td>dry weight</td> <td>(0.2018)</td> <td>BagaPels2001</td></tr>
+        <tr><td>tWw_BagaPels2001</td> <td><img class="myImg" src="../../entries/Danio_rerio/results_Danio_rerio_17.png" alt=""></td> <td>time since fertilization</td> <td>wet weight</td> <td>(0.1298)</td> <td>BagaPels2001</td></tr>
+      </table>
+
+      <div id="myModal" class="modal">
+        <img class="modal-content" id="img01">
+        <div id="caption"></div>
+      </div>
+
+      <script>modal()</script>
+
+      <p>
+      <h2><a class="link" target = "_blank" href="https://add-my-pet.github.io/DEBportal/docs/Pseudo_data.html">Pseudo-data at T<sub>ref</sub> = 20&deg;C</a> </h2>
+      <table id="t01">
+        <tr class="head"><th>Data</th> <th>Generalised animal</th> <th>Danio rerio</th> <th>Unit</th> <th>Description</th></tr>
+        <tr><td>v</td> <td>0.02</td> <td>0.0196</td> <td>cm/d</td> <td>energy conductance</td></tr>
+        <tr><td>p_M</td> <td> 18</td> <td>243</td> <td>J/d.cm^3</td> <td>vol-spec som maint</td></tr>
+        <tr><td>k_J</td> <td>0.002</td> <td>0.002</td> <td>1/d</td> <td>maturity maint rate coefficient</td></tr>
+        <tr><td>k</td> <td>0.3</td> <td>0.04335</td> <td>-</td> <td>maintenance ratio</td></tr>
+        <tr><td>kap</td> <td>0.8</td> <td>0.3576</td> <td>-</td> <td>allocation fraction to soma</td></tr>
+        <tr><td>kap_G</td> <td>0.8</td> <td>0.7943</td> <td>-</td> <td>growth efficiency</td></tr>
+        <tr><td>kap_R</td> <td>0.95</td> <td>0.95</td> <td>-</td> <td>reproduction efficiency</td></tr>
+      </table>
+
+      <p>
+      <h3 style="clear:both" class="pet">Discussion</h3>
+      <ul> 
+        <li>
+          version 2018 08 08: KimBall95 and Augu2011 no longer included
+        </li>
+        <li>
+          version 2018 08 08: studies by GomeConc2010, SchaRyan2006, BarrFern2010, BarrBurg1999, are not longer included. Previous version included them but gave them zero weight because growth deviates from what is assumed to be the normal patterns of growth at constant food (see EatoFarly1974,LawrEber2008,  Schi2002, BestAdat2010 and discussion in AuguGagn2011)
+        </li>
+        <li>
+          version 2018 08 08: it is no longer possible to implement different Arrhennius temperatures for embryo and adult
+        </li>
+        <li>
+          version 2018 08 08: Egg respiration data from BangGron2004 is not longer included, the data show that the respiration stops quite early on while development and growth is very fast. We think this is an artefact. You can find back the data in the previous version.
+        </li>
+        <li>
+          version 2018 08 08: inclusion of juvenile growth and adult reproduction data from BeauGous2015.
+        </li>
+        <li>
+          version 2018 08 08: Buffer handling rules from AuguGagn2012 are used for modelling starvation response. We  estimate at adult females have  200 and 800 J in the reproduction buffer at the start of the trials. This is in line with finding from AuguGang2012
+        </li>
+        <li>
+          version 2018 08 08: standard length is 80% of the total length:
+        </li>
+      </ul>
+
+      <p>
+      <h3 style="clear:both" class="pet"><a class="link" href="Danio_rerio_bib.bib" target = "_blank">Bibliography</a></h3>
+      <div w3-include-html="Danio_rerio_bib.html"></div>
+      <p>
+      <h3 style="clear:both" class="pet">Citation</h3>
+      <div w3-include-html="Danio_rerio_cit.html"></div>
+    </div> <!-- end of content -->
+
+    <div w3-include-html="../../sys/footer_amp.html"></div>
+    <script>w3IncludeHTML();</script>
+
+  </div> <!-- main wrapper -->
+</div> <!-- main -->
+
+</body>
+</html>

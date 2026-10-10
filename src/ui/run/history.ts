@@ -23,7 +23,7 @@ export interface RunSnapshot {
   temperature: number;
   /** Water level as a percentage of tank capacity. */
   waterPct: number;
-  /** Adults only — fry are counted apart, as the roster counts them. */
+  /** Every fish grown past fry; fry are counted apart, as the roster counts them. */
   fishCount: number;
   fryCount: number;
   plantCount: number;
