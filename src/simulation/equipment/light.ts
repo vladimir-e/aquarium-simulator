@@ -5,6 +5,7 @@
 
 import type { DailySchedule } from '../core/schedule.js';
 import { isScheduleActive } from '../core/schedule.js';
+import { HOURS_PER_DAY } from '../core/clock.js';
 
 export type LightPar = 25 | 50 | 90 | 150;
 
@@ -72,8 +73,6 @@ export function calculateParAtDepth(surfacePar: number, depthCm: number, extinct
 
   return surfacePar * Math.exp(-extinction * Math.max(0, depthCm));
 }
-
-const HOURS_PER_DAY = 24;
 
 /** µmol/m²/s held for an hour, in mol/m². */
 const MOL_PER_PAR_HOUR = 3600 / 1e6;

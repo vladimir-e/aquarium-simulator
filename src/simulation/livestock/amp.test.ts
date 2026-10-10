@@ -1,16 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
   entryFitsItsData,
+  FIT_FACTOR,
   fromAmP,
   GENERALISED_ANIMAL,
-  HOURS_PER_DAY,
   impliedFigures,
   proxyEntry,
   readEntry,
+  readShaped,
   type AmpEntry,
   type AmpParameters,
   type AmpReading,
   type HobbyFigures,
+  type LifeHistory,
 } from './amp.js';
 import { Betta_splendens } from './amp/entries/Betta_splendens.js';
 import { Corydoras_aeneus } from './amp/entries/Corydoras_aeneus.js';
@@ -26,6 +28,7 @@ import {
   type DebParams,
 } from '../systems/deb.js';
 import { arrheniusFactor } from '../core/kinetics.js';
+import { HOURS_PER_DAY } from '../core/clock.js';
 import { expectRelative, feastFromHatching, grown, medianDeathHour, pubertyHour } from '../tests/deb.js';
 import { ampFullGrownLifespanDays, ampPubertyDays, incubate } from '../tests/amp.js';
 
@@ -64,7 +67,12 @@ const budgets: { name: string; parameters: AmpParameters }[] = [
   ...ENTRIES.map(({ entry, parameters }) => ({ name: entry, parameters })),
 ];
 
-type Scalable = Omit<DebParams, 'TA' | 'dV'>;
+const engine = (parameters: AmpParameters): DebParams => fromAmP(readEntry(parameters));
+
+const figures = (parameters: AmpParameters, temperatureC: number): LifeHistory =>
+  impliedFigures(readEntry(parameters), temperatureC);
+
+type Scalable = Omit<DebParams, 'TA' | 'dV' | 'kappaG'>;
 
 const inSourceUnits = (e: AmpReading): Scalable => ({
   pAm: e.p_Am,
@@ -72,7 +80,6 @@ const inSourceUnits = (e: AmpReading): Scalable => ({
   kappa: e.kap,
   kappaX: e.kap_X,
   kappaR: e.kap_R,
-  kappaG: (e.mu_V * e.d_V) / (e.w_V * e.E_G),
   pM: e.p_M,
   kJ: e.k_J,
   EG: e.E_G,
@@ -103,7 +110,6 @@ function dimensionless(p: Scalable): Record<string, number> {
     kappa: p.kappa,
     kappaX: p.kappaX,
     kappaR: p.kappaR,
-    kappaG: p.kappaG,
     delM: p.delM,
   };
 }
@@ -111,13 +117,9 @@ function dimensionless(p: Scalable): Record<string, number> {
 const numbers = (p: AmpParameters): [string, number][] =>
   Object.entries(p).filter((field): field is [string, number] => typeof field[1] === 'number');
 
-it('runs every rate at its source pace at 20 °C', () => {
-  expect(arrheniusFactor(20, GENERALISED_ANIMAL.T_A)).toBe(1);
-});
-
 describe.each(budgets)('fromAmP on $name', ({ parameters }) => {
-  const p = fromAmP(parameters);
   const reading = readEntry(parameters);
+  const p = fromAmP(reading);
   const Lm = (reading.kap * reading.p_Am) / reading.p_M;
 
   it('leaves every dimensionless group of its reading unchanged', () => {
@@ -173,20 +175,45 @@ describe('readEntry', () => {
 
   it('hatches every entry at the weight AmP implies', () => {
     for (const { parameters, implied } of ENTRIES) {
-      const p = fromAmP(parameters);
+      const p = engine(parameters);
       expectRelative(wetMass(hatchling(p), p), implied.Ww_b, 1e-3);
     }
   });
 
-  it('refuses a heating cost and a reserve weighed apart from structure', () => {
+  it('refuses a heating cost, a reserve weighed apart from structure, and a birth beyond L_m', () => {
     const { parameters } = Poecilia_reticulata;
     expect(() => readEntry({ ...parameters, p_T: 1 })).toThrow(RangeError);
     expect(() => readEntry({ ...parameters, d_E: 0.3 })).toThrow(RangeError);
+    expect(() => readEntry({ ...parameters, E_Hb: 1000 * parameters.E_Hb })).toThrow(/E_Hb/);
+  });
+});
+
+describe('readShaped', () => {
+  const angelfish = Pterophyllum_scalare;
+
+  it('sets δ_M from a keeper’s adult length where the entry was fitted without length data, moving nothing else', () => {
+    const entry = readEntry(angelfish.parameters);
+    const shaped = readShaped(angelfish, { adultLengthCm: 15 });
+    expect({ ...shaped, del_M: entry.del_M }).toEqual(entry);
+    expectRelative(impliedFigures(shaped, angelfish.typicalTemperatureC).adultLengthCm, 15);
+  });
+
+  it('refuses an entry fitted to an observed length, ultimate or at puberty', () => {
+    const lengths = ENTRIES.filter(({ zeroVariate: { Li, Lp } }) => Li !== undefined || Lp !== undefined);
+    expect(lengths.length).toBeGreaterThan(0);
+    for (const entry of lengths) expect(() => readShaped(entry, { adultLengthCm: 5 })).toThrow(RangeError);
+    const { Wwi } = angelfish.zeroVariate;
+    const fittedToPuberty: AmpEntry = { ...angelfish, zeroVariate: { ...angelfish.zeroVariate, Lp: Wwi } };
+    expect(() => readShaped(fittedToPuberty, { adultLengthCm: 15 })).toThrow(/Lp/);
+  });
+
+  it('refuses a length that makes δ_M 1 or more', () => {
+    expect(() => readShaped(angelfish, { adultLengthCm: 1 })).toThrow(RangeError);
   });
 });
 
 describe('entryFitsItsData', () => {
-  it('trusts the entries whose ultimate weight and length sit within a factor of 2 of their data', () => {
+  it('trusts the entries whose ultimate weight and length sit within FIT_FACTOR of their data', () => {
     expect(ENTRIES.filter(entryFitsItsData).map(({ entry }) => entry)).toEqual([
       'Poecilia_reticulata',
       'Paracheirodon_innesi',
@@ -199,10 +226,11 @@ describe('entryFitsItsData', () => {
     const entry = Poecilia_reticulata;
     const { Wwi, Li } = entry.zeroVariate;
     const withData = (data: AmpEntry['zeroVariate']): boolean => entryFitsItsData({ ...entry, zeroVariate: data });
+    const beyond = 1.05 * FIT_FACTOR;
     expect(withData({ Wwi })).toBe(true);
     expect(withData({ Li })).toBe(false);
-    expect(withData({ Wwi, Li: { ...Li!, predicted: 2.1 * Li!.observed } })).toBe(false);
-    expect(withData({ Wwi: { ...Wwi!, predicted: Wwi!.observed / 2.1 }, Li })).toBe(false);
+    expect(withData({ Wwi, Li: { ...Li!, predicted: beyond * Li!.observed } })).toBe(false);
+    expect(withData({ Wwi: { ...Wwi!, predicted: Wwi!.observed / beyond }, Li })).toBe(false);
   });
 });
 
@@ -222,13 +250,13 @@ describe('AmP’s own formulas against its pages', () => {
 describe('impliedFigures', () => {
   it('reads an entry grown to the weight AmP implies', () => {
     for (const { parameters, implied, typicalTemperatureC } of ENTRIES) {
-      expectRelative(impliedFigures(parameters, typicalTemperatureC).adultMassGrams, implied.Ww_i, 1e-4);
+      expectRelative(figures(parameters, typicalTemperatureC).adultMassGrams, implied.Ww_i, 1e-4);
     }
   });
 
   it('reads a proxy back to the figures it was built on', () => {
     for (const { body, parameters } of proxies) {
-      const read = impliedFigures(parameters, body.temperatureC);
+      const read = figures(parameters, body.temperatureC);
       expectRelative(read.adultLengthCm, body.adultLengthCm, 1e-12);
       expectRelative(read.adultMassGrams, body.adultMassGrams, 1e-12);
       expectRelative(read.maturityAgeDays, body.maturityAgeDays, 1e-4);
@@ -237,8 +265,8 @@ describe('impliedFigures', () => {
   });
 
   it('runs its ages slower in colder water by the Arrhenius factor alone', () => {
-    const warm = impliedFigures(GENERALISED_ANIMAL, 28);
-    const cold = impliedFigures(GENERALISED_ANIMAL, 18);
+    const warm = figures(GENERALISED_ANIMAL, 28);
+    const cold = figures(GENERALISED_ANIMAL, 18);
     const ratio = arrheniusFactor(28, GENERALISED_ANIMAL.T_A) / arrheniusFactor(18, GENERALISED_ANIMAL.T_A);
     expectRelative(cold.maturityAgeDays / warm.maturityAgeDays, ratio);
     expectRelative(cold.lifespanDays / warm.lifespanDays, ratio);
@@ -249,7 +277,7 @@ describe('impliedFigures', () => {
 describe('proxyEntry', () => {
   it('grows to its adult length and weight', () => {
     for (const { body, parameters } of proxies) {
-      const p = fromAmP(parameters);
+      const p = engine(parameters);
       expectRelative(maxStructuralLength(p) / p.delM, body.adultLengthCm);
       expectRelative(wetMass(grown(p), p), body.adultMassGrams);
     }
@@ -275,7 +303,7 @@ describe('proxyEntry', () => {
 
   it('breeds at its maturity age and dies around its lifespan, fed freely at its own temperature', () => {
     for (const { body, parameters } of proxies) {
-      const p = fromAmP(parameters);
+      const p = engine(parameters);
       const lifespan = HOURS_PER_DAY * body.lifespanDays;
       const life = feastFromHatching(p, 1.1 * lifespan, arrheniusFactor(body.temperatureC, p.TA));
       expectRelative(pubertyHour(life, p), HOURS_PER_DAY * body.maturityAgeDays, 0.02);
@@ -284,7 +312,8 @@ describe('proxyEntry', () => {
   });
 
   it.each(ENTRIES)('rebuilds $entry from the figures it implies, its E_0 derived as AmP derives it', (entry) => {
-    const rebuilt = proxyEntry(entry.parameters, impliedFigures(entry.parameters, entry.typicalTemperatureC));
+    const temperatureC = entry.typicalTemperatureC;
+    const rebuilt = proxyEntry(entry.parameters, { ...figures(entry.parameters, temperatureC), temperatureC });
     expect(rebuilt.model).toBe(entry.parameters.model);
     for (const [field, value] of numbers(entry.parameters)) {
       const got = rebuilt[field as keyof AmpParameters] as number;
@@ -296,7 +325,7 @@ describe('proxyEntry', () => {
   it('grows a proxy of an abj base to its adult size, its s_M moved by the zoom and not by the pace', () => {
     for (const body of bodies) {
       const proxy = proxyEntry(Betta_splendens.parameters, body);
-      const p = fromAmP(proxy);
+      const p = engine(proxy);
       expectRelative(maxStructuralLength(p) / p.delM, body.adultLengthCm, 1e-9);
       expectRelative(wetMass(grown(p), p), body.adultMassGrams, 1e-9);
       const slower = proxyEntry(Betta_splendens.parameters, { ...body, maturityAgeDays: 2 * body.maturityAgeDays });

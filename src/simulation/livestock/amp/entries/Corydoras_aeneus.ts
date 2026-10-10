@@ -4,6 +4,10 @@ import type { AmpEntry } from '../../amp.js';
 export const Corydoras_aeneus: AmpEntry = {
   entry: 'Corydoras_aeneus',
   url: 'https://www.bio.vu.nl/thb/deb/deblab/add_my_pet/entries_web/Corydoras_aeneus/Corydoras_aeneus_par.html',
+  version: '2016/10/18',
+  authors: [
+    'Bas Kooijman',
+  ],
   fetched: '2026-10-10',
   complete: 2.5,
   mre: 0.056,
@@ -13,9 +17,7 @@ export const Corydoras_aeneus: AmpEntry = {
     E_Hj: 0.04228,
     T_A: 8000,
     p_Am: 145.431,
-    F_m: 6.5,
     kap_X: 0.8,
-    kap_P: 0.1,
     v: 0.059774,
     kap: 0.98237,
     kap_R: 0.95,
@@ -27,6 +29,8 @@ export const Corydoras_aeneus: AmpEntry = {
     E_Hp: 174.3,
     h_a: 3.769e-9,
     s_G: 0.0001,
+    F_m: 6.5,
+    kap_P: 0.1,
     del_M: 0.16322,
     mu_V: 500000,
     mu_E: 550000,
@@ -35,11 +39,6 @@ export const Corydoras_aeneus: AmpEntry = {
     w_V: 23.9,
     w_E: 23.9,
     E_0: 3.46676,
-  },
-  specific: {
-    E_Hh: 0.01779,
-    f: 1,
-    f_tL: 0.56601,
   },
   implied: {
     a_b: 3.17987,
@@ -131,7 +130,7 @@ export const Corydoras_aeneus: AmpEntry = {
       temperatureC: 25,
     },
   },
-  citation: [
+  bibliography: [
     '[Wiki] http://en.wikipedia.org/wiki/Corydoras_aeneus.',
     '[aquafish] http://aquariumfishfoodsupplies.co.za/article/the-bronze-corydoras/.',
     '[fishbase] http://www.fishbase.org/summary/Corydoras-aeneus.html.',

@@ -4,6 +4,10 @@ import type { AmpEntry } from '../../amp.js';
 export const Poecilia_reticulata: AmpEntry = {
   entry: 'Poecilia_reticulata',
   url: 'https://www.bio.vu.nl/thb/deb/deblab/add_my_pet/entries_web/Poecilia_reticulata/Poecilia_reticulata_par.html',
+  version: '2017/01/02',
+  authors: [
+    'Bas Kooijman',
+  ],
   fetched: '2026-10-10',
   complete: 2.7,
   mre: 0.071,
@@ -12,9 +16,7 @@ export const Poecilia_reticulata: AmpEntry = {
     model: 'std',
     T_A: 6000,
     p_Am: 83.5735,
-    F_m: 6.5,
     kap_X: 0.8,
-    kap_P: 0.1,
     v: 0.0095537,
     kap: 0.50853,
     kap_R: 0.95,
@@ -26,6 +28,8 @@ export const Poecilia_reticulata: AmpEntry = {
     E_Hp: 81.03,
     h_a: 6.65e-7,
     s_G: -0.61078,
+    F_m: 6.5,
+    kap_P: 0.1,
     del_M: 0.126,
     mu_V: 500000,
     mu_E: 550000,
@@ -34,12 +38,6 @@ export const Poecilia_reticulata: AmpEntry = {
     w_V: 23.9,
     w_E: 23.9,
     E_0: 18.7481,
-  },
-  specific: {
-    f: 1,
-    f_0: 0.7554,
-    f_Ursi1967: 1.5,
-    f_tL: 1,
   },
   implied: {
     a_b: 24.8344,
@@ -109,7 +107,7 @@ export const Poecilia_reticulata: AmpEntry = {
       temperatureC: 27,
     },
   },
-  citation: [
+  bibliography: [
     '[Wiki] http://en.wikipedia.org/wiki/Poecilia_reticulata.',
     '[Comf1983] Comfort, A. (1983). Effect of delayed and resumed growth on the longevity of a fish (Lebistes reticulatus Peters) in captivity. Gerontologia (Basel), 8:150--155.',
     '[GarcTron2008] Garc\'ia, C. B., Troncoso, W., Sánchez, S., and Perdomo, L. (2008). Contribution to vital statistics of a guppy Poecilia reticulata Peters (Pisces: Cyprinodontiformes: Poecillidae) pond population in Santa Marta, Colombia. Pan-American Journal of Aquatic Sciences, 3:335--339.',

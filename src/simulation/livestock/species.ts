@@ -1,12 +1,15 @@
 import type { DebParams } from '../systems/deb.js';
+import { HOURS_PER_DAY } from '../core/clock.js';
 import {
   fromAmP,
-  HOURS_PER_DAY,
   impliedFigures,
   proxyEntry,
+  readEntry,
+  readShaped,
   type AmpEntry,
-  type AmpParameters,
+  type AmpReading,
   type HobbyFigures,
+  type LifeHistory,
 } from './amp.js';
 import { Betta_splendens } from './amp/entries/Betta_splendens.js';
 import { Corydoras_aeneus } from './amp/entries/Corydoras_aeneus.js';
@@ -54,12 +57,13 @@ export interface FishBreedingData {
 }
 
 /**
- * Where a species' energy budget comes from: its Add-my-Pet entry used as it stands, or, where no entry fits its own
- * data, a base's parameters rescaled to the keeper's figures.
+ * Where a species' energy budget comes from: its Add-my-Pet entry used as it stands, a hobby adult length setting its
+ * shape where the entry was fitted without length data; or, where no entry fits its own data, a base entry rescaled to
+ * the keeper's figures, their ages read at the species' mid-range temperature.
  */
 export type SpeciesBudget =
-  | { kind: 'entry'; entry: AmpEntry }
-  | { kind: 'proxy'; base: AmpParameters; figures: HobbyFigures };
+  | { kind: 'entry'; entry: AmpEntry; shape?: Pick<HobbyFigures, 'adultLengthCm'> }
+  | { kind: 'proxy'; base: AmpEntry; figures: Omit<HobbyFigures, 'temperatureC'> };
 
 /**
  * Fish species characteristics.
@@ -128,8 +132,8 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     // its rates carry a body sized by the keeper.
     budget: {
       kind: 'proxy',
-      base: Betta_splendens.parameters,
-      figures: { adultLengthCm: 5.5, adultMassGrams: 3, maturityAgeDays: 120, lifespanDays: 1095, temperatureC: 27 },
+      base: Betta_splendens,
+      figures: { adultLengthCm: 5.5, adultMassGrams: 3, maturityAgeDays: 120, lifespanDays: 1095 },
     },
   },
   guppy: {
@@ -168,7 +172,8 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
       eggMass: 0.002,
       maleShare: 0.5,
     },
-    budget: { kind: 'entry', entry: Pterophyllum_scalare },
+    // The entry was fitted without length data; its own shape makes a 35 cm fish.
+    budget: { kind: 'entry', entry: Pterophyllum_scalare, shape: { adultLengthCm: 15 } },
   },
   corydoras: {
     name: 'Corydoras',
@@ -191,28 +196,39 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
   },
 };
 
-export const budgetParameters = (budget: SpeciesBudget): AmpParameters =>
-  budget.kind === 'entry' ? budget.entry.parameters : proxyEntry(budget.base, budget.figures);
+function readBudget(budget: SpeciesBudget, temperatureC: number): AmpReading {
+  if (budget.kind === 'entry') {
+    return budget.shape ? readShaped(budget.entry, budget.shape) : readEntry(budget.entry.parameters);
+  }
+  return readEntry(proxyEntry(budget.base.parameters, { ...budget.figures, temperatureC }));
+}
 
-const midRange = ([low, high]: [number, number]): number => (low + high) / 2;
+interface SpeciesReading {
+  deb: DebParams;
+  female: LifeHistory;
+}
 
-const BUDGETS = Object.fromEntries(
-  Object.entries(FISH_SPECIES_DATA).map(([species, { budget, temperatureRange }]) => {
-    const parameters = budgetParameters(budget);
-    return [species, { deb: fromAmP(parameters), female: impliedFigures(parameters, midRange(temperatureRange)) }];
-  })
-) as Record<FishSpecies, { deb: DebParams; female: HobbyFigures }>;
+function readSpecies(species: FishSpecies): SpeciesReading {
+  const { budget, temperatureRange: [low, high] } = FISH_SPECIES_DATA[species];
+  const midRange = (low + high) / 2;
+  const reading = readBudget(budget, midRange);
+  return { deb: fromAmP(reading), female: impliedFigures(reading, midRange) };
+}
 
-export const debParams = (species: FishSpecies): Readonly<DebParams> => BUDGETS[species].deb;
+const readings: Partial<Record<FishSpecies, SpeciesReading>> = {};
+
+const readingOf = (species: FishSpecies): SpeciesReading => (readings[species] ??= readSpecies(species));
+
+export const debParams = (species: FishSpecies): Readonly<DebParams> => readingOf(species).deb;
 
 /** Grams a female weighs grown on unlimited food. */
-export const grownMass = (species: FishSpecies): number => BUDGETS[species].female.adultMassGrams;
+export const grownMass = (species: FishSpecies): number => readingOf(species).female.adultMassGrams;
 
 /** Physical length, cm, a female reaches grown on unlimited food. */
-export const grownLength = (species: FishSpecies): number => BUDGETS[species].female.adultLengthCm;
+export const grownLength = (species: FishSpecies): number => readingOf(species).female.adultLengthCm;
 
 /** Ticks from hatching until a female fed without limit in mid-range water first breeds. */
-export const maturityAge = (species: FishSpecies): number => HOURS_PER_DAY * BUDGETS[species].female.maturityAgeDays;
+export const maturityAge = (species: FishSpecies): number => HOURS_PER_DAY * readingOf(species).female.maturityAgeDays;
 
 /** Ticks from hatching by which half a cohort fed without limit in mid-range water has died of wear. */
-export const lifespan = (species: FishSpecies): number => HOURS_PER_DAY * BUDGETS[species].female.lifespanDays;
+export const lifespan = (species: FishSpecies): number => HOURS_PER_DAY * readingOf(species).female.lifespanDays;

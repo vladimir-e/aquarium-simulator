@@ -4,6 +4,10 @@ import type { AmpEntry } from '../../amp.js';
 export const Pterophyllum_scalare: AmpEntry = {
   entry: 'Pterophyllum_scalare',
   url: 'https://www.bio.vu.nl/thb/deb/deblab/add_my_pet/entries_web/Pterophyllum_scalare/Pterophyllum_scalare_par.html',
+  version: '2020/10/04',
+  authors: [
+    'Bas Kooijman',
+  ],
   fetched: '2026-10-10',
   complete: 2.8,
   mre: 0.079,
@@ -12,9 +16,7 @@ export const Pterophyllum_scalare: AmpEntry = {
     model: 'std',
     T_A: 8000,
     p_Am: 213.492,
-    F_m: 6.5,
     kap_X: 0.8,
-    kap_P: 0.1,
     v: 0.028228,
     kap: 0.99539,
     kap_R: 0.95,
@@ -26,6 +28,8 @@ export const Pterophyllum_scalare: AmpEntry = {
     E_Hp: 717.1,
     h_a: 1.052e-9,
     s_G: 0.0001,
+    F_m: 6.5,
+    kap_P: 0.1,
     del_M: 0.062264,
     mu_V: 500000,
     mu_E: 550000,
@@ -34,11 +38,6 @@ export const Pterophyllum_scalare: AmpEntry = {
     w_V: 23.9,
     w_E: 23.9,
     E_0: 5.06539,
-  },
-  specific: {
-    f: 1,
-    f_tW: 1,
-    t_0: 53.9943,
   },
   implied: {
     a_b: 4.28871,
@@ -85,7 +84,7 @@ export const Pterophyllum_scalare: AmpEntry = {
       reference: 'EspiFern2017',
     },
   },
-  citation: [
+  bibliography: [
     '[Wiki] http://en.wikipedia.org/wiki/Pterophyllum_scalare.',
     '[fishbase] https://www.fishbase.se/summary/Pterophyllum-scalare.html.',
     '[EspiFern2017] Espitia-Manrique, C. H., Fernandes, J. B. K., Sakomura, N. K., Ángel Andrés Arias-Vigoya, do Nascimento, T. M. T., da Silva, E. P., and Mansano, C. F. M. (2017). Description of growth and body composition of freshwater angelfish (Pterophyllum scalare) by gompertz model. R. Bras. Zootec, 46(8):631--637.',

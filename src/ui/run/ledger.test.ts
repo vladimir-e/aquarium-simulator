@@ -4,7 +4,6 @@ import {
   ALGAE_KINDS,
   applyAction,
   createSimulation,
-  FISH_SPECIES_DATA,
   getPresetById,
   plantLightTaken,
   tick,
@@ -18,6 +17,7 @@ import { FED, STARVING } from '../test/gut';
 import { printsAsZero, projectedTrend } from './status.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 import { fishRecord } from '../../simulation/tests/fish.js';
+import { eggsLaid } from '../../simulation/systems/fish-growth.js';
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
   return fishRecord({ age: 24 * 120, gut: FED, ...overrides });
@@ -132,7 +132,7 @@ describe('readLedger', () => {
     }
   });
 
-  it('reads the bank a spawn empties as buying a brood, the hour before it spawns', () => {
+  it('reads a full bank as buying a brood the hour before she spawns, and the spawn leaves it short of an egg', () => {
     const cap = DEFAULT_CONFIG.livestock.surplusCap;
     const pair = tank([
       makeFish({ id: 'fish_a_1', sex: 'female', surplus: cap }),
@@ -140,10 +140,9 @@ describe('readLedger', () => {
     ]);
     const next = tick(pair, DEFAULT_CONFIG);
     const mother = next.fish.find((fish) => fish.id === 'fish_a_1')!;
-    const oneEgg = (DEFAULT_CONFIG.livestock.broodCost * FISH_SPECIES_DATA.neon_tetra.breeding.eggMass) / mother.mass;
 
     expect(next.clutches.length).toBeGreaterThan(pair.clutches.length);
-    expect(mother.surplus).toBeLessThan(oneEgg);
+    expect(eggsLaid(mother, DEFAULT_CONFIG.livestock)).toBeLessThan(1);
     expect(fishLedger(pair).bank!.note).toBe('buying a brood');
   });
 

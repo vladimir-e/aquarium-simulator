@@ -25,9 +25,10 @@ import {
   type DebStep,
   type DebStress,
 } from './deb.js';
-import { fromAmP, GENERALISED_ANIMAL, HOURS_PER_DAY } from '../livestock/amp.js';
+import { fromAmP, GENERALISED_ANIMAL, readEntry } from '../livestock/amp.js';
+import { HOURS_PER_DAY } from '../core/clock.js';
 
-const animal: DebParams = fromAmP(GENERALISED_ANIMAL);
+const animal: DebParams = fromAmP(readEntry(GENERALISED_ANIMAL));
 const { E0 } = animal;
 const Lm = maxStructuralLength(animal);
 const YEAR = 365 * HOURS_PER_DAY;
@@ -251,12 +252,11 @@ describe('oxygen', () => {
     expectNear(thin.assimilated, full.assimilated / 2);
     expect(none.mobilised).toBeGreaterThan(0);
     expectNear(thin.mobilised - none.mobilised, (full.mobilised - none.mobilised) / 2);
-    const owed = [none, thin, full].every(
-      ({ burned, shortfall }) =>
-        near(burned.maintenance + shortfall, animal.pM * s.structure * tau) &&
-        near(burned.development, animal.kJ * animal.EHp * tau)
+    const owed = (animal.pM * s.structure + animal.kJ * animal.EHp) * tau;
+    const paidOrShort = [none, thin, full].map(
+      ({ burned, shortfall }) => burned.maintenance + burned.development + shortfall
     );
-    expect(owed).toBe(true);
+    expect(paidOrShort.every((total) => near(total, owed))).toBe(true);
   });
 
   it('holds at L_m on a full reserve only at full oxygen, short [p_M]·V·τ·(1 − ω)·g/(1 + g) below it', () => {

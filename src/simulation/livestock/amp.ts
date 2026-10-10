@@ -1,14 +1,15 @@
 import type { DebParams } from '../systems/deb.js';
 import { arrheniusFactor } from '../core/kinetics.js';
+import { HOURS_PER_DAY } from '../core/clock.js';
 
 /** The primary parameters an Add-my-Pet Parameters page lists, at T_ref 20 °C. */
 interface Primaries {
   /** J/d·cm² */
   p_Am: number;
   /** l/d·cm² */
-  F_m: number;
+  F_m?: number;
   kap_X: number;
-  kap_P: number;
+  kap_P?: number;
   /** cm/d */
   v: number;
   kap: number;
@@ -78,19 +79,20 @@ export interface ZeroVariate {
   temperatureC?: number;
 }
 
-/** One Add-my-Pet entry, transcribed from its four pages; its E_0 is the one its statistics imply. */
+/** One Add-my-Pet entry, transcribed from its five pages; its E_0 is the one its statistics imply. */
 export interface AmpEntry {
   entry: string;
   url: string;
+  version: string;
+  authors: readonly string[];
   fetched: string;
   complete: number;
   mre: number;
   typicalTemperatureC: number;
   parameters: AmpParameters;
-  specific: Readonly<Record<string, number>>;
   implied: ImpliedTraits;
   zeroVariate: Readonly<Partial<Record<string, ZeroVariate>>>;
-  citation: readonly string[];
+  bibliography: readonly string[];
 }
 
 /**
@@ -103,16 +105,18 @@ export type AmpReading = Pick<
 > &
   Omit<Body, 'd_E'> & { E_0: number; L_b: number; s_M: number };
 
-/** A female in a keeper's terms: her adult size, and her ages from birth at `temperatureC`. */
-export interface HobbyFigures {
+/** A female fed without limit in a keeper's terms: her adult size, and her ages from birth. */
+export interface LifeHistory {
   adultLengthCm: number;
   adultMassGrams: number;
   maturityAgeDays: number;
   lifespanDays: number;
-  temperatureC: number;
 }
 
-export const HOURS_PER_DAY = 24;
+/** A female's life history as a keeper knows it, her ages observed at `temperatureC`. */
+export interface HobbyFigures extends LifeHistory {
+  temperatureC: number;
+}
 
 /** Share of a cohort fed without limit still alive at the species lifespan: the lifespan is a median. */
 export const LIFESPAN_SURVIVAL = 0.5;
@@ -127,6 +131,11 @@ const maxStructuralLength = (e: Pick<Rates, 'kap' | 'p_Am' | 'p_M'>): number => 
 const maxReserveDensity = (e: Pick<Rates, 'p_Am' | 'v'>): number => e.p_Am / e.v;
 
 const investmentRatio = (e: Pick<Rates, 'E_G' | 'v' | 'kap' | 'p_Am'>): number => (e.E_G * e.v) / (e.kap * e.p_Am);
+
+const maintenanceRatio = (e: Pick<Rates, 'k_J' | 'E_G' | 'p_M'>): number => (e.k_J * e.E_G) / e.p_M;
+
+const fullReserveWeight = (e: Pick<AmpReading, 'p_Am' | 'v' | 'w_E' | 'mu_E' | 'd_V'>): number =>
+  (maxReserveDensity(e) * e.w_E) / (e.mu_E * e.d_V);
 
 /** v_H: maturity scaled by (1 − κ)·g·[E_m]·L_m³, the form AmP's life-stage solvers take. */
 const scaledMaturity = (e: Rates, maturity: number): number =>
@@ -150,14 +159,15 @@ function integrate(slope: Slope, y0: number[], until: number, steps: number): nu
   return y;
 }
 
-/** The x in [lo, hi] where an increasing `f` crosses zero. */
-function bisect(f: (x: number) => number, lo: number, hi: number): number {
+/** The x in [lo, hi] where an increasing `f` crosses zero, or undefined where it stays below zero short of hi. */
+function bisect(f: (x: number) => number, lo: number, hi: number): number | undefined {
+  let crossed = false;
   while (hi - lo > 1e-12 * hi) {
     const mid = (lo + hi) / 2;
     if (f(mid) < 0) lo = mid;
-    else hi = mid;
+    else [hi, crossed] = [mid, true];
   }
-  return (lo + hi) / 2;
+  return crossed ? (lo + hi) / 2 : undefined;
 }
 
 const betaPrimitive = (u: number): number =>
@@ -173,7 +183,7 @@ const incompleteBeta = (u: number): number => betaPrimitive(u) - betaPrimitive(0
  */
 function birth(e: Rates & Pick<Primaries, 'E_Hb'>): { L_b: number; E_0: number } {
   const g = investmentRatio(e);
-  const k = (e.k_J * e.E_G) / e.p_M;
+  const k = maintenanceRatio(e);
   const Lm = maxStructuralLength(e);
   const scale = maxReserveDensity(e) * Lm ** 3;
   const ub = Math.cbrt(g / (1 + g));
@@ -193,6 +203,7 @@ function birth(e: Rates & Pick<Primaries, 'E_Hb'>): { L_b: number; E_0: number }
     return maturity * scale;
   };
   const lb = bisect((lb) => maturityAtBirth(lb) - e.E_Hb, 0, Math.min(1, (3 * g * ub) / Bb));
+  if (lb === undefined) throw new RangeError(`E_Hb ${e.E_Hb} J is beyond what an embryo reaches before L_m`);
   return { L_b: lb * Lm, E_0: g * scale * lengthPerU(lb)(0) ** 3 };
 }
 
@@ -207,17 +218,18 @@ const MAX_ACCELERATION = 500;
 function accelerationFactor(e: Unlaid, L_b: number): number {
   if (e.model === 'std') return 1;
   const g = investmentRatio(e);
-  const k = (e.k_J * e.E_G) / e.p_M;
+  const k = maintenanceRatio(e);
   const lb = L_b / maxStructuralLength(e);
   const rj = (1 / lb - 1) / (1 + 1 / g);
   const [vHb, vHj] = [scaledMaturity(e, e.E_Hb), scaledMaturity(e, e.E_Hj)];
   const decay = -(3 * k) / rj;
   const excess = (sM: number): number =>
     ((lb ** 3 * (1 / lb - rj / g)) / (k + rj)) * (sM ** 3 - sM ** decay) - vHj + vHb * sM ** decay;
-  if (!(excess(MAX_ACCELERATION) > 0)) {
+  const sM = bisect(excess, 1, MAX_ACCELERATION);
+  if (sM === undefined) {
     throw new RangeError(`E_Hj ${e.E_Hj} J is beyond a metamorphosis within s_M ${MAX_ACCELERATION}`);
   }
-  return bisect(excess, 1, MAX_ACCELERATION);
+  return sM;
 }
 
 /**
@@ -257,8 +269,7 @@ export function readEntry(e: AmpParameters): AmpReading {
   };
 }
 
-export function fromAmP(parameters: AmpParameters): DebParams {
-  const e = readEntry(parameters);
+export function fromAmP(e: AmpReading): DebParams {
   const gramsPerJoule = e.w_E / e.mu_E;
   return {
     pAm: (e.p_Am * gramsPerJoule) / HOURS_PER_DAY,
@@ -354,22 +365,43 @@ function medianLifespan(e: AmpReading): number {
   }
 }
 
-/** What a budget makes of a female fed without limit, in a keeper's terms at `temperatureC`; ages count from birth. */
-export function impliedFigures(parameters: AmpParameters, temperatureC: number): HobbyFigures {
-  const adult = readEntry(parameters);
-  const Lm = maxStructuralLength(adult);
-  const tau = arrheniusFactor(temperatureC, adult.T_A);
+/** What a reading makes of a female fed without limit, her ages at `temperatureC`. */
+export function impliedFigures(e: AmpReading, temperatureC: number): LifeHistory {
+  const Lm = maxStructuralLength(e);
+  const tau = arrheniusFactor(temperatureC, e.T_A);
   return {
-    adultLengthCm: Lm / adult.del_M,
-    adultMassGrams: Lm ** 3 * (1 + (maxReserveDensity(adult) * adult.w_E) / (adult.mu_E * adult.d_V)),
-    maturityAgeDays: pubertyAge(adult) / tau,
-    lifespanDays: medianLifespan(adult) / tau,
-    temperatureC,
+    adultLengthCm: Lm / e.del_M,
+    adultMassGrams: Lm ** 3 * (1 + fullReserveWeight(e)),
+    maturityAgeDays: pubertyAge(e) / tau,
+    lifespanDays: medianLifespan(e) / tau,
   };
 }
 
+function shapeCoefficient(Lm: number, adultLengthCm: number): number {
+  const delM = Lm / adultLengthCm;
+  if (!(delM > 0 && delM < 1)) {
+    throw new RangeError(`L_m ${Lm} cm in a ${adultLengthCm} cm fish makes δ_M ${delM}, outside (0, 1)`);
+  }
+  return delM;
+}
+
+const LENGTH_DATA = ['Li', 'Lp'] as const;
+
+/**
+ * An entry fitted without length data, read at a keeper's adult length: δ_M = L_m / adultLengthCm, every other value
+ * the entry's. Refused where the entry was fitted to an observed length.
+ */
+export function readShaped(entry: AmpEntry, { adultLengthCm }: Pick<HobbyFigures, 'adultLengthCm'>): AmpReading {
+  const observed = LENGTH_DATA.filter((data) => entry.zeroVariate[data] !== undefined);
+  if (observed.length > 0) {
+    throw new RangeError(`${entry.entry} was fitted to observed ${observed.join(' and ')}: its δ_M stands`);
+  }
+  const reading = readEntry(entry.parameters);
+  return { ...reading, del_M: shapeCoefficient(maxStructuralLength(reading), adultLengthCm) };
+}
+
 /** The L with L³ + c·L⁴ = mass, by Newton from above. */
-function grownLength(c: number, mass: number): number {
+function lengthAtMass(c: number, mass: number): number {
   const newton = (L: number): number => L - (L ** 3 + c * L ** 4 - mass) / (3 * L ** 2 + 4 * c * L ** 3);
   let L = Math.cbrt(mass);
   for (let next = newton(L); next < L; next = newton(L)) L = next;
@@ -390,10 +422,10 @@ const MAX_ZOOM_STEPS = 100;
  */
 function zoomTo(base: AmpParameters, mass: number): { zoomed: AmpParameters; Lm: number } {
   const L0 = maxStructuralLength(base);
-  const reserveWeight = (maxReserveDensity(base) * base.w_E) / (base.mu_E * base.d_V);
+  const reserveWeight = fullReserveWeight(base);
   let s_M = readEntry(base).s_M;
   for (let step = 0; step < MAX_ZOOM_STEPS; step++) {
-    const Lm = grownLength(reserveWeight / (s_M * L0), mass);
+    const Lm = lengthAtMass(reserveWeight / (s_M * L0), mass);
     const zoom = Lm / (s_M * L0);
     const zoomed = { ...scaleMaturity(base, zoom ** 3), p_Am: base.p_Am * zoom };
     const next = readEntry(zoomed).s_M;
@@ -416,11 +448,7 @@ export function proxyEntry(base: AmpParameters, figures: HobbyFigures): AmpParam
   }
   const { adultLengthCm, adultMassGrams, maturityAgeDays, lifespanDays, temperatureC } = figures;
   const { zoomed, Lm } = zoomTo(base, adultMassGrams);
-  const delM = Lm / adultLengthCm;
-  if (!(delM > 0 && delM < 1)) {
-    throw new RangeError(`${adultMassGrams} g at ${adultLengthCm} cm makes δ_M ${delM}, outside (0, 1)`);
-  }
-  const shaped = withEgg({ ...zoomed, del_M: delM });
+  const shaped = withEgg({ ...zoomed, del_M: shapeCoefficient(Lm, adultLengthCm) });
   const tau = arrheniusFactor(temperatureC, base.T_A);
   const pace = pubertyAge(readEntry(shaped)) / (maturityAgeDays * tau);
   const paced: AmpParameters = {

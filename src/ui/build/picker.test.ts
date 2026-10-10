@@ -69,7 +69,7 @@ describe('fish options', () => {
   it('refuses in the action’s own words once nothing more fits', () => {
     const state: SimulationState = {
       ...tank(1),
-      fish: [fishRecord({ id: 'whale', mass: 499.8 })],
+      fish: [fishRecord({ id: 'whale', mass: 500 - grownMass('neon_tetra') / 2 })],
     };
     const neon = option(fish(state), 'neon_tetra');
 

@@ -1,6 +1,6 @@
-import type { AmpEntry, AmpParameters, ImpliedTraits, ZeroVariate } from '../../simulation/livestock/amp.js';
+import { readEntry, type AmpEntry, type AmpParameters, type ZeroVariate } from '../../simulation/livestock/amp.js';
 
-export const PAGES = ['par', 'stat', 'res', 'bib'] as const;
+export const PAGES = ['par', 'stat', 'res', 'bib', 'cit'] as const;
 
 export type Page = (typeof PAGES)[number];
 
@@ -9,6 +9,11 @@ export type AmpPages = Record<Page, string>;
 export interface AmpSource {
   url: string;
   fetched: string;
+}
+
+export interface Transcription {
+  entry: AmpEntry;
+  warnings: string[];
 }
 
 interface Cell {
@@ -22,10 +27,7 @@ interface Table {
   rows: Cell[][];
 }
 
-interface Row {
-  value: number;
-  unit: string;
-}
+type Rows = Readonly<Record<string, Cell[]>>;
 
 const ENTITIES: Record<string, string> = {
   amp: '&',
@@ -99,22 +101,27 @@ function tables(html: string): Table[] {
 
 const caption = ({ rows: [first] }: Table): string => (first?.length === 1 && first[0].header ? first[0].text : '');
 
-function table(all: Table[], matches: (table: Table) => boolean, page: string): Table {
+const captioned =
+  (start: string) =>
+  (found: Table): boolean =>
+    caption(found).startsWith(start);
+
+function table(all: Table[], matches: (table: Table) => boolean, name: string, page: Page): Table {
   const hit = all.find(matches);
-  if (!hit) throw new Error(`the ${page} page has no such table`);
+  if (!hit) throw new Error(`the ${page} page has no ${name} table`);
   return hit;
 }
 
 const dataRows = ({ rows }: Table): Cell[][] => rows.filter((row) => row.length > 0 && !row[0].header);
 
-function symbolTable(found: Table, page: string): Record<string, Row> {
-  return Object.fromEntries(
-    dataRows(found).map(([symbol, value, unit]) => [
-      symbol.text,
-      { value: number(value.text, `${page} ${symbol.text}`), unit: unit.text },
-    ])
-  );
+function cells(row: Cell[], count: number, what: string): Cell[] {
+  if (row.length < count) {
+    throw new Error(`${what} reads "${row.map(({ text }) => text).join(' | ')}": ${row.length} cells, not ${count}`);
+  }
+  return row;
 }
+
+const symbolRows = (found: Table): Rows => Object.fromEntries(dataRows(found).map((row) => [row[0].text, row]));
 
 function modelOf(html: string): string {
   const match = /Model:\s*(\w+)/.exec(textOf(html));
@@ -125,9 +132,7 @@ function modelOf(html: string): string {
 const PRIMARY_UNITS = {
   T_A: 'K',
   p_Am: 'J/d.cm^2',
-  F_m: 'l/d.cm^2',
   kap_X: '-',
-  kap_P: '-',
   v: 'cm/d',
   kap: '-',
   kap_R: '-',
@@ -141,37 +146,48 @@ const PRIMARY_UNITS = {
   s_G: '-',
 } as const;
 
+const OPTIONAL_PRIMARY_UNITS = { F_m: 'l/d.cm^2', kap_P: '-' } as const;
+
 const IMPLIED_UNITS = { E_0: 'J', a_b: 'd', a_p: 'd', Ww_b: 'g', Ww_i: 'g' } as const;
 
-function read(rows: Record<string, Row>, symbol: string, unit: string, page: string): number {
+function read(rows: Rows, symbol: string, unit: string, page: Page): number {
   const row = rows[symbol];
   if (!row) throw new Error(`the ${page} page lists no ${symbol}`);
-  if (row.unit !== unit) throw new Error(`the ${page} page gives ${symbol} in ${row.unit}, not ${unit}`);
-  return row.value;
+  const [, value, given] = cells(row, 3, `the ${page} page's ${symbol} row`);
+  if (given.text !== unit) throw new Error(`the ${page} page gives ${symbol} in ${given.text}, not ${unit}`);
+  return number(value.text, `${page} ${symbol}`);
 }
 
-function readAll<K extends string>(
-  rows: Record<string, Row>,
-  units: Record<K, string>,
-  page: string
-): Record<K, number> {
+function readAll<K extends string>(rows: Rows, units: Record<K, string>, page: Page): Record<K, number> {
   return Object.fromEntries(
     Object.entries<string>(units).map(([symbol, unit]) => [symbol, read(rows, symbol, unit, page)])
   ) as Record<K, number>;
+}
+
+function readListed<K extends string>(rows: Rows, units: Record<K, string>, page: Page): Partial<Record<K, number>> {
+  const listed = Object.entries<string>(units).filter(([symbol]) => symbol in rows);
+  return readAll(rows, Object.fromEntries(listed), page) as Partial<Record<K, number>>;
 }
 
 const MOLAR_MASS = { Carbon: 12, Hydrogen: 1, Oxygen: 16, Nitrogen: 14 } as const;
 
 /** Chemical potential, density and molar mass of structure and reserve, molar masses from the organics' indices. */
 function chemistry(all: Table[]): Pick<AmpParameters, 'd_V' | 'd_E' | 'mu_V' | 'mu_E' | 'w_V' | 'w_E'> {
-  const constants = table(all, (t) => caption(t) === 'Chemical parameters', 'par');
+  const constants = table(all, captioned('Chemical parameters'), 'chemical parameters', 'par');
   const column = (label: string, index: 2 | 3): number => {
     const row = dataRows(constants).find(([first]) => first.text.startsWith(label));
     if (!row) throw new Error(`the par page lists no ${label}`);
-    return number(row[index].text, label);
+    return number(cells(row, index + 1, `the par page's ${label} row`)[index].text, label);
   };
-  const indices = table(all, (t) => t.rows.some((row) => row[0]?.text === 'Chemical indices for organics'), 'par');
-  const organics = indices.rows.slice(1, 1 + Object.keys(MOLAR_MASS).length);
+  const indices = table(
+    all,
+    (t) => t.rows.some((row) => row[0]?.text === 'Chemical indices for organics'),
+    'chemical indices',
+    'par'
+  );
+  const organics = indices.rows
+    .slice(1, 1 + Object.keys(MOLAR_MASS).length)
+    .map((row) => cells(row, 5, "a row of the par page's organics"));
   const molarMass = (offset: 1 | 2): number => {
     const grams = organics.reduce((sum, row) => {
       const element = row[row.length - 5].text as keyof typeof MOLAR_MASS;
@@ -191,18 +207,19 @@ function chemistry(all: Table[]): Pick<AmpParameters, 'd_V' | 'd_E' | 'mu_V' | '
 }
 
 function zeroVariate(all: Table[]): Record<string, ZeroVariate> {
-  const found = table(all, (t) => t.heading === 'Zero-variate data', 'res');
+  const found = table(all, (t) => t.heading === 'Zero-variate data', 'zero-variate data', 'res');
   return Object.fromEntries(
-    dataRows(found).map(([data, observed, predicted, , unit, description, reference]) => {
+    dataRows(found).map((row) => {
+      const [data, observed, predicted, , unit, description, reference] = cells(row, 7, 'a zero-variate row');
       const temperature = /Temperature:\s*([-\d.]+)\s*C/.exec(data.html);
-      const row: ZeroVariate = {
+      const datum: ZeroVariate = {
         observed: number(observed.text, `${data.text} observed`),
         predicted: number(predicted.text, `${data.text} predicted`),
         unit: unit.text,
         description: description.text,
         reference: reference.text,
       };
-      return [data.text, temperature ? { ...row, temperatureC: Number(temperature[1]) } : row];
+      return [data.text, temperature ? { ...datum, temperatureC: Number(temperature[1]) } : datum];
     })
   );
 }
@@ -213,18 +230,24 @@ function scalar(html: string, label: string): number {
   return number(match[1], label);
 }
 
-const citation = (bib: string): string[] =>
+function cite(cit: string): Pick<AmpEntry, 'version' | 'authors'> {
+  const match = /^(.+?)\. \d{4}\. AmP .+, version (\S+)\.$/.exec(textOf(cit));
+  if (!match) throw new Error('the cit page names no authors and version');
+  return { version: match[2], authors: match[1].split(', ') };
+}
+
+const bibliography = (bib: string): string[] =>
   [...bib.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi)].map(([, item]) => textOf(item));
 
-/** An entry from its four pages, every value as AmP states it, refused where the engine cannot read it. */
-export function toEntry(entry: string, pages: AmpPages, { url, fetched }: AmpSource): AmpEntry {
+const TEMPERATURE_BOUNDS = ['T_L', 'T_H'];
+
+function transcribe(entry: string, pages: AmpPages, { url, fetched }: AmpSource): Transcription {
   const par = tables(pages.par);
-  const primary = symbolTable(table(par, (t) => caption(t).startsWith('Primary parameters'), 'par'), 'par');
-  const specificTable = table(par, (t) => caption(t).startsWith('Parameters specific'), 'par');
-  const { del_M, ...specific } = symbolTable(specificTable, 'par');
-  if (!del_M) throw new Error(`${entry} gives no shape coefficient del_M`);
-  const temperature = symbolTable(table(par, (t) => caption(t) === 'Temperature parameters', 'par'), 'par');
-  if (read(temperature, 'T_ref', 'K', 'par') !== 293.15) throw new Error(`${entry} is not stated at T_ref 20 °C`);
+  const primary = symbolRows(table(par, captioned('Primary parameters'), 'primary parameters', 'par'));
+  const specific = symbolRows(table(par, captioned('Parameters specific'), 'entry-specific parameters', 'par'));
+  const temperature = symbolRows(table(par, captioned('Temperature parameters'), 'temperature parameters', 'par'));
+  if (read(temperature, 'T_ref', 'K', 'par') !== 293.15) throw new Error('the par page is not stated at T_ref 20 °C');
+  const bounds = TEMPERATURE_BOUNDS.filter((symbol) => symbol in temperature || symbol in primary);
 
   const model = modelOf(pages.par);
   const stages =
@@ -233,19 +256,20 @@ export function toEntry(entry: string, pages: AmpPages, { url, fetched }: AmpSou
       : model === 'abj'
         ? ({ model, E_Hj: read(primary, 'E_Hj', 'J', 'par') } as const)
         : undefined;
-  if (!stages) throw new Error(`${entry} is of model ${model}; the engine reads std and abj`);
+  if (!stages) throw new Error(`the par page's model is ${model}; the engine reads std and abj`);
 
   const stat = tables(pages.stat);
-  const statTable = table(stat, (t) => caption(t).startsWith('Implied properties at typical temperature'), 'stat');
+  const statTable = table(stat, captioned('Implied properties at typical temperature'), 'implied properties', 'stat');
   const typical = /typical temperature \(([-\d.]+) deg\. C\)/.exec(caption(statTable));
-  if (!typical) throw new Error(`${entry} states no typical temperature`);
-  const implied = symbolTable(statTable, 'stat');
+  if (!typical) throw new Error('the stat page states no typical temperature');
+  const implied = symbolRows(statTable);
   const { E_0, ...traits } = readAll(implied, IMPLIED_UNITS, 'stat');
+  const acceleration = stages.model === 'abj' ? { s_M: read(implied, 's_M', '-', 'stat') } : {};
 
-  const res = tables(pages.res);
-  return {
+  const transcribed: AmpEntry = {
     entry,
     url,
+    ...cite(pages.cit),
     fetched,
     complete: scalar(pages.res, 'COMPLETE'),
     mre: scalar(pages.res, 'MRE'),
@@ -253,13 +277,27 @@ export function toEntry(entry: string, pages: AmpPages, { url, fetched }: AmpSou
     parameters: {
       ...stages,
       ...readAll(primary, PRIMARY_UNITS, 'par'),
-      del_M: del_M.value,
+      ...readListed(primary, OPTIONAL_PRIMARY_UNITS, 'par'),
+      del_M: read(specific, 'del_M', '-', 'par'),
       ...chemistry(par),
       E_0,
     },
-    specific: Object.fromEntries(Object.entries(specific).map(([symbol, { value }]) => [symbol, value])),
-    implied: (implied.s_M ? { ...traits, s_M: read(implied, 's_M', '-', 'stat') } : traits) satisfies ImpliedTraits,
-    zeroVariate: zeroVariate(res),
-    citation: citation(pages.bib),
+    implied: { ...traits, ...acceleration },
+    zeroVariate: zeroVariate(tables(pages.res)),
+    bibliography: bibliography(pages.bib),
   };
+  readEntry(transcribed.parameters);
+  const warnings = bounds.map(
+    (symbol) => `${entry}: lists ${symbol}; the engine scales its rates by T_A alone, with no tolerance bounds`
+  );
+  return { entry: transcribed, warnings };
+}
+
+/** An entry from its five pages, every value as AmP states it, refused where the engine cannot read it. */
+export function toEntry(entry: string, pages: AmpPages, source: AmpSource): Transcription {
+  try {
+    return transcribe(entry, pages, source);
+  } catch (err) {
+    throw new Error(`${entry}: ${(err as Error).message}`, { cause: err });
+  }
 }

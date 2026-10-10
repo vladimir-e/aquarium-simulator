@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  budgetParameters,
   debParams,
   FISH_SPECIES_DATA,
   grownLength,
@@ -10,10 +9,10 @@ import {
   type FishSpecies,
   type SpeciesBudget,
 } from './species.js';
-import { entryFitsItsData, fromAmP, HOURS_PER_DAY } from './amp.js';
-import { Betta_splendens } from './amp/entries/Betta_splendens.js';
+import { entryFitsItsData, type LifeHistory } from './amp.js';
 import { hatchling, maxStructuralLength, wetMass } from '../systems/deb.js';
 import { arrheniusFactor } from '../core/kinetics.js';
+import { HOURS_PER_DAY } from '../core/clock.js';
 import {
   expectRelative,
   feastFromHatching,
@@ -35,12 +34,28 @@ const entryBudget = (species: FishSpecies): EntryBudget | undefined => {
 
 const entrySpecies = roster.filter((species) => entryBudget(species) !== undefined);
 
+const keeperFigures = (budget: SpeciesBudget): Partial<LifeHistory> =>
+  budget.kind === 'proxy' ? budget.figures : (budget.shape ?? {});
+
 describe.each(roster)('%s on its energy budget', (species) => {
   const { budget, temperatureRange } = FISH_SPECIES_DATA[species];
   const p = debParams(species);
 
-  it('runs on the parameters its budget names', () => {
-    expect(p).toEqual(fromAmP(budgetParameters(budget)));
+  it('runs on its entry where the entry fits its own data, on a proxy of it where it does not', () => {
+    const entry = budget.kind === 'entry' ? budget.entry : budget.base;
+    expect(entryFitsItsData(entry)).toBe(budget.kind === 'entry');
+  });
+
+  it('reads back every figure the keeper gave it', () => {
+    const read: LifeHistory = {
+      adultLengthCm: grownLength(species),
+      adultMassGrams: grownMass(species),
+      maturityAgeDays: maturityAge(species) / HOURS_PER_DAY,
+      lifespanDays: lifespan(species) / HOURS_PER_DAY,
+    };
+    for (const [figure, value] of Object.entries(keeperFigures(budget))) {
+      expectRelative(read[figure as keyof LifeHistory], value, 1e-4);
+    }
   });
 
   it('grows to its grown size, breeds at its maturity age, dies around its lifespan, fed freely in mid-range water', () => {
@@ -60,10 +75,6 @@ describe.each(entrySpecies)('%s against its Add-my-Pet entry, fed freely at its 
   const amp = { puberty: ampPubertyDays(entry), death: ampMeanLifespanDays(entry) };
   const life = feastFromHatching(p, 2.5 * HOURS_PER_DAY * amp.death, tau);
 
-  it('fits its own data', () => {
-    expect(entryFitsItsData(entry)).toBe(true);
-  });
-
   it('grows to the ultimate wet weight AmP implies', () => {
     expectRelative(wetMass(grown(p), p), entry.implied.Ww_i, 0.03);
   });
@@ -79,31 +90,7 @@ describe.each(entrySpecies)('%s against its Add-my-Pet entry, fed freely at its 
     expectRelative(pubertyHour(life, p) / HOURS_PER_DAY, amp.puberty, 0.03);
   });
 
-  it('dies at the mean age AmP’s get_tm_mod gives, counting the embryo’s days', () => {
+  it('dies at the mean age wear and hazard give along its adult growth curve, counting the embryo’s days', () => {
     expectRelative(entry.implied.a_b + meanDeathHour(life) / HOURS_PER_DAY, amp.death, 0.03);
-  });
-});
-
-describe('the betta', () => {
-  const { budget } = FISH_SPECIES_DATA.betta;
-
-  it('runs on its entry’s rates sized by the keeper, the entry missing its own weight', () => {
-    expect(entryFitsItsData(Betta_splendens)).toBe(false);
-    expect(budget).toMatchObject({ kind: 'proxy', base: Betta_splendens.parameters });
-  });
-
-  it('grows to its hobby length and weight, breeds at its maturity age, dies around its lifespan', () => {
-    if (budget.kind !== 'proxy') throw new Error('the betta is a proxy');
-    const { figures } = budget;
-    const p = debParams('betta');
-    const life = feastFromHatching(
-      p,
-      1.1 * HOURS_PER_DAY * figures.lifespanDays,
-      arrheniusFactor(figures.temperatureC, p.TA)
-    );
-    expectRelative(wetMass(grown(p), p), figures.adultMassGrams, 1e-9);
-    expectRelative(maxStructuralLength(p) / p.delM, figures.adultLengthCm, 1e-9);
-    expectRelative(pubertyHour(life, p), HOURS_PER_DAY * figures.maturityAgeDays, 0.02);
-    expectRelative(medianDeathHour(life), HOURS_PER_DAY * figures.lifespanDays, 0.02);
   });
 });

@@ -4,6 +4,10 @@ import type { AmpEntry } from '../../amp.js';
 export const Paracheirodon_innesi: AmpEntry = {
   entry: 'Paracheirodon_innesi',
   url: 'https://www.bio.vu.nl/thb/deb/deblab/add_my_pet/entries_web/Paracheirodon_innesi/Paracheirodon_innesi_par.html',
+  version: '2023/11/12',
+  authors: [
+    'Bas Kooijman',
+  ],
   fetched: '2026-10-10',
   complete: 2.3,
   mre: 0.028,
@@ -13,9 +17,7 @@ export const Paracheirodon_innesi: AmpEntry = {
     E_Hj: 2.31057,
     T_A: 9000,
     p_Am: 70.0561,
-    F_m: 6.5,
     kap_X: 0.8,
-    kap_P: 0.1,
     v: 0.0218423,
     kap: 0.563842,
     kap_R: 0.95,
@@ -27,6 +29,8 @@ export const Paracheirodon_innesi: AmpEntry = {
     E_Hp: 64.5589,
     h_a: 9.42256e-10,
     s_G: 0.0001,
+    F_m: 6.5,
+    kap_P: 0.1,
     del_M: 0.192514,
     mu_V: 500000,
     mu_E: 550000,
@@ -35,10 +39,6 @@ export const Paracheirodon_innesi: AmpEntry = {
     w_V: 23.9,
     w_E: 23.9,
     E_0: 4.03457,
-  },
-  specific: {
-    f: 1,
-    f_tL: 1,
   },
   implied: {
     a_b: 6.27833,
@@ -108,7 +108,7 @@ export const Paracheirodon_innesi: AmpEntry = {
       temperatureC: 27,
     },
   },
-  citation: [
+  bibliography: [
     '[Wiki] http://en.wikipedia.org/wiki/wiki/Paracheirodon_innesi.',
     '[fishbase] http://www.fishbase.se/summary/Paracheirodon-innesi.html.',
     '[Kooy2010] Kooijman, S. (2010). Dynamic Energy Budget theory for metabolic organisation. Cambridge Univ. Press, Cambridge.',

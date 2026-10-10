@@ -29,7 +29,7 @@ interface Scaled {
   vHp: number;
   ha: number;
   sG: number;
-  days: (tau: number) => number;
+  days: (t: number) => number;
 }
 
 /** AmP's dimensionless life-history groups for an entry fed without limit, time in units of 1 / k_M. */
@@ -48,13 +48,16 @@ function scaled({ parameters: p, typicalTemperatureC }: AmpEntry): Scaled {
     vHp: vH(p.E_Hp),
     ha: p.h_a / kM ** 2,
     sG: p.s_G,
-    days: (tau: number): number => tau / kM / arrheniusFactor(typicalTemperatureC, p.T_A),
+    days: (t: number): number => t / kM / arrheniusFactor(typicalTemperatureC, p.T_A),
   };
 }
 
 function rising(f: (x: number) => number, target: number): number {
   let hi = 1;
-  while (f(hi) < target) hi *= 2;
+  while (f(hi) < target) {
+    hi *= 2;
+    if (hi === Infinity) throw new RangeError(`never rises to ${target}`);
+  }
   let lo = 0;
   while (hi - lo > 1e-12 * hi) {
     const mid = (lo + hi) / 2;
@@ -91,15 +94,15 @@ export function ampPubertyDays(entry: AmpEntry): number {
 }
 
 /**
- * Mean age at death fed without limit at the entry's typical temperature, as DEBtool's get_tm_mod integrates it:
- * wear and hazard along the growth curve from birth, the embryo's age added.
+ * Mean age at death fed without limit at the entry's typical temperature, along the engine's path: adult rates from
+ * L_b, wear and hazard integrated as get_tm_mod's std branch does; the embryo's age added.
  */
 export function ampMeanLifespanDays(entry: AmpEntry): number {
   const { g, ha, sG, sM, lb, days } = scaled(entry);
-  const l0 = 1 / sM;
+  const lbAdult = lb / sM;
   const rhoB = 1 / (3 * (1 + 1 / g));
   const slope = (t: number, [q, h, H]: number[]): number[] => {
-    const l = 1 - (1 - lb * l0) * Math.exp(-rhoB * t);
+    const l = 1 - (1 - lbAdult) * Math.exp(-rhoB * t);
     const r = 3 * rhoB * (1 / l - 1);
     return [(q * l ** 3 * sG + ha) * (g / l - r) - r * q, q - r * h, h, Math.exp(-H)];
   };
@@ -125,15 +128,15 @@ export function ampFullGrownLifespanDays(entry: AmpEntry): number {
   const { g, ha, sG, days } = scaled(entry);
   const hW = Math.cbrt((ha * g) / 6);
   const tG = (sG * g) / hW;
-  const survival = (tau: number): number => {
-    const x = tG * tau;
+  const survival = (t: number): number => {
+    const x = tG * t;
     if (tG < 0) return Math.exp(((1 + x + x * x / 2 - Math.exp(x)) * 6) / tG ** 3);
     let [term, total] = [1, 1];
     for (let n = 4; term > 1e-17 * total; n++) total += term *= x / n;
-    return Math.exp(-total * tau ** 3);
+    return Math.exp(-total * t ** 3);
   };
-  const dtau = 1e-4;
+  const dt = 1e-4;
   let mean = 0;
-  for (let tau = dtau / 2; survival(tau) > 1e-14; tau += dtau) mean += survival(tau) * dtau;
+  for (let t = dt / 2; survival(t) > 1e-14; t += dt) mean += survival(t) * dt;
   return days(mean / hW);
 }

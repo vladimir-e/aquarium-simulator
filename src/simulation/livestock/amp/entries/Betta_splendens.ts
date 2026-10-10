@@ -4,6 +4,11 @@ import type { AmpEntry } from '../../amp.js';
 export const Betta_splendens: AmpEntry = {
   entry: 'Betta_splendens',
   url: 'https://www.bio.vu.nl/thb/deb/deblab/add_my_pet/entries_web/Betta_splendens/Betta_splendens_par.html',
+  version: '2023/03/12',
+  authors: [
+    'Bas Kooijman',
+    'Starrlight Augustine',
+  ],
   fetched: '2026-10-10',
   complete: 2.5,
   mre: 0.067,
@@ -13,9 +18,7 @@ export const Betta_splendens: AmpEntry = {
     E_Hj: 0.1929,
     T_A: 8000,
     p_Am: 34.5695,
-    F_m: 6.5,
     kap_X: 0.8,
-    kap_P: 0.1,
     v: 0.074186,
     kap: 0.99974,
     kap_R: 0.95,
@@ -27,6 +30,8 @@ export const Betta_splendens: AmpEntry = {
     E_Hp: 21.57,
     h_a: 1.034e-10,
     s_G: 0.0001,
+    F_m: 6.5,
+    kap_P: 0.1,
     del_M: 0.59636,
     mu_V: 500000,
     mu_E: 550000,
@@ -35,11 +40,6 @@ export const Betta_splendens: AmpEntry = {
     w_V: 23.9,
     w_E: 23.9,
     E_0: 2.70507,
-  },
-  specific: {
-    a_X: 6671480,
-    f: 1,
-    f_tL: 0.4074,
   },
   implied: {
     a_b: 2.61908,
@@ -117,7 +117,7 @@ export const Betta_splendens: AmpEntry = {
       temperatureC: 28,
     },
   },
-  citation: [
+  bibliography: [
     '[Wiki] http://en.wikipedia.org/wiki/Betta_splendens.',
     '[tankarium] https://www.tankarium.com/baby-betta-growth-chart/.',
     '[petfishonline] https://petfishonline.com/betta-eggs/.',
