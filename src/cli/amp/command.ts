@@ -5,6 +5,7 @@ import { setTimeout as pause } from 'node:timers/promises';
 import { fileURLToPath, URL } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import { entryFitsItsData, readEntry, type AmpEntry } from '../../simulation/livestock/amp.js';
+import { invokedDirectly } from '../entry.js';
 import { PAGES, toEntry, type AmpPages, type AmpSource, type Page } from './parse.js';
 import { renderEntry } from './render.js';
 
@@ -121,7 +122,7 @@ export async function ampCommand(argv: string[], workspace: AmpWorkspace = REPOS
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (invokedDirectly(import.meta.url)) {
   ampCommand(process.argv.slice(2)).catch((err: unknown) => {
     process.stderr.write(`${(err as Error).message}\n`);
     process.exit(1);

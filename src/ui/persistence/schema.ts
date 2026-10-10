@@ -544,7 +544,7 @@ const LivestockConfigSchema = z
     plantBenefitPeak: z.number(),
     plantBenefitSaturationPoint: z.number(),
     healingRate: z.number().min(0),
-    healingCost: z.number().min(0),
+    healingCost: z.number().positive(),
     maleBufferTurnover: z.number().min(0),
     eggSensitivity: z.number().min(0),
     eggPredationRate: z.number().min(0),

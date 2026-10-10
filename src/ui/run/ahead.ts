@@ -123,8 +123,8 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
   const budded = new Set(
     planted.plants.filter((plant) => !standing.has(plant.id)).map((plant) => plant.parentId)
   );
-  const food = bodies.state.resources;
-  const decayed = calculateDecay(food.food, food.temperature, food.oxygen, config.decay);
+  const water = applyEffects(bodies.state, bodies.effects, config).resources;
+  const decayed = calculateDecay(water.food, water.temperature, water.oxygen, config.decay);
   const wasteShare = config.decay.wasteConversionRatio;
 
   return {

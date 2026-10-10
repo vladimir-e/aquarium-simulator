@@ -3,7 +3,6 @@ import { produce } from 'immer';
 import {
   ALGAE_KINDS,
   applyEffects,
-  calculateDecay,
   createSimulation,
   dailyLightIntegral,
   getPresetById,
@@ -17,6 +16,7 @@ import {
 import { settleEnvironment } from '../../simulation/tick.js';
 import { spawnsAt } from '../../simulation/systems/brood.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { ammoniaPerGramOfFood } from '../../simulation/config/livestock.js';
 import { holdingEggs } from '../../simulation/tests/fish.js';
 import { readHourAhead } from './ahead.js';
 
@@ -52,6 +52,14 @@ function recovering(): SimulationState {
     ripe(draft.fish[1], 20);
     for (const kind of ALGAE_KINDS) draft.algae[kind].mass = 20;
     draft.resources.food = 1;
+  });
+}
+
+/** Two neons over a clutch of their eggs that hatches on the next tick. */
+function hatching(): SimulationState {
+  const stocked = createSimulation({ tankCapacity: 100 }, { fish: [{ species: 'neon_tetra', count: 2 }] });
+  return produce(stocked, (draft) => {
+    draft.clutches = [{ id: 'scattered', species: 'neon_tetra', eggs: 40.5, development: 0.9999 }];
   });
 }
 
@@ -170,31 +178,41 @@ describe('readHourAhead', () => {
     const fed = hours.map(({ state }) => readHourAhead(state, config));
     expect(fed.some((ahead) => ahead.fishWaste > 0 && ahead.gillAmmonia > 0 && ahead.foodWaste > 0)).toBe(true);
 
-    for (const { state } of hours) {
+    const readsTheRot = (state: SimulationState, next: SimulationState): void => {
+      const ahead = readHourAhead(state, config);
+      const rotted = bodiesOf(state).bodies.state.resources.food - next.resources.food;
+      const share = config.decay.wasteConversionRatio;
+      expect(ahead.foodWaste).toBeCloseTo(rotted * share, 12);
+      expect(ahead.foodAmmonia).toBeCloseTo(rotted * (1 - share) * ammoniaPerGramOfFood(config.livestock), 12);
+    };
+
+    for (const { state, next } of hours) {
       const ahead = readHourAhead(state, config);
       const { bodies, delta } = bodiesOf(state);
-      const left = bodies.state.resources;
 
       expect(ahead.fishWaste).toBeCloseTo(delta('waste', 'fish-metabolism') + delta('waste', 'dead-eggs'), 12);
       expect(ahead.gillAmmonia).toBeCloseTo(delta('ammonia', 'fish-gill-excretion'), 12);
       expect(bodies.state.fish.length).toBeGreaterThan(0);
-      expect(ahead.foodWaste).toBe(
-        calculateDecay(left.food, left.temperature, left.oxygen, config.decay) *
-          config.decay.wasteConversionRatio
-      );
+      readsTheRot(state, next);
     }
+
+    const stifled = produce(hatching(), (draft) => {
+      draft.resources.oxygen = 0.05;
+      draft.resources.food = 1;
+    });
+    const { bodies, delta } = bodiesOf(stifled);
+    expect(bodies.burned).toBeGreaterThan(0);
+    expect(-delta('oxygen', 'fish-broods')).toBeGreaterThan(stifled.resources.oxygen / 2);
+    readsTheRot(stifled, tick(stifled, config));
   });
 
   it('reads the eggs a clutch loses as waste the same hour', () => {
-    const stocked = createSimulation({ tankCapacity: 100 }, { fish: [{ species: 'neon_tetra', count: 2 }] });
-    const hatching = produce(stocked, (draft) => {
-      draft.clutches = [{ id: 'scattered', species: 'neon_tetra', eggs: 40.5, development: 0.9999 }];
-    });
-    const { bodies, delta } = bodiesOf(hatching);
+    const state = hatching();
+    const { bodies, delta } = bodiesOf(state);
 
     expect(delta('waste', 'dead-eggs')).toBeGreaterThan(0);
     expect(bodies.waste).toBeCloseTo(delta('waste', 'dead-eggs'), 15);
-    expect(readHourAhead(hatching, config).fishWaste).toBeCloseTo(
+    expect(readHourAhead(state, config).fishWaste).toBeCloseTo(
       delta('waste', 'fish-metabolism') + delta('waste', 'dead-eggs'),
       12
     );

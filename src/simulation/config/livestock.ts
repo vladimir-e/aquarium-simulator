@@ -261,7 +261,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'plantBenefitSaturationPoint', label: 'Plant Benefit Saturation', unit: 'power', min: 1, max: 10, step: 0.5 },
   // Repair
   { key: 'healingRate', label: 'Healing Rate', unit: '/hr at 20 °C', min: 0, max: 0.5, step: 0.005 },
-  { key: 'healingCost', label: 'Healing Cost', unit: 'h upkeep/pt', min: 0, max: 5, step: 0.05 },
+  { key: 'healingCost', label: 'Healing Cost', unit: 'h upkeep/pt', min: 0.05, max: 5, step: 0.05 },
   // Broods
   { key: 'maleBufferTurnover', label: 'Male Buffer Turnover', unit: '/hr at 20 °C', min: 0, max: 0.1, step: 0.001 },
   // Clutches

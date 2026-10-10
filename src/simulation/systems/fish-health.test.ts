@@ -14,7 +14,7 @@ import {
 } from './fish-health.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
-import { DEFAULT_CONFIG } from '../config/index.js';
+import { configRange, DEFAULT_CONFIG } from '../config/index.js';
 import { debParams, FISH_SPECIES_DATA } from '../livestock/species.js';
 import { createSimulation, type Fish, type Plant, type Resources, type SimulationState } from '../state.js';
 import {
@@ -701,6 +701,15 @@ describe('repair', () => {
     const v = vitality(fish, {}, { config: HEALING });
     expect(v.breakdown.healed).toBeCloseTo(hourlyDraw(livestockDefaults.healingRate) * 40, 9);
     expect(v.newCondition).toBeCloseTo(60 + v.breakdown.net + v.breakdown.healed, 12);
+  });
+
+  it('repairs at the cheapest healing cost the config takes, which is never free', () => {
+    const cheapest = { ...HEALING, healingCost: configRange('livestock.healingCost')!.min };
+    expect(cheapest.healingCost).toBeGreaterThan(0);
+    expect(vitality({ health: 60 }, {}, { config: cheapest }).breakdown.healed).toBeCloseTo(
+      hourlyDraw(cheapest.healingRate) * 40,
+      9
+    );
   });
 
   it('heals nothing from an empty reserve, nor at no oxygen', () => {

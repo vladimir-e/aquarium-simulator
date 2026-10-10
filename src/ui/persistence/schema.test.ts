@@ -220,6 +220,11 @@ describe('TunableConfigSchema', () => {
     expect(plants({ sizePerSurplus: MAX_SIZE_PER_SURPLUS * 2 })).toBe(false);
   });
 
+  it('refuses a healing cost of nothing, since a fish pays every point of repair from its reserve', () => {
+    expect(livestock({ healingCost: 0.05 })).toBe(true);
+    expect(livestock({ healingCost: 0 })).toBe(false);
+  });
+
   it('refuses a species demand of nothing, which no plant has', () => {
     const { nutrients } = DEFAULT_CONFIG;
     const config = {
