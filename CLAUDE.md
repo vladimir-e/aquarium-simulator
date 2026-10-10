@@ -58,7 +58,7 @@ Task briefs are provided by the maintainer or orchestrator per task — there's 
 3. Write tests for new formulas and invariants — no coverage target
 4. Run `npm run lint` and fix any issues
 5. Run all unit tests and build to validate your work
-6. Update the docs pages your change touched — a behaviour change rewrites the matching subsystem or concept page (`docs-site/`), kept short; quirks go in code comments
+6. Update the docs pages your change touched — a behaviour change rewrites the matching subsystem or concept page (`docs-site/`) no longer than it went in, saying what a mechanic does and why; formulas stay in code, never transcribed onto the page, and quirks go in code comments
 7. Add an entry to `CHANGELOG.md`
 8. Commit with a short message and raise a PR
 
