@@ -7,6 +7,7 @@ import {
   organics,
   stepDeb,
   structuralLength,
+  wetMass,
   type DebParams,
   type DebState,
 } from '../systems/deb.js';
@@ -25,6 +26,12 @@ function feastFromHatching(p: DebParams, hours: number): DebState[] {
   return states;
 }
 
+function grown(p: DebParams): DebState {
+  const structure = maxStructuralLength(p) ** 3;
+  const reserve = maxReserveDensity(p) * structure;
+  return { structure, reserve, maturity: p.EHp, broodBuffer: 0, wearLoad: 0, hazard: 0 };
+}
+
 const survival = (life: readonly DebState[]): number => Math.exp(-life.reduce((H, s) => H + s.hazard, 0));
 
 const expectRelative = (actual: number, expected: number, tolerance = 1e-12): void => {
@@ -33,8 +40,8 @@ const expectRelative = (actual: number, expected: number, tolerance = 1e-12): vo
 
 const entries: { name: string; entry: AmpEntry }[] = [
   { name: 'the generalised animal', entry: GENERALISED_ANIMAL },
-  { name: 'a 2 cm proxy', entry: proxyEntry(GENERALISED_ANIMAL, 2, YEAR_DAYS) },
-  { name: 'a 25 cm proxy', entry: proxyEntry(GENERALISED_ANIMAL, 25, 6 * YEAR_DAYS) },
+  { name: 'a 2 cm proxy', entry: proxyEntry(GENERALISED_ANIMAL, 2, 0.1, YEAR_DAYS) },
+  { name: 'a 25 cm proxy', entry: proxyEntry(GENERALISED_ANIMAL, 25, 200, 6 * YEAR_DAYS) },
 ];
 
 describe.each(entries)('fromAmP on $name', ({ entry }) => {
@@ -70,50 +77,69 @@ describe.each(entries)('fromAmP on $name', ({ entry }) => {
 });
 
 describe('proxyEntry', () => {
-  const lengths = [1, 2, 3.5, 7, 15, 30, 60];
+  const bodies = [
+    [1, 0.012],
+    [2, 0.1],
+    [3.5, 0.5],
+    [7, 4],
+    [15, 15],
+    [30, 300],
+    [60, 2500],
+  ];
+  const proxies = bodies.map(([length, mass]) => ({
+    length,
+    mass,
+    entry: proxyEntry(GENERALISED_ANIMAL, length, mass),
+  }));
 
-  it('grows to δ_M times the adult length', () => {
-    for (const length of lengths) {
-      const p = fromAmP(proxyEntry(GENERALISED_ANIMAL, length));
-      expectRelative(maxStructuralLength(p), GENERALISED_ANIMAL.del_M * length);
+  it('grows to its adult length and weight', () => {
+    for (const { length, mass, entry } of proxies) {
+      const p = fromAmP(entry);
+      expectRelative(maxStructuralLength(p) / entry.del_M, length);
+      expectRelative(wetMass(grown(p), p), mass);
     }
   });
 
-  it('keeps the base rates: proxies of two lengths differ only in what the zoom scales', () => {
-    const small = proxyEntry(GENERALISED_ANIMAL, 3);
-    const large = proxyEntry(GENERALISED_ANIMAL, 12);
+  it('reads a heavier fish of one length as a fuller shape', () => {
+    const shapes = [1, 2, 4, 8].map((mass) => proxyEntry(GENERALISED_ANIMAL, 5, mass).del_M);
+    expect(shapes.every((delM, i) => i === 0 || delM > shapes[i - 1])).toBe(true);
+  });
+
+  it('keeps the base rates: proxies of two bodies differ only in zoom and shape', () => {
+    const small = proxyEntry(GENERALISED_ANIMAL, 3, 0.3);
+    const large = proxyEntry(GENERALISED_ANIMAL, 12, 20);
     const differing = (Object.keys(small) as (keyof AmpEntry)[]).filter(
       (key) => JSON.stringify(small[key]) !== JSON.stringify(large[key])
     );
-    expect(differing.sort()).toEqual(['E_0', 'E_Hb', 'E_Hp', 'L_b', 'p_Am']);
+    expect(differing.sort()).toEqual(['E_0', 'E_Hb', 'E_Hp', 'L_b', 'del_M', 'p_Am']);
   });
 
-  it('scales {p_Am} and birth length with z and the maturity thresholds with z³', () => {
-    const one = proxyEntry(GENERALISED_ANIMAL, 4);
-    const twice = proxyEntry(GENERALISED_ANIMAL, 8);
-    expectRelative(twice.p_Am, 2 * one.p_Am);
-    expectRelative(twice.L_b, 2 * one.L_b);
-    expectRelative(twice.E_Hb, 8 * one.E_Hb);
-    expectRelative(twice.E_Hp, 8 * one.E_Hp);
+  it('scales birth length with {p_Am} and the maturity thresholds with its cube', () => {
+    for (const { entry } of proxies) {
+      const zoom = entry.p_Am / GENERALISED_ANIMAL.p_Am;
+      expectRelative(entry.L_b, zoom * GENERALISED_ANIMAL.L_b);
+      expectRelative(entry.E_Hb, zoom ** 3 * GENERALISED_ANIMAL.E_Hb);
+      expectRelative(entry.E_Hp, zoom ** 3 * GENERALISED_ANIMAL.E_Hp);
+    }
   });
 
   it('marks itself a proxy of its base', () => {
-    expect(proxyEntry(GENERALISED_ANIMAL, 5).source).toEqual({ kind: 'proxy', of: GENERALISED_ANIMAL.entry });
+    expect(proxyEntry(GENERALISED_ANIMAL, 5, 1).source).toEqual({ kind: 'proxy', of: GENERALISED_ANIMAL.entry });
   });
 
-  it('lays an egg that pays for its hatchling at every length', () => {
-    for (const length of lengths) {
-      const p = fromAmP(proxyEntry(GENERALISED_ANIMAL, length));
+  it('lays an egg that pays for its hatchling at every size', () => {
+    for (const { entry } of proxies) {
+      const p = fromAmP(entry);
       expect(organics(hatchling(p), p) + p.EHb).toBeLessThanOrEqual(p.E0);
     }
   });
 
   it('calibrates h_a so the lifespan is the median of a cohort hatched and fed without limit at 20 °C', () => {
-    for (const [length, lifespanDays] of [
-      [2, YEAR_DAYS],
-      [25, 6 * YEAR_DAYS],
+    for (const [length, mass, lifespanDays] of [
+      [2, 0.1, YEAR_DAYS],
+      [25, 200, 6 * YEAR_DAYS],
     ]) {
-      const p = fromAmP(proxyEntry(GENERALISED_ANIMAL, length, lifespanDays));
+      const p = fromAmP(proxyEntry(GENERALISED_ANIMAL, length, mass, lifespanDays));
       const alive = survival(feastFromHatching(p, HOURS_PER_DAY * lifespanDays));
       expect(Math.abs(alive - LIFESPAN_SURVIVAL)).toBeLessThan(1e-3);
     }

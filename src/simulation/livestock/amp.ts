@@ -125,12 +125,27 @@ function ageingAcceleration(e: AmpEntry, lifespanDays: number): number {
   return -Math.log(LIFESPAN_SURVIVAL) / cumulativeHazard;
 }
 
+/** The L_m at which the zoomed base weighs `mass` grown at e = 1: L³ + c·L⁴ = mass, by Newton from above. */
+function grownLength(base: AmpEntry, mass: number): number {
+  const c = ((base.p_Am / base.v) * (base.w_E / base.mu_E)) / (base.d_V * ultimateLength(base));
+  const newton = (L: number): number => L - (L ** 3 + c * L ** 4 - mass) / (3 * L ** 2 + 4 * c * L ** 3);
+  let L = Math.cbrt(mass);
+  for (let next = newton(L); next < L; next = newton(L)) L = next;
+  return L;
+}
+
 /**
- * A species without an entry: the base's zoom factor rescaled to the adult length, rates kept.
+ * A species without an entry: the base's zoom factor and shape solved from the adult length and weight, rates kept.
  * {p_Am} and L_b scale with z, the maturity thresholds with z³, and E_0 is the egg the zoomed hatchling implies.
  */
-export function proxyEntry(base: AmpEntry, adultLengthCm: number, lifespanDays?: number): AmpEntry {
-  const zoom = (base.del_M * adultLengthCm) / ultimateLength(base);
+export function proxyEntry(
+  base: AmpEntry,
+  adultLengthCm: number,
+  adultMassGrams: number,
+  lifespanDays?: number
+): AmpEntry {
+  const Lm = grownLength(base, adultMassGrams);
+  const zoom = Lm / ultimateLength(base);
   const zoomed: AmpEntry = {
     ...base,
     source: { kind: 'proxy', of: base.entry },
@@ -138,6 +153,7 @@ export function proxyEntry(base: AmpEntry, adultLengthCm: number, lifespanDays?:
     E_Hb: base.E_Hb * zoom ** 3,
     E_Hp: base.E_Hp * zoom ** 3,
     L_b: base.L_b * zoom,
+    del_M: Lm / adultLengthCm,
   };
   const proxy: AmpEntry = { ...zoomed, E_0: eggReserve(zoomed) };
   return lifespanDays === undefined ? proxy : { ...proxy, h_a: ageingAcceleration(proxy, lifespanDays) };

@@ -74,7 +74,7 @@ const HOURS_PER_DAY = 24;
 
 const proxied = (data: Omit<FishSpeciesData, 'deb'>): FishSpeciesData => ({
   ...data,
-  deb: proxyEntry(GENERALISED_ANIMAL, data.adultLength, data.lifespan / HOURS_PER_DAY),
+  deb: proxyEntry(GENERALISED_ANIMAL, data.adultLength, data.adultMass, data.lifespan / HOURS_PER_DAY),
 });
 
 /**

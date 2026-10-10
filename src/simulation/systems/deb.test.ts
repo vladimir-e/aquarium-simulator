@@ -25,29 +25,12 @@ import {
   type DebStep,
   type DebStress,
 } from './deb.js';
+import { fromAmP, GENERALISED_ANIMAL } from '../livestock/amp.js';
 
-const GRAMS_PER_JOULE = 23.9 / 550_000;
 const HOURS_PER_DAY = 24;
 
-const animal: DebParams = {
-  pAm: (22.5 * GRAMS_PER_JOULE) / HOURS_PER_DAY,
-  v: 0.02 / HOURS_PER_DAY,
-  kappa: 0.8,
-  kappaX: 0.8,
-  kappaR: 0.95,
-  kappaG: 0.8,
-  pM: (18 * GRAMS_PER_JOULE) / HOURS_PER_DAY,
-  kJ: 0.002 / HOURS_PER_DAY,
-  EG: 2800 * GRAMS_PER_JOULE,
-  EHb: 0.07 * GRAMS_PER_JOULE,
-  EHp: 33 * GRAMS_PER_JOULE,
-  ha: 1e-6 / HOURS_PER_DAY ** 2,
-  sG: 1e-4,
-  TA: 8000,
-  dV: 0.1,
-  E0: 1 * GRAMS_PER_JOULE,
-  Lb: 0.05,
-};
+const animal: DebParams = fromAmP(GENERALISED_ANIMAL);
+const earlyMaturing: DebParams = { ...animal, EHp: animal.EHp / 5 };
 const { E0 } = animal;
 const Lm = maxStructuralLength(animal);
 const YEAR = 365 * HOURS_PER_DAY;
@@ -264,17 +247,19 @@ describe('oxygen', () => {
   });
 
   it('scales {p_Am} and v by ω and leaves maintenance owed at τ', () => {
-    const s = fish(0.6, 0.8);
+    const s = fish(0.6, 0.8, { maturity: earlyMaturing.EHp });
     const tau = 1.5;
-    const [none, thin, full] = [0, 0.5, 1].map((omega) => stepDeb(s, animal, { fromGut: FEAST, tau, omega }).fluxes);
+    const [none, thin, full] = [0, 0.5, 1].map(
+      (omega) => stepDeb(s, earlyMaturing, { fromGut: FEAST, tau, omega }).fluxes
+    );
     expect(none.assimilated).toBe(0);
     expectNear(thin.assimilated, full.assimilated / 2);
     expect(none.mobilised).toBeGreaterThan(0);
     expectNear(thin.mobilised - none.mobilised, (full.mobilised - none.mobilised) / 2);
     const owed = [none, thin, full].every(
       ({ burned, shortfall }) =>
-        near(burned.maintenance + shortfall, animal.pM * s.structure * tau) &&
-        near(burned.development, animal.kJ * animal.EHp * tau)
+        near(burned.maintenance + shortfall, earlyMaturing.pM * s.structure * tau) &&
+        near(burned.development, earlyMaturing.kJ * earlyMaturing.EHp * tau)
     );
     expect(owed).toBe(true);
   });
@@ -339,8 +324,8 @@ describe('maintenance priority', () => {
   });
 
   it('pays a juvenile’s somatic shortfall from its surplus before maturity takes the rest', () => {
-    const juvenile = fish(0.5 * Lm, 0.4, { maturity: animal.EHp / 2 });
-    const { state, fluxes } = stepDeb(juvenile, animal, atReference(0));
+    const juvenile = fish(0.5 * Lm, 0.4, { maturity: earlyMaturing.EHp / 2 });
+    const { state, fluxes } = stepDeb(juvenile, earlyMaturing, atReference(0));
     expect(fluxes.shortfall).toBeGreaterThan(0);
     expect(fluxes.fromStructure).toBe(0);
     expectNear(fluxes.burned.starvation, fluxes.shortfall);
