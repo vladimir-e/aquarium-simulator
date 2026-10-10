@@ -14,7 +14,7 @@ This project follows documentation-driven development:
 1. **Start here:** Documentation lives in `docs-site/src/content/docs/` and is published at docs.fishroom.app — read the Overview for the architecture and how the pages are organised
 2. **Check what to trust:** Each subsystem page carries a Status table — settled vs scaffolding vs missing. Read it before building on, defending, or "fixing" that system
 3. **Check progress:** Read `CHANGELOG.md` to see what's implemented
-4. **Task briefs** come from the maintainer/orchestrator per task; `docs/tasks/` holds earlier briefs as historical reference only
+4. **Task briefs** come from the maintainer/orchestrator per task; their history lives in git and the PR descriptions
 
 ## Principles
 
