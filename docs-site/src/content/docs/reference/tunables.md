@@ -160,9 +160,9 @@ for every kind.
 | `somaShare` | κ: share of what a plant's reserve mobilises that goes to its soma; the rest fills its offshoot buffer | — |
 | `growthEfficiency` | κ_G: share of what new structure costs that ends up in it, plants and blooms alike; the rest is burned building it | — |
 | `reserveCapacity` | [E_m]: reserve a gram of structure holds when full, plants and blooms alike | g/g |
-| `storeFillDays` | Days a plant's empty nutrient store takes to fill from a saturating pool | days |
-| `quotaMin.nitrate` · `.phosphate` · `.potassium` · `.iron` | Q_min: each nutrient's element as a share of a gram of a plant's structure | g/g |
-| `quotaMax.nitrate` · `.phosphate` · `.potassium` · `.iron` | Q_max: the same, with every store full | g/g |
+| `storeFillDays` | Days a plant's empty nutrient store fills 63 % of the way in, from a saturating pool | days |
+| `quotaMin.nitrate` · `.phosphate` · `.potassium` · `.iron` | Q_min: each nutrient's element in a gram of a plant's structure | mg/g |
+| `quotaMax.nitrate` · `.phosphate` · `.potassium` · `.iron` | Q_max: the same, with every store full | mg/g |
 | `lightStarvationSeverity` | Damage in a day without light, falling to nothing at the species' daily light edge; quoted at growth rate 1 and the respiration reference temperature | %/hr |
 | `lightExcessiveSeverity` | Damage per PAR unit above the species' tolerable band | %/PAR/hr |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per °C, pH unit or dGH outside the species' tolerable band, one per factor | %/unit/hr |

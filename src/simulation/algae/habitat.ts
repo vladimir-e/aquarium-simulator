@@ -1,5 +1,6 @@
 import type { Resources, SimulationState } from '../state.js';
 import { calculateFloorArea, calculateTankGlassSurface, calculateTankHeight } from '../core/geometry.js';
+import { meanOfExp } from '../core/kinetics.js';
 import type { OpticsConfig } from '../config/optics.js';
 import type { ActionType } from '../actions/types.js';
 import { calculateHardscapeTotalSurface } from '../equipment/hardscape.js';
@@ -18,8 +19,7 @@ export type HabitatTank = Pick<SimulationState, 'tank' | 'equipment' | 'plants' 
  * `(e^{kD} − 1) / kD`.
  */
 export function columnGain(depthCm: number, extinction: number): number {
-  const attenuation = extinction * depthCm;
-  return attenuation > 0 ? Math.expm1(attenuation) / attenuation : 1;
+  return meanOfExp(extinction * depthCm);
 }
 
 export type HabitatPlace = 'column' | 'walls' | 'floor' | 'hardscape';

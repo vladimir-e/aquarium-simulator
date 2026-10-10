@@ -27,7 +27,7 @@ export interface AlgaeTraits extends FloraTraits {
   tissueDensity: number;
   /** Mass that lands every hour through the taper, whatever the bloom is doing, 0–100 scale. */
   sporeRate: number;
-  /** Q_min: mass fraction of each nutrient's element — N, P, K, Fe — in a gram of its structure. */
+  /** Q_min: mg of each nutrient's element — N, P, K, Fe — in a gram of its structure. */
   quotaMin: NutrientVector;
   /** Q_max: the same, with every store full. */
   quotaMax: NutrientVector;
@@ -95,8 +95,8 @@ export const ALGAE: Readonly<Record<AlgaeKind, AlgaeTraits>> = {
     phosphateHalfSaturation: 0.2,
     tissueDensity: 0.03,
     sporeRate: 0.002,
-    quotaMin: { nitrate: 0.025, phosphate: 0.0015, potassium: 0.004, iron: 3e-5 },
-    quotaMax: { nitrate: 0.1, phosphate: 0.015, potassium: 0.022, iron: 2e-4 },
+    quotaMin: { nitrate: 25, phosphate: 1.5, potassium: 4, iron: 0.03 },
+    quotaMax: { nitrate: 100, phosphate: 15, potassium: 22, iron: 0.2 },
     storeFillDays: 1,
   },
   film: {
@@ -114,8 +114,8 @@ export const ALGAE: Readonly<Record<AlgaeKind, AlgaeTraits>> = {
     phosphateHalfSaturation: 0.02,
     tissueDensity: 0.0003,
     sporeRate: 0.002,
-    quotaMin: { nitrate: 0.034, phosphate: 0.0017, potassium: 0.004, iron: 3e-5 },
-    quotaMax: { nitrate: 0.08, phosphate: 0.01, potassium: 0.022, iron: 2e-4 },
+    quotaMin: { nitrate: 34, phosphate: 1.7, potassium: 4, iron: 0.03 },
+    quotaMax: { nitrate: 80, phosphate: 10, potassium: 22, iron: 0.2 },
     storeFillDays: 2,
   },
 };

@@ -88,7 +88,7 @@ export interface PlantsConfig {
   reserveCapacity: number;
   /** Days an empty store takes to fill at saturating concentration, at its opening rate. */
   storeFillDays: number;
-  /** Q_min: mass fraction of each nutrient's element — N, P, K, Fe — in a gram of a plant's structure. */
+  /** Q_min: mg of each nutrient's element — N, P, K, Fe — in a gram of a plant's structure. */
   quotaMin: NutrientVector;
   /** Q_max: the same, with every store full. */
   quotaMax: NutrientVector;
@@ -216,8 +216,8 @@ export const plantsDefaults: PlantsConfig = {
   // 0.35–0.73 %; critical 0.13 % (G&K 1966). K: Gerloff 1975 floors 0.25–0.3 %,
   // maxima 1.1–5.1 %; Linn 1973 survey mean 1.54 %. Fe: Gerloff 1975 Elodea
   // floor 40 ppm, culture maximum 219 ppm.
-  quotaMin: { nitrate: 0.012, phosphate: 0.0008, potassium: 0.004, iron: 5e-5 },
-  quotaMax: { nitrate: 0.045, phosphate: 0.006, potassium: 0.025, iron: 2.5e-4 },
+  quotaMin: { nitrate: 12, phosphate: 0.8, potassium: 4, iron: 0.05 },
+  quotaMax: { nitrate: 45, phosphate: 6, potassium: 25, iron: 0.25 },
 
   // Vitality stressor severities (pre-hardiness; the plant's builder
   // scales them by `1 − hardiness` for the species, except nitrate, whose edge
@@ -363,15 +363,15 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
 ];
 
 export const quotaMinMeta: NutrientVectorMeta[] = [
-  { key: 'nitrate', label: 'Nitrogen floor (Q_min)', unit: 'g N/g', min: 0.004, max: 0.02, step: 0.001 },
-  { key: 'phosphate', label: 'Phosphorus floor (Q_min)', unit: 'g P/g', min: 0.0003, max: 0.002, step: 0.0001 },
-  { key: 'potassium', label: 'Potassium floor (Q_min)', unit: 'g K/g', min: 0.001, max: 0.008, step: 0.0005 },
-  { key: 'iron', label: 'Iron floor (Q_min)', unit: 'g Fe/g', min: 0.00001, max: 0.0001, step: 0.00001 },
+  { key: 'nitrate', label: 'Nitrogen floor (Q_min)', unit: 'mg N/g', min: 4, max: 20, step: 1 },
+  { key: 'phosphate', label: 'Phosphorus floor (Q_min)', unit: 'mg P/g', min: 0.3, max: 2, step: 0.1 },
+  { key: 'potassium', label: 'Potassium floor (Q_min)', unit: 'mg K/g', min: 1, max: 8, step: 0.5 },
+  { key: 'iron', label: 'Iron floor (Q_min)', unit: 'mg Fe/g', min: 0.01, max: 0.1, step: 0.01 },
 ];
 
 export const quotaMaxMeta: NutrientVectorMeta[] = [
-  { key: 'nitrate', label: 'Nitrogen ceiling (Q_max)', unit: 'g N/g', min: 0.025, max: 0.08, step: 0.001 },
-  { key: 'phosphate', label: 'Phosphorus ceiling (Q_max)', unit: 'g P/g', min: 0.003, max: 0.015, step: 0.0005 },
-  { key: 'potassium', label: 'Potassium ceiling (Q_max)', unit: 'g K/g', min: 0.01, max: 0.06, step: 0.001 },
-  { key: 'iron', label: 'Iron ceiling (Q_max)', unit: 'g Fe/g', min: 0.00015, max: 0.0006, step: 0.00001 },
+  { key: 'nitrate', label: 'Nitrogen ceiling (Q_max)', unit: 'mg N/g', min: 25, max: 80, step: 1 },
+  { key: 'phosphate', label: 'Phosphorus ceiling (Q_max)', unit: 'mg P/g', min: 3, max: 15, step: 0.5 },
+  { key: 'potassium', label: 'Potassium ceiling (Q_max)', unit: 'mg K/g', min: 10, max: 60, step: 1 },
+  { key: 'iron', label: 'Iron ceiling (Q_max)', unit: 'mg Fe/g', min: 0.15, max: 0.6, step: 0.01 },
 ];

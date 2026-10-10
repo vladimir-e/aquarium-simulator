@@ -16,6 +16,8 @@ import { ALGAE, type AlgaeKind } from '../algae/traits.js';
 
 type Composition = Pick<PlantsConfig, 'quotaMin' | 'quotaMax' | 'storeFillDays'>;
 
+const MG_PER_G = 1000;
+
 const NUTRIENT_PER_ELEMENT: Readonly<NutrientVector> = {
   nitrate: N_TO_NO3_MASS_RATIO,
   phosphate: P_TO_PO4_MASS_RATIO,
@@ -24,7 +26,7 @@ const NUTRIENT_PER_ELEMENT: Readonly<NutrientVector> = {
 };
 
 const inEngineUnits = (quota: Readonly<NutrientVector>): NutrientVector =>
-  mapNutrients((n) => quota[n] * NUTRIENT_PER_ELEMENT[n] * 1000);
+  mapNutrients((n) => quota[n] * NUTRIENT_PER_ELEMENT[n]);
 
 function floraParams(
   { growthRate }: Pick<FloraTraits, 'growthRate'>,
@@ -33,7 +35,7 @@ function floraParams(
   config: PlantsConfig
 ): FloraParams {
   const photosynthatePerGram =
-    (growthRate * config.co2PerRateUnit * CO2_TO_CH2O_MASS_RATIO) / (1000 * tissuePerRateUnit(config));
+    (growthRate * config.co2PerRateUnit * CO2_TO_CH2O_MASS_RATIO) / (MG_PER_G * tissuePerRateUnit(config));
   const pAm = config.basePhotosynthesisRate * photosynthatePerGram;
   return {
     pAm,

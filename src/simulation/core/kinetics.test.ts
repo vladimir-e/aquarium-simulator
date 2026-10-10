@@ -4,6 +4,7 @@ import {
   hourlyDraw,
   hourlyInflowDraw,
   lightSaturationFactor,
+  meanOfExp,
   monodFactor,
   monodUptake,
   q10Factor,
@@ -64,6 +65,16 @@ describe('hourlyInflowDraw', () => {
     expect([0.01, 1, 30].every((rate) => hourlyInflowDraw(rate) < hourlyDraw(rate))).toBe(true);
     expect(hourlyInflowDraw(0)).toBe(0);
     expect(hourlyInflowDraw(1e4)).toBeCloseTo(1, 3);
+  });
+});
+
+describe('meanOfExp', () => {
+  it('averages e^{xt} over the unit interval, growing or decaying, and reads 1 where nothing changes', () => {
+    const midpoints = (x: number, steps = 10_000): number =>
+      Array.from({ length: steps }, (_, i) => Math.exp((x * (i + 0.5)) / steps)).reduce((a, b) => a + b) / steps;
+    expect([-3, -0.2, 0.4, 5].every((x) => Math.abs(meanOfExp(x) / midpoints(x) - 1) < 1e-7)).toBe(true);
+    expect(meanOfExp(0)).toBe(1);
+    expect(meanOfExp(1e-9)).toBeCloseTo(1, 8);
   });
 });
 
