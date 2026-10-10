@@ -121,6 +121,15 @@ export interface DebStep {
   fluxes: DebFluxes;
 }
 
+/** Maintenance owed over the hour, somatic and maturity: what a shortfall is a share of. */
+export function upkeep(
+  state: DebState,
+  p: DebParams,
+  { tau, stress = NO_STRESS }: Pick<DebHour, 'tau' | 'stress'>
+): number {
+  return (p.pM * stress.maintenance * state.structure + p.kJ * state.maturity) * tau;
+}
+
 export const totalBurned = ({ burned }: DebFluxes): number => sum(Object.values(burned));
 
 export function assimilationCeiling(

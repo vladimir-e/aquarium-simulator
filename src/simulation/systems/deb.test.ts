@@ -16,6 +16,7 @@ import {
   structuralLength,
   structureOrganics,
   totalBurned,
+  upkeep,
   wellFed,
   wetMass,
   type DebFluxes,
@@ -298,6 +299,16 @@ describe('maintenance priority', () => {
     expect(fast[bufferPays].fluxes.fromStructure).toBe(0);
     expect(shrinks).toBeGreaterThan(bufferPays);
     expect(last(fast).state.structure).toBeLessThan(before.structure);
+  });
+
+  it('falls short by its whole upkeep with nothing stored, and by none of it on a full reserve below L_m', () => {
+    const empty = fish(0.8 * Lm, 0);
+    const stressed = { tau: 1.5, stress: { ...NO_STRESS, maintenance: 2 } };
+    expect(stepDeb(empty, animal, { fromGut: 0, omega: 1, ...stressed }).fluxes.shortfall).toBeCloseTo(
+      upkeep(empty, animal, stressed),
+      15
+    );
+    expect(stepDeb(fish(0.8 * Lm, 1), animal, atReference(0)).fluxes.shortfall).toBe(0);
   });
 
   it('counts unpaid maturity maintenance in the shortfall', () => {

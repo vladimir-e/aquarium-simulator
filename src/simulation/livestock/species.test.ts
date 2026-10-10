@@ -4,6 +4,7 @@ import {
   FISH_SPECIES_DATA,
   grownLength,
   grownMass,
+  incubation,
   lifespan,
   maturityAge,
   type FishSpecies,
@@ -82,6 +83,7 @@ describe.each(entrySpecies)('%s against its Add-my-Pet entry, fed freely at its 
   it('hatches an egg laid on E_0 at L_b, weighing what AmP implies, after a_b', () => {
     const egg = incubate(entry.parameters);
     expectRelative(egg.days / tau, entry.implied.a_b, 0.03);
+    expectRelative(incubation(species) / HOURS_PER_DAY / tau, entry.implied.a_b, 0.001);
     expectRelative(egg.L, p.Lb, 0.03);
     expectRelative(wetMass(hatchling(p), p), entry.implied.Ww_b, 0.03);
   });

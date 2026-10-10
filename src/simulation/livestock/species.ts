@@ -2,6 +2,7 @@ import type { DebParams } from '../systems/deb.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
 import {
   fromAmP,
+  hatchAge,
   impliedFigures,
   proxyEntry,
   readEntry,
@@ -206,13 +207,14 @@ function readBudget(budget: SpeciesBudget, temperatureC: number): AmpReading {
 interface SpeciesReading {
   deb: DebParams;
   female: LifeHistory;
+  incubationDays: number;
 }
 
 function readSpecies(species: FishSpecies): SpeciesReading {
   const { budget, temperatureRange: [low, high] } = FISH_SPECIES_DATA[species];
   const midRange = (low + high) / 2;
   const reading = readBudget(budget, midRange);
-  return { deb: fromAmP(reading), female: impliedFigures(reading, midRange) };
+  return { deb: fromAmP(reading), female: impliedFigures(reading, midRange), incubationDays: hatchAge(reading) };
 }
 
 const readings: Partial<Record<FishSpecies, SpeciesReading>> = {};
@@ -232,3 +234,6 @@ export const maturityAge = (species: FishSpecies): number => HOURS_PER_DAY * rea
 
 /** Ticks from hatching by which half a cohort fed without limit in mid-range water has died of wear. */
 export const lifespan = (species: FishSpecies): number => HOURS_PER_DAY * readingOf(species).female.lifespanDays;
+
+/** Ticks from laying to hatching at 20 °C, the temperature τ is 1 at. */
+export const incubation = (species: FishSpecies): number => HOURS_PER_DAY * readingOf(species).incubationDays;

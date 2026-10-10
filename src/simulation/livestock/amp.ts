@@ -176,16 +176,23 @@ const betaPrimitive = (u: number): number =>
 /** B_x(4/3, 0) = ∫₀ˣ t^⅓ / (1 − t) dt, read at u = x^⅓. */
 const incompleteBeta = (u: number): number => betaPrimitive(u) - betaPrimitive(0);
 
+interface Embryo {
+  g: number;
+  ub: number;
+  lb: number;
+  /** Scaled length along u = (g / (g + e))^⅓, from laying at u = 0 to birth at ub. */
+  length: (u: number) => number;
+}
+
 /**
- * L_b and E_0 of a std embryo born at e = 1, as AmP's get_lb finds them (Kooijman 2009, J Math Biol): along
- * u = (g / (g + e))^⅓ the embryo's scaled length is closed-form in l_b, so a bisection on l_b integrates its maturity
- * to E_Hb at birth. An abj embryo is a std one: acceleration starts at birth.
+ * A std embryo born at e = 1, as AmP's get_lb finds it (Kooijman 2009, J Math Biol): along u the embryo's scaled
+ * length is closed-form in l_b, so a bisection on l_b integrates its maturity to E_Hb at birth. An abj embryo is a std
+ * one: acceleration starts at birth.
  */
-function birth(e: Rates & Pick<Primaries, 'E_Hb'>): { L_b: number; E_0: number } {
+function embryo(e: Rates & Pick<Primaries, 'E_Hb'>): Embryo {
   const g = investmentRatio(e);
   const k = maintenanceRatio(e);
-  const Lm = maxStructuralLength(e);
-  const scale = maxReserveDensity(e) * Lm ** 3;
+  const scale = maxReserveDensity(e) * maxStructuralLength(e) ** 3;
   const ub = Math.cbrt(g / (1 + g));
   const Bb = incompleteBeta(ub);
   const lengthPerU = (lb: number) => (u: number): number => 1 / (ub / lb - (Bb - incompleteBeta(u)) / (3 * g));
@@ -204,7 +211,21 @@ function birth(e: Rates & Pick<Primaries, 'E_Hb'>): { L_b: number; E_0: number }
   };
   const lb = bisect((lb) => maturityAtBirth(lb) - e.E_Hb, 0, Math.min(1, (3 * g * ub) / Bb));
   if (lb === undefined) throw new RangeError(`E_Hb ${e.E_Hb} J is beyond what an embryo reaches before L_m`);
-  return { L_b: lb * Lm, E_0: g * scale * lengthPerU(lb)(0) ** 3 };
+  return { g, ub, lb, length: lengthPerU(lb) };
+}
+
+/** L_b and E_0 of a std embryo born at e = 1. */
+function birth(e: Rates & Pick<Primaries, 'E_Hb'>): { L_b: number; E_0: number } {
+  const { g, lb, length } = embryo(e);
+  const Lm = maxStructuralLength(e);
+  return { L_b: lb * Lm, E_0: g * maxReserveDensity(e) * Lm ** 3 * length(0) ** 3 };
+}
+
+/** Days from laying to birth at T_ref, as AmP's get_tb integrates them along u, on the embryo's unaccelerated rates. */
+export function hatchAge(e: AmpReading): number {
+  const { g, ub, length } = embryo({ ...e, p_Am: e.p_Am / e.s_M, v: e.v / e.s_M });
+  const [scaledAge] = integrate((u) => [(3 * length(u)) / (g * (1 - u ** 3))], [0], ub, 200);
+  return (scaledAge * e.E_G) / e.p_M;
 }
 
 const withEgg = (e: Unlaid): AmpParameters => ({ ...e, E_0: birth(e).E_0 });
