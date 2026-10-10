@@ -23,6 +23,8 @@ import {
   opticsConfigMeta,
   waterChemistryConfigMeta,
   plantsConfigMeta,
+  quotaMinMeta,
+  quotaMaxMeta,
   temperatureConfigMeta,
   tunableAt,
   type ConfigRange,
@@ -78,7 +80,15 @@ const SECTIONS: readonly SectionSpec[] = [
   { key: 'algae', label: 'Algae', meta: algaeConfigMeta },
   { key: 'optics', label: 'Water optics', meta: opticsConfigMeta },
   { key: 'waterChemistry', label: 'Water chemistry', meta: waterChemistryConfigMeta },
-  { key: 'plants', label: 'Plants', meta: plantsConfigMeta },
+  {
+    key: 'plants',
+    label: 'Plants',
+    meta: plantsConfigMeta,
+    groups: [
+      { key: 'quotaMin', label: 'Tissue floor, Q_min', meta: quotaMinMeta },
+      { key: 'quotaMax', label: 'Tissue ceiling, Q_max', meta: quotaMaxMeta },
+    ],
+  },
   {
     key: 'nutrients',
     label: 'Nutrients',

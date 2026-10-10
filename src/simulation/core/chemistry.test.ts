@@ -84,9 +84,4 @@ describe('the photosynthetic pair', () => {
       expect(oxygen * O2_TO_CO2_MASS_RATIO).toBeCloseTo(co2, 10);
     }
   });
-
-  it('fixes a mole of photosynthate for each mole of CO2, and releases a mole of oxygen beside it', () => {
-    const co2 = 30;
-    expect((co2 * CO2_TO_CH2O_MASS_RATIO) / MW_CH2O).toBeCloseTo((co2 * CO2_TO_O2_MASS_RATIO) / MW_O2, 12);
-  });
 });

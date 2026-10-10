@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { bloomParams, plantParams } from './params.js';
-import { plantsDefaults } from '../config/plants.js';
+import { plantsDefaults, quotaMaxMeta, quotaMinMeta, type PlantsConfig } from '../config/plants.js';
 import { NUTRIENTS } from '../config/nutrients.js';
 import { CO2_TO_CH2O_MASS_RATIO } from '../core/chemistry.js';
-import { maxReserveDensity, structureOrganics } from '../systems/deb.js';
+import { maxReserveDensity, structureOrganics } from '../systems/reserve.js';
 import { calculatePhotosynthesis } from '../systems/photosynthesis.js';
 import { calculateRespiration } from '../systems/respiration.js';
 import { metabolicRateUnits } from '../systems/flora.js';
@@ -74,9 +74,31 @@ describe('pace', () => {
     expect(unpaced.every((key) => JSON.stringify(fast[key]) === JSON.stringify(slow[key]))).toBe(true);
   });
 
-  it('fills a bloom’s reserve to the share a plant’s fills to', () => {
-    const capacity = maxReserveDensity(slow);
-    expect(ALGAE_KINDS.every((kind) => close(maxReserveDensity(bloomParams(kind, config)), capacity))).toBe(true);
+  it('fills every kind’s reserve to the plants’ E_m', () => {
+    const everyKind = (c: PlantsConfig): FloraParams[] => [
+      plantParams('anubias', c),
+      ...ALGAE_KINDS.map((kind) => bloomParams(kind, c)),
+    ];
+    const fills = (c: PlantsConfig): boolean =>
+      everyKind(c).every((p) => close(maxReserveDensity(p), c.reserveCapacity));
+    expect(fills(config)).toBe(true);
+    expect(fills({ ...config, reserveCapacity: 2 * config.reserveCapacity })).toBe(true);
+  });
+});
+
+describe('quotas', () => {
+  it('come off the plants’ config for a plant and off its kind for a bloom', () => {
+    const richer = { ...config, quotaMin: { ...config.quotaMin, nitrate: 2 * config.quotaMin.nitrate } };
+    expect(close(plantParams('anubias', richer).qMin.nitrate, 2 * plantParams('anubias', config).qMin.nitrate)).toBe(true);
+    expect(ALGAE_KINDS.every((kind) => bloomParams(kind, richer).qMin.nitrate === bloomParams(kind, config).qMin.nitrate)).toBe(
+      true
+    );
+  });
+
+  it('leave a store room above Q_min at every setting: each floor’s range sits below its ceiling’s', () => {
+    expect(NUTRIENTS.every((n) => quotaMinMeta.find((m) => m.key === n)!.max < quotaMaxMeta.find((m) => m.key === n)!.min)).toBe(
+      true
+    );
   });
 });
 

@@ -34,7 +34,7 @@ import { shareOut, swallow, type Pace } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import { sum } from '../core/sum.js';
 import { hourlyDraw } from '../core/kinetics.js';
-import { wellFed } from './deb.js';
+import { wellFed } from './reserve.js';
 import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
 import type { FishHour } from './metabolism.js';
 import {

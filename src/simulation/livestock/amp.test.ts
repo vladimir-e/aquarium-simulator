@@ -21,12 +21,12 @@ import { Poecilia_reticulata } from './amp/entries/Poecilia_reticulata.js';
 import { Pterophyllum_scalare } from './amp/entries/Pterophyllum_scalare.js';
 import {
   hatchling,
-  maxReserveDensity,
   maxStructuralLength,
   structuralLength,
   wetMass,
   type DebParams,
 } from '../systems/deb.js';
+import { maxReserveDensity } from '../systems/reserve.js';
 import { arrheniusFactor } from '../core/kinetics.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
 import { expectRelative, feastFromHatching, grown, medianDeathHour, pubertyHour } from '../tests/deb.js';

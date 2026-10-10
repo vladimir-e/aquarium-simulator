@@ -6,7 +6,8 @@ import { speciesTau } from '../livestock/species.js';
 import { WASTE_NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
 import { sum } from '../core/sum.js';
-import { NO_STRESS, totalBurned } from './deb.js';
+import { NO_STRESS } from './deb.js';
+import { totalBurned } from './reserve.js';
 import { fishOrganics } from './fish-body.js';
 import { fishRecord } from '../tests/fish.js';
 

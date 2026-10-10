@@ -24,6 +24,11 @@ export function hourlyDraw(rate: number): number {
   return -Math.expm1(-rate);
 }
 
+/** Share of a steady inflow over the hour that the same draw takes before the hour ends: `1 − hourlyDraw(rate)/rate`. */
+export function hourlyInflowDraw(rate: number): number {
+  return rate > 0 ? 1 - hourlyDraw(rate) / rate : 0;
+}
+
 /**
  * Substrate scaling for biological rates — `[S] / (K + [S])`, the Monod curve.
  *

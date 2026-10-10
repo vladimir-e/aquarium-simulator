@@ -20,7 +20,8 @@ import { monodFactor } from '../core/kinetics.js';
 import { WASTE_NUTRIENTS, type MineralVector } from '../config/nutrients.js';
 import { sum } from '../core/sum.js';
 import { speciesTau, type FishSpecies } from '../livestock/species.js';
-import { NO_STRESS, stepDeb, totalBurned, type DebFluxes } from './deb.js';
+import { NO_STRESS, stepDeb, type DebFluxes } from './deb.js';
+import { totalBurned } from './reserve.js';
 import { fishParams } from './fish-body.js';
 import { digest, gutRoom, shareCapped, type Pace } from './digestion.js';
 

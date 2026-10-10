@@ -1,29 +1,27 @@
 /**
  * A plant's or a bloom's Dynamic Energy Budget on Droop cell quotas, in engine
- * units: grams of photosynthate and tissue, mg of each nutrient as
- * `Organics.nutrients` counts it, hours. Design: Foundation Redesign,
- * energy.md § Flora.
+ * units: grams of photosynthate and of tissue, mg of each nutrient as
+ * `Organics.nutrients` counts it, hours.
  *
- * Leaf area scales with tissue, so the budget is DEB's V1-morph: v is a rate,
- * and reserve turns over at it whatever the size.
+ * Leaf area scales with tissue, so the budget is DEB's V1-morph. No pace
+ * bounds the hourly step: every draw is integrated over the hour, at the
+ * turnover and Droop factor the hour starts on.
  */
 
-import { hourlyDraw, monodFactor, monodUptake } from '../core/kinetics.js';
-import type { Organics } from '../core/organics.js';
+import { hourlyDraw, hourlyInflowDraw, monodFactor, monodUptake } from '../core/kinetics.js';
+import { addOrganics, ofComposition, type Organics } from '../core/organics.js';
 import { mapNutrients, NUTRIENTS, ZERO_NUTRIENTS, type Nutrient, type NutrientVector } from '../config/nutrients.js';
-import { maxReserveDensity, structureOrganics, wellFed } from './deb.js';
+import { maxReserveDensity, spend, wellFed, type ReserveParams, type ReserveState, type Spent } from './reserve.js';
 
-export interface FloraParams {
+export interface FloraParams extends ReserveParams {
   /** g/h per g of structure */
   pAm: number;
   /** 1/h */
   v: number;
-  kappa: number;
   /** g/h per g of structure */
   pM: number;
   /** g of reserve per g of structure */
   EG: number;
-  kappaG: number;
   /** mg per g of structure */
   qMin: NutrientVector;
   /** mg per g of structure */
@@ -32,10 +30,9 @@ export interface FloraParams {
   storeFillRate: NutrientVector;
 }
 
-export interface FloraState {
+export interface FloraState extends ReserveState {
   /** g */
   structure: number;
-  reserve: number;
   offshootBuffer: number;
   /** mg held above what the structure itself carries */
   stores: NutrientVector;
@@ -63,7 +60,7 @@ export interface FloraFluxes {
   /** Photosynthate offered that the reserve had no room for. */
   returned: number;
   assimilated: number;
-  /** Reserve spent: what the stores refuse stays in reserve. */
+  /** Reserve spent: what growth and the buffer turn back stays in reserve. */
   mobilised: number;
   toStructure: number;
   fromStructure: number;
@@ -90,59 +87,85 @@ export const storeFill = (state: FloraState, p: FloraParams): NutrientVector =>
 export const droopFactor = (state: FloraState, p: FloraParams): number =>
   Math.min(...NUTRIENTS.map((n) => monodFactor(storeDensity(state, n), p.qMin[n])));
 
-export const floraOrganics = (state: FloraState, p: FloraParams): number =>
-  state.reserve + state.offshootBuffer + structureOrganics(p) * state.structure;
+export const floraOrganics = (state: FloraState): number =>
+  state.reserve + state.offshootBuffer + state.structure;
 
-/** Structure as organic matter: its grams at Q_min. */
-function tissue(p: FloraParams, structure: number): Organics {
-  return { grams: structureOrganics(p) * structure, nutrients: mapNutrients((n) => p.qMin[n] * structure) };
-}
+const tissue = (p: FloraParams, structure: number): Organics => ofComposition(structure, p.qMin);
 
-/**
- * Growth draws the stores, so it reads its Droop limit at the store the hour
- * leaves, through `monodUptake`, and no store is overdrawn at any pace. The
- * buffer draws none until an offshoot is bought, and reads it as the hour starts.
- */
-function structureGrown(state: FloraState, p: FloraParams, buildable: number): number {
+/** Structure `capacity` builds at the Droop limit of the stores it leaves, so no store is overdrawn at any pace. */
+function structureGrown(state: FloraState, p: FloraParams, capacity: number): number {
   return Math.min(
     ...NUTRIENTS.map(
-      (n) => monodUptake(state.stores[n], p.qMin[n] * buildable, p.qMin[n] * state.structure) / p.qMin[n]
+      (n) => monodUptake(state.stores[n], p.qMin[n] * capacity, p.qMin[n] * state.structure) / p.qMin[n]
     )
   );
 }
 
+interface Growth {
+  invested: number;
+  grown: number;
+}
+
+const turnedBack = ({ surplus, growth, rest, toBuffer }: Spent<Growth>): number =>
+  surplus - growth.invested + rest - toBuffer;
+
 /**
- * One hour of the budget: τ paces every rate, and the hour's photosynthate
- * fills the reserve to E_m of the structure the hour leaves, no further.
+ * One hour of the budget, τ pacing every rate. The reserve is first order at
+ * the turnover the hour starts on: it releases `hourlyDraw` of what it holds
+ * and `hourlyInflowDraw` of what flows in — the hour's photosynthate, and what
+ * growth and the buffer turn back of the release, offered again. It releases
+ * no more than holds it full on the hour's structure, growing at the rate a
+ * full reserve buys, and takes in no more than fills it to E_m of the
+ * structure the hour leaves.
  */
 export function stepFlora(state: FloraState, p: FloraParams, hour: FloraBudgetHour): FloraStep {
   const { offered, tau, room, healing = 0 } = hour;
   const { structure: V, reserve: E, offshootBuffer: B, stores } = state;
-  const gramsPerStructure = structureOrganics(p);
+  const fullDensity = maxReserveDensity(p);
+  const droop = droopFactor(state, p);
 
-  const pC = V > 0 ? Math.min(E, (tau * E * V * (p.v * p.EG + p.pM)) / (p.EG * V + p.kappa * E)) : 0;
+  const upkeep = p.pM * V * tau;
+  const turnover = V > 0 ? (tau * V * (p.v * p.EG + p.pM)) / (p.EG * V + p.kappa * E) : 0;
+  const ofStock = hourlyDraw(turnover);
+  const ofInflow = hourlyInflowDraw(turnover);
 
-  const somaShare = p.kappa * pC;
-  const somaticUpkeep = p.pM * V * tau;
-  const somaticPaid = Math.min(somaShare, somaticUpkeep);
-  const somaticUnpaid = somaticUpkeep - somaticPaid;
-  const grown = structureGrown(state, p, (room * (somaShare - somaticPaid)) / p.EG);
-  const invested = p.EG * grown;
-  const toStructure = gramsPerStructure * grown;
+  const spendHour = (mobilised: number): Spent<Growth> =>
+    spend(
+      mobilised,
+      p.kappa,
+      { soma: upkeep, branch: 0 },
+      { buffer: B, structure: V },
+      {
+        invest: (surplus) => {
+          const grown = structureGrown(state, p, (room * surplus) / p.EG);
+          return { invested: p.EG * grown, grown };
+        },
+        deposit: (rest, { grown }) =>
+          droopFactor({ ...state, stores: mapNutrients((n) => stores[n] - p.qMin[n] * grown) }, p) * rest,
+      }
+    );
 
-  const branch = pC - somaShare;
-  const somaFromBranch = Math.min(branch, somaticUnpaid);
-  const toBuffer = droopFactor(state, p) * (branch - somaFromBranch);
-  const buffer = B + toBuffer;
-  const somaticDue = somaticUnpaid - somaFromBranch;
-  const somaFromBuffer = Math.min(buffer, somaticDue);
-  const fromStructure = Math.min(somaticDue - somaFromBuffer, gramsPerStructure * V);
-  const shrunk = fromStructure / gramsPerStructure;
+  const throughput = E * ofStock + offered * ofInflow;
+  const turnedBackShare = throughput > 0 ? turnedBack(spendHour(throughput)) / throughput : 0;
+  const fullGrowth = Math.max(0, (room * droop * (p.kappa * p.pAm - p.pM)) / (p.EG + p.kappa * fullDensity));
+  const meanStructure = fullGrowth > 0 ? (V * Math.expm1(fullGrowth * tau)) / (fullGrowth * tau) : V;
+  const inflowToFull = Math.max(0, fullDensity * meanStructure - E * (1 - ofStock)) / (1 - ofInflow);
+  const mobilised = Math.min(throughput / (1 - ofInflow * turnedBackShare), E * ofStock + inflowToFull * ofInflow);
 
-  const mobilised = somaticPaid + invested + somaFromBranch + toBuffer;
-  const structure = V + grown - shrunk;
-  const kept = E - mobilised;
-  const assimilated = Math.min(offered, Math.max(0, maxReserveDensity(p) * structure - kept + healing));
+  const {
+    somaticPaid,
+    somaticUnpaid,
+    growth: { invested, grown },
+    somaFromBranch,
+    toBuffer,
+    buffer,
+    somaFromBuffer,
+    fromStructure,
+  } = spendHour(mobilised);
+  const spent = somaticPaid + invested + somaFromBranch + toBuffer;
+  const structure = V + grown - fromStructure;
+  const kept = E - spent;
+  const assimilated = Math.min(offered, Math.max(0, fullDensity * structure - kept + healing));
   const healed = Math.min(healing, kept + assimilated);
 
   return {
@@ -150,21 +173,21 @@ export function stepFlora(state: FloraState, p: FloraParams, hour: FloraBudgetHo
       structure,
       reserve: kept + assimilated - healed,
       offshootBuffer: buffer - somaFromBuffer,
-      stores: mapNutrients((n) => stores[n] + p.qMin[n] * (shrunk - grown)),
+      stores: mapNutrients((n) => stores[n] + p.qMin[n] * (fromStructure - grown)),
     },
     fluxes: {
       returned: offered - assimilated,
       assimilated,
-      mobilised,
-      toStructure,
+      mobilised: spent,
+      toStructure: grown,
       fromStructure,
       burned: {
         maintenance: somaticPaid,
-        growth: invested - toStructure,
+        growth: invested - grown,
         starvation: somaFromBranch + somaFromBuffer + fromStructure,
         healing: healed,
       },
-      owed: somaticUpkeep,
+      owed: upkeep,
       shortfall: somaticUnpaid,
     },
   };
@@ -172,11 +195,19 @@ export function stepFlora(state: FloraState, p: FloraParams, hour: FloraBudgetHo
 
 /**
  * mg of each nutrient the stores ask of the pools this hour: what each lacks of
- * full, closing first order at its fill rate × τ.
+ * full, closing first order at its fill rate × τ × its pool's Michaelis–Menten
+ * factor.
  */
-export function storeRequest(state: FloraState, p: FloraParams, tau: number): NutrientVector {
+export function storeRequest(
+  state: FloraState,
+  p: FloraParams,
+  tau: number,
+  pool: Readonly<NutrientVector>
+): NutrientVector {
   return mapNutrients(
-    (n) => Math.max(0, storeMax(p, n) * state.structure - state.stores[n]) * hourlyDraw(tau * p.storeFillRate[n])
+    (n) =>
+      Math.max(0, storeMax(p, n) * state.structure - state.stores[n]) *
+      hourlyDraw(tau * p.storeFillRate[n] * pool[n])
   );
 }
 
@@ -223,13 +254,20 @@ export function buyOffshoot(state: FloraState, p: FloraParams, structure: number
       stores: mapNutrients((n) => state.stores[n] - p.qMin[n] * structure),
     },
     offshoot,
-    overhead: (p.EG - structureOrganics(p)) * structure,
+    overhead: (p.EG - 1) * structure,
   };
 }
 
-/** `structure` shed as waste at Q_min; the store it held is resorbed and stays. */
+/**
+ * `structure` shed as waste at Q_min, with its reserve at the unit's density;
+ * the store it held is resorbed and stays.
+ */
 export function shed(state: FloraState, p: FloraParams, structure: number): { state: FloraState; waste: Organics } {
-  return { state: { ...state, structure: state.structure - structure }, waste: tissue(p, structure) };
+  const reserve = state.structure > 0 ? (state.reserve * structure) / state.structure : 0;
+  return {
+    state: { ...state, structure: state.structure - structure, reserve: state.reserve - reserve },
+    waste: addOrganics(tissue(p, structure), ofComposition(reserve, ZERO_NUTRIENTS)),
+  };
 }
 
 /**
@@ -237,9 +275,8 @@ export function shed(state: FloraState, p: FloraParams, structure: number): { st
  * as waste; its stores leached to the water.
  */
 export function remains(state: FloraState, p: FloraParams): { waste: Organics; leachate: NutrientVector } {
-  const body = tissue(p, state.structure);
   return {
-    waste: { grams: body.grams + state.reserve + state.offshootBuffer, nutrients: body.nutrients },
+    waste: addOrganics(tissue(p, state.structure), ofComposition(state.reserve + state.offshootBuffer, ZERO_NUTRIENTS)),
     leachate: { ...state.stores },
   };
 }

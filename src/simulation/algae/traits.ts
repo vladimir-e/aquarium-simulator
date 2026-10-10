@@ -1,3 +1,4 @@
+import type { NutrientVector } from '../config/nutrients.js';
 import type { NutrientDemand } from '../plants/species.js';
 import type { FloraTraits } from '../systems/flora.js';
 
@@ -26,6 +27,12 @@ export interface AlgaeTraits extends FloraTraits {
   tissueDensity: number;
   /** Mass that lands every hour through the taper, whatever the bloom is doing, 0–100 scale. */
   sporeRate: number;
+  /** Q_min: mass fraction of each nutrient's element — N, P, K, Fe — in a gram of its structure. */
+  quotaMin: NutrientVector;
+  /** Q_max: the same, with every store full. */
+  quotaMax: NutrientVector;
+  /** Days an empty store takes to fill at saturating concentration, at its opening rate. */
+  storeFillDays: number;
 }
 
 export type AlgaeKind = 'greenWater' | 'film';
@@ -56,6 +63,21 @@ export type AlgaeKind = 'greenWater' | 'film';
  *
  * Spores land at 0.05 of the scale a day: nothing a reader sees, but an empty
  * tank is never closed to either.
+ *
+ * Green water's quotas are planktonic chlorophytes'. N: PCLake greens 2–10 %
+ * (Janse 2005); Bougaran 2010 S. minutum q₀ 3.5 %, q_max 12 %; Healey &
+ * Hendzel 1980 severe deficiency under 4 %. P: PCLake 0.15–1.5 %; Bougaran 2010
+ * q₀ 0.23 %, q_max 1.9 %. K: Gerloff & Fishbeck 1969 Chlorella critical 0.4 %;
+ * Ho 2003 replete 2.2 %. Fe: Glaesener 2013 C. reinhardtii limited 30–90 ppm,
+ * replete 140–400 ppm; Sunda & Huntsman 1995 70 ppm at maximum growth.
+ *
+ * Film's are periphyton's, per ash-free dry mass. N: Schmidt 2019 Droop Q_min
+ * 3.4 %; Kahlert 1998 deficient under 4.8–5.3 %; Hillebrand & Sommer 1999
+ * optimum 7.5–8.3 %. P: Schmidt 2019 Q_min 0.17 %; H&S 1999 optimum
+ * 0.98–1.08 %; Fanta 2010 lab plateau 1.07 %. K and Fe have no periphyton
+ * figures: green water's, on the same photosynthetic machinery.
+ *
+ * Nothing publishes a store's fill time; those are Tune's.
  */
 export const ALGAE: Readonly<Record<AlgaeKind, AlgaeTraits>> = {
   greenWater: {
@@ -73,6 +95,9 @@ export const ALGAE: Readonly<Record<AlgaeKind, AlgaeTraits>> = {
     phosphateHalfSaturation: 0.2,
     tissueDensity: 0.03,
     sporeRate: 0.002,
+    quotaMin: { nitrate: 0.025, phosphate: 0.0015, potassium: 0.004, iron: 3e-5 },
+    quotaMax: { nitrate: 0.1, phosphate: 0.015, potassium: 0.022, iron: 2e-4 },
+    storeFillDays: 1,
   },
   film: {
     name: 'Film',
@@ -89,6 +114,9 @@ export const ALGAE: Readonly<Record<AlgaeKind, AlgaeTraits>> = {
     phosphateHalfSaturation: 0.02,
     tissueDensity: 0.0003,
     sporeRate: 0.002,
+    quotaMin: { nitrate: 0.034, phosphate: 0.0017, potassium: 0.004, iron: 3e-5 },
+    quotaMax: { nitrate: 0.08, phosphate: 0.01, potassium: 0.022, iron: 2e-4 },
+    storeFillDays: 2,
   },
 };
 

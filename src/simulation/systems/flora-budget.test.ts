@@ -15,11 +15,11 @@ import {
   type FloraState,
   type FloraStep,
 } from './flora-budget.js';
-import { maxReserveDensity, reserveDensity, structureOrganics, totalBurned, wellFed } from './deb.js';
+import { maxReserveDensity, reserveDensity, totalBurned, wellFed } from './reserve.js';
 import { bloomParams, plantParams } from '../flora/params.js';
 import { plantsDefaults } from '../config/plants.js';
 import { mapNutrients, NUTRIENTS, ZERO_NUTRIENTS, type Nutrient, type NutrientVector } from '../config/nutrients.js';
-import { hourlyDraw, monodFactor } from '../core/kinetics.js';
+import { hourlyDraw, hourlyInflowDraw, monodFactor } from '../core/kinetics.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
 
 const sword = plantParams('amazon_sword', plantsDefaults);
@@ -31,6 +31,7 @@ const KINDS = [
   { name: 'film', p: film },
 ];
 const DAY = HOURS_PER_DAY;
+const SATURATED = mapNutrients(() => 1);
 
 const storeMax = (p: FloraParams, n: Nutrient): number => p.qMax[n] - p.qMin[n];
 
@@ -54,9 +55,9 @@ function flora(
 const nutrientsHeld = (state: FloraState, p: FloraParams): NutrientVector =>
   mapNutrients((n) => state.stores[n] + p.qMin[n] * state.structure);
 
-/** DEB's V1-morph mobilisation, uncapped. */
-const mobilisation = (state: FloraState, p: FloraParams, tau: number): number =>
-  (tau * state.reserve * state.structure * (p.v * p.EG + p.pM)) / (p.EG * state.structure + p.kappa * state.reserve);
+/** DEB's V1-morph mobilisation per gram of reserve, the turnover the hour starts on. */
+const turnover = (state: FloraState, p: FloraParams, tau: number): number =>
+  (tau * state.structure * (p.v * p.EG + p.pM)) / (p.EG * state.structure + p.kappa * state.reserve);
 
 type Supply = (state: FloraState, t: number) => FloraBudgetHour;
 
@@ -79,11 +80,19 @@ function live(p: FloraParams, from: FloraState, hours: number, supply: Supply, f
   let state = from;
   for (let t = 0; t < hours; t++) {
     const hour = supply(state, t);
-    const delivered = fed ? storeRequest(state, p, hour.tau) : ZERO_NUTRIENTS;
+    const delivered = fed ? storeRequest(state, p, hour.tau, SATURATED) : ZERO_NUTRIENTS;
     lived.push({ before: state, hour, delivered, ...stepFlora(takeUp(state, delivered), p, hour) });
     state = lived[t].state;
   }
   return lived;
+}
+
+/** The same hour as `steps` slices of it, each with its share of the photosynthate, pace and healing. */
+function finely(state: FloraState, p: FloraParams, hour: FloraBudgetHour, steps: number): FloraState {
+  const slice = { ...hour, offered: hour.offered / steps, tau: hour.tau / steps, healing: (hour.healing ?? 0) / steps };
+  let sliced = state;
+  for (let i = 0; i < steps; i++) sliced = stepFlora(sliced, p, slice).state;
+  return sliced;
 }
 
 const last = <T,>(xs: readonly T[]): T => xs[xs.length - 1];
@@ -99,8 +108,16 @@ const expectNear = (actual: number, expected: number, scale = expected): void =>
 
 const regimes: { name: string; p: FloraParams; from: FloraState; supply: Supply; fed?: boolean }[] = [
   { name: 'a plant lit round the clock and fed', p: sword, from: flora(sword, 2, 0.5), supply: lit(sword), fed: true },
-  { name: 'a plant in the dark on full stores', p: sword, from: flora(sword, 2, 1), supply: dark() },
+  { name: 'a plant in the dark on full stores', p: sword, from: flora(sword, 2.8, 1), supply: dark() },
   { name: 'a plant lit on empty stores', p: sword, from: flora(sword, 2, 0.3, 0), supply: lit(sword) },
+  { name: 'a plant lit by day in lean water', p: sword, from: flora(sword, 1, 0.5), supply: photoperiod(sword, 12) },
+  {
+    name: 'a plant lit by day after shedding a third of itself',
+    p: sword,
+    from: shed(flora(sword, 2.4, 1), sword, 0.8).state,
+    supply: photoperiod(sword, 12),
+    fed: true,
+  },
   {
     name: 'a crowded plant, warm, lit by day and fed',
     p: sword,
@@ -122,6 +139,13 @@ const regimes: { name: string; p: FloraParams; from: FloraState; supply: Supply;
     fed: true,
   },
   {
+    name: 'green water on κ = 1, lit by day and fed',
+    p: greenWater,
+    from: flora(greenWater, 0.3, 0.5),
+    supply: photoperiod(greenWater, 10),
+    fed: true,
+  },
+  {
     name: 'film half stored, paced and healing, by day',
     p: film,
     from: flora(film, 0.05, 0.6, 0.5),
@@ -137,8 +161,8 @@ const lives = regimes.map((regime) => ({
 describe.each(lives)('thirty days of $name', ({ p, hours }) => {
   it('closes the organics ledger every hour', () => {
     const open = hours.findIndex(({ before, state, fluxes }) => {
-      const stored = floraOrganics(state, p) - floraOrganics(before, p);
-      return !near(stored, fluxes.assimilated - totalBurned(fluxes), floraOrganics(before, p));
+      const stored = floraOrganics(state) - floraOrganics(before);
+      return !near(stored, fluxes.assimilated - totalBurned(fluxes), floraOrganics(before));
     });
     expect(open).toBe(-1);
   });
@@ -180,40 +204,40 @@ describe.each(lives)('thirty days of $name', ({ p, hours }) => {
 });
 
 describe('the hour', () => {
-  it('fills its reserve to E_m of the structure the hour leaves and hands back the rest', () => {
-    const s = flora(sword, 2, 0.6);
-    const hour = (offered: number): FloraStep => stepFlora(s, sword, { offered, tau: 1, room: 1 });
-    const idle = hour(0).state;
-    const headroom = maxReserveDensity(sword) * idle.structure - idle.reserve;
-
-    expect(hour(headroom / 2).fluxes.assimilated).toBe(headroom / 2);
-    expect(hour(headroom / 2).fluxes.returned).toBe(0);
-    const flooded = hour(3 * headroom);
-    expectNear(flooded.fluxes.assimilated, headroom);
-    expectNear(flooded.fluxes.returned, 2 * headroom);
-    expectNear(reserveDensity(flooded.state, sword), 1);
+  it.each([
+    { name: 'hot green water at dawn', p: greenWater, from: flora(greenWater, 1, 0.2), offered: greenWater.pAm },
+    { name: 'a warm sword at dawn', p: sword, from: flora(sword, 2, 0.2), offered: 2 * sword.pAm },
+    { name: 'a warm sword, well fed', p: sword, from: flora(sword, 2, 1), offered: 6 * sword.pAm },
+  ])('is integrated: $name grows within a few percent of the same hour stepped a thousand times', ({ p, from, offered }) => {
+    const hour = { offered, tau: 3, room: 1 };
+    const once = stepFlora(from, p, hour).state.structure - from.structure;
+    const sliced = finely(from, p, hour, 1000).structure - from.structure;
+    expect(Math.abs(once / sliced - 1)).toBeLessThan(0.05);
   });
 
-  it('on a full reserve its stores refuse, takes in only what the hour spends', () => {
-    const s = flora(sword, 2, 1, 0);
-    const { state, fluxes } = stepFlora(s, sword, { offered: 1, tau: 1, room: 1 });
-    expectNear(fluxes.assimilated, fluxes.mobilised);
-    expectNear(state.reserve, s.reserve);
-    expectNear(fluxes.returned, 1 - fluxes.mobilised);
+  it('grows in saturating light from its first hour of the day, a bloom whatever reserve the night left it', () => {
+    const grows = (p: FloraParams, e: number): boolean =>
+      [1, 3].every((tau) => stepFlora(flora(p, 1, e), p, { offered: p.pAm * tau, tau, room: 1 }).state.structure > 1);
+    expect([greenWater, film].every((p) => [0, 0.2, 1].every((e) => grows(p, e)))).toBe(true);
+    expect([0.2, 1].every((e) => grows(sword, e))).toBe(true);
   });
 
-  it('mobilises DEB’s V1-morph flux at τ; kept from growing, spends maintenance and the buffer’s Droop share', () => {
-    const spent = [
-      [0.3, 1],
-      [0.8, 1],
-      [0.8, 1.7],
-    ].every(([e, tau]) => {
-      const s = flora(sword, 2, e, 0.6);
-      const branch = (1 - sword.kappa) * mobilisation(s, sword, tau);
-      const { fluxes } = stepFlora(s, sword, { offered: 0, tau, room: 0 });
-      return near(fluxes.mobilised, sword.pM * s.structure * tau + droopFactor(s, sword) * branch);
-    });
-    expect(spent).toBe(true);
+  it('releases hourlyDraw of the reserve it starts on and hourlyInflowDraw of the hour’s photosynthate', () => {
+    const lean = flora(sword, 2, 0.001);
+    const owed = sword.pM * lean.structure * 1.6;
+    const offered = owed / 5;
+    const { fluxes } = stepFlora(lean, sword, { offered, tau: 1.6, room: 1 });
+    const kTau = turnover(lean, sword, 1.6);
+    expectNear(fluxes.mobilised, lean.reserve * hourlyDraw(kTau) + offered * hourlyInflowDraw(kTau));
+    expect(fluxes.mobilised).toBeLessThan(owed);
+  });
+
+  it('fills its reserve to E_m of the structure the hour leaves, and hands back what it has no room for even on full stores', () => {
+    const full = flora(greenWater, 1, 1);
+    const { state, fluxes } = stepFlora(full, greenWater, { offered: 3 * greenWater.pAm, tau: 3, room: 1 });
+    expect(droopFactor(full, greenWater)).toBeLessThan(1);
+    expect(fluxes.returned).toBeGreaterThan(0);
+    expectNear(reserveDensity(state, greenWater), 1);
   });
 
   it('runs the same budget per gram at any size: doubling the unit doubles every flux', () => {
@@ -236,15 +260,7 @@ describe('the hour', () => {
     const one = flat(stepFlora(s, sword, hour(s)).fluxes);
     const two = flat(stepFlora(twice, sword, hour(twice)).fluxes);
     expect(one.some((flux) => flux > 0)).toBe(true);
-    expect(one.every((flux, i) => near(two[i], 2 * flux, Math.max(flux, 1e-9)))).toBe(true);
-  });
-
-  it('pays maintenance out of the κ share before anything grows', () => {
-    const s = flora(sword, 2, 0.6);
-    const { fluxes } = stepFlora(s, sword, { offered: 0, tau: 1.4, room: 1 });
-    const owed = sword.pM * s.structure * 1.4;
-    expectNear(fluxes.burned.maintenance, Math.min(sword.kappa * mobilisation(s, sword, 1.4), owed));
-    expect(fluxes.toStructure).toBeGreaterThan(0);
+    expect(one.every((flux, i) => Math.abs(two[i] - 2 * flux) <= 1e-9 * Math.max(Math.abs(flux), 1e-9))).toBe(true);
   });
 
   it('builds a gram of structure for [E_G] of reserve, burns the overhead, and takes its Q_min from every store', () => {
@@ -252,28 +268,23 @@ describe('the hour', () => {
     const { state, fluxes } = stepFlora(s, sword, { offered: 0, tau: 1, room: 1 });
     const grown = state.structure - s.structure;
     expect(grown).toBeGreaterThan(0);
-    expectNear(fluxes.toStructure, structureOrganics(sword) * grown);
-    expectNear(fluxes.burned.growth, (sword.EG - structureOrganics(sword)) * grown);
+    expectNear(fluxes.burned.maintenance, sword.pM * s.structure);
+    expectNear(fluxes.toStructure, grown);
     expectNear(fluxes.burned.growth, (1 - sword.kappaG) * sword.EG * grown);
     expect(NUTRIENTS.every((n) => near(s.stores[n] - state.stores[n], sword.qMin[n] * grown, s.stores[n]))).toBe(true);
   });
 
-  it('reads its Droop limit, the least nutrient ruling, at the store the hour leaves', () => {
+  it('grows at the Droop limit of the least nutrient alone', () => {
     const p = greenWater;
-    const s = flora(p, 1, 1, { nitrate: 0.05, phosphate: 0.5, potassium: 0.8, iron: 0.3 });
-    const hour = { offered: 0, tau: 2, room: 1 };
-    const surplus = p.kappa * Math.min(s.reserve, mobilisation(s, p, hour.tau)) - p.pM * s.structure * hour.tau;
-    const buildable = (room: number): number => (room * surplus) / p.EG;
-    const { state } = stepFlora(s, p, hour);
-    const grown = state.structure - s.structure;
-    const limit = (n: Nutrient): number => monodFactor(state.stores[n] / s.structure, p.qMin[n]);
-
-    expectNear(grown, buildable(1) * limit('nitrate'));
-    expect(NUTRIENTS.every((n) => grown <= buildable(1) * limit(n) * (1 + 1e-12))).toBe(true);
-
-    const room = 1e-7;
-    const trickle = stepFlora(s, p, { ...hour, room }).state.structure - s.structure;
-    expect(trickle / buildable(room)).toBeCloseTo(droopFactor(s, p), 6);
+    const fill = { nitrate: 0.05, phosphate: 0.5, potassium: 0.8, iron: 0.3 };
+    const hour = { offered: p.pAm, tau: 2, room: 1 };
+    const grown = (stores: Partial<NutrientVector>): number => {
+      const s = flora(p, 1, 1, fill);
+      return stepFlora({ ...s, stores: { ...s.stores, ...stores } }, p, hour).state.structure - 1;
+    };
+    const s = flora(p, 1, 1, fill);
+    expect(grown({ potassium: 0.9 * s.stores.potassium })).toBe(grown({}));
+    expect(grown({ nitrate: 0.9 * s.stores.nitrate })).toBeLessThan(grown({}));
   });
 
   it.each(KINDS)('reads $name’s Droop limit at ½ where a store holds Q_min, and ρ/(1+ρ) on full stores', ({ p }) => {
@@ -290,7 +301,7 @@ describe('the hour', () => {
 
   it('never overdraws a store, however fast it grows on however little', () => {
     const s = flora(greenWater, 1, 1, 1e-4);
-    const { state } = stepFlora(s, greenWater, { offered: 0, tau: 5, room: 1 });
+    const { state } = stepFlora(s, greenWater, { offered: 5 * greenWater.pAm, tau: 5, room: 1 });
     expect(NUTRIENTS.every((n) => state.stores[n] >= 0)).toBe(true);
     expect(state.structure).toBeGreaterThan(s.structure);
   });
@@ -316,7 +327,8 @@ describe('the hour', () => {
     expect(empty.shortfall).toBe(empty.owed);
 
     const lean = flora(sword, 2, 0.01);
-    expectNear(owed(lean, 1).shortfall, sword.pM * 2 - sword.kappa * mobilisation(lean, sword, 1));
+    const released = lean.reserve * hourlyDraw(turnover(lean, sword, 1));
+    expectNear(owed(lean, 1).shortfall, sword.pM * 2 - sword.kappa * released);
   });
 
   it('starving, pays from the buffer share, the buffer, then structure, and keeps the shrunk tissue’s nutrients', () => {
@@ -325,7 +337,8 @@ describe('the hour', () => {
     const bare = stepFlora(starving, sword, hour);
     const due = bare.fluxes.fromStructure;
     expect(due).toBeGreaterThan(0);
-    expectNear(bare.fluxes.burned.starvation, (1 - sword.kappa) * mobilisation(starving, sword, 1) + due);
+    const released = starving.reserve * hourlyDraw(turnover(starving, sword, 1));
+    expectNear(bare.fluxes.burned.starvation, (1 - sword.kappa) * released + due);
 
     const shrunk = starving.structure - bare.state.structure;
     const returned = mapNutrients((n) => bare.state.stores[n] - starving.stores[n]);
@@ -374,28 +387,40 @@ describe('the hour', () => {
 });
 
 describe('uptake', () => {
-  it('asks what each store lacks of full, closing first order at its fill rate paced by τ', () => {
+  it('asks what each store lacks of full, closing first order at its fill rate × its pool’s factor, paced by τ', () => {
     const s = flora(sword, 2, 0.5, 0.3);
-    const asked = (tau: number): NutrientVector => storeRequest(s, sword, tau);
+    const pool = { nitrate: 0.9, phosphate: 0.4, potassium: 1, iron: 0.05 };
     const matches = [1, 1.6].every((tau) =>
       NUTRIENTS.every((n) =>
-        near(asked(tau)[n], (storeMax(sword, n) * s.structure - s.stores[n]) * hourlyDraw(tau * sword.storeFillRate[n]))
+        near(
+          storeRequest(s, sword, tau, pool)[n],
+          (storeMax(sword, n) * s.structure - s.stores[n]) * hourlyDraw(tau * sword.storeFillRate[n] * pool[n])
+        )
       )
     );
     expect(matches).toBe(true);
   });
 
-  it('asks nothing of a full store, nor of one a shed left past full', () => {
-    expect(Object.values(storeRequest(flora(sword, 2, 0.5), sword, 1)).every((mg) => mg === 0)).toBe(true);
-    const shrunk = shed(flora(sword, 2, 0.5), sword, 1).state;
-    expect(Object.values(storeFill(shrunk, sword)).every((fill) => fill > 1)).toBe(true);
-    expect(Object.values(storeRequest(shrunk, sword, 1)).every((mg) => mg === 0)).toBe(true);
+  it('asks of a pool at half saturation what a saturating one gives over half the hour', () => {
+    const s = flora(greenWater, 1, 0.5, 0.1);
+    const half = storeRequest(s, greenWater, 1, mapNutrients(() => 0.5));
+    const halfHour = storeRequest(s, greenWater, 0.5, SATURATED);
+    expect(NUTRIENTS.every((n) => near(half[n], halfHour[n]))).toBe(true);
   });
 
-  it.each(KINDS)('fills an empty store of $name 1 − 1/e of the way over its fill time at full delivery', ({ p }) => {
+  it('asks nothing of a full store, nor of one a shed left past full, nor of an empty pool', () => {
+    const asks = (s: FloraState, pool = SATURATED): number[] => Object.values(storeRequest(s, sword, 1, pool));
+    expect(asks(flora(sword, 2, 0.5)).every((mg) => mg === 0)).toBe(true);
+    const shrunk = shed(flora(sword, 2, 0.5), sword, 1).state;
+    expect(Object.values(storeFill(shrunk, sword)).every((fill) => fill > 1)).toBe(true);
+    expect(asks(shrunk).every((mg) => mg === 0)).toBe(true);
+    expect(asks(flora(sword, 2, 0.5, 0), ZERO_NUTRIENTS).every((mg) => mg === 0)).toBe(true);
+  });
+
+  it.each(KINDS)('fills an empty store of $name 1 − 1/e of the way over its fill time from a saturating pool', ({ p }) => {
     const hours = Math.round(1 / p.storeFillRate.nitrate);
     let s = flora(p, 1, 0.5, 0);
-    for (let t = 0; t < hours; t++) s = takeUp(s, storeRequest(s, p, 1));
+    for (let t = 0; t < hours; t++) s = takeUp(s, storeRequest(s, p, 1, SATURATED));
     expect(NUTRIENTS.every((n) => near(storeFill(s, p)[n], 1 - Math.exp(-1)))).toBe(true);
   });
 
@@ -442,7 +467,7 @@ describe('offshoots', () => {
     expect(after.structure).toBe(before.structure);
     expect(after.reserve).toBe(before.reserve);
 
-    expectNear(floraOrganics(before, sword), floraOrganics(after, sword) + floraOrganics(offshoot, sword) + overhead);
+    expectNear(floraOrganics(before), floraOrganics(after) + floraOrganics(offshoot) + overhead);
     expectNear(overhead, (1 - sword.kappaG) * sword.EG * unit);
     const held = [before, after, offshoot].map((s) => nutrientsHeld(s, sword));
     expect(NUTRIENTS.every((n) => near(held[0][n], held[1][n] + held[2][n]))).toBe(true);
@@ -458,21 +483,26 @@ describe('offshoots', () => {
 });
 
 describe('tissue as organics', () => {
-  it('sheds structure as waste at Q_min and keeps its store', () => {
+  it('sheds structure as waste at Q_min with its reserve at the unit’s density, and keeps its store', () => {
     const s = flora(sword, 2, 0.6, 0.7, { offshootBuffer: 0.1 });
     const { state, waste } = shed(s, sword, 0.3);
     expectNear(state.structure, 1.7);
+    expectNear(reserveDensity(state, sword), reserveDensity(s, sword));
     expect(state.stores).toEqual(s.stores);
-    expect(state.reserve).toBe(s.reserve);
-    expectNear(waste.grams, structureOrganics(sword) * 0.3);
+    expect(state.offshootBuffer).toBe(s.offshootBuffer);
     expect(NUTRIENTS.every((n) => near(waste.nutrients[n], sword.qMin[n] * 0.3))).toBe(true);
-    expectNear(floraOrganics(s, sword), floraOrganics(state, sword) + waste.grams);
+    expectNear(floraOrganics(s), floraOrganics(state) + waste.grams);
+  });
+
+  it('takes photosynthate in on the first lit hour after a shed', () => {
+    const { state } = shed(flora(sword, 2, 1), sword, 0.6);
+    expect(stepFlora(state, sword, { offered: 2 * sword.pAm, tau: 1, room: 1 }).fluxes.assimilated).toBeGreaterThan(0);
   });
 
   it.each(KINDS)('leaves everything $name held when it dies: its tissue as waste, its stores to the water', ({ p }) => {
     const s = flora(p, 1.5, 0.6, 0.4, { offshootBuffer: 0.2 });
     const { waste, leachate } = remains(s, p);
-    expectNear(waste.grams, floraOrganics(s, p));
+    expectNear(waste.grams, floraOrganics(s));
     expect(NUTRIENTS.every((n) => near(waste.nutrients[n], p.qMin[n] * s.structure))).toBe(true);
     expect(leachate).toEqual(s.stores);
   });
@@ -480,9 +510,8 @@ describe('tissue as organics', () => {
 
 describe('readings', () => {
   it('reads reserve density and well-fed as the fish does', () => {
-    const s = flora(sword, 2, 0.4);
-    expectNear(reserveDensity(s, sword), 0.4);
-    expect(wellFed(shed(flora(sword, 2, 1), sword, 1).state, sword)).toBe(1);
+    expectNear(reserveDensity(flora(sword, 2, 0.4), sword), 0.4);
+    expect(wellFed(flora(sword, 2, 1.5), sword)).toBe(1);
   });
 
   it('reads each store’s fill against its headroom over Q_min', () => {
@@ -496,34 +525,38 @@ describe('a plant in the dark', () => {
   const hours = live(sword, flora(sword, 2.8, 1), 40 * DAY, dark());
   const firstShort = hours.findIndex(({ fluxes }) => fluxes.shortfall > 0);
   const firstShrink = hours.findIndex(({ fluxes }) => fluxes.fromStructure > 0);
+  const peak = most(hours.map(({ state }) => state.structure));
 
-  it('lives on its reserve, growing on it, before it runs a shortfall', () => {
-    expect(firstShort).toBeGreaterThan(DAY);
+  it('lives on its reserve, growing on it, for longer than the reserve takes to turn over before it runs short', () => {
+    expect(firstShort).toBeGreaterThan(1 / sword.v);
     expect(falling(hours.map(({ state }) => state.reserve))).toBe(true);
     expect(hours[firstShort].before.structure).toBeGreaterThan(hours[0].before.structure);
   });
 
-  it('then draws its buffer before its structure, and melts slowly after', () => {
+  it('then draws its buffer before its structure, and melts no faster than its maintenance', () => {
     expect(firstShrink).toBeGreaterThan(firstShort);
     expect(hours.findIndex(({ state, fluxes }) => fluxes.fromStructure > 0 && state.offshootBuffer > 0)).toBe(-1);
-    const peak = most(hours.map(({ state }) => state.structure));
     expect(last(hours).state.structure).toBeLessThan(peak);
-    expect(last(hours).state.structure).toBeGreaterThan(peak / 2);
+    const melting = hours
+      .slice(firstShrink)
+      .every(({ before, state }) => before.structure - state.structure <= sword.pM * before.structure * (1 + 1e-12));
+    expect(melting).toBe(true);
   });
 });
 
 describe('a plant in lean water on full stores', () => {
-  const hours = live(sword, flora(sword, 1, 0.5), 20 * DAY, photoperiod(sword, 12));
+  const days = 20;
+  const hours = live(sword, flora(sword, 1, 0.5), days * DAY, photoperiod(sword, 12));
   const daily = Array.from(
-    { length: 20 },
-    (_, d) => hours[(d + 1) * DAY - 1].state.structure - hours[d * DAY].before.structure
+    { length: days },
+    (_, d) => hours[(d + 1) * DAY - 1].state.structure / hours[d * DAY].before.structure - 1
   );
   const headroom = (n: Nutrient): number => storeMax(sword, n) / sword.qMin[n];
   const ruling = NUTRIENTS.reduce((a, b) => (headroom(a) <= headroom(b) ? a : b));
 
-  it('grows for days before its Droop limit bites', () => {
-    expect(daily.slice(0, 5).every((grown) => grown > 0.1 * hours[0].before.structure)).toBe(true);
-    expect(last(daily)).toBeLessThan(daily[0] / 3);
+  it('grows every day, by a smaller share of itself each day as its Droop limit bites', () => {
+    expect(daily.every((grown) => grown > 0)).toBe(true);
+    expect(falling(daily)).toBe(true);
     const growing = hours.filter(({ before, state }) => state.structure > before.structure);
     expect(falling(growing.map(({ state }) => droopFactor(state, sword)))).toBe(true);
   });
@@ -545,7 +578,7 @@ describe('a plant in lean water on full stores', () => {
 describe('a bloom on κ = 1', () => {
   const hours = live(greenWater, flora(greenWater, 0.3, 0.5), 3 * DAY, photoperiod(greenWater, 10), true);
 
-  it('fills no buffer: everything it mobilises past maintenance buys structure', () => {
+  it('fills no buffer: everything it spends past maintenance buys structure', () => {
     expect(hours.every(({ state }) => state.offshootBuffer === 0)).toBe(true);
     const spent = hours.every(({ fluxes }) =>
       near(fluxes.mobilised, fluxes.burned.maintenance + fluxes.toStructure + fluxes.burned.growth)

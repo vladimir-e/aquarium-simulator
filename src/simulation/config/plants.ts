@@ -9,6 +9,7 @@
  */
 
 import { MAX_SURPLUS_CAP, SURPLUS_CAP_DEFAULT } from './vitality.js';
+import type { NutrientVector, NutrientVectorMeta } from './nutrients.js';
 
 export interface PlantsConfig {
   // Photosynthesis constants
@@ -76,6 +77,21 @@ export interface PlantsConfig {
    * recipe for, and shedding and death return as waste.
    */
   tissuePerSize: number;
+
+  // Energy budget — a plant's own, and the blooms' too where a kind's traits
+  // carry nothing of their own.
+  /** κ: share of what a plant's reserve mobilises that goes to its soma; the rest fills its offshoot buffer. */
+  somaShare: number;
+  /** κ_G: share of what a gram of new structure costs that ends up in it; the rest is burned building it. */
+  growthEfficiency: number;
+  /** [E_m]: grams of reserve a gram of structure holds when full. */
+  reserveCapacity: number;
+  /** Days an empty store takes to fill at saturating concentration, at its opening rate. */
+  storeFillDays: number;
+  /** Q_min: mass fraction of each nutrient's element — N, P, K, Fe — in a gram of a plant's structure. */
+  quotaMin: NutrientVector;
+  /** Q_max: the same, with every store full. */
+  quotaMax: NutrientVector;
 
   // Vitality stressor severities — see systems/plant-vitality.ts. Each is
   // a pre-hardiness damage rate (%/h per unit deviation), scaled by
@@ -185,6 +201,23 @@ export const plantsDefaults: PlantsConfig = {
   sizePerSurplus: 0.4, // size % per (surplus × growthRate) unit converted
   surplusCap: SURPLUS_CAP_DEFAULT,
   tissuePerSize: 0.01,
+
+  // Energy budget. κ, κ_G, the full reserve and the stores' fill time are
+  // Tune's: nothing checked against its source fixes them for a submerged
+  // plant.
+  somaShare: 0.8,
+  growthEfficiency: 0.8,
+  reserveCapacity: 0.3,
+  storeFillDays: 3,
+  // Plants share one composition, macrophyte dry-weight figures × 1.25 for ash.
+  // N: PCLake submerged vegetation 1.0–3.5 % (Janse 2005); Gerloff 1975 culture
+  // floors 0.4–1.1 %, maxima 3.3–4.3 %; critical 1.3 % (Gerloff & Krombholz
+  // 1966). P: PCLake 0.08–0.35 %; Gerloff 1975 floors 0.03–0.06 %, maxima
+  // 0.35–0.73 %; critical 0.13 % (G&K 1966). K: Gerloff 1975 floors 0.25–0.3 %,
+  // maxima 1.1–5.1 %; Linn 1973 survey mean 1.54 %. Fe: Gerloff 1975 Elodea
+  // floor 40 ppm, culture maximum 219 ppm.
+  quotaMin: { nitrate: 0.012, phosphate: 0.0008, potassium: 0.004, iron: 5e-5 },
+  quotaMax: { nitrate: 0.045, phosphate: 0.006, potassium: 0.025, iron: 2.5e-4 },
 
   // Vitality stressor severities (pre-hardiness; the plant's builder
   // scales them by `1 − hardiness` for the species, except nitrate, whose edge
@@ -303,6 +336,12 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: MAX_SURPLUS_CAP, step: 5 },
   { key: 'tissuePerSize', label: 'Tissue per Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
 
+  // Energy budget
+  { key: 'somaShare', label: 'Soma Share (κ)', unit: '', min: 0.1, max: 1, step: 0.05 },
+  { key: 'growthEfficiency', label: 'Growth Efficiency (κ_G)', unit: '', min: 0.5, max: 0.95, step: 0.05 },
+  { key: 'reserveCapacity', label: 'Full Reserve (E_m)', unit: 'g/g', min: 0.05, max: 0.6, step: 0.01 },
+  { key: 'storeFillDays', label: 'Store Fill Time', unit: 'days', min: 0.25, max: 14, step: 0.25 },
+
   // Vitality stressor severities
   { key: 'lightStarvationSeverity', label: 'Light Starvation Severity', unit: '%/hr', min: 0.05, max: 2, step: 0.05 },
   { key: 'lightExcessiveSeverity', label: 'Light Excess Severity', unit: '%/PAR/hr', min: 0.005, max: 0.1, step: 0.005 },
@@ -321,4 +360,18 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
 
   // Lifecycle (shedding + death)
   { key: 'maxSheddingRate', label: 'Max Shedding Rate', unit: '/hr', min: 0.005, max: 0.1, step: 0.005 },
+];
+
+export const quotaMinMeta: NutrientVectorMeta[] = [
+  { key: 'nitrate', label: 'Nitrogen floor (Q_min)', unit: 'g N/g', min: 0.004, max: 0.02, step: 0.001 },
+  { key: 'phosphate', label: 'Phosphorus floor (Q_min)', unit: 'g P/g', min: 0.0003, max: 0.002, step: 0.0001 },
+  { key: 'potassium', label: 'Potassium floor (Q_min)', unit: 'g K/g', min: 0.001, max: 0.008, step: 0.0005 },
+  { key: 'iron', label: 'Iron floor (Q_min)', unit: 'g Fe/g', min: 0.00001, max: 0.0001, step: 0.00001 },
+];
+
+export const quotaMaxMeta: NutrientVectorMeta[] = [
+  { key: 'nitrate', label: 'Nitrogen ceiling (Q_max)', unit: 'g N/g', min: 0.025, max: 0.08, step: 0.001 },
+  { key: 'phosphate', label: 'Phosphorus ceiling (Q_max)', unit: 'g P/g', min: 0.003, max: 0.015, step: 0.0005 },
+  { key: 'potassium', label: 'Potassium ceiling (Q_max)', unit: 'g K/g', min: 0.01, max: 0.06, step: 0.001 },
+  { key: 'iron', label: 'Iron ceiling (Q_max)', unit: 'g Fe/g', min: 0.00015, max: 0.0006, step: 0.00001 },
 ];

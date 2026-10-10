@@ -27,7 +27,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *
  * v36: Organic pools carry their content. `Resources.waste` and
  *      `Substrate.organicReserve` become `{ grams, nutrients }` — the grams
- *      and the mg of each nutrient inside them.
+ *      and the mg of each nutrient inside them. `PlantsConfig` gains the
+ *      flora's energy budget: `somaShare`, `growthEfficiency`,
+ *      `reserveCapacity`, `storeFillDays`, `quotaMin` and `quotaMax`.
  * v35: A fish runs on its energy budget. `Fish` trades `mass`, `surplus` and
  *      `ovary` for `deb` — structure, reserve, maturity, brood buffer, wear
  *      and hazard — `survival` and `survivalDraw`. `LivestockConfig` drops the

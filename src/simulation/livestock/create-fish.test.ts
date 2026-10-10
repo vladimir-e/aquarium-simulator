@@ -11,7 +11,8 @@ import {
 } from './create-fish.js';
 import { createRng, draw } from '../core/rng.js';
 import { debParams, FISH_SPECIES_DATA, midRangeTemperature, type FishSpecies } from './species.js';
-import { hatchling, mature, size, wellFed } from '../systems/deb.js';
+import { hatchling, mature, size } from '../systems/deb.js';
+import { wellFed } from '../systems/reserve.js';
 import { frySize } from '../systems/fish-body.js';
 
 const SPECIES = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];

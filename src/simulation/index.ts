@@ -481,14 +481,13 @@ export { appetite, fullPaceLine, gutCapacity, ration, type Pace } from './system
 export { burn, gillAmmonia } from './systems/metabolism.js';
 export type { FishHour } from './systems/metabolism.js';
 export {
-  reserveDensity,
-  wellFed,
   mature,
   NO_STRESS,
   type DebState,
   type DebParams,
   type DebStress,
 } from './systems/deb.js';
+export { reserveDensity, wellFed } from './systems/reserve.js';
 
 // Vitality
 export {

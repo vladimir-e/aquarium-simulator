@@ -509,6 +509,12 @@ const PlantsConfigSchema = z
     phBenefitPeak: z.number(),
     maxSheddingRate: z.number(),
     tissuePerSize: z.number(),
+    somaShare: z.number().min(0).max(1),
+    growthEfficiency: z.number().positive().max(1),
+    reserveCapacity: z.number().positive(),
+    storeFillDays: z.number().positive(),
+    quotaMin: numbersFor(NUTRIENTS, z.number().positive()),
+    quotaMax: numbersFor(NUTRIENTS, z.number().positive()),
   })
   .strict();
 

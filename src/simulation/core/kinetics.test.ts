@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { arrheniusFactor, lightSaturationFactor, monodFactor, monodUptake, q10Factor } from './kinetics.js';
+import {
+  arrheniusFactor,
+  hourlyDraw,
+  hourlyInflowDraw,
+  lightSaturationFactor,
+  monodFactor,
+  monodUptake,
+  q10Factor,
+} from './kinetics.js';
 
 describe('q10Factor', () => {
   it('leaves a rate alone at the temperature it is quoted at', () => {
@@ -29,6 +37,33 @@ describe('arrheniusFactor', () => {
       const rise = Math.log(arrheniusFactor(b, TA)) - Math.log(arrheniusFactor(a, TA));
       expect(rise / (reciprocal(b) - reciprocal(a))).toBeCloseTo(-TA, 6);
     }
+  });
+});
+
+describe('hourlyInflowDraw', () => {
+  const finely = (stock: number, inflow: number, rate: number, steps = 100_000): number => {
+    let held = stock;
+    let drawn = 0;
+    for (let i = 0; i < steps; i++) {
+      const draw = held * hourlyDraw(rate / steps);
+      held += inflow / steps - draw;
+      drawn += draw;
+    }
+    return drawn;
+  };
+
+  it('draws, with the stock it starts on, what the hour drawn finely draws of a stock fed steadily', () => {
+    const agrees = [0.05, 1, 12].every((rate) => {
+      const drawn = 3 * hourlyDraw(rate) + 2 * hourlyInflowDraw(rate);
+      return Math.abs(drawn - finely(3, 2, rate)) <= 1e-4 * drawn;
+    });
+    expect(agrees).toBe(true);
+  });
+
+  it('takes less of an inflow than of a stock, nothing at no rate, and nearly all at a fast one', () => {
+    expect([0.01, 1, 30].every((rate) => hourlyInflowDraw(rate) < hourlyDraw(rate))).toBe(true);
+    expect(hourlyInflowDraw(0)).toBe(0);
+    expect(hourlyInflowDraw(1e4)).toBeCloseTo(1, 3);
   });
 });
 

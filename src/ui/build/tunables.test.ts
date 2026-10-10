@@ -57,8 +57,13 @@ describe('searchTunables', () => {
   it('keeps only the fields a term names, and the sections holding them', () => {
     const found = searchTunables(sections(), 'iron');
 
-    expect(found.map((section) => section.key)).toEqual(['nutrients']);
-    expect(found[0].groups[0].fields.map((field) => field.path)).toEqual([
+    expect(found.map((section) => section.key)).toEqual(['plants', 'nutrients']);
+    expect(found[0].fields).toEqual([]);
+    expect(found[0].groups.flatMap((group) => group.fields.map((field) => field.path))).toEqual([
+      'plants.quotaMin.iron',
+      'plants.quotaMax.iron',
+    ]);
+    expect(found[1].groups[0].fields.map((field) => field.path)).toEqual([
       'nutrients.fertilizerFormula.iron',
     ]);
   });
