@@ -22,7 +22,7 @@ import {
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG, mapNutrients, MAX_SUFFICIENCY_EDGE, NUTRIENTS, type Nutrient } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, mapNutrients, NUTRIENTS, type Nutrient } from '../../simulation/config/index.js';
 import { getMassFromPpm } from '../../simulation/resources/index.js';
 import { speciesHalfSaturation } from '../../simulation/systems/nutrients.js';
 import { MAX_DOSE_ML } from '../../simulation/actions/dose.js';
@@ -41,11 +41,18 @@ import {
   plantLabels,
   plantRows,
   TRIM_TARGETS,
+  FED_SHARE,
   type NutrientReading,
   type PlantRow,
   type PlantSpeciesGroup,
 } from './flora';
 import { readHourAhead } from './ahead';
+import { bloomAt } from '../../simulation/tests/blooms.js';
+import { bloomMass } from '../../simulation/algae/index.js';
+import { offshootPrice } from '../../simulation/systems/flora-budget.js';
+import { offshootStructure } from '../../simulation/plants/create-plant.js';
+import { plantParams } from '../../simulation/flora/params.js';
+import { sizeOf } from '../../simulation/plants/canopy.js';
 import { COVERAGE_DECIMALS } from '../utils/units';
 import { conditionStatus, conditionWord, projectedTrend, type Reading } from './status';
 
@@ -134,11 +141,11 @@ describe('condition + algae words', () => {
       for (const bed of [tank(), planted(['monte_carlo', 'amazon_sword'])]) {
         for (let mass = 0; mass <= 95; mass += 5) {
           const state = produce(bed, (draft) => {
-            draft.algae[kind].mass = mass;
+            draft.algae[kind] = bloomAt(draft, kind, mass);
           });
           const taken = plantLightTaken(state, DEFAULT_CONFIG.optics)[kind] * 100;
           const alerts = bloomAlert(kind).check(state, DEFAULT_CONFIG).log !== null;
-          expect(algaeReading(kind, mass, taken).status !== 'ok').toBe(alerts);
+          expect(algaeReading(kind, bloomMass(state, kind), taken).status !== 'ok').toBe(alerts);
         }
       }
     });
@@ -285,14 +292,15 @@ describe('plantRows', () => {
     });
   });
 
-  it('reads a bank as its share of the next offshoot’s price, full at the cap', () => {
-    const cap = DEFAULT_CONFIG.plants.surplusCap;
-    const state = produce(planted(['java_fern', 'java_fern', 'java_fern']), (draft) => {
-      draft.plants[0].surplus = 0;
-      draft.plants[1].surplus = cap / 4;
-      draft.plants[2].surplus = cap;
+  it('reads an offshoot buffer as its share of the next offshoot’s price, full once it holds it', () => {
+    const base = planted(['java_fern', 'java_fern', 'java_fern']);
+    const price = offshootPrice(base.plants[0].budget, plantParams('java_fern', DEFAULT_CONFIG.plants), offshootStructure('java_fern'));
+    const state = produce(base, (draft) => {
+      draft.plants[0].budget.offshootBuffer = 0;
+      draft.plants[1].budget.offshootBuffer = price / 4;
+      draft.plants[2].budget.offshootBuffer = 2 * price;
     });
-    expect(rows(state).map((row) => row.bank)).toEqual([0, 0.25, 1]);
+    expect(rows(state).map((row) => row.bank)).toEqual([0, expect.closeTo(0.25, 12), 1]);
   });
 
   it('carries each unit’s lineage and age', () => {
@@ -349,16 +357,17 @@ describe('plantLabels', () => {
   });
 
   it('calls a plant sick exactly while the next tick takes condition off it, as the trend shows', () => {
-    const dark = produce(planted(['java_fern']), (draft) => {
+    const starved = produce(planted(['java_fern']), (draft) => {
       draft.equipment.light.enabled = false;
       draft.resources.lightByHour.fill(0);
+      draft.plants[0].budget.reserve = 0;
     });
-    expect(rows(dark)[0].reading.word).toBe('sick');
+    expect(rows(starved)[0].reading.word).toBe('sick');
 
-    const banked = produce(dark, (draft) => {
-      draft.plants[0].surplus = DEFAULT_CONFIG.plants.surplusCap;
+    const fed = produce(starved, (draft) => {
+      draft.plants[0].budget.reserve = planted(['java_fern']).plants[0].budget.reserve;
     });
-    for (const state of [dark, banked]) {
+    for (const state of [starved, fed]) {
       const [row] = rows(state);
       const next = tick(state, DEFAULT_CONFIG).plants[0];
       expect(row.sick).toBe(row.reading.word === 'sick');
@@ -443,15 +452,15 @@ describe('nutrientReadings', () => {
     expect(short(fernIron(planted(['monte_carlo'])))).toEqual(['iron']);
   });
 
-  it('sets each need where the hungriest plant’s deficiency harm starts, wherever that edge is tuned', () => {
+  it('sets each need where the hungriest plant’s pools meet the share of its need that reads as fed', () => {
     const plantings: [PlantSpecies[], PlantSpecies][] = [
       [['java_fern', 'monte_carlo'], 'monte_carlo'],
       [['java_fern'], 'java_fern'],
     ];
     for (const [species, hungriest] of plantings) {
       const state = planted(species);
-      for (const edge of [0.8, DEFAULT_CONFIG.plants.sufficiencyEdge, MAX_SUFFICIENCY_EDGE]) {
-        const config = { ...DEFAULT_CONFIG, plants: { ...DEFAULT_CONFIG.plants, sufficiencyEdge: edge } };
+      for (const edge of [FED_SHARE]) {
+        const config = DEFAULT_CONFIG;
         const { need } = nutrientProbe(state, config);
         const atNeed = produce(state, (draft) => {
           for (const reading of nutrientReadings(state, config)) draft.resources[reading.key] = reading.needed * state.resources.water;
@@ -571,7 +580,7 @@ describe('bedReading', () => {
 
     expect(readings.some((r) => r.limiting)).toBe(false);
     expect(calculateNutrientSufficiency(tankPools(state), 'amazon_sword', DEFAULT_CONFIG.nutrients)).toBeLessThan(
-      DEFAULT_CONFIG.plants.sufficiencyEdge
+      FED_SHARE
     );
     expect(bed).toMatchObject({ limiting: true, status: 'alert' });
     expect(nutrientAlert(readings, bed)).toEqual({ text: 'bed empty', status: 'alert' });
@@ -585,7 +594,7 @@ describe('bedReading', () => {
     expect(tabbed).toMatchObject({ limiting: false, advice: null, status: 'ok' });
     expect(tabbed.tabs).toBeGreaterThanOrEqual(tabbed.needed);
     expect(calculateNutrientSufficiency(tankPools(tab(state, advice!)), 'amazon_sword', DEFAULT_CONFIG.nutrients)).toBeGreaterThanOrEqual(
-      DEFAULT_CONFIG.plants.sufficiencyEdge
+      FED_SHARE
     );
   });
 
@@ -709,7 +718,7 @@ describe('trim targets', () => {
 
   it('has nothing to cut on a plant no rung is above', () => {
     const fresh = planted(['monte_carlo']);
-    expect(fresh.plants[0].size).toBe(50);
+    expect(sizeOf(fresh.plants[0])).toBeCloseTo(50, 9);
     expect(TRIM_TARGETS.map((t) => getPlantsToTrimCount(fresh, t))).toEqual([0, 0, 0]);
   });
 
@@ -722,7 +731,7 @@ describe('trim targets', () => {
 
     for (const target of TRIM_TARGETS) {
       const trimmed = applyAction(grown, { type: 'trimPlants', targetSize: target }).state;
-      expect(trimmed.plants[0].size).toBe(target);
+      expect(sizeOf(trimmed.plants[0])).toBeCloseTo(target, 9);
     }
   });
 });

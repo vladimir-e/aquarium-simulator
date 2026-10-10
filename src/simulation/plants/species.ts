@@ -14,11 +14,11 @@ export type PlantSpecies =
 
 /**
  * How a species builds one unit — a carpet patch, a rosette specimen, a rhizome
- * clump. `Plant.size` is how full that unit is, so the form fixes what size 100
- * means: how tall it stands, how much floor it claims and how much leaf it
- * carries over it. It also says where the plant feeds and names what a full
- * bank buys — a runner, a plantlet, a rhizome branch — though every form buys
- * it the same way.
+ * clump. A plant's size is how full that unit is, so the form fixes what size
+ * 100 means: how tall it stands, how much floor it claims and how much leaf it
+ * carries over it. It also says where the plant feeds and names what its
+ * offshoot buffer buys — a runner, a plantlet, a rhizome branch — though every
+ * form buys it the same way.
  */
 export type GrowthForm = 'carpet' | 'rosette' | 'attached';
 

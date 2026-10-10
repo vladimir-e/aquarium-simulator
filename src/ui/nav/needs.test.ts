@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { bloomAt } from '../../simulation/tests/blooms.js';
 import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { NITRATE_EDGE, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
@@ -71,7 +72,7 @@ describe('activeNeeds', () => {
     const state = withAlerts(
       { highNitrite: true, film: true },
       produce(base, (draft) => {
-        draft.algae.film.mass = 95;
+        draft.algae.film = bloomAt(draft, 'film', 95);
       })
     );
 

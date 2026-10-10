@@ -14,7 +14,8 @@ import type { TunableConfig } from '../config/index.js';
 import type { MineralVector } from '../config/nutrients.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { burn, fishPace, processMetabolism, type FishHour } from '../systems/metabolism.js';
-import { healingAsked, processHealth, type FishVitality } from '../systems/fish-health.js';
+import { healingAsked, processHealth } from '../systems/fish-health.js';
+import type { VitalityResult } from '../systems/vitality.js';
 import type { Pace } from '../systems/digestion.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { mintAmmonia } from '../systems/nitrogen-cycle.js';
@@ -31,7 +32,7 @@ export interface LivestockProcessingResult {
   /** Each fish's budget hour, in `state.fish` order, the dead included */
   hours: FishHour[];
   /** Each fish's vitality this tick, in `state.fish` order, the dead included */
-  vitalities: FishVitality[];
+  vitalities: VitalityResult[];
   /** Grams of feces the fish passed. */
   feces: number;
   /** Grams of organics their budgets burned. */

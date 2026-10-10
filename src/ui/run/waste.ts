@@ -27,6 +27,8 @@ export type WasteSourceKey = 'food' | 'fish' | 'plants' | 'algae' | 'substrate';
 export interface WasteSource {
   key: WasteSourceKey;
   label: string;
+  /** What it feeds the pool an hour, its content with it. */
+  inflow: Organics;
   gramsPerHour: number;
   /** Share of the hour's production, 0–1. */
   share: number;
@@ -67,20 +69,21 @@ export function wasteInflow(
   config: TunableConfig,
   ahead: HourAhead
 ): WasteInflowReadout {
-  const grams: Record<WasteSourceKey, number> = {
-    food: ahead.foodWaste,
+  const inflow: Record<WasteSourceKey, Organics> = {
+    food: atRecipe(ahead.foodWaste, config),
     fish: ahead.fishWaste,
     plants: ahead.shedding,
-    algae: ALGAE_KINDS.reduce((sum, kind) => sum + ahead.algae[kind].shedding, 0),
-    substrate: calculateSubstrateLeach(state.equipment.substrate.organicReserve, config.decay).grams,
+    algae: addOrganics(...ALGAE_KINDS.map((kind) => ahead.algae[kind].shedding)),
+    substrate: calculateSubstrateLeach(state.equipment.substrate.organicReserve, config.decay),
   };
 
-  const perHour = Object.values(grams).reduce((sum, g) => sum + g, 0);
+  const perHour = Object.values(inflow).reduce((sum, organics) => sum + organics.grams, 0);
   const sources = (Object.keys(LABEL) as WasteSourceKey[]).map((key) => ({
     key,
     label: LABEL[key],
-    gramsPerHour: grams[key],
-    share: perHour > 0 ? grams[key] / perHour : 0,
+    inflow: inflow[key],
+    gramsPerHour: inflow[key].grams,
+    share: perHour > 0 ? inflow[key].grams / perHour : 0,
   }));
 
   return { perHour, sources };
@@ -88,10 +91,9 @@ export function wasteInflow(
 
 const SHED_BEFORE_CYCLE: WasteSourceKey[] = ['fish', 'plants', 'algae'];
 
-function inflowFrom(inflow: WasteInflowReadout, keys: readonly WasteSourceKey[]): number {
-  return inflow.sources
-    .filter((source) => keys.includes(source.key))
-    .reduce((total, source) => total + source.gramsPerHour, 0);
+/** What the named sources feed the pool an hour, together. */
+export function inflowFrom(inflow: WasteInflowReadout, keys: readonly WasteSourceKey[]): Organics {
+  return addOrganics(...inflow.sources.filter((source) => keys.includes(source.key)).map((source) => source.inflow));
 }
 
 /**
@@ -105,7 +107,7 @@ export function mineralisationBase(state: SimulationState, config: TunableConfig
   return addOrganics(
     scaleOrganics(state.resources.waste, 1 - wasteSettlingShare(state, config.decay)),
     calculateSubstrateLeach(state.equipment.substrate.organicReserve, config.decay),
-    atRecipe(inflowFrom(inflow, SHED_BEFORE_CYCLE), config)
+    inflowFrom(inflow, SHED_BEFORE_CYCLE)
   );
 }
 
@@ -140,7 +142,7 @@ export function wasteLevel(readout: WasteReadout, config: TunableConfig): number
   const mineralising = config.nitrogenCycle.wasteConversionRate;
   const settling = readout.settlingShare;
   return (
-    (readout.perHour - mineralising * inflowFrom(readout, [...SHED_BEFORE_CYCLE, 'substrate'])) /
+    (readout.perHour - mineralising * inflowFrom(readout, [...SHED_BEFORE_CYCLE, 'substrate']).grams) /
     (settling + mineralising * (1 - settling))
   );
 }

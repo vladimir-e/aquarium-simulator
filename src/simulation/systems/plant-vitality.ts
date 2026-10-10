@@ -1,12 +1,12 @@
 /**
- * Plant vitality — runs each plant through the unified vitality engine.
+ * Plant vitality — runs each plant through the one vitality step.
  *
- * The channels a bloom has too — light starvation, temperature, pH, nutrient
+ * The channels a bloom has too — starvation, temperature, pH, nutrient
  * deficiency and the three income channels — are the flora law's (`flora.ts`),
- * read at the plant's own height (see `plants/canopy.ts`) and earned at its
- * vigour. Beside them sit the ones only a plant has: the burn at its crown top
- * while the lamps are on, GH out of band, and nitrate on log dose past an edge
- * its hardiness carries out.
+ * read off the plant's budget as the hour found it and the hour it ran, and
+ * earned at its vigour. Beside them sit the ones only a plant has: the burn at
+ * its crown top while the lamps are on, GH out of band, and nitrate on log
+ * dose past an edge its hardiness carries out.
  */
 
 import type { Plant, Resources } from '../state.js';
@@ -15,7 +15,10 @@ import { PLANT_SPECIES_DATA, getCo2HalfSaturation, plantTraits, type PlantSpecie
 import { toleranceFactor } from '../livestock/tolerance.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { getDgh, getPpm } from '../resources/index.js';
-import { floraBenefits, floraHealingRate, floraStressors, type FloraHour } from './flora.js';
+import { plantParams } from '../flora/params.js';
+import { droopFactor, type FloraFluxes } from './flora-budget.js';
+import { starvation, wellFed } from './reserve.js';
+import { floraBenefits, floraStressors, healingPrice, type FloraHour } from './flora.js';
 import {
   computeVitality,
   eFoldsPast,
@@ -26,23 +29,26 @@ import {
 } from './vitality.js';
 
 export interface PlantVitalityContext {
+  /** The plant as the hour found it. */
   plant: Plant;
+  /** What its budget did over the hour. */
+  fluxes: FloraFluxes;
   resources: Resources;
   waterVolume: number;
   plantsConfig: PlantsConfig;
-  /** Liebig sufficiency for this plant (0–1), computed once a tick by the flora pass. */
-  nutrientSufficiency: number;
   /** The light at this plant's height, from the tick's one canopy pass. */
   light: PlantLight;
 }
 
-function floraHour({ plant, resources, plantsConfig, nutrientSufficiency, light }: PlantVitalityContext): FloraHour {
+function floraHour({ plant, fluxes, resources, plantsConfig }: PlantVitalityContext): FloraHour {
+  const p = plantParams(plant.species, plantsConfig);
   return {
     traits: plantTraits(plant.species),
     resources,
     plantsConfig,
-    light,
-    nutrientSufficiency,
+    wellFed: wellFed(plant.budget, p),
+    droop: droopFactor(plant.budget, p),
+    starvation: starvation({ fluxes }),
     co2HalfSaturation: getCo2HalfSaturation(plant.species, plantsConfig),
     vigour: plant.vigour,
   };
@@ -93,17 +99,13 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
   return floraBenefits(floraHour(ctx));
 }
 
-/**
- * Compute one tick of vitality for a plant — useful for UI rendering
- * (trend arrows, breakdown lists) and for tests. Stateless.
- */
+/** A plant's condition over the hour its budget ran, its reserve paying for the repair. Stateless. */
 export function computePlantVitality(ctx: PlantVitalityContext): VitalityResult {
+  const price = healingPrice(ctx.plant.budget, plantParams(ctx.plant.species, ctx.plantsConfig), ctx.plantsConfig);
   return computeVitality({
     stressors: buildPlantStressors(ctx),
     benefits: buildPlantBenefits(ctx),
     condition: ctx.plant.condition,
-    surplus: ctx.plant.surplus,
-    surplusCap: ctx.plantsConfig.surplusCap,
-    healingRate: floraHealingRate(plantTraits(ctx.plant.species), ctx.plantsConfig),
+    healed: price > 0 ? ctx.fluxes.burned.healing / price : 0,
   });
 }

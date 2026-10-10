@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { bloomAt } from '../../simulation/tests/blooms.js';
+import { sizeOf } from '../../simulation/plants/canopy.js';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -61,7 +63,7 @@ describe('session roundtrip', () => {
     expect(loaded.resources.nob).toBe(state.resources.nob);
     expect(loaded.fish).toEqual(state.fish);
     expect(loaded.fish.map((f) => f.sex)).toEqual(['female', 'female', 'female']);
-    expect(loaded.plants.map((p) => p.size)).toEqual([80, 80]);
+    expect(loaded.plants.map((p) => sizeOf(p))).toEqual([80, 80].map((size) => expect.closeTo(size, 9)));
   });
 
   it('refuses a session saved at an older version', () => {
@@ -183,7 +185,7 @@ describe('configureSession', () => {
         light: { enabled: true, par: 100, schedule: { startHour: 0, duration: 24 } },
       }),
       (draft) => {
-        draft.algae.greenWater.mass = 60;
+        draft.algae.greenWater = bloomAt(draft, 'greenWater', 60);
       }
     );
     const settled = settlePassiveResources(tick(green, DEFAULT_CONFIG), DEFAULT_CONFIG.optics);

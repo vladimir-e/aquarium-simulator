@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { sizeOf } from '../../simulation/plants/canopy.js';
+import { bloomAt } from '../../simulation/tests/blooms.js';
+import { atSize } from '../../simulation/tests/plant.js';
 import {
   applyAction,
   calculateSurface,
@@ -35,7 +38,7 @@ function tank(): SimulationState {
   state.equipment.substrate.type = 'aqua_soil';
   state.resources.surface = calculateSurface(state);
   state.resources.water = 196.4;
-  state.algae.film.mass = 47;
+  state.algae.film = bloomAt(state, 'film', 47);
   return state;
 }
 
@@ -49,7 +52,7 @@ function planted(sizes: number[]): SimulationState {
     state = applyAction(state, { type: 'addPlant', species: 'java_fern' }).state;
   }
   expect(state.plants).toHaveLength(sizes.length);
-  return { ...state, plants: state.plants.map((plant, i) => ({ ...plant, size: sizes[i] })) };
+  return { ...state, plants: state.plants.map((plant, i) => atSize(plant, sizes[i])) };
 }
 
 function detail(state: SimulationState, id: VerbId, settings: VerbSettings = DEFAULT_SETTINGS): VerbDetail {
@@ -148,7 +151,7 @@ describe('the seven verbs', () => {
     function families(): { state: SimulationState; first: string; second: string } {
       const base = planted([80, 90]);
       const [a, b] = base.plants;
-      const bud = { ...a, id: 'plant_bud', parentId: a.id, size: 70 };
+      const bud = atSize({ ...a, id: 'plant_bud', parentId: a.id }, 70);
       return { state: { ...base, plants: [a, b, bud] }, first: a.familyId, second: b.familyId };
     }
 
@@ -158,7 +161,7 @@ describe('the seven verbs', () => {
       const trimmed = applyAction(state, action).state;
 
       expect(action).toEqual({ type: 'trimPlants', targetSize: 50, familyId: first });
-      expect(trimmed.plants.map((plant) => plant.size)).toEqual([50, 90, 50]);
+      expect(trimmed.plants.map((plant) => Math.round(sizeOf(plant) * 1e9) / 1e9)).toEqual([50, 90, 50]);
     });
 
     it('counts, refuses and names its commit by what the family holds', () => {
@@ -236,7 +239,7 @@ describe('the seven verbs', () => {
     const bare = tank();
     const empty = { ...bare, resources: { ...bare.resources, water: 0 } };
     const full = { ...bare, resources: { ...bare.resources, water: bare.tank.capacity } };
-    const clean = { ...bare, algae: { ...bare.algae, film: { ...bare.algae.film, mass: 0.4 } } };
+    const clean = { ...bare, algae: { ...bare.algae, film: bloomAt(bare, 'film', 0.4) } };
 
     expect(row(bare, 'dose').blocked).toBe('no plants to fertilise');
     expect(row(bare, 'dose').value).toBe('2 ml');
@@ -252,7 +255,7 @@ describe('the seven verbs', () => {
 
   it('gates the scrub on the coverage its row prints, not the walls’ share of it', () => {
     const bare = tank();
-    const faint = { ...bare, algae: { ...bare.algae, film: { ...bare.algae.film, mass: 0.6 } } };
+    const faint = { ...bare, algae: { ...bare.algae, film: bloomAt(bare, 'film', 0.6) } };
     expect(onTheGlass(faint).film.toFixed(0)).toBe('0');
     expect(row(faint, 'scrubAlgae').value).toBe('1 %');
     expect(row(faint, 'scrubAlgae').blocked).toBeNull();
@@ -346,7 +349,7 @@ describe('the seven verbs', () => {
 
   it('previews the light a water change lets back onto the floor through green water', () => {
     const green = produce(tank(), (draft) => {
-      draft.algae.greenWater.mass = 80;
+      draft.algae.greenWater = bloomAt(draft, 'greenWater', 8);
     });
     const floor = detail(green, 'waterChange', { ...DEFAULT_SETTINGS, waterChange: 0.5 }).preview.find(
       (preview) => preview.key === 'floorLight'

@@ -1,4 +1,5 @@
 /* eslint-disable no-undef */
+import { emptyBlooms } from '../../simulation/index.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   loadPersistedState,
@@ -389,7 +390,7 @@ function createValidSimulation(): PersistedSimulation {
     plants: [],
     fish: [],
     clutches: [],
-    algae: { greenWater: { mass: 0, condition: 100, surplus: 0 }, film: { mass: 0, condition: 100, surplus: 0 } },
+    algae: emptyBlooms(),
     rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,

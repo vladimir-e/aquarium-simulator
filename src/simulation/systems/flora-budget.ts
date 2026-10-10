@@ -49,11 +49,13 @@ export interface FloraState extends ReserveState {
 
 /**
  * An hour's inputs: photosynthate offered (g); `room`, the share of growth
- * crowding leaves it, 0–1; healing, grams of reserve asked for repair.
+ * crowding leaves it, 0–1; ω in [0, 1]; healing, grams of reserve asked for
+ * repair at full oxygen.
  */
 export interface FloraBudgetHour {
   offered: number;
   tau: number;
+  omega: number;
   room: number;
   healing?: number;
 }
@@ -188,13 +190,13 @@ function sliceFlora(
   };
 }
 
-/** One hour of the budget, τ pacing every rate. */
+/** One hour of the budget: τ paces every rate; ω scales {p_Am}, v and healing, and maintenance is owed regardless. */
 export function stepFlora(state: FloraState, p: FloraParams, hour: FloraBudgetHour): FloraStep {
-  const { offered, tau, room, healing = 0 } = hour;
+  const { offered, tau, omega, room, healing = 0 } = hour;
   return integrateHour(
     state,
     p,
-    { inflow: offered, healing, tau },
+    { inflow: offered, healing: omega * healing, tau, omega },
     {
       growthLimit: (at) => room * droopFactor(at, p),
       slice: (at, released, slice) => sliceFlora(at, p, room, released, slice),
@@ -204,25 +206,38 @@ export function stepFlora(state: FloraState, p: FloraParams, hour: FloraBudgetHo
 }
 
 /**
- * mg of each nutrient the stores ask of the pools this hour: what each lacks of
- * full, closing first order at its fill rate × τ × its pool's Michaelis–Menten
- * factor.
+ * mg of each nutrient the stores ask of saturating water this hour: what each
+ * lacks of full, closing first order at its fill rate × τ. The pools deliver it
+ * at their own Michaelis–Menten share.
  */
-export function storeRequest(
-  state: FloraState,
-  p: FloraParams,
-  tau: number,
-  poolFactor: Readonly<NutrientVector>
-): NutrientVector {
+export function storeRequest(state: FloraState, p: FloraParams, tau: number): NutrientVector {
   return mapNutrients(
-    (n) =>
-      Math.max(0, storeMax(p, n) * state.structure - state.stores[n]) *
-      hourlyDraw(tau * p.storeFillRate[n] * poolFactor[n])
+    (n) => Math.max(0, storeMax(p, n) * state.structure - state.stores[n]) * hourlyDraw(tau * p.storeFillRate[n])
   );
 }
 
 export function takeUp(state: FloraState, delivered: Readonly<NutrientVector>): FloraState {
   return { ...state, stores: mapNutrients((n) => state.stores[n] + delivered[n]) };
+}
+
+/** `structure` fed and stocked: its reserve at E_m and every store full, nothing in the buffer. */
+export function stocked(structure: number, p: FloraParams): FloraState {
+  return {
+    structure,
+    reserve: maxReserveDensity(p) * structure,
+    offshootBuffer: 0,
+    stores: mapNutrients((n) => storeMax(p, n) * structure),
+  };
+}
+
+/** A share of it, every pool pro rata. */
+export function scaleFlora(state: FloraState, factor: number): FloraState {
+  return {
+    structure: state.structure * factor,
+    reserve: state.reserve * factor,
+    offshootBuffer: state.offshootBuffer * factor,
+    stores: mapNutrients((n) => state.stores[n] * factor),
+  };
 }
 
 function newborn(parent: FloraState, p: FloraParams, structure: number): FloraState {
@@ -234,14 +249,15 @@ function newborn(parent: FloraState, p: FloraParams, structure: number): FloraSt
   };
 }
 
-/**
- * Whether the buffer holds a new unit of `structure` — its tissue at [E_G] and
- * its reserve at the parent's density — and the stores hold its Q_min.
- */
+/** Grams of buffer a new unit of `structure` costs: its tissue at [E_G] and its reserve at the parent's density. */
+export function offshootPrice(state: FloraState, p: FloraParams, structure: number): number {
+  return p.EG * structure + newborn(state, p, structure).reserve;
+}
+
+/** Whether the buffer holds the price of a new unit of `structure`, and the stores hold its Q_min. */
 export function offshootReady(state: FloraState, p: FloraParams, structure: number): boolean {
-  const born = newborn(state, p, structure);
   return (
-    state.offshootBuffer >= p.EG * structure + born.reserve &&
+    state.offshootBuffer >= offshootPrice(state, p, structure) &&
     NUTRIENTS.every((n) => state.stores[n] >= p.qMin[n] * structure)
   );
 }
@@ -260,7 +276,7 @@ export function buyOffshoot(state: FloraState, p: FloraParams, structure: number
   return {
     parent: {
       ...state,
-      offshootBuffer: state.offshootBuffer - p.EG * structure - offshoot.reserve,
+      offshootBuffer: state.offshootBuffer - offshootPrice(state, p, structure),
       stores: mapNutrients((n) => state.stores[n] - p.qMin[n] * structure),
     },
     offshoot,

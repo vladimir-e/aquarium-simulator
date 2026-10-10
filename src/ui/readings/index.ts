@@ -7,6 +7,7 @@
  */
 
 import {
+  bloomMass,
   ALGAE,
   ALGAE_KINDS,
   mapKinds,
@@ -490,7 +491,7 @@ function lightTakenSentence(kind: AlgaeKind, state: SimulationState, taken: numb
 
 /** A bloom's coverage, on its kind's ladder, in the tone of its `bloomLevel`. */
 function bloomView(kind: AlgaeKind, state: SimulationState, ahead: HourAhead, taken: number, tape: Tape): ReadingView {
-  const mass = state.algae[kind].mass;
+  const mass = bloomMass(state, kind);
   const { habitat } = ALGAE[kind];
   const at = scale(DISPLAY_CEILING.algae);
   return {
@@ -740,10 +741,10 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
         name: byId[kind].name,
         figure: `${byId[kind].value} %`,
         caption: 'coverage',
-        trend: projectedDrift(ahead.algae[kind].mass - state.algae[kind].mass),
+        trend: projectedDrift(ahead.algae[kind].mass - bloomMass(state, kind)),
         at: byId[kind].at,
         band: byId[kind].band,
-        ...algaeReading(kind, state.algae[kind].mass, taken[kind]),
+        ...algaeReading(kind, bloomMass(state, kind), taken[kind]),
       })),
     },
     rack: {

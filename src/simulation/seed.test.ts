@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { sizeOf } from './plants/canopy.js';
 import { createSimulation, type Resources, type SimulationConfig } from './state.js';
 import { STOCKED_FISH_SIZE, stockedBody } from './livestock/create-fish.js';
 import {
@@ -453,12 +454,10 @@ describe('createSimulation seeding', () => {
       });
 
       expect(state.plants).toHaveLength(4);
-      expect(state.plants.slice(0, 3).map((p) => p.size)).toEqual([80, 80, 80]);
+      for (const plant of state.plants.slice(0, 3)) expect(sizeOf(plant)).toBeCloseTo(80, 9);
       expect(state.plants[3].species).toBe('anubias');
-      expect(state.plants[3].size).toBe(DEFAULT_PLANT_SIZE);
-      expect(
-        state.plants.every((p) => p.condition === 100 && p.surplus === 0)
-      ).toBe(true);
+      expect(sizeOf(state.plants[3])).toBeCloseTo(DEFAULT_PLANT_SIZE, 9);
+      expect(state.plants.every((p) => p.condition === 100 && p.budget.offshootBuffer === 0)).toBe(true);
     });
 
     it('plants only a size a unit can be planted at', () => {

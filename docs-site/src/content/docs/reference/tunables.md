@@ -151,22 +151,19 @@ for every kind.
 | `baseRespirationRate` | Dark respiration per rate unit of leaf at growth rate 1, as a share of the light- and carbon-saturated rate, running around the clock | /hr |
 | `respirationQ10` | Factor respiration and light starvation multiply by per 10 °C | — |
 | `respirationReferenceTemp` | Temperature respiration and light starvation are quoted at | °C |
-| `respirationOxygenHalfSaturation` | Dissolved O₂ at which respiration runs at half rate | mg/L |
-| `growthDrawRate` | First-order rate the bank draws toward new tissue at, before the taper `1 − size/100` | /hr |
-| `healingDrawRate` | First-order rate the bank heals condition at, per unit of species growth rate | /hr per growth rate |
-| `sizePerSurplus` | Size gained per bank point converted, before the species growth multiplier — the conversion growth and offshoots share | %/pt |
-| `surplusCap` | Ceiling on the bank; a full one buys an offshoot | pts |
-| `tissuePerSize` | Organic matter in a % of a rate unit of tissue, so a unit weighs by its leaf, not its size — what growth draws the recipe for, and shedding and death return as waste | g/% |
+| `oxygenHalfSaturation` | Dissolved O₂ half-saturating a flora's oxygen pace, read against saturated water: it scales what plants and blooms assimilate and mobilise, never the upkeep they owe | mg/L |
 | `somaShare` | κ: share of what a plant's reserve mobilises that goes to its soma; the rest fills its offshoot buffer | — |
 | `growthEfficiency` | κ_G: share of what new structure costs that ends up in it, plants and blooms alike; the rest is burned building it | — |
 | `reserveCapacity` | [E_m]: reserve a gram of structure holds when full, plants and blooms alike | g/g |
 | `storeFillDays` | Days a plant's empty nutrient store fills 63 % of the way in, from a saturating pool | days |
+| `healingRate` | First-order rate a plant or a bloom repairs its condition deficit at, at the respiration reference temperature, paid from its reserve | /hr |
+| `healingCost` | Hours of a plant's or a bloom's maintenance one point of repair costs | h |
 | `quotaMin.nitrate` · `.phosphate` · `.potassium` · `.iron` | Q_min: each nutrient's element in a gram of a plant's structure | mg/g |
 | `quotaMax.nitrate` · `.phosphate` · `.potassium` · `.iron` | Q_max: the same, with every store full | mg/g |
-| `lightStarvationSeverity` | Damage in a day without light, falling to nothing at the species' daily light edge; quoted at growth rate 1 and the respiration reference temperature | %/hr |
+| `starvationSeverity` | Damage with the hour's whole upkeep unpaid, in proportion to the share unpaid | %/hr |
 | `lightExcessiveSeverity` | Damage per PAR unit above the species' tolerable band | %/PAR/hr |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per °C, pH unit or dGH outside the species' tolerable band, one per factor | %/unit/hr |
-| `nutrientDeficiencySeverity` · `sufficiencyEdge` | Damage at a Liebig sufficiency of 0 under saturating light, falling linearly to nothing at the edge; and the sufficiency a plant counts as fed, since a Monod share never reaches 1 | %/hr · — |
+| `nutrientDeficiencySeverity` · `droopEdge` | Damage at a Droop limit of 0, falling linearly to nothing at the edge; and the Droop limit a plant's stores count as fed at, since it never reaches 1 | %/hr · — |
 | `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the plant's own edge, and where a hardiness-0 plant's edge sits | %/e-fold/hr · ppm |
 | `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on the light term times the Liebig sufficiency | %/hr |
 | `maxSheddingRate` | Share of itself a plant sheds per hour at condition 0, falling with the square of the deficit | /hr |

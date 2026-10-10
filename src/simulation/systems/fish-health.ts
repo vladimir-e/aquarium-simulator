@@ -34,7 +34,7 @@ import { shareOut, swallow, type Pace } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import { sum } from '../core/sum.js';
 import { hourlyDraw } from '../core/kinetics.js';
-import { wellFed } from './reserve.js';
+import { starvation, wellFed } from './reserve.js';
 import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
 import type { FishHour } from './metabolism.js';
 import {
@@ -48,21 +48,14 @@ import {
 } from '../livestock/tolerance.js';
 import {
   bandComfort,
+  computeVitality,
   eFoldsPast,
   eFoldsUnder,
   hardened,
   outsideBand,
-  type VitalityBreakdown,
   type VitalityFactor,
+  type VitalityResult,
 } from './vitality.js';
-
-export type FishBreakdown = Omit<VitalityBreakdown, 'banked'>;
-
-/** One hour of a fish's health; its breakdown's `healed` is the points its reserve repaired. */
-export interface FishVitality {
-  newCondition: number;
-  breakdown: FishBreakdown;
-}
 
 export interface HealthResult {
   survivingFish: Fish[];
@@ -70,7 +63,7 @@ export interface HealthResult {
   /** Waste the dead leave: their bodies, their guts and the broods they carried, less what the survivors ate */
   deathWaste: number;
   /** Each fish's vitality this tick, in the order handed in, the dead included */
-  vitalities: FishVitality[];
+  vitalities: VitalityResult[];
 }
 
 /**
@@ -197,11 +190,6 @@ export function predationStress(
   return ((config.predationRate * predatorMass) / waterVolume) * preyVulnerability(preySize, config);
 }
 
-/** Share of its upkeep the hour's budget left unpaid. */
-export function starvation({ fluxes }: Pick<FishHour, 'fluxes'>): number {
-  return fluxes.owed > 0 ? fluxes.shortfall / fluxes.owed : 0;
-}
-
 /** Grams of reserve one point of repair costs: `healingCost` hours of its somatic upkeep at 20 °C. */
 export function healingPrice(fish: Pick<Fish, 'species' | 'deb'>, config: LivestockConfig): number {
   return config.healingCost * fishParams(fish).pM * fish.deb.structure;
@@ -301,7 +289,7 @@ export function computeFishVitality(
   tankCapacity: number,
   config: LivestockConfig,
   predatorMass: number
-): FishVitality {
+): VitalityResult {
   const ctx: FishFactorContext = {
     fish,
     hour,
@@ -313,21 +301,17 @@ export function computeFishVitality(
     hardiness: fishHardiness(fish),
     predatorMass,
   };
-  const stressors = buildStressors(ctx);
-  const benefits = buildBenefits(ctx);
-  const damageRate = sum(stressors.map((factor) => factor.amount));
-  const benefitRate = sum(benefits.map((factor) => factor.amount));
   const price = healingPrice(fish, config);
-  const healed = price > 0 ? hour.fluxes.burned.healing / price : 0;
-  const net = benefitRate - damageRate;
-  return {
-    newCondition: Math.max(0, Math.min(100, fish.health + net + healed)),
-    breakdown: { stressors, benefits, damageRate, benefitRate, net, healed },
-  };
+  return computeVitality({
+    stressors: buildStressors(ctx),
+    benefits: buildBenefits(ctx),
+    condition: fish.health,
+    healed: price > 0 ? hour.fluxes.burned.healing / price : 0,
+  });
 }
 
 /** Share of a fish's damage this hour that one stressor did. */
-function damageShare(vitality: FishVitality, key: string): number {
+function damageShare(vitality: VitalityResult, key: string): number {
   const { damageRate, stressors } = vitality.breakdown;
   const amount = stressors.find((factor) => factor.key === key)?.amount ?? 0;
   return damageRate > 0 ? amount / damageRate : 0;

@@ -1,17 +1,19 @@
 /**
  * The flora law — what a plant and a bloom share, written over the traits both
- * are described in: the light they saturate and starve at, the growth rate
- * their tissue lives at, how the bank draws toward growth, what low condition
- * sheds, and the vitality channels both have. Each caller adds the channels
- * only it has and hardens the list itself.
+ * are described in: the light they saturate at, the pace their tissue lives
+ * at, what repair costs them, what low condition sheds, and the vitality
+ * channels both have. Each caller adds the channels only it has and hardens
+ * the list itself.
  */
 
 import type { Resources } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { getPh } from '../core/carbonate.js';
-import { hourlyDraw, lightSaturationFactor, monodFactor } from '../core/kinetics.js';
+import { hourlyDraw, monodFactor } from '../core/kinetics.js';
 import { parHoursToDli } from '../equipment/light.js';
-import { getRespirationTemperatureFactor } from './respiration.js';
+import { ZERO_NUTRIENTS, type NutrientVector } from '../config/nutrients.js';
+import { NO_ORGANICS, type Organics } from '../core/organics.js';
+import { remains, shed, type FloraParams, type FloraState } from './flora-budget.js';
 import { bandComfort, outsideBand, shortfall, type VitalityFactor } from './vitality.js';
 
 /** Hours a day the care-sheet PAR bands assume the lamps are on. */
@@ -19,10 +21,7 @@ export const CARE_SHEET_PHOTOPERIOD = 8;
 
 /** What a plant species and a bloom are both written in. */
 export interface FloraTraits {
-  /**
-   * Relative growth rate: what a bank point buys, how fast the bank heals, and
-   * the pace its tissue fixes, respires and starves at, against a leaf at 1.
-   */
+  /** Relative growth rate: the pace its tissue fixes and respires at, against a leaf at 1. */
   growthRate: number;
   /** PAR at the low end of its band. */
   lowLight: number;
@@ -31,44 +30,35 @@ export interface FloraTraits {
 }
 
 /**
+ * Grams of organic matter in a rate unit of tissue, 500 cm² of leaf with the
+ * stem, rhizome and root that carry it. Submergence drives leaf mass per area
+ * down hardest of anything (Poorter et al. 2009, New Phytol. 182:565), to 2.8
+ * and 3.9 g/m² in the thinnest hydrophytes (Gerber & Les 1994, Am. J. Bot.
+ * 81:973; Neundorfer & Kemp 1993, MEPS 94:71). The roster's leathery,
+ * amphibious leaves run far heavier, and 3 g to the rate unit — 60 g/m² of
+ * leaf, whole plant — is Tune's within that span.
+ */
+export const TISSUE_PER_RATE_UNIT = 3;
+
+/**
  * The PAR it stops answering more of — `Ik` of the Jassby–Platt curve its
- * photosynthesis and income run on: `saturationIrradianceFactor × lowLight`.
+ * photosynthesis runs on: `saturationIrradianceFactor × lowLight`.
  */
 export function saturationIrradiance(traits: FloraTraits, config: PlantsConfig): number {
   return config.saturationIrradianceFactor * traits.lowLight;
 }
 
 /**
- * Daily light integral (mol/m²/d) under which it starves: the low end of its
- * PAR band held for a care-sheet photoperiod.
+ * Daily light integral (mol/m²/d) at the low end of its PAR band held for a
+ * care-sheet photoperiod: the day it is rated to live on.
  */
 export function dailyLightEdge(traits: FloraTraits): number {
   return parHoursToDli(traits.lowLight, CARE_SHEET_PHOTOPERIOD);
 }
 
-/** Rate its bank heals condition below 100 at, per hour: it repairs at the rate it grows. */
-export function floraHealingRate(traits: FloraTraits, config: PlantsConfig): number {
-  return traits.growthRate * config.healingDrawRate;
-}
-
-/** Share of the draw it can still turn into growth: 1 empty, none at a full 100. */
+/** Share of its growth room left: 1 empty, none at a full 100. */
 export function growthTaper(fill: number): number {
   return 1 - fill / 100;
-}
-
-/** Bank points drawn toward growth this hour: a first-order draw at `growthDrawRate`, through the taper. */
-export function bankDraw(surplus: number, fill: number, config: PlantsConfig): number {
-  return Math.max(0, surplus) * hourlyDraw(config.growthDrawRate) * growthTaper(fill);
-}
-
-/** Growth one bank point buys: a plant's size in points, a bloom's mass in percent e-folds. */
-export function bankConversion(traits: FloraTraits, config: PlantsConfig): number {
-  return traits.growthRate * config.sizePerSurplus;
-}
-
-/** Grams of organic matter in a rate unit of tissue, a leaf's or a bloom's. */
-export function tissuePerRateUnit(config: PlantsConfig): number {
-  return 100 * config.tissuePerSize;
 }
 
 /** Rate units its metabolism runs at: the rate units its tissue is, at its growth rate. */
@@ -82,29 +72,39 @@ export function shedShare(condition: number, config: PlantsConfig): number {
   return config.maxSheddingRate * deficit * deficit;
 }
 
-/** The organism after the hour's losses — none where condition 0 killed it — and the grams of waste each loss left. */
-export interface FloraLoss<T> {
-  survivor: T | null;
-  shed: number;
-  died: number;
+/** A flora after the hour's losses, and what each loss left. */
+export interface FloraLoss {
+  /** Its budget, null where condition 0 killed it. */
+  survivor: FloraState | null;
+  shed: Organics;
+  /** Its remains, where it died. */
+  died: Organics;
+  /** mg of each nutrient its stores leached to the water, where it died. */
+  leachate: NutrientVector;
 }
 
-/**
- * Low condition sheds its `shedShare` of the stand — a plant's size, a
- * bloom's mass — and condition 0 kills what is left, bank and all. `grams`
- * weighs an amount of the stand.
- */
-export function loseFlora<K extends string, T extends { condition: number } & Record<K, number>>(
-  organism: T,
-  stand: K,
-  grams: (amount: number) => number,
+/** Low condition sheds its `shedShare` of the structure, and condition 0 kills what is left. */
+export function loseFlora(state: FloraState, p: FloraParams, condition: number, config: PlantsConfig): FloraLoss {
+  const shedding = shed(state, p, shedShare(condition, config) * state.structure);
+  if (condition > 0) return { survivor: shedding.state, shed: shedding.waste, died: NO_ORGANICS, leachate: ZERO_NUTRIENTS };
+  const left = remains(shedding.state, p);
+  return { survivor: null, shed: shedding.waste, died: left.waste, leachate: left.leachate };
+}
+
+/** Grams of reserve one point of repair costs: `healingCost` hours of its upkeep at the reference temperature. */
+export function healingPrice(state: FloraState, p: FloraParams, config: PlantsConfig): number {
+  return config.healingCost * p.pM * state.structure;
+}
+
+/** Grams of reserve it asks to repair this hour: its deficit closing first order at `healingRate` × τ. */
+export function healingAsked(
+  state: FloraState,
+  p: FloraParams,
+  condition: number,
+  tau: number,
   config: PlantsConfig
-): FloraLoss<T> {
-  const lost = shedShare(organism.condition, config) * organism[stand];
-  const left = organism[stand] - lost;
-  const shed = grams(lost);
-  if (organism.condition > 0) return { survivor: { ...organism, [stand]: left }, shed, died: 0 };
-  return { survivor: null, shed, died: grams(left) };
+): number {
+  return healingPrice(state, p, config) * hourlyDraw(config.healingRate * tau) * Math.max(0, 100 - condition);
 }
 
 /** One feeder's hour, as the channels a plant and a bloom share read it. */
@@ -112,38 +112,23 @@ export interface FloraHour {
   traits: FloraTraits;
   resources: Resources;
   plantsConfig: PlantsConfig;
-  /** PAR on its mean leaf, and the day's light there. */
-  light: { par: number; dailyLight: number };
-  /** Liebig sufficiency, 0–1. */
-  nutrientSufficiency: number;
+  /** Its reserve density as the hour starts, 0–1. */
+  wellFed: number;
+  /** Its stores' Droop limit as the hour starts, 0–1. */
+  droop: number;
+  /** Share of its upkeep the hour's budget left unpaid. */
+  starvation: number;
   /** Dissolved CO₂ (mg/L) it fixes at half rate on. */
   co2HalfSaturation: number;
   /** Scales everything it earns by `1 + vigour`. */
   vigour: number;
 }
 
-function lightResponse({ traits, plantsConfig, light }: FloraHour): number {
-  return lightSaturationFactor(light.par, saturationIrradiance(traits, plantsConfig));
-}
-
-/**
- * The harms both have, unhardened. Starvation reads the day it has had, so a
- * scheduled night costs nothing; its cost is respiration's, so it runs on
- * respiration's Q10 and at the feeder's growth rate. Nutrient demand rides the
- * light curve, as income does: a feeder in the dark asks for nothing.
- */
+/** The harms both have, unhardened. */
 export function floraStressors(hour: FloraHour): VitalityFactor[] {
-  const { traits, resources, plantsConfig, nutrientSufficiency, light } = hour;
+  const { traits, resources, plantsConfig, droop, starvation } = hour;
   return [
-    {
-      key: 'lightStarvation',
-      label: 'Light starvation',
-      amount:
-        plantsConfig.lightStarvationSeverity *
-        traits.growthRate *
-        shortfall(light.dailyLight, dailyLightEdge(traits)) *
-        getRespirationTemperatureFactor(resources.temperature, plantsConfig),
-    },
+    { key: 'starvation', label: 'Starvation', amount: plantsConfig.starvationSeverity * starvation },
     {
       key: 'temperature',
       label: 'Temperature',
@@ -157,21 +142,15 @@ export function floraStressors(hour: FloraHour): VitalityFactor[] {
     {
       key: 'nutrients',
       label: 'Nutrient deficiency',
-      amount:
-        lightResponse(hour) *
-        plantsConfig.nutrientDeficiencySeverity *
-        shortfall(nutrientSufficiency, plantsConfig.sufficiencyEdge),
+      amount: plantsConfig.nutrientDeficiencySeverity * shortfall(droop, plantsConfig.droopEdge),
     },
   ];
 }
 
-/**
- * Income, every channel realised through photosynthesis and so run on its
- * drive: the light term times the Liebig sufficiency, times vigour.
- */
+/** Income, every channel earned on its reserve density and its stores' Droop limit, times vigour. */
 export function floraBenefits(hour: FloraHour): VitalityFactor[] {
-  const { traits, resources, plantsConfig, nutrientSufficiency, co2HalfSaturation, vigour } = hour;
-  const earning = lightResponse(hour) * nutrientSufficiency * (1 + vigour);
+  const { traits, resources, plantsConfig, wellFed, droop, co2HalfSaturation, vigour } = hour;
+  const earning = wellFed * droop * (1 + vigour);
   return [
     {
       key: 'co2',

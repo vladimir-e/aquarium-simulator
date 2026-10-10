@@ -14,7 +14,7 @@ import {
   calculateHeatingRate,
   HEATER_WATTAGE_OPTIONS,
 } from './heater.js';
-import { clearPlace, resettle, waterExtinction } from '../algae/index.js';
+import { clearPlace, waterExtinction } from '../algae/index.js';
 import { atoUpdate } from './ato.js';
 import { getFilterSurface, getFilterFlow, isFilterAirDriven, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_TYPES, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN } from './filter.js';
 import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH, POWERHEAD_FLOW_RATES } from './powerhead.js';
@@ -290,7 +290,7 @@ export function calculatePassiveResources(
   const light = calculateParAtDepth(
     getLightOutput(equipment.light, hourOfDay),
     calculateTankHeight(tank.capacity),
-    waterExtinction(state.algae, optics)
+    waterExtinction(state, optics)
   );
 
   // Aeration: active if air pump is on OR filter is air-driven (sponge)
@@ -308,7 +308,7 @@ export function scheduledLightHistory(
   return scheduledLightByHour(
     state.equipment.light,
     calculateTankHeight(state.tank.capacity),
-    waterExtinction(state.algae, optics)
+    waterExtinction(state, optics)
   );
 }
 
@@ -372,7 +372,7 @@ export function rescape(state: SimulationState, type: SubstrateType): Simulation
     draft.resources.aob *= kept;
     draft.resources.nob *= kept;
     draft.resources.surface = calculateSurface(draft);
-    draft.algae = clearPlace(state.algae, 'floor', state);
+    draft.algae = clearPlace(state, 'floor');
   });
 }
 
@@ -397,7 +397,7 @@ export function disturbBed(draft: SimulationState, share: number): void {
 
 /**
  * Set a piece on the bed. It arrives sterile and bare, so a bloom on the
- * surfaces keeps its tissue over more of them, and a tank with no slot left
+ * surfaces spreads its tissue over more of them, and a tank with no slot left
  * refuses it.
  */
 export function placeHardscape(state: SimulationState, item: HardscapeItem): SimulationState {
@@ -407,7 +407,6 @@ export function placeHardscape(state: SimulationState, item: HardscapeItem): Sim
   return produce(state, (draft) => {
     draft.equipment.hardscape.items.push(item);
     draft.resources.surface = calculateSurface(draft);
-    draft.algae = resettle(state.algae, state, draft);
   });
 }
 
@@ -424,8 +423,10 @@ export function liftHardscape(state: SimulationState, ...ids: string[]): Simulat
   const surface = calculateSurface(state);
   const liftedSurface = lifted.reduce((sum, i) => sum + getHardscapeSurface(i.type), 0);
   const kept = surface > 0 ? 1 - liftedSurface / surface : 1;
+  const hardscape = calculateHardscapeTotalSurface(state.equipment.hardscape.items);
 
   return produce(state, (draft) => {
+    draft.algae = clearPlace(state, 'hardscape', hardscape > 0 ? liftedSurface / hardscape : 0);
     draft.resources.aob *= kept;
     draft.resources.nob *= kept;
     draft.equipment.hardscape.items = draft.equipment.hardscape.items.filter(
@@ -447,6 +448,5 @@ export function resetHardscape(state: SimulationState): SimulationState {
   return produce(lifted, (draft) => {
     draft.equipment.hardscape.items = items.map((i) => createHardscapeItem(i.id, i.type));
     draft.resources.surface = calculateSurface(draft);
-    draft.algae = resettle(lifted.algae, lifted, draft);
   });
 }

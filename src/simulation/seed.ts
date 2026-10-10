@@ -24,6 +24,7 @@ import { speciesTau } from './livestock/species.js';
 import { sum } from './core/sum.js';
 import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
+import { plantsDefaults } from './config/plants.js';
 import { mapNutrients, type NutrientVector } from './config/nutrients.js';
 import { scaleOrganics, type Organics } from './core/organics.js';
 import { alkalinityMoved, MW_NO3, NH3_TO_NO2_MASS_RATIO, PROTONS_PER_N } from './core/chemistry.js';
@@ -86,7 +87,7 @@ export interface SeedPlantGroup {
   species: PlantSpecies;
   /** Defaults to 1. */
   count?: number;
-  /** % of one full unit, as `Plant.size`: `MIN_PLANTABLE_SIZE` to 100 (`isPlantableSize`). */
+  /** % of one full unit, as `sizeOf` reads it: `MIN_PLANTABLE_SIZE` to 100 (`isPlantableSize`). */
   size?: number;
   /** Ticks it has already stood in the tank, as `Plant.age`. Defaults to 0. */
   age?: number;
@@ -334,6 +335,7 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
           size: group.size,
           age: group.age,
           rng: state.rng,
+          config: plantsDefaults,
         })
       );
     }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { columnGain, habitatGain, habitatPlaces, habitatSize, namePlaces, placeShare, type HabitatPlace } from './habitat.js';
-import { ALGAE, ALGAE_KINDS, clearPlace, coverageAt, emptyBlooms, resettle, waterExtinction } from './index.js';
+import { bloomMass, columnGain, habitatPlaces, habitatSize, massOf, namePlaces, placeShare, type HabitatPlace } from './habitat.js';
+import { ALGAE, ALGAE_KINDS, clearPlace, coverageAt, EMPTY_BLOOM, habitatGain, waterExtinction } from './index.js';
 import { createSimulation } from '../state.js';
 import { calculateFloorArea, calculateTankGlassSurface, calculateTankHeight } from '../core/geometry.js';
 import { opticsDefaults } from '../config/optics.js';
@@ -9,13 +9,13 @@ import { floorShade } from '../plants/canopy.js';
 import { createHardscapeItem, HARDSCAPE_SURFACE } from '../equipment/hardscape.js';
 import { liftHardscape, placeHardscape } from '../equipment/index.js';
 import { plantRecord } from '../tests/plant.js';
-import { kindTissue } from '../tests/blooms.js';
+import { bloomAt, kindTissue } from '../tests/blooms.js';
 
 const tank = createSimulation({ tankCapacity: 100 });
 const planted = produce(tank, (draft) => {
   draft.plants = [
-    plantRecord({ id: 'a', species: 'amazon_sword', size: 100, condition: 100, surplus: 0 }),
-    plantRecord({ id: 'b', species: 'java_fern', size: 100, condition: 100, surplus: 0 }),
+    plantRecord({ id: 'a', species: 'amazon_sword', size: 100 }),
+    plantRecord({ id: 'b', species: 'java_fern', size: 100 }),
   ];
 });
 const rocked = placeHardscape(tank, createHardscapeItem('rock', 'neutral_rock'));
@@ -44,14 +44,15 @@ describe('the column', () => {
 });
 
 describe('under green water', () => {
-  const green = (mass: number): typeof tank => produce(tank, (draft) => void (draft.algae.greenWater.mass = mass));
+  const green = (mass: number): typeof tank =>
+    produce(tank, (draft) => void (draft.algae.greenWater = bloomAt(draft, 'greenWater', mass)));
   const depth = calculateTankHeight(100);
   const ofLamp = (state: typeof tank, habitat: 'column' | 'surfaces'): number =>
-    habitatGain(habitat, state, opticsDefaults) * Math.exp(-waterExtinction(state.algae, opticsDefaults) * depth);
+    habitatGain(habitat, state, opticsDefaults) * Math.exp(-waterExtinction(state, opticsDefaults) * depth);
 
   it('reads the column’s mean through the water as it stands', () => {
     expect(habitatGain('column', green(40), opticsDefaults)).toBe(
-      columnGain(depth, waterExtinction(green(40).algae, opticsDefaults))
+      columnGain(depth, waterExtinction(green(40), opticsDefaults))
     );
   });
 
@@ -123,41 +124,52 @@ describe('namePlaces', () => {
 
 describe('the kinds', () => {
   it('open empty and healthy in a new tank', () => {
-    for (const kind of ALGAE_KINDS) expect(tank.algae[kind]).toEqual({ mass: 0, condition: 100, surplus: 0 });
+    for (const kind of ALGAE_KINDS) expect(tank.algae[kind]).toEqual(EMPTY_BLOOM);
   });
 });
 
-describe('resettle', () => {
+describe('a habitat that changes size', () => {
   const coated = produce(tank, (draft) => {
-    for (const kind of ALGAE_KINDS) draft.algae[kind].mass = 40;
+    for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 40);
   });
 
-  it('keeps a bloom’s tissue when bare surface comes in: the coverage thins by the share of habitat it gained', () => {
+  it('reads a bloom’s mass as its structure over what the full habitat holds', () => {
+    for (const kind of ALGAE_KINDS) {
+      const { habitat } = ALGAE[kind];
+      expect(bloomMass(coated, kind)).toBeCloseTo(massOf(kindTissue(coated, kind), habitatSize(habitat, coated), ALGAE[kind]), 12);
+      expect(bloomMass(coated, kind)).toBeCloseTo(40, 12);
+    }
+  });
+
+  it('moves the coverage and keeps the tissue when bare surface comes in', () => {
     const placed = placeHardscape(coated, createHardscapeItem('rock', 'neutral_rock'));
     for (const kind of ALGAE_KINDS) {
       const { habitat } = ALGAE[kind];
       const grown = habitatSize(habitat, placed) / habitatSize(habitat, coated);
       expect(kindTissue(placed, kind)).toBeCloseTo(kindTissue(coated, kind), 12);
-      expect(placed.algae[kind].mass).toBeCloseTo(40 / grown, 12);
+      expect(bloomMass(placed, kind)).toBeCloseTo(40 / grown, 12);
     }
-    expect(placed.algae).not.toEqual(coated.algae);
+    expect(placed.algae).toEqual(coated.algae);
   });
 
-  it('leaves the coverage as it was when habitat goes out, taking its share of the tissue with it', () => {
-    const withRock = placeHardscape(coated, createHardscapeItem('rock', 'neutral_rock'));
+  it('takes the film on a lifted piece out with it, the coverage left as it was', () => {
+    const withRock = produce(placeHardscape(tank, createHardscapeItem('rock', 'neutral_rock')), (draft) => {
+      for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 40);
+    });
     const lifted = liftHardscape(withRock, 'rock');
-    expect(lifted.algae).toEqual(withRock.algae);
-    expect(resettle(withRock.algae, withRock, lifted)).toEqual(withRock.algae);
+    for (const kind of ALGAE_KINDS) expect(bloomMass(lifted, kind)).toBeCloseTo(40, 12);
+    expect(kindTissue(lifted, 'film')).toBeLessThan(kindTissue(withRock, 'film'));
+    expect(lifted.algae.greenWater).toEqual(withRock.algae.greenWater);
   });
 });
 
 describe('coverageAt', () => {
   it('is each kind’s mass times the share of its habitat at the place', () => {
-    const blooms = produce(emptyBlooms(), (draft) => {
-      for (const kind of ALGAE_KINDS) draft[kind].mass = 60;
+    const blooms = produce(rocked, (draft) => {
+      for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 60);
     });
     for (const place of PLACES) {
-      const at = coverageAt(blooms, place, rocked);
+      const at = coverageAt(blooms, place);
       for (const kind of ALGAE_KINDS) expect(at[kind]).toBeCloseTo(60 * placeShare(ALGAE[kind].habitat, place, rocked), 12);
     }
   });
@@ -165,17 +177,24 @@ describe('coverageAt', () => {
 
 describe('clearPlace', () => {
   const coated = produce(rocked, (draft) => {
-    for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 60, condition: 70, surplus: 4 };
+    for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 60, 70);
   });
 
-  it('takes out the tissue at the place and keeps the rest, the population’s condition and bank with it', () => {
+  it('takes out the tissue at the place and keeps the rest, the population’s condition and densities with it', () => {
     for (const place of PLACES) {
-      const cleared = { ...coated, algae: clearPlace(coated.algae, place, coated) };
+      const cleared = { ...coated, algae: clearPlace(coated, place) };
       for (const kind of ALGAE_KINDS) {
         const share = placeShare(ALGAE[kind].habitat, place, coated);
+        const { budget } = coated.algae[kind];
         expect(kindTissue(cleared, kind)).toBeCloseTo(kindTissue(coated, kind) * (1 - share), 12);
-        expect(cleared.algae[kind]).toMatchObject({ condition: 70, surplus: 4 });
+        expect(cleared.algae[kind].condition).toBe(70);
+        expect(cleared.algae[kind].budget.reserve).toBeCloseTo(budget.reserve * (1 - share), 12);
       }
     }
+  });
+
+  it('takes a part of a place, in proportion', () => {
+    const half = { ...coated, algae: clearPlace(coated, 'column', 0.5) };
+    expect(kindTissue(half, 'greenWater')).toBeCloseTo(kindTissue(coated, 'greenWater') / 2, 12);
   });
 });

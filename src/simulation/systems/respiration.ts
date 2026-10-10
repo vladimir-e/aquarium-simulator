@@ -1,68 +1,17 @@
 /**
- * Respiration — plants and algae alike, by the rate units they respire at.
- *
- * Respiration occurs 24/7 (day and night):
- * - Consumes oxygen
- * - Produces CO2
- * - Rate scales with temperature (Q10 = 2)
- *
- * During day: photosynthesis > respiration = net O2 production
- * During night: respiration only = net O2 consumption
+ * The pace a flora's tissue lives at: every rate of its budget — what it
+ * assimilates, mobilises and owes, and what its stores take up — runs on
+ * respiration's Q10 off its reference temperature.
  */
 
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
-import { monodFactor, q10Factor } from '../core/kinetics.js';
-import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
+import { q10Factor } from '../core/kinetics.js';
 
-export interface RespirationResult {
-  /** Oxygen consumed (mg, absolute — caller divides by water volume for mg/L delta) */
-  oxygenConsumedMg: number;
-  /** CO2 produced (mg, absolute — caller divides by water volume for mg/L delta) */
-  co2ProducedMg: number;
-}
-
-/**
- * Calculate temperature factor for respiration using Q10 coefficient.
- * Rate doubles every 10C above reference, halves every 10C below.
- */
+/** Rate doubles every 10 °C above the reference at Q10 = 2, halves every 10 °C below. */
 export function getRespirationTemperatureFactor(
   temperature: number,
   config: PlantsConfig = plantsDefaults
 ): number {
   return q10Factor(temperature, config.respirationQ10, config.respirationReferenceTemp);
-}
-
-/**
- * Calculate respiration rate and the gas masses it moves.
- *
- * @param rateUnits - Rate units respiring: the planting's and the blooms'
- * @param temperature - Current water temperature (C)
- * @param oxygen - Dissolved oxygen (mg/L), which the rate saturates against
- * @param config - Plants configuration
- */
-export function calculateRespiration(
-  rateUnits: number,
-  temperature: number,
-  oxygen: number,
-  config: PlantsConfig = plantsDefaults
-): RespirationResult {
-  if (rateUnits <= 0) {
-    return {
-      oxygenConsumedMg: 0,
-      co2ProducedMg: 0,
-    };
-  }
-
-  const tempFactor = getRespirationTemperatureFactor(temperature, config);
-  const oxygenFactor = monodFactor(oxygen, config.respirationOxygenHalfSaturation);
-  const respirationRate =
-    config.baseRespirationRate * rateUnits * tempFactor * oxygenFactor;
-
-  const co2ProducedMg = respirationRate * config.co2PerRateUnit;
-
-  return {
-    oxygenConsumedMg: co2ProducedMg * CO2_TO_O2_MASS_RATIO,
-    co2ProducedMg,
-  };
 }

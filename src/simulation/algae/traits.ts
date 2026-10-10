@@ -25,7 +25,7 @@ export interface AlgaeTraits extends FloraTraits {
   phosphateHalfSaturation: number;
   /** Organic matter a full habitat holds, g per unit of it: a litre of column, a cm² of surface. */
   tissueDensity: number;
-  /** Mass that lands every hour through the taper, whatever the bloom is doing, 0–100 scale. */
+  /** Mass that lands every hour through the crowding taper, whatever the bloom is doing, 0–100 scale. */
   sporeRate: number;
   /** Q_min: mg of each nutrient's element — N, P, K, Fe — in a gram of its structure. */
   quotaMin: NutrientVector;
@@ -50,19 +50,28 @@ export type AlgaeKind = 'greenWater' | 'film';
  * and film sits in that range. Green water's 25 ppm departs from it: a
  * stand-in fitted from whole-tank runs.
  *
- * Green water is the sprinter: a lit, rich day doubles it in about a day, but
- * it needs richer water than film. A cycled tank's trace of ammonia meets 6 %
- * of its nitrogen need, a 2 ppm spike 80 %, and 10 ppm of nitrate 29 %.
- * Phosphate at 0.1 ppm meets a third of its need, a fed tank's 2 ppm 91 %.
- * Heavy green water carries some 10–50 mg/L of dry cells.
+ * Green water is the sprinter: lit and on full stores it grows at Chlorella's
+ * culture maximum, 1.56 a day at 25 °C (Idris et al. 2014, Malays. J. Fundam.
+ * Appl. Sci. 10:2) — two doublings — but it needs richer water than film. A
+ * cycled tank's trace of ammonia meets 6 % of its nitrogen need, a 2 ppm spike
+ * 80 %, and 10 ppm of nitrate 29 %. Phosphate at 0.1 ppm meets a third of its
+ * need, a fed tank's 2 ppm 91 %.
  *
- * Film is the stayer: a third of green water's pace, so it takes a week or two
+ * Film is the stayer: a third of a doubling a day, so it takes a week or two
  * to show on the glass, but efficient on lean water — a cycled tank's trace of
  * ammonia meets 60 % of its nitrogen need, and 5 ppm of nitrate 83 %. A green
  * film on glass carries about 0.3 mg of organic matter a cm².
  *
- * Spores land at 0.05 of the scale a day: nothing a reader sees, but an empty
- * tank is never closed to either.
+ * A kind's growth rate sets its pace per gram and its tissue density the grams
+ * a full habitat holds, so `growthRate × tissueDensity / TISSUE_PER_RATE_UNIT`
+ * is the rate units a full litre or cm² of habitat fixes and burns at: 1.8 for
+ * green water and 0.006 for film, the tank-level CO₂ and O₂ per % of coverage
+ * the whole-tank runs are fitted on. Held there with the paces at the culture
+ * figures, a % of coverage holds more tissue than the dry-weight figures above.
+ *
+ * Spores land at about half a mg of green water a m³ of column and 0.06 mg of
+ * film a m² of surface an hour: nothing a reader sees, but an empty tank is
+ * never closed to either.
  *
  * Green water's quotas are planktonic chlorophytes'. N: PCLake greens 2–10 %
  * (Janse 2005); Bougaran 2010 S. minutum q₀ 3.5 %, q_max 12 %; Healey &
@@ -83,7 +92,7 @@ export const ALGAE: Readonly<Record<AlgaeKind, AlgaeTraits>> = {
   greenWater: {
     name: 'Green water',
     habitat: 'column',
-    growthRate: 60,
+    growthRate: 20,
     hardiness: 0.4,
     lowLight: 6,
     nutrientDemand: 'low',
@@ -93,8 +102,8 @@ export const ALGAE: Readonly<Record<AlgaeKind, AlgaeTraits>> = {
     ammoniaHalfSaturation: 0.5,
     nitrateHalfSaturation: 25,
     phosphateHalfSaturation: 0.2,
-    tissueDensity: 0.03,
-    sporeRate: 0.002,
+    tissueDensity: 0.27,
+    sporeRate: 0.0002,
     quotaMin: { nitrate: 25, phosphate: 1.5, potassium: 4, iron: 0.03 },
     quotaMax: { nitrate: 100, phosphate: 15, potassium: 22, iron: 0.2 },
     storeFillDays: 1,
@@ -102,7 +111,7 @@ export const ALGAE: Readonly<Record<AlgaeKind, AlgaeTraits>> = {
   film: {
     name: 'Film',
     habitat: 'surfaces',
-    growthRate: 20,
+    growthRate: 4,
     hardiness: 0.4,
     lowLight: 6,
     nutrientDemand: 'low',
@@ -112,8 +121,8 @@ export const ALGAE: Readonly<Record<AlgaeKind, AlgaeTraits>> = {
     ammoniaHalfSaturation: 0.02,
     nitrateHalfSaturation: 1,
     phosphateHalfSaturation: 0.02,
-    tissueDensity: 0.0003,
-    sporeRate: 0.002,
+    tissueDensity: 0.0045,
+    sporeRate: 0.00013,
     quotaMin: { nitrate: 34, phosphate: 1.7, potassium: 4, iron: 0.03 },
     quotaMax: { nitrate: 80, phosphate: 10, potassium: 22, iron: 0.2 },
     storeFillDays: 2,

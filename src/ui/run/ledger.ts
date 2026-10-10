@@ -1,13 +1,16 @@
 /**
  * Why one organism is where it is: the engine's own factor lists, split into
  * what helps and what hurts, with its store standing between the two — a
- * fish's reserve, a plant's or a bloom's bank — and the condition they add up
+ * fish's reserve, a plant's offshoot buffer — and the condition they add up
  * to. Nothing is named here that the vitality pass did not already charge — a
  * factor the reader sees is a factor the tick applied.
  */
 
 import {
   ALGAE,
+  bloomMass,
+  offshootShare,
+  type FloraFluxes,
   ALGAE_KINDS,
   debParams,
   PLANT_SPECIES_DATA,
@@ -37,7 +40,6 @@ import { crownBurns, lightStatus, plantLightStatus } from './light.js';
 import { fishGut, fishNumbers, fishReading, fishTitle, type Gut } from './livestock.js';
 import { CONDITION_BAND, type SpeciesId } from './roster.js';
 import {
-  bankShare,
   conditionStatus,
   printsAsZero,
   projectedTrend,
@@ -60,7 +62,7 @@ export interface LedgerFactor {
   perDay: number;
 }
 
-/** The organism's store, standing between what helps and what hurts: a fish's reserve, a plant's or a bloom's bank. */
+/** The organism's store, standing between what helps and what hurts: a fish's reserve, a plant's offshoot buffer. */
 export interface LedgerBank {
   label: string;
   text: string;
@@ -141,7 +143,6 @@ export interface Ledger {
 /** The precision a factor, a sum and the net print at, per day. */
 export const LEDGER_DECIMALS = 1;
 
-const BANK_DECIMALS = 1;
 
 /** Whether a positive amount shows at a precision rather than rounding to nothing. */
 function shows(amount: number, decimals: number): boolean {
@@ -165,33 +166,10 @@ function total(list: VitalityFactor[]): number {
   return list.reduce((sum, factor) => sum + factor.amount, 0) * TICKS_PER_DAY;
 }
 
-interface BankHour {
-  now: number;
-  next: number;
-  cap: number;
-  /** Condition healed from it. */
-  covered: number;
-  /** What the bank buys — nothing the hour a death takes it. */
-  spent: number;
-}
-
-/**
- * What the bank does over the hour, named by which way it moves: in, out and on
- * what, or neither. A bank held to a lowered cap drops with nothing drawn, and
- * reads as the full bank it is.
- */
-function bankNote({ now, next, cap, covered, spent }: BankHour, buying: string): string {
-  const change = (next - now) * TICKS_PER_DAY;
-  if (shows(change, BANK_DECIMALS)) return 'banking';
-  if (!shows(now, BANK_DECIMALS)) return 'empty';
-  if (shows(-change, BANK_DECIMALS) && covered + spent > 0) {
-    return covered >= spent ? 'healing from reserve' : buying;
-  }
-  return now >= cap ? 'full' : 'held against a bad day';
-}
-
-function bankOf(hour: BankHour, buying: string): Pick<LedgerBank, 'at' | 'note'> {
-  return { at: bankShare(hour.now, hour.cap), note: bankNote(hour, buying) };
+/** What the offshoot buffer does over the hour: buys a unit, pays the upkeep the budget left unpaid, or fills. */
+function bufferNote(fluxes: FloraFluxes, buds: boolean): string {
+  if (buds) return 'buying an offshoot';
+  return starvation({ fluxes }) > 0 ? 'short of upkeep' : 'filling';
 }
 
 /**
@@ -302,10 +280,10 @@ function plantLedger(
   if (index < 0) return null;
 
   const plant = state.plants[index];
-  const { vitality, spent, buds, light } = ahead.plants[index];
+  const { vitality, fluxes, buds, light } = ahead.plants[index];
   const { breakdown } = vitality;
   const label = plantLabels(state.plants).get(id)!;
-  const cap = config.plants.surplusCap;
+  const buffer = offshootShare(plant, config.plants);
   const data = PLANT_SPECIES_DATA[plant.species];
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
@@ -342,13 +320,11 @@ function plantLedger(
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
     bank: {
-      label: 'Bank',
-      text: String(sharePercent(bankShare(plant.surplus, cap))),
+      label: 'Buffer',
+      text: String(sharePercent(buffer)),
       unit: '% to offshoot',
-      ...bankOf(
-        { now: plant.surplus, next: vitality.surplus - spent, cap, covered: breakdown.healed, spent },
-        buds ? 'buying an offshoot' : 'buying growth'
-      ),
+      at: buffer,
+      note: bufferNote(fluxes, buds),
     },
     demand:
       `${data.nutrientDemand} demand · light ${lightLow}–${lightHigh} PAR · ${data.co2Requirement} CO₂`,
@@ -377,12 +353,12 @@ export function bloomVerb(kind: AlgaeKind): BloomRemoval {
  * is.
  */
 function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourAhead, kind: AlgaeKind): Ledger {
-  const { mass, condition, surplus } = state.algae[kind];
+  const { condition } = state.algae[kind];
+  const mass = bloomMass(state, kind);
   const next = ahead.algae[kind];
   const { breakdown } = next.vitality;
   const traits = ALGAE[kind];
   const place = HABITAT[traits.habitat];
-  const cap = config.plants.surplusCap;
   const taken = plantLightTaken(state, config.optics)[kind] * 100;
   const coverage = algaeReading(kind, mass, taken);
   const { value, trend } = vitalReading(condition, next.condition);
@@ -424,12 +400,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     helps: total(breakdown.benefits),
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
-    bank: {
-      label: 'Bank',
-      text: surplus.toFixed(BANK_DECIMALS),
-      unit: `of ${cap}`,
-      ...bankOf({ now: surplus, next: next.surplus, cap, covered: breakdown.healed, spent: next.spent }, 'buying growth'),
-    },
+    bank: null,
     demand: `half-fed at ${traits.ammoniaHalfSaturation} ppm NH₃, ${traits.nitrateHalfSaturation} NO₃, ${traits.phosphateHalfSaturation} PO₄ · light from ${traits.lowLight} PAR`,
     verb: bloomVerb(kind),
     scope: null,

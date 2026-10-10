@@ -10,9 +10,9 @@ import {
   predatorWeight,
   processHealth,
   speciesHardiness,
-  starvation,
-  type FishVitality,
 } from './fish-health.js';
+import { starvation } from './reserve.js';
+import type { VitalityResult } from './vitality.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { configRange, DEFAULT_CONFIG } from '../config/index.js';
@@ -61,13 +61,13 @@ const STRESSORS = [
   'age',
 ];
 
-const stressorAmount = (v: FishVitality, key: string): number =>
+const stressorAmount = (v: VitalityResult, key: string): number =>
   v.breakdown.stressors.find((s) => s.key === key)?.amount ?? 0;
 
-const benefitAmount = (v: FishVitality, key: string): number =>
+const benefitAmount = (v: VitalityResult, key: string): number =>
   v.breakdown.benefits.find((b) => b.key === key)?.amount ?? 0;
 
-const totalStress = (v: FishVitality): number =>
+const totalStress = (v: VitalityResult): number =>
   v.breakdown.stressors.reduce((sum, s) => sum + s.amount, 0);
 
 function makeResources(overrides: ResourceOverrides = {}): Resources {
@@ -96,15 +96,8 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
   }, { ph: 7.0, ...overrides });
 }
 
-function makePlant(overrides: Partial<Plant> = {}): Plant {
-  return plantRecord({
-    id: 'plant_1',
-    species: 'java_fern',
-    size: 100,
-    condition: 100,
-    surplus: 0,
-    ...overrides,
-  });
+function makePlant(overrides: Partial<Omit<Plant, 'budget'>> & { size?: number } = {}): Plant {
+  return plantRecord({ id: 'plant_1', species: 'java_fern', size: 100, ...overrides });
 }
 
 /** The defaults with no age damage and no paid repair: a young fish in clean water takes no damage, a sick one stays sick. */
@@ -133,7 +126,7 @@ function vitality(
     config?: typeof livestockDefaults;
     predatorMass?: number;
   }
-): FishVitality {
+): VitalityResult {
   const record = fishRecord(fish);
   return computeFishVitality(
     record,
@@ -265,7 +258,7 @@ describe('water quality', () => {
     const ph = (lo + hi) / 2;
     return { ph, ...at[key](reading, ph) };
   };
-  const atBandCentre = (key: string, reading: number, fish: Partial<Fish> = {}): FishVitality =>
+  const atBandCentre = (key: string, reading: number, fish: Partial<Fish> = {}): VitalityResult =>
     vitality(fish, bandCentre(key, reading, fish.species));
 
   it.each<[string, number]>([
@@ -463,7 +456,7 @@ describe('plant-presence benefit', () => {
   const net = (plants: Plant[]): number => vitality({}, {}, { plants }).breakdown.net;
   const baseline = net([]);
   const lift = (plants: Plant[]): number => net(plants) - baseline;
-  const plants = (count: number, overrides: Partial<Plant> = {}): Plant[] =>
+  const plants = (count: number, overrides: Partial<Omit<Plant, 'budget'>> & { size?: number } = {}): Plant[] =>
     Array.from({ length: count }, (_, i) => makePlant({ id: `p_${i}`, ...overrides }));
   const peak = lift(plants(10));
 

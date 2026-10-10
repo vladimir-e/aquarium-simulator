@@ -16,10 +16,8 @@ import {
 } from '../../simulation/index.js';
 import {
   MAX_ALGAE_ATTENUATION_PER_GRAM,
+  MAX_DROOP_EDGE,
   MAX_LEAF_ATTENUATION_PER_LAI,
-  MAX_SIZE_PER_SURPLUS,
-  MAX_SUFFICIENCY_EDGE,
-  MAX_SURPLUS_CAP,
   MAX_WATER_ATTENUATION_PER_CM,
   NUTRIENT_FORMS,
   NUTRIENTS,
@@ -100,11 +98,19 @@ const ResourcesSchema = z
 // Algae Schema
 // ============================================================================
 
+const FloraStateSchema = z
+  .object({
+    structure: z.number().min(0),
+    reserve: z.number().min(0),
+    offshootBuffer: z.number().min(0),
+    stores: numbersFor(NUTRIENTS, z.number().min(0)),
+  })
+  .strict();
+
 const AlgaeStateSchema = z
   .object({
-    mass: z.number().min(0).max(100),
+    budget: FloraStateSchema,
     condition: z.number().min(0).max(100),
-    surplus: z.number().min(0),
   })
   .strict();
 
@@ -251,9 +257,8 @@ const PlantSchema = z
   .object({
     id: z.string(),
     species: z.enum(['java_fern', 'anubias', 'amazon_sword', 'dwarf_hairgrass', 'monte_carlo']),
-    size: z.number().min(0).max(100),
+    budget: FloraStateSchema,
     condition: z.number().min(0).max(100),
-    surplus: z.number().min(0),
     parentId: z.string().nullable(),
     familyId: z.string(),
     age: z.number().int().min(0),
@@ -487,20 +492,16 @@ const PlantsConfigSchema = z
     baseRespirationRate: z.number(),
     respirationQ10: z.number(),
     respirationReferenceTemp: z.number(),
-    respirationOxygenHalfSaturation: z.number(),
+    oxygenHalfSaturation: z.number(),
     co2PerRateUnit: z.number(),
-    growthDrawRate: z.number().min(0),
-    healingDrawRate: z.number().min(0),
-    sizePerSurplus: z.number().positive().max(MAX_SIZE_PER_SURPLUS),
-    surplusCap: z.number().min(0).max(MAX_SURPLUS_CAP),
     // Vitality stressor severities
-    lightStarvationSeverity: z.number(),
+    starvationSeverity: z.number(),
     lightExcessiveSeverity: z.number(),
     temperatureStressSeverity: z.number(),
     phStressSeverity: z.number(),
     ghStressSeverity: z.number(),
     nutrientDeficiencySeverity: z.number(),
-    sufficiencyEdge: z.number().min(0).max(MAX_SUFFICIENCY_EDGE),
+    droopEdge: z.number().min(0).max(MAX_DROOP_EDGE),
     nitrateStressSeverity: z.number(),
     nitrateEdge: z.number(),
     // Vitality benefit peaks
@@ -508,11 +509,12 @@ const PlantsConfigSchema = z
     temperatureBenefitPeak: z.number(),
     phBenefitPeak: z.number(),
     maxSheddingRate: z.number(),
-    tissuePerSize: z.number(),
     somaShare: z.number().min(0).max(1),
     growthEfficiency: z.number().positive().max(1),
     reserveCapacity: z.number().positive(),
     storeFillDays: z.number().positive(),
+    healingRate: z.number().min(0),
+    healingCost: z.number().positive(),
     quotaMin: numbersFor(NUTRIENTS, z.number().positive()),
     quotaMax: numbersFor(NUTRIENTS, z.number().positive()),
   })

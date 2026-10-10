@@ -9,6 +9,8 @@
  */
 
 import {
+  sizeOf,
+  bloomMass,
   ALGAE,
   ALGAE_KINDS,
   applyAction,
@@ -219,7 +221,7 @@ function blockedReason(
         ? null
         : `nothing above ${settings.trimPlants} %`;
     case 'scrubAlgae':
-      return glassKinds(state).some((kind) => !printsAsZero(state.algae[kind].mass, COVERAGE_DECIMALS))
+      return glassKinds(state).some((kind) => !printsAsZero(bloomMass(state, kind), COVERAGE_DECIMALS))
         ? null
         : 'the glass is clean';
   }
@@ -233,7 +235,7 @@ function glassKinds(state: SimulationState): AlgaeKind[] {
 /** Each kind a scrub reaches, named, with its coverage. */
 function onSurfaces(state: SimulationState, units: UnitSystem): string {
   return glassKinds(state)
-    .map((kind) => `${ALGAE[kind].name.toLowerCase()} ${logQuantityIn(units)(coverage(state.algae[kind].mass))}`)
+    .map((kind) => `${ALGAE[kind].name.toLowerCase()} ${logQuantityIn(units)(coverage(bloomMass(state, kind)))}`)
     .join(' · ');
 }
 
@@ -259,7 +261,7 @@ function rowValue(
       return `to ${settings.trimPlants} %`;
     case 'scrubAlgae':
       return glassKinds(state)
-        .map((kind) => logQuantityIn(units)(coverage(state.algae[kind].mass)))
+        .map((kind) => logQuantityIn(units)(coverage(bloomMass(state, kind))))
         .join(' · ');
   }
 }
@@ -487,7 +489,7 @@ function meta(
     case 'trimPlants': {
       const reach = reached(state, scope);
       const { plants } = reach;
-      const largest = plants.reduce((most, plant) => Math.max(most, plant.size), 0);
+      const largest = plants.reduce((most, plant) => Math.max(most, sizeOf(plant)), 0);
       const line = `${getPlantsToTrimCount(reach, settings.trimPlants)} of ${plural(plants.length, 'plant')} · largest ${Math.floor(largest)} %`;
       return scope && plants.length > 0
         ? `${PLANT_SPECIES_DATA[plants[0].species].name} · ${line}`

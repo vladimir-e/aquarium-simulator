@@ -17,7 +17,7 @@ export type LogEvent =
   | 'eggs-hatched' // a laid clutch finished developing — fry added
   | 'fish-died' // a fish died (any cause)
   | 'plant-died' // a plant died from poor conditions
-  | 'plant-propagated' // a full bank bought an offshoot — a runner, plantlet or rhizome branch
+  | 'plant-propagated' // its offshoot buffer bought a new unit — a runner, plantlet or rhizome branch
   | 'algae-died' // the bloom died back at condition 0, stating the coverage it took
   | 'fry-sold'; // the sell-fry action removed every fry at once
 

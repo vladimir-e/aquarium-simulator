@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { bloomAt } from '../../simulation/tests/blooms.js';
 import { ALGAE_KINDS, createSimulation } from '../../simulation/index.js';
 import { getPresetById } from '../../simulation/presets.js';
 import { renderTrace, TRACE_FIELDS } from '../format.js';
@@ -48,9 +49,9 @@ describe('trace fields', () => {
   it('traces each kind of bloom the snapshot records, a column per figure', () => {
     const bloom = snapshot({
       ...state,
-      algae: { greenWater: { mass: 12.5, condition: 90, surplus: 3.25 }, film: { mass: 40, condition: 100, surplus: 1 } },
+      algae: { greenWater: bloomAt(state, 'greenWater', 12.5, 90), film: bloomAt(state, 'film', 40) },
     });
-    const csv = renderTrace([bloom], { fields: ['green_water_mass', 'green_water_surplus', 'film_mass'] });
-    expect(csv).toBe(`tick,green_water_mass,green_water_surplus,film_mass\n${bloom.tick},12.5,3.25,40`);
+    const csv = renderTrace([bloom], { fields: ['green_water_mass', 'green_water_condition', 'green_water_buffer', 'film_mass'] });
+    expect(csv).toBe(`tick,green_water_mass,green_water_condition,green_water_buffer,film_mass\n${bloom.tick},12.5,90,0,40`);
   });
 });

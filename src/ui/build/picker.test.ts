@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { plantRecord } from '../../simulation/tests/plant.js';
 import {
   applyAction,
   createSimulation,
@@ -35,13 +36,7 @@ function tank(capacity = 200): SimulationState {
 function planted(count: number, species: PlantSpecies, state = tank(19)): SimulationState {
   return {
     ...state,
-    plants: Array.from({ length: count }, (_, i) => ({
-      id: `plant_${i}`,
-      species,
-      size: 50,
-      condition: 100,
-      surplus: 0,
-    })) as SimulationState['plants'],
+    plants: Array.from({ length: count }, (_, i) => plantRecord({ id: `plant_${i}`, species, size: 50 })),
   };
 }
 

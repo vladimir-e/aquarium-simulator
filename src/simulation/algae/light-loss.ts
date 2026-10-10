@@ -8,10 +8,14 @@
  * cm². A leaf is a lit surface, coated at the kind's coverage.
  */
 
-import type { Blooms } from '../state.js';
+import type { SimulationState } from '../state.js';
 import type { OpticsConfig } from '../config/optics.js';
 import { ALGAE, ALGAE_KINDS, type AlgaeHabitat, type AlgaeKind, type AlgaeTraits } from './traits.js';
 import { mapKinds } from './blooms.js';
+import { bloomMass } from './habitat.js';
+
+/** What the blooms' light loss is read off: their tissue and the habitats it spreads over. */
+export type BloomTank = Pick<SimulationState, 'tank' | 'equipment' | 'algae'>;
 
 export interface BloomLightLoss {
   /** What it adds to the water's extinction, per cm. */
@@ -42,9 +46,9 @@ export interface LightLoss {
   blooms: Record<AlgaeKind, BloomLightLoss>;
 }
 
-export function lightLoss(blooms: Blooms, optics: OpticsConfig): LightLoss {
+export function lightLoss(tank: BloomTank, optics: OpticsConfig): LightLoss {
   const loss = mapKinds((kind) =>
-    LOSS[ALGAE[kind].habitat](blooms[kind].mass / 100, ALGAE[kind], optics.algaeAttenuationPerGram)
+    LOSS[ALGAE[kind].habitat](bloomMass(tank, kind) / 100, ALGAE[kind], optics.algaeAttenuationPerGram)
   );
   return {
     extinction: ALGAE_KINDS.reduce((k, kind) => k + loss[kind].extinction, optics.waterAttenuationPerCm),
@@ -53,8 +57,8 @@ export function lightLoss(blooms: Blooms, optics: OpticsConfig): LightLoss {
   };
 }
 
-export function waterExtinction(blooms: Blooms, optics: OpticsConfig): number {
-  return lightLoss(blooms, optics).extinction;
+export function waterExtinction(tank: BloomTank, optics: OpticsConfig): number {
+  return lightLoss(tank, optics).extinction;
 }
 
 /** The share of the light a bloom lets through the column to `depthCm` under the surface. */

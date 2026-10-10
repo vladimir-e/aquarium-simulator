@@ -50,8 +50,7 @@ describe('renderObserve', () => {
     );
     const failing = produce(stocked, (draft) => {
       draft.resources.ammonia = 20 * draft.resources.water;
-      draft.equipment.light.enabled = false;
-      draft.resources.lightByHour.fill(0);
+      draft.resources.temperature = 38;
     });
     const ahead = readHourAhead(failing, DEFAULT_CONFIG);
     const fish = readFish(failing, DEFAULT_CONFIG, ahead).filter((read) => read.sick).length;

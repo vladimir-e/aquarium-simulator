@@ -20,7 +20,6 @@ import {
 import {
   ALGAE_KINDS,
   addOrganics,
-  atRecipe,
   calculateSubstrateLeach,
   scaleOrganics,
   wasteSettlingShare,
@@ -33,7 +32,7 @@ import { getPpm } from '../../simulation/resources/index.js';
 import { monodFactor } from '../../simulation/core/kinetics.js';
 import { NH3_TO_NO2_MASS_RATIO } from '../../simulation/core/chemistry.js';
 import type { HourAhead } from './ahead.js';
-import { mineralisationBase, wasteInflow } from './waste.js';
+import { inflowFrom, mineralisationBase, wasteInflow } from './waste.js';
 
 /**
  * The share of its own ceiling at which a colony counts as having filled it.
@@ -282,12 +281,12 @@ export interface CycleProjection {
   feeders: ('plants' | 'algae')[];
 }
 
-/** Plants, and blooms the lamp can light or whose bank can grow them in the dark. */
+/** Plants, and blooms the lamp can light or whose reserve can grow them in the dark. */
 function ammoniaFeeders(state: SimulationState): CycleProjection['feeders'] {
   const { light } = state.equipment;
   const feeders: CycleProjection['feeders'] = [];
   if (state.plants.length > 0) feeders.push('plants');
-  if ((light.enabled && light.par > 0) || ALGAE_KINDS.some((kind) => state.algae[kind].surplus > 0)) feeders.push('algae');
+  if ((light.enabled && light.par > 0) || ALGAE_KINDS.some((kind) => state.algae[kind].budget.reserve > 0)) feeders.push('algae');
   return feeders;
 }
 
@@ -336,11 +335,7 @@ export function projectNitritePeak(
   const aobRates = colonyRates('aob', r.temperature, r.oxygen, nc);
   const nobRates = colonyRates('nob', r.temperature, r.oxygen, nc);
 
-  const sources = wasteInflow(state, config, ahead).sources;
-  const steadyInflow = atRecipe(
-    sources.filter((source) => source.key !== 'substrate').reduce((total, source) => total + source.gramsPerHour, 0),
-    config
-  );
+  const steadyInflow = inflowFrom(wasteInflow(state, config, ahead), ['food', 'fish', 'plants', 'algae']);
   const gills = ahead.gillAmmonia;
   const food = ahead.foodAmmonia;
 

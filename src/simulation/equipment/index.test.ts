@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { bloomAt } from '../tests/blooms.js';
 import { addOrganics, NO_ORGANICS, ofComposition, scaleOrganics } from '../core/organics.js';
 import { LEAN, organicsCloseTo } from '../tests/organics.js';
 import { produce } from 'immer';
@@ -125,15 +126,15 @@ describe('calculatePassiveResources', () => {
         passive(
           produce(tank(), (draft) => {
             draft.tick = 10;
-            draft.algae.greenWater.mass = greenWater;
-            draft.algae.film.mass = film;
+            draft.algae.greenWater = bloomAt(draft, 'greenWater', greenWater);
+            draft.algae.film = bloomAt(draft, 'film', film);
           })
         ).light;
-      const green = produce(tank(), (draft) => void (draft.algae.greenWater.mass = 50));
+      const green = produce(tank(), (draft) => void (draft.algae.greenWater = bloomAt(draft, 'greenWater', 50)));
       const { light } = green.equipment;
 
       expect(bloomed(50, 0)).toBeCloseTo(
-        calculateParAtDepth(light.par, calculateTankHeight(100), waterExtinction(green.algae, opticsDefaults)),
+        calculateParAtDepth(light.par, calculateTankHeight(100), waterExtinction(green, opticsDefaults)),
         10
       );
       expect(bloomed(50, 0)).toBeLessThan(bloomed(0, 0));
@@ -203,7 +204,7 @@ describe('rescape', () => {
       }),
       (draft) => {
         draft.resources.aob = 1000;
-        for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 40, condition: 80, surplus: 3 };
+        for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 40, 80);
       }
     );
 
@@ -222,7 +223,7 @@ describe('rescape', () => {
     for (const kind of ALGAE_KINDS) {
       const floor = placeShare(ALGAE[kind].habitat, 'floor', state);
       expect(kindTissue(swapped, kind)).toBeCloseTo(kindTissue(state, kind) * (1 - floor), 12);
-      expect(swapped.algae[kind]).toMatchObject({ condition: 80, surplus: 3 });
+      expect(swapped.algae[kind].condition).toBe(80);
     }
     expect(bloomsTissue(swapped)).toBeLessThan(bloomsTissue(state));
   });
@@ -361,7 +362,7 @@ describe('hardscape moves', () => {
 
   it('takes the lifted pieces’ share of every bloom out and sets them back bare', () => {
     const state = produce(crowded(4, 8), (draft) => {
-      for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 40, condition: 100, surplus: 0 };
+      for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 40);
     });
     const reset = resetHardscape(state);
 

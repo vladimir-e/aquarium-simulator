@@ -10,7 +10,7 @@ import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { applyAction, tick, type SimulationState } from '../simulation/index.js';
+import { applyAction, scaleFlora, sizeOf, tick, type SimulationState } from '../simulation/index.js';
 import { DEFAULT_CONFIG } from '../simulation/config/index.js';
 import { createPresetSimulation, getPresetById } from '../simulation/presets.js';
 import { applyConfigSet } from './config-set.js';
@@ -158,7 +158,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     // Force a plant big enough to trim so the action reports work done.
     const inflated = {
       ...session.state,
-      plants: session.state.plants.map((p) => ({ ...p, size: 95 })),
+      plants: session.state.plants.map((p) => ({ ...p, budget: scaleFlora(p.budget, 95 / sizeOf(p)) })),
     };
     const { state } = applyAction(inflated, { type: 'trimPlants', targetSize: 85 }, session.config);
     saveSession(

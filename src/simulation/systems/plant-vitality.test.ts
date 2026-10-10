@@ -6,36 +6,27 @@ import {
   computePlantVitality,
   type PlantVitalityContext,
 } from './plant-vitality.js';
-import { dailyLightEdge, floraHealingRate, saturationIrradiance } from './flora.js';
-import { calculateNutrientSufficiency } from './nutrients.js';
-import { getRespirationTemperatureFactor } from './respiration.js';
+import { healingPrice } from './flora.js';
 import { toleranceFactor } from '../livestock/tolerance.js';
-import { calculateCo2Factor } from './photosynthesis.js';
-import { MAX_SUFFICIENCY_EDGE, plantsDefaults } from '../config/plants.js';
-import { nutrientsDefaults } from '../config/nutrients.js';
+import { plantsDefaults } from '../config/plants.js';
+import { mapNutrients } from '../config/nutrients.js';
 import { getMassFromPpm } from '../resources/helpers.js';
 import type { Plant, Resources } from '../state.js';
-import { lightAtHeight, type CanopyLight } from '../plants/canopy.js';
+import { lightAtHeight, unitOf, type CanopyLight } from '../plants/canopy.js';
 import type { VitalityFactor } from './vitality.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
 import { getGhMass } from '../resources/helpers.js';
-import { PLANT_SPECIES_DATA, plantTraits, type PlantSpecies } from '../plants/species.js';
-import { CARE_SHEET_PHOTOPERIOD } from './flora.js';
-import { lightSaturationFactor } from '../core/kinetics.js';
+import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
+import { monodFactor } from '../core/kinetics.js';
 import { plantRecord } from '../tests/plant.js';
 import { VIGOUR_SPAN } from '../plants/create-plant.js';
 import { mapKinds } from '../algae/blooms.js';
-import { mirroredPools } from '../tests/pools.js';
+import { plantParams } from '../flora/params.js';
+import { droopFactor, type FloraFluxes } from './flora-budget.js';
+import { maxReserveDensity } from './reserve.js';
 
-function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant {
-  return plantRecord({
-    id: `plant_${species}`,
-    species,
-    size: 50,
-    condition: 100,
-    surplus: 0,
-    ...overrides,
-  });
+function makePlant(species: PlantSpecies, overrides: Partial<Omit<Plant, 'budget'>> = {}): Plant {
+  return plantRecord({ id: `plant_${species}`, species, size: 50, ...overrides });
 }
 
 /** A day of `hours` lit at `par`, the rest dark. */
@@ -71,41 +62,57 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
 
 const FULL_LIGHT: CanopyLight = { leaf: 1, top: 1, path: { water: 1, canopy: 1, blooms: mapKinds(() => 1) } };
 
+/** An hour its budget paid in full and repaired nothing. */
+const PAID: FloraFluxes = {
+  returned: 0,
+  assimilated: 0,
+  mobilised: 0,
+  toStructure: 0,
+  fromStructure: 0,
+  burned: { maintenance: 1, growth: 0, starvation: 0, healing: 0 },
+  owed: 1,
+  shortfall: 0,
+};
+
 function ctx(
   plant: Plant,
   resources: Resources,
-  plantsConfig = plantsDefaults,
+  fluxes: FloraFluxes = PAID,
   canopy: CanopyLight = FULL_LIGHT
 ): PlantVitalityContext {
-  const nutrientSufficiency = calculateNutrientSufficiency(
-    mirroredPools(resources),
-    plant.species,
-    nutrientsDefaults
-  );
   return {
     plant,
+    fluxes,
     resources,
     waterVolume: resources.water,
-    plantsConfig,
-    nutrientSufficiency,
-    light: lightAtHeight(plant, canopy, resources, 50),
+    plantsConfig: plantsDefaults,
+    light: lightAtHeight(unitOf(plant), canopy, resources, 50),
   };
 }
 
+const factor = (factors: VitalityFactor[], key: string): number => factors.find((f) => f.key === key)?.amount ?? 0;
+
+/** The plant with its stores at this share of full. */
+function storedAt(plant: Plant, fill: number): Plant {
+  const p = plantParams(plant.species, plantsDefaults);
+  return {
+    ...plant,
+    budget: { ...plant.budget, stores: mapNutrients((n) => fill * (p.qMax[n] - p.qMin[n]) * plant.budget.structure) },
+  };
+}
+
+/** The plant with its reserve at this density. */
+function fedAt(plant: Plant, e: number): Plant {
+  const p = plantParams(plant.species, plantsDefaults);
+  return { ...plant, budget: { ...plant.budget, reserve: e * maxReserveDensity(p) * plant.budget.structure } };
+}
+
 describe('buildPlantStressors', () => {
-  const amount = (
-    species: PlantSpecies,
-    key: string,
-    resources: ResourceOverrides
-  ): number =>
-    buildPlantStressors(ctx(makePlant(species), makeResources(resources))).find(
-      (s) => s.key === key
-    )?.amount ?? 0;
+  const amount = (species: PlantSpecies, key: string, resources: ResourceOverrides): number =>
+    factor(buildPlantStressors(ctx(makePlant(species), makeResources(resources))), key);
 
   it('charges a fed Anubias in good conditions nothing', () => {
-    const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
-    const fed = { ...ctx(plant, makeResources()), nutrientSufficiency: plantsDefaults.sufficiencyEdge };
-    for (const s of buildPlantStressors(fed)) expect(s.amount).toBe(0);
+    for (const s of buildPlantStressors(ctx(makePlant('anubias'), makeResources()))) expect(s.amount).toBe(0);
   });
 
   it.each<[string, PlantSpecies, (gap: number) => ResourceOverrides]>([
@@ -120,33 +127,31 @@ describe('buildPlantStressors', () => {
     expect(amount(species, key, at(2))).toBeCloseTo(2 * one, 10);
   });
 
-  it.each([plantsDefaults.sufficiencyEdge, MAX_SUFFICIENCY_EDGE])(
-    'charges deficiency from nothing at a sufficiency edge of %s, linear under it',
-    (edge) => {
-      const plantsConfig = { ...plantsDefaults, sufficiencyEdge: edge };
-      const at = (nutrientSufficiency: number): number =>
-        buildPlantStressors({
-          ...ctx(makePlant('monte_carlo'), makeResources(), plantsConfig),
-          nutrientSufficiency,
-        }).find((s) => s.key === 'nutrients')!.amount;
+  it('charges starvation on the share of upkeep the hour left unpaid, hardened', () => {
+    const plant = makePlant('monte_carlo');
+    const starved = (shortfall: number): number =>
+      factor(buildPlantStressors(ctx(plant, makeResources(), { ...PAID, shortfall })), 'starvation');
+    expect(starved(0)).toBe(0);
+    expect(starved(0.5)).toBeCloseTo(
+      0.5 * plantsDefaults.starvationSeverity * (1 - PLANT_SPECIES_DATA.monte_carlo.hardiness),
+      12
+    );
+  });
 
-      expect(at(1)).toBe(0);
-      expect(at(edge)).toBe(0);
-      expect(at(edge / 2)).toBeCloseTo(at(0) / 2, 12);
-      expect(at(edge / 4)).toBeCloseTo((3 * at(0)) / 4, 12);
-    }
-  );
-
-  it('charges a gone nutrient at full severity on the light curve, and nothing in the dark', () => {
-    for (const light of [0, 20, 60, 400]) {
-      expect(amount('monte_carlo', 'nutrients', { potassium: 0, light })).toBeCloseTo(
-        lightSaturationFactor(light, saturationIrradiance(plantTraits('monte_carlo'), plantsDefaults)) *
-          plantsDefaults.nutrientDeficiencySeverity *
-          (1 - PLANT_SPECIES_DATA.monte_carlo.hardiness),
-        10
-      );
-    }
-    expect(amount('monte_carlo', 'nutrients', { potassium: 0, light: 0 })).toBe(0);
+  it('charges deficiency on its stores’ Droop limit under the edge, whatever the water holds', () => {
+    const p = plantParams('monte_carlo', plantsDefaults);
+    const charged = (fill: number, resources: ResourceOverrides = {}): number =>
+      factor(buildPlantStressors(ctx(storedAt(makePlant('monte_carlo'), fill), makeResources(resources))), 'nutrients');
+    expect(charged(1, { potassium: 0 })).toBe(0);
+    const empty = charged(0);
+    expect(empty).toBeCloseTo(
+      plantsDefaults.nutrientDeficiencySeverity * (1 - PLANT_SPECIES_DATA.monte_carlo.hardiness),
+      12
+    );
+    const lean = storedAt(makePlant('monte_carlo'), 0.05);
+    const droop = droopFactor(lean.budget, p);
+    expect(droop).toBeLessThan(plantsDefaults.droopEdge);
+    expect(charged(0.05)).toBeCloseTo(empty * (1 - droop / plantsDefaults.droopEdge), 12);
   });
 
   describe('nitrate, on log dose past an edge hardiness carries out', () => {
@@ -168,264 +173,15 @@ describe('buildPlantStressors', () => {
     });
   });
 
-  describe('light starvation, on the daily light integral', () => {
-    const starved = (species: PlantSpecies, resources: ResourceOverrides): number =>
-      amount(species, 'lightStarvation', resources);
-    const lo = PLANT_SPECIES_DATA.monte_carlo.tolerableLight[0];
-
-    it('costs nothing at or above the species edge, lamps on or off', () => {
-      for (const light of [0, 60]) {
-        expect(starved('monte_carlo', { light, lightByHour: litDay(lo, CARE_SHEET_PHOTOPERIOD) })).toBe(0);
-        expect(starved('monte_carlo', { light, lightByHour: litDay(3 * lo, 12) })).toBe(0);
-      }
-    });
-
-    it('rises linearly with the shortfall below the edge, to full severity at its growth rate in a dark day', () => {
-      const dark = starved('monte_carlo', { lightByHour: litDay(0, 0) });
-      const half = starved('monte_carlo', { lightByHour: litDay(lo, CARE_SHEET_PHOTOPERIOD / 2) });
-      const { growthRate, hardiness } = PLANT_SPECIES_DATA.monte_carlo;
-      const factor = growthRate * getRespirationTemperatureFactor(25, plantsDefaults) * (1 - hardiness);
-
-      expect(dark).toBeCloseTo(plantsDefaults.lightStarvationSeverity * factor, 12);
-      expect(half).toBeCloseTo(dark / 2, 12);
-    });
-
-    it('reads the day, not the hour: a lit hour inside a dark day starves, a dark hour of a good day does not', () => {
-      expect(starved('monte_carlo', { light: 200, lightByHour: litDay(0, 0) })).toBeGreaterThan(0);
-      expect(starved('monte_carlo', { light: 0, lightByHour: litDay(90, 12) })).toBe(0);
-    });
-
-    it('runs on respiration Q10', () => {
-      const dark = (temperature: number): number =>
-        starved('monte_carlo', { temperature, lightByHour: litDay(0, 0) });
-      expect(dark(plantsDefaults.respirationReferenceTemp + 10)).toBeCloseTo(
-        dark(plantsDefaults.respirationReferenceTemp) * plantsDefaults.respirationQ10,
-        12
-      );
-    });
-
-    it('asks a sun species for more light than a shade species', () => {
-      expect(dailyLightEdge(plantTraits('monte_carlo'))).toBeGreaterThan(dailyLightEdge(plantTraits('anubias')));
-      const dim = litDay(20, CARE_SHEET_PHOTOPERIOD);
-      expect(starved('anubias', { lightByHour: dim })).toBe(0);
-      expect(starved('monte_carlo', { lightByHour: dim })).toBeGreaterThan(0);
-    });
-  });
-
   it('charges no damage for low CO2: carbon is income, not a threshold', () => {
-    const stressors = buildPlantStressors(ctx(makePlant('monte_carlo'), makeResources({ co2: 1 })));
-    expect(stressors.some((s) => s.key === 'co2')).toBe(false);
-  });
-});
-
-describe('buildPlantBenefits', () => {
-  const budget = (
-    species: PlantSpecies,
-    resources: Resources,
-    plantsConfig = plantsDefaults
-  ): number =>
-    buildPlantBenefits(ctx(makePlant(species), resources, plantsConfig)).reduce(
-      (sum, b) => sum + b.amount,
-      0
-    );
-
-  const PEAK: Record<string, number> = {
-    co2: plantsDefaults.co2BenefitPeak,
-    temperature: plantsDefaults.temperatureBenefitPeak,
-    ph: plantsDefaults.phBenefitPeak,
-  };
-
-  const PEAKS = Object.values(PEAK).reduce((sum, peak) => sum + peak, 0);
-
-  const centre = ([lo, hi]: readonly [number, number]): number => (lo + hi) / 2;
-  const atCentre = (species: PlantSpecies): ResourceOverrides => ({
-    temperature: centre(PLANT_SPECIES_DATA[species].tolerableTemp),
-    ph: centre(PLANT_SPECIES_DATA[species].tolerablePH),
-  });
-
-  it('emits every channel at its peak share of the light term and the Liebig sufficiency', () => {
-    const plant = makePlant('anubias');
-    const resources = makeResources({ light: 30, co2: 5, ...atCentre('anubias') });
-    const context = ctx(plant, resources);
-    const benefits = buildPlantBenefits(context);
-    expect(benefits.map((b) => b.key).sort()).toEqual(['co2', 'ph', 'temperature']);
-
-    const drive =
-      lightSaturationFactor(30, saturationIrradiance(plantTraits('anubias'), plantsDefaults)) * context.nutrientSufficiency;
-    const carbon = calculateCo2Factor(5, 'anubias');
-    for (const benefit of benefits) {
-      const share = benefit.key === 'co2' ? carbon : 1;
-      expect(benefit.amount).toBeCloseTo(PEAK[benefit.key]! * drive * share, 12);
-    }
-  });
-
-  it('earns in proportion to sufficiency, and nothing on a nutrient run dry', () => {
-    const at = (nutrientSufficiency: number): VitalityFactor[] =>
-      buildPlantBenefits({ ...ctx(makePlant('anubias'), makeResources(atCentre('anubias'))), nutrientSufficiency });
-
-    at(0).forEach((benefit) => expect(benefit.amount).toBe(0));
-    at(0.5).forEach((benefit, i) => {
-      expect(benefit.amount).toBeGreaterThan(0);
-      expect(benefit.amount).toBeCloseTo(at(1)[i]!.amount / 2, 12);
-    });
-  });
-
-  it('scales every channel by 1 + vigour, and no stressor at all', () => {
-    const mild = makeResources({ light: 30, co2: 5, ...atCentre('anubias') });
-    const harsh = makeResources({ light: 200, co2: 1, temperature: 33, ph: 8.5 });
-    const at = (vigour: number, resources: Resources): PlantVitalityContext =>
-      ctx(makePlant('anubias', { vigour }), resources);
-
-    for (const vigour of [-VIGOUR_SPAN, 0.07, VIGOUR_SPAN]) {
-      const plain = buildPlantBenefits(at(0, mild));
-      buildPlantBenefits(at(vigour, mild)).forEach((benefit, i) => {
-        expect(benefit.amount).toBeGreaterThan(0);
-        expect(benefit.amount).toBeCloseTo(plain[i]!.amount * (1 + vigour), 12);
-      });
-      expect(buildPlantStressors(at(vigour, harsh))).toEqual(buildPlantStressors(at(0, harsh)));
-    }
-  });
-
-  it('earns the CO2 channel on the species carbon Monod, so a carpet earns less of it', () => {
-    const co2Benefit = (species: PlantSpecies, co2: number): number =>
-      buildPlantBenefits(ctx(makePlant(species), makeResources({ co2 }))).find(
-        (b) => b.key === 'co2'
-      )?.amount ?? 0;
-
-    expect(co2Benefit('monte_carlo', 4)).toBeGreaterThan(0);
-    expect(co2Benefit('monte_carlo', 25)).toBeGreaterThan(co2Benefit('monte_carlo', 4));
-    expect(co2Benefit('monte_carlo', 4)).toBeLessThan(co2Benefit('anubias', 4));
-  });
-
-  it.each<['temperature' | 'ph', 'tolerableTemp' | 'tolerablePH']>([
-    ['temperature', 'tolerableTemp'],
-    ['ph', 'tolerablePH'],
-  ])('ramps the %s benefit from nothing at either edge to its peak at the band centre', (key, band) => {
-    const [lo, hi] = PLANT_SPECIES_DATA.amazon_sword[band];
-    const earnedAt = (reading: number): number =>
-      buildPlantBenefits(ctx(makePlant('amazon_sword'), makeResources({ [key]: reading }))).find(
-        (b) => b.key === key
-      )!.amount;
-    const harmAt = (reading: number): number =>
-      buildPlantStressors(ctx(makePlant('amazon_sword'), makeResources({ [key]: reading }))).find(
-        (s) => s.key === key
-      )!.amount;
-    const mid = (lo + hi) / 2;
-    const quarter = (hi - lo) / 4;
-
-    expect(earnedAt(lo)).toBe(0);
-    expect(earnedAt(hi)).toBe(0);
-    expect(harmAt(lo)).toBe(0);
-    expect(harmAt(hi)).toBe(0);
-    expect(earnedAt(lo + 1e-6)).toBeLessThan(1e-5);
-    expect(earnedAt(mid + quarter)).toBeCloseTo(earnedAt(mid - quarter), 12);
-    expect(earnedAt(mid - quarter)).toBeCloseTo(0.75 * earnedAt(mid), 12);
-  });
-
-  describe('the budget is income realised through photosynthesis', () => {
-    const earned = (species: PlantSpecies, light: number): number =>
-      budget(species, makeResources({ light, ...atCentre(species) }));
-
-    it('pays a brighter plant more than a dim one, both inside the band', () => {
-      expect(earned('anubias', 60)).toBeGreaterThan(earned('anubias', 12));
-    });
-
-    it('climbs with PAR the whole way and never passes the summed peaks', () => {
-      let previous = 0;
-      for (const par of [1, 5, 15, 30, 70, 150, 400]) {
-        const income = earned('anubias', par);
-        expect(income).toBeGreaterThan(previous);
-        expect(income).toBeLessThanOrEqual(PEAKS);
-        previous = income;
-      }
-    });
-
-    it('has no cliff at the top of the band', () => {
-      const [, hi] = PLANT_SPECIES_DATA.anubias.tolerableLight;
-      const under = earned('anubias', hi - 0.01);
-      const over = earned('anubias', hi + 0.01);
-
-      expect(over).toBeGreaterThan(under);
-      expect(over - under).toBeLessThan(1e-4);
-    });
-
-    it('pays nothing in the dark, whatever the water is doing', () => {
-      const perfect = makeResources({ light: 0, co2: 20, temperature: 25, ph: 7.0 });
-      expect(budget('anubias', perfect)).toBe(0);
-      for (const benefit of buildPlantBenefits(ctx(makePlant('anubias'), perfect))) {
-        expect(benefit.amount).toBe(0);
-      }
-    });
-
-    it('pays each species on its own Ik, so a shade plant is nearer its ceiling', () => {
-      const species = Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[];
-
-      for (const one of species) {
-        for (const other of species) {
-          if (
-            saturationIrradiance(plantTraits(one), plantsDefaults) <
-            saturationIrradiance(plantTraits(other), plantsDefaults)
-          ) {
-            expect(earned(one, 50)).toBeGreaterThan(earned(other, 50));
-          }
-        }
-      }
-    });
-
-    it('reads Ik off the tuned factor rather than a constant of its own', () => {
-      const atFactor = (saturationIrradianceFactor: number): number =>
-        budget('anubias', makeResources({ light: 20, ...atCentre('anubias') }), {
-          ...plantsDefaults,
-          saturationIrradianceFactor,
-        });
-
-      expect(atFactor(4)).toBeLessThan(atFactor(2));
-      expect(atFactor(2)).toBeLessThan(atFactor(1));
-      const carbonShort = PEAK.co2! * (1 - calculateCo2Factor(20, 'anubias'));
-      const resources = makeResources({ light: 20, ...atCentre('anubias') });
-      const sufficiency = calculateNutrientSufficiency(mirroredPools(resources), 'anubias', nutrientsDefaults);
-      expect(atFactor(0)).toBeCloseTo(sufficiency * (PEAKS - carbonShort), 12);
-    });
-  });
-});
-
-describe('light at the plant\'s own height', () => {
-  const plant = makePlant('amazon_sword');
-  const factor = (factors: VitalityFactor[], key: string): number =>
-    factors.find((f) => f.key === key)?.amount ?? 0;
-  const read = (resources: ResourceOverrides, scale: Pick<CanopyLight, 'leaf' | 'top'>): PlantVitalityContext =>
-    ctx(plant, makeResources({ potassium: 0, ...resources }), plantsDefaults, { ...FULL_LIGHT, ...scale });
-
-  it('starves on the day at its mean leaf: the substrate day times its leaf scale', () => {
-    const day = litDay(15, CARE_SHEET_PHOTOPERIOD);
-    const shaded = read({ lightByHour: day }, { leaf: 0.6, top: 1 });
-    const dimmer = read({ lightByHour: day.map((par) => par * 0.6) }, { leaf: 1, top: 1 });
-
-    expect(factor(buildPlantStressors(shaded), 'lightStarvation')).toBeGreaterThan(0);
-    expect(factor(buildPlantStressors(shaded), 'lightStarvation')).toBeCloseTo(
-      factor(buildPlantStressors(dimmer), 'lightStarvation'),
-      12
-    );
-  });
-
-  it('earns, and asks for nutrients, on the PAR at its mean leaf', () => {
-    const fed = { potassium: getMassFromPpm(7, 100) };
-    expect(buildPlantBenefits(read({ light: 50, ...fed }, { leaf: 0.4, top: 1 }))).toEqual(
-      buildPlantBenefits(read({ light: 20, ...fed }, { leaf: 1, top: 1 }))
-    );
-
-    const shaded = read({ light: 50 }, { leaf: 0.4, top: 1 });
-    const dimmer = read({ light: 20 }, { leaf: 1, top: 1 });
-    expect(factor(buildPlantStressors(shaded), 'nutrients')).toBeCloseTo(
-      factor(buildPlantStressors(dimmer), 'nutrients'),
-      12
-    );
+    expect(amount('monte_carlo', 'co2', { co2: 0.5 })).toBe(0);
   });
 
   it('burns on the PAR at its crown top, whatever reaches its mean leaf', () => {
+    const plant = makePlant('amazon_sword');
     const edge = PLANT_SPECIES_DATA.amazon_sword.tolerableLight[1];
     const burnt = (light: number, canopy: Pick<CanopyLight, 'leaf' | 'top'>): number =>
-      factor(buildPlantStressors(read({ light }, canopy)), 'light');
+      factor(buildPlantStressors(ctx(plant, makeResources({ light }), PAID, { ...FULL_LIGHT, ...canopy })), 'light');
 
     expect(burnt(edge, { leaf: 2, top: 1 })).toBe(0);
     expect(burnt(edge, { leaf: 0.5, top: 1.2 })).toBeCloseTo(burnt(edge * 1.2, { leaf: 1, top: 1 }), 12);
@@ -433,55 +189,64 @@ describe('light at the plant\'s own height', () => {
   });
 });
 
+describe('buildPlantBenefits', () => {
+  const total = (plant: Plant, resources = makeResources()): number =>
+    buildPlantBenefits(ctx(plant, resources)).reduce((sum, f) => sum + f.amount, 0);
+
+  it('earns on its reserve density and its stores’ Droop limit, and nothing on a burned reserve', () => {
+    const plant = makePlant('amazon_sword');
+    const p = plantParams('amazon_sword', plantsDefaults);
+    expect(total(fedAt(plant, 0.5))).toBeCloseTo(total(plant) / 2, 12);
+    expect(total(fedAt(plant, 0))).toBe(0);
+    const lean = storedAt(plant, 0.2);
+    expect(total(lean) / total(plant)).toBeCloseTo(droopFactor(lean.budget, p) / droopFactor(plant.budget, p), 12);
+  });
+
+  it('earns the same in the dark as in the light: the reserve carries the day', () => {
+    expect(total(makePlant('anubias'), makeResources({ light: 0 }))).toBeCloseTo(total(makePlant('anubias')), 12);
+  });
+
+  it('scales every channel by 1 + vigour', () => {
+    const plain = buildPlantBenefits(ctx(makePlant('java_fern'), makeResources()));
+    const vigorous = buildPlantBenefits(ctx(makePlant('java_fern', { vigour: VIGOUR_SPAN }), makeResources()));
+    plain.forEach((f, i) => expect(vigorous[i].amount).toBeCloseTo(f.amount * (1 + VIGOUR_SPAN), 12));
+  });
+
+  it('earns the CO2 channel on the species carbon Monod, so a carpet earns less of it', () => {
+    const co2Benefit = (species: PlantSpecies, co2: number): number =>
+      factor(buildPlantBenefits(ctx(makePlant(species), makeResources({ co2 }))), 'co2');
+    expect(co2Benefit('monte_carlo', 25)).toBeGreaterThan(co2Benefit('monte_carlo', 4));
+    expect(co2Benefit('monte_carlo', 4)).toBeLessThan(co2Benefit('anubias', 4));
+    expect(co2Benefit('monte_carlo', 4) / co2Benefit('monte_carlo', 25)).toBeCloseTo(
+      monodFactor(4, plantsDefaults.highCo2HalfSaturation) / monodFactor(25, plantsDefaults.highCo2HalfSaturation),
+      12
+    );
+  });
+});
+
 describe('computePlantVitality', () => {
-  it('spends income on condition first and banks only what overflows 100', () => {
-    const hurt = computePlantVitality(ctx(makePlant('anubias', { condition: 80 }), makeResources()));
-    expect(hurt.newCondition).toBeGreaterThan(80);
-    expect(hurt.surplus).toBe(0);
-
-    const full = computePlantVitality(ctx(makePlant('anubias', { condition: 100 }), makeResources()));
-    expect(full.newCondition).toBe(100);
-    expect(full.surplus).toBeGreaterThan(0);
+  it('banks nothing: a fed plant at full condition stays at 100', () => {
+    expect(computePlantVitality(ctx(makePlant('anubias'), makeResources())).newCondition).toBe(100);
   });
 
-  it('heals from the bank at the rate the species grows', () => {
-    const dark = makeResources({ light: 0 });
-    const healed = (species: PlantSpecies): number =>
-      computePlantVitality(ctx(makePlant(species, { condition: 50, surplus: 10 }), dark)).breakdown.healed;
-
-    const rate = floraHealingRate(plantTraits('amazon_sword'), plantsDefaults);
-    expect(healed('amazon_sword')).toBeCloseTo(10 * -Math.expm1(-rate), 12);
-    expect(healed('monte_carlo')).toBeGreaterThan(healed('anubias'));
+  it('heals the points its reserve paid for, at its price per point', () => {
+    const plant = makePlant('amazon_sword', { condition: 50 });
+    const price = healingPrice(plant.budget, plantParams('amazon_sword', plantsDefaults), plantsDefaults);
+    const paid = { ...PAID, burned: { ...PAID.burned, healing: 3 * price } };
+    const healed = computePlantVitality(ctx(plant, makeResources({ light: 0 }), paid));
+    expect(healed.breakdown.healed).toBeCloseTo(3, 12);
+    const unhealed = computePlantVitality(ctx(plant, makeResources({ light: 0 })));
+    expect(healed.newCondition - unhealed.newCondition).toBeCloseTo(3, 12);
   });
 
-  it('costs a plant nothing through a scheduled night', () => {
+  it('costs a fed plant nothing through a scheduled night', () => {
     const night = makeResources({ light: 0, lightByHour: litDay(90, 12) });
-    const result = computePlantVitality(ctx(makePlant('monte_carlo', { surplus: 10 }), night));
+    const result = computePlantVitality(ctx(makePlant('monte_carlo'), night));
     expect(result.breakdown.damageRate).toBe(0);
     expect(result.newCondition).toBe(100);
-    expect(result.surplus).toBe(10);
   });
 
   it('Anubias holds at 100 even with low CO2 (low-tech tolerance)', () => {
-    const plant = makePlant('anubias', { condition: 100 });
-    const resources = makeResources({ co2: 2 });
-    const result = computePlantVitality(ctx(plant, resources));
-    expect(result.newCondition).toBe(100);
-    expect(result.surplus).toBeGreaterThan(0);
-  });
-
-  it('never writes a negative surplus when the cap is negative', () => {
-    const resources = makeResources();
-    const negCap = { ...plantsDefaults, surplusCap: -50 };
-    const accruing = computePlantVitality({
-      ...ctx(makePlant('java_fern', { condition: 100, surplus: 0 }), resources),
-      plantsConfig: negCap,
-    });
-    expect(accruing.surplus).toBe(0);
-    const buffered = computePlantVitality({
-      ...ctx(makePlant('java_fern', { condition: 100, surplus: 20 }), resources),
-      plantsConfig: negCap,
-    });
-    expect(buffered.surplus).toBe(0);
+    expect(computePlantVitality(ctx(makePlant('anubias'), makeResources({ co2: 2 }))).newCondition).toBe(100);
   });
 });

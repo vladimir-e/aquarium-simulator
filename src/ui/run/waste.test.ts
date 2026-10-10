@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { plantRecord } from '../../simulation/tests/plant.js';
+import { bloomAt } from '../../simulation/tests/blooms.js';
 import { produce } from 'immer';
 import {
   wasteInflow,
@@ -101,6 +103,7 @@ describe('wasteInflow', () => {
     const dark = produce(planted, (draft) => {
       draft.equipment.light.enabled = false;
       draft.resources.lightByHour.fill(0);
+      draft.plants[0].budget.reserve = 0;
     });
     const shed = (state: SimulationState): number =>
       inflowOf(state).sources.find((s) => s.key === 'plants')!.gramsPerHour;
@@ -112,13 +115,13 @@ describe('wasteInflow', () => {
 
   it('counts what every bloom sheds on the hour ahead', () => {
     const fading = produce(soilTank(), (draft) => {
-      for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 40, condition: 50, surplus: 0 };
+      for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 40, 50);
     });
     const shed = inflowOf(fading).sources.find((s) => s.key === 'algae')!.gramsPerHour;
     const { algae } = readHourAhead(fading, config);
 
-    for (const kind of ALGAE_KINDS) expect(algae[kind].shedding).toBeGreaterThan(0);
-    expect(shed).toBe(ALGAE_KINDS.reduce((sum, kind) => sum + algae[kind].shedding, 0));
+    for (const kind of ALGAE_KINDS) expect(algae[kind].shedding.grams).toBeGreaterThan(0);
+    expect(shed).toBeCloseTo(ALGAE_KINDS.reduce((sum, kind) => sum + algae[kind].shedding.grams, 0), 15);
   });
 
   it('counts a plant dying on the next tick at the rate it sheds, not the lump it leaves', () => {
@@ -126,7 +129,7 @@ describe('wasteInflow', () => {
       produce(applyAction(soilTank(), { type: 'addPlant', species: 'java_fern' }).state, (draft) => {
         draft.equipment.light.enabled = false;
         draft.resources.lightByHour.fill(0);
-        draft.plants[0].size = 80;
+        draft.plants[0].budget = { ...plantRecord({ id: 'fern', species: 'java_fern', size: 80 }).budget, reserve: 0 };
         draft.plants[0].condition = condition;
       });
     const shed = (state: SimulationState): number =>

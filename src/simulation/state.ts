@@ -33,6 +33,7 @@ import { getGhMass, getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
 import type { FishSpecies, FishSex } from './livestock/species.js';
 import type { DebState } from './systems/deb.js';
+import type { FloraState } from './systems/flora-budget.js';
 
 /**
  * Individual fish in the tank. Its body is its energy budget: mass, size and
@@ -63,18 +64,16 @@ export interface Fish {
 }
 
 /**
- * One kind of bloom: a population run on the plants' vitality model, without
- * a position. `mass` is how full its habitat is, 0–100 — the share of what its
- * habitat holds at a full bloom — so its tissue scales with the habitat.
- * Condition and bank are the bloom's as a whole: the bank buys mass in
- * proportion to the mass already there.
+ * One kind of bloom: a population run on the plants' model, without a
+ * position. Its budget is the bloom's as a whole, and how full its habitat is
+ * — its mass, 0–100 — is its structure over what a full habitat holds
+ * (`bloomMass`), so a habitat that changes size moves its coverage, not its
+ * tissue.
  */
 export interface AlgaeState {
-  mass: number;
+  budget: FloraState;
   /** 0–100; the bloom dies back at 0. */
   condition: number;
-  /** Vitality bank, in condition points, up to `PlantsConfig.surplusCap`. */
-  surplus: number;
 }
 
 /** Every kind's bloom, by kind: the kinds are a fixed set every tank holds, so each is read by name and none goes missing. */
@@ -103,18 +102,13 @@ export interface Plant {
   /** Plant species type */
   species: PlantSpecies;
   /**
-   * How full its unit is, % of one grown unit of its growth form — a patch, a
-   * specimen, a clump. Growth tapers to nothing at 100, so it never grows past it.
+   * Its energy budget. How full its unit is — its size, % of one grown unit of
+   * its growth form: a patch, a specimen, a clump — is its structure over a
+   * grown unit's (`sizeOf`), and growth tapers to nothing at 100.
    */
-  size: number;
+  budget: FloraState;
   /** Condition/health percentage (0-100, plant dies at 0) */
   condition: number;
-  /**
-   * Vitality bank, in condition points. Fills with income at full condition,
-   * up to `PlantsConfig.surplusCap`; heals condition below 100, buys size, and
-   * a full bank buys an offshoot.
-   */
-  surplus: number;
   /** The plant whose offshoot this is; null for anything planted or seeded. */
   parentId: string | null;
   /** The founder's id, inherited by every offshoot, so a family outlives its founder. */

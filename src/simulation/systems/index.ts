@@ -25,28 +25,16 @@ export {
   calculateDecay,
 } from './decay.js';
 
-export {
-  calculatePhotosynthesis,
-  calculateCo2Factor,
-} from './photosynthesis.js';
+export { offerCarbon, calculateCo2Factor } from './photosynthesis.js';
 
-export {
-  calculateRespiration,
-  getRespirationTemperatureFactor,
-} from './respiration.js';
-
-export {
-  spendSurplus,
-  getSpeciesGrowthRate,
-} from './plant-growth.js';
+export { getRespirationTemperatureFactor } from './respiration.js';
 
 export {
   saturationIrradiance,
   dailyLightEdge,
-  floraHealingRate,
   growthTaper,
-  bankDraw,
-  bankConversion,
+  healingPrice,
+  healingAsked,
   floraStressors,
   floraBenefits,
   type FloraTraits,

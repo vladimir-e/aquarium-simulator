@@ -5,11 +5,11 @@
 import {
   ALGAE,
   ALGAE_KINDS,
+  bloomMass,
   getDgh,
   getDkh,
   getPh,
   type AlgaeKind,
-  type AlgaeState,
   type SimulationState,
 } from '../simulation/index.js';
 import { ammoniaAlertLine } from '../simulation/alerts/index.js';
@@ -28,7 +28,7 @@ import {
   type Status,
 } from '../ui/run/index.js';
 import type { Session } from './session.js';
-import type { HistorySnapshot } from './history.js';
+import type { BloomTrace, HistorySnapshot } from './history.js';
 import { snakeCase } from './names.js';
 
 /** Convert a mass (mg) to concentration (ppm) given water volume (L). */
@@ -108,7 +108,7 @@ export function renderObserve(session: Session): string {
     )} ppm`,
     `**Other** waste ${round(r.waste.grams, 2)}g · ${ALGAE_KINDS.map(
       (kind) =>
-        `${ALGAE[kind].name.toLowerCase()} ${round(state.algae[kind].mass, 1)} (condition ${round(state.algae[kind].condition, 0)}%)`
+        `${ALGAE[kind].name.toLowerCase()} ${round(bloomMass(state, kind), 1)} (condition ${round(state.algae[kind].condition, 0)}%)`
     ).join(' · ')} · food ${round(r.food, 2)}g`,
     '',
     `**Fish (${state.fish.length})** ${
@@ -164,12 +164,12 @@ const DERIVED_FIELDS = [
   'dgh',
 ] as const;
 
-const BLOOM_KEYS = ['mass', 'condition', 'surplus'] as const satisfies readonly (keyof AlgaeState)[];
+const BLOOM_KEYS = ['mass', 'condition', 'buffer'] as const satisfies readonly (keyof BloomTrace)[];
 
 /** Each kind's bloom, a column per figure: `green_water_mass`, `film_condition`… */
-const BLOOM_FIELDS = new Map<string, [AlgaeKind, keyof AlgaeState]>(
+const BLOOM_FIELDS = new Map<string, [AlgaeKind, keyof BloomTrace]>(
   ALGAE_KINDS.flatMap((kind) =>
-    BLOOM_KEYS.map((key): [string, [AlgaeKind, keyof AlgaeState]] => [
+    BLOOM_KEYS.map((key): [string, [AlgaeKind, keyof BloomTrace]] => [
       `${snakeCase(kind)}_${key}`,
       [kind, key],
     ])

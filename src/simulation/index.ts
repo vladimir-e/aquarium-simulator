@@ -349,14 +349,26 @@ export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 // Flora — plants and the blooms in one pass, on one law
 export { processFlora } from './flora/index.js';
 export type { FloraProcessingResult, BloomHour } from './flora/index.js';
+export { plantParams, bloomParams } from './flora/params.js';
 export {
   saturationIrradiance,
   dailyLightEdge,
-  floraHealingRate,
-  tissuePerRateUnit,
+  TISSUE_PER_RATE_UNIT,
   shedShare,
+  healingPrice,
+  healingAsked,
 } from './systems/flora.js';
 export type { FloraTraits, FloraLoss } from './systems/flora.js';
+export {
+  droopFactor,
+  storeFill,
+  floraOrganics,
+  offshootReady,
+  offshootPrice,
+  stocked,
+  scaleFlora,
+} from './systems/flora-budget.js';
+export type { FloraState, FloraParams, FloraFluxes } from './systems/flora-budget.js';
 
 // Algae
 export {
@@ -366,8 +378,9 @@ export {
   emptyBlooms,
   isAlgaeKind,
   mapKinds,
-  resettle,
   bloomLight,
+  bloomMass,
+  massOf,
   columnGain,
   lightLoss,
   waterExtinction,
@@ -381,11 +394,10 @@ export {
   bloomRateUnits,
   bloomFeeder,
   bloomFixer,
-  purchaseBloom,
-  massBought,
-  supplyBloom,
-  loseBloom,
+  sporesBuilt,
   landSpores,
+  coverageAt,
+  clearPlace,
   computeAlgaeVitality,
   buildAlgaeStressors,
   buildAlgaeBenefits,
@@ -401,13 +413,13 @@ export type {
   BloomLightLoss,
   LightLoss,
   BloomRemoval,
-  BloomPurchase,
+  BloomTank,
   AlgaeVitalityContext,
 } from './algae/index.js';
 
 // Plants
 export {
-  calculatePhotosynthesis,
+  offerCarbon,
   plantFixer,
   calculateNutrientSufficiency,
   speciesDemand,
@@ -423,16 +435,13 @@ export {
   feederShares,
   nutrientsIn,
   tissueMass,
-  losePlant,
+  sizeOf,
+  unitOf,
   calculateCo2Factor,
-  calculateRespiration,
   getRespirationTemperatureFactor,
-  spendSurplus,
-  propagate,
   VIGOUR_SPAN,
   MIN_PLANTABLE_SIZE,
   isPlantableSize,
-  getSpeciesGrowthRate,
   computePlantVitality,
   plantNitrateEdge,
   buildPlantStressors,
@@ -453,7 +462,8 @@ export type {
   PlantLight,
   CanopyLight,
   LightPath,
-  Propagation,
+  Planted,
+  Unit,
   CarbonFixer,
   Feeder,
   NutrientPool,
@@ -465,14 +475,12 @@ export type {
 export { processLivestock, tankPaces } from './livestock/index.js';
 export { processBodies } from './livestock/bodies.js';
 export { isStockableSize, MAX_STOCKED_SIZE, STOCKED_FISH_SIZE } from './livestock/create-fish.js';
+export { offshootShare, offshootStructure } from './plants/create-plant.js';
 export {
   computeFishVitality,
   predationStress,
   predatorWeight,
   preyVulnerability,
-  starvation,
-  type FishBreakdown,
-  type FishVitality,
 } from './systems/fish-health.js';
 export { fishMass, fishSize, fishOrganics, frySize, eggMass, fishLifeStage, countFry } from './systems/fish-body.js';
 export { readyToBrood, paysTowardBrood } from './systems/brood.js';
@@ -487,7 +495,7 @@ export {
   type DebParams,
   type DebStress,
 } from './systems/deb.js';
-export { reserveDensity, wellFed } from './systems/reserve.js';
+export { reserveDensity, wellFed, starvation, oxygenPace } from './systems/reserve.js';
 
 // Vitality
 export {

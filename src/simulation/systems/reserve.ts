@@ -5,7 +5,7 @@
  * hour a V1-morph's reserve runs through.
  */
 
-import { hourlyDraw, hourlyInflowDraw, meanOfExp } from '../core/kinetics.js';
+import { hourlyDraw, hourlyInflowDraw, meanOfExp, monodFactor } from '../core/kinetics.js';
 import { sum } from '../core/sum.js';
 
 export interface ReserveState {
@@ -34,6 +34,17 @@ export const structureOrganics = (p: ReserveParams): number => p.kappaG * p.EG;
 
 export const totalBurned = <K extends string>({ burned }: { burned: Readonly<Record<K, number>> }): number =>
   sum(Object.values<number>(burned));
+
+/** ω: a Monod on dissolved O2 read against saturated water, so a healthy tank paces an organism at 1. */
+export function oxygenPace(oxygen: number, saturation: number, halfSaturation: number): number {
+  const saturated = monodFactor(saturation, halfSaturation);
+  return saturated > 0 ? Math.min(1, monodFactor(oxygen, halfSaturation) / saturated) : 0;
+}
+
+/** Share of its upkeep an hour's budget left unpaid. */
+export function starvation({ fluxes }: { fluxes: { owed: number; shortfall: number } }): number {
+  return fluxes.owed > 0 ? fluxes.shortfall / fluxes.owed : 0;
+}
 
 /** Maintenance due over the hour: the soma's, and whatever the branch owes before it covers the soma. */
 export interface Upkeep {
@@ -112,21 +123,25 @@ export function spend<G extends { invested: number }>(
 /** The most of an empty reserve any slice of an hour turns over. */
 export const K_SLICE = 0.5;
 
-/** Share of its reserve a V1-morph mobilises per hour at the density it holds: DEB's p_C / E. */
-const turnover = (state: ReserveState, p: ReserveParams): number =>
+/** Share of its reserve a V1-morph mobilises per hour at the density it holds, its conductance at ω: DEB's p_C / E. */
+const turnover = (state: ReserveState, p: ReserveParams, omega: number): number =>
   state.structure > 0
-    ? (state.structure * (p.v * p.EG + p.pM)) / (p.EG * state.structure + p.kappa * state.reserve)
+    ? (state.structure * (omega * p.v * p.EG + p.pM)) / (p.EG * state.structure + p.kappa * state.reserve)
     : 0;
 
 /** Slices of an hour at pace τ: an empty reserve turns over fastest, and none turns over more than K_SLICE of it. */
 export const hourSlices = (p: ReserveParams, tau: number): number =>
-  Math.max(1, Math.ceil((tau * turnover({ structure: 1, reserve: 0 }, p)) / K_SLICE));
+  Math.max(1, Math.ceil((tau * turnover({ structure: 1, reserve: 0 }, p, 1)) / K_SLICE));
 
-/** What flows through an hour, or a slice of it: grams into the reserve, grams of it asked for repair, and the pace. */
+/**
+ * What flows through an hour, or a slice of it: grams into the reserve, grams
+ * of it asked for repair, the pace, and ω, which scales {p_Am} and v.
+ */
 export interface ReserveHour {
   inflow: number;
   healing: number;
   tau: number;
+  omega: number;
 }
 
 /** A slice spent: the state and fluxes it leaves, and the grams of its release its κ-rule turned back into reserve. */
@@ -157,13 +172,14 @@ export function integrateHour<S extends ReserveState, F>(
   budget: ReserveBudget<S, F>
 ): { state: S; fluxes: F } {
   const slices = hourSlices(p, hour.tau);
-  const slice = { inflow: hour.inflow / slices, healing: hour.healing / slices, tau: hour.tau / slices };
+  const { omega } = hour;
+  const slice = { inflow: hour.inflow / slices, healing: hour.healing / slices, tau: hour.tau / slices, omega };
   const full = maxReserveDensity(p);
-  const fullTurnover = turnover({ structure: 1, reserve: full }, p);
-  const fullGrowth = Math.max(0, (p.kappa * p.pAm - p.pM) / (p.EG + p.kappa * full));
+  const fullTurnover = turnover({ structure: 1, reserve: full }, p, omega);
+  const fullGrowth = Math.max(0, (p.kappa * omega * p.pAm - p.pM) / (p.EG + p.kappa * full));
 
   const released = (at: S): number => {
-    const rate = slice.tau * turnover(at, p);
+    const rate = slice.tau * turnover(at, p, omega);
     const drawn = (net: number): number => at.reserve * hourlyDraw(net) + slice.inflow * hourlyInflowDraw(net);
     const first = drawn(rate);
     const spentShare = first > 0 ? 1 - budget.slice(at, first, slice).turnedBack / first : 1;

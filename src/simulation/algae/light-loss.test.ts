@@ -1,21 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { bloomPass, lightLoss, waterExtinction } from './light-loss.js';
-import { ALGAE, emptyBlooms } from './index.js';
+import { ALGAE } from './index.js';
 import { opticsDefaults } from '../config/optics.js';
-import type { Blooms } from '../state.js';
+import { createSimulation, type SimulationState } from '../state.js';
+import { bloomAt } from '../tests/blooms.js';
 
-const blooms = (greenWater: number, film: number): Blooms =>
-  produce(emptyBlooms(), (draft) => {
-    draft.greenWater.mass = greenWater;
-    draft.film.mass = film;
+const blooms = (greenWater: number, film: number): SimulationState =>
+  produce(createSimulation({ tankCapacity: 100 }), (draft) => {
+    draft.algae.greenWater = bloomAt(draft, 'greenWater', greenWater);
+    draft.algae.film = bloomAt(draft, 'film', film);
   });
 
 const κ = opticsDefaults.algaeAttenuationPerGram;
 
 describe('lightLoss', () => {
   it('is the water alone in a clean tank', () => {
-    const clean = lightLoss(emptyBlooms(), opticsDefaults);
+    const clean = lightLoss(blooms(0, 0), opticsDefaults);
     expect(clean.extinction).toBe(opticsDefaults.waterAttenuationPerCm);
     expect(clean.leafPass).toBe(1);
   });

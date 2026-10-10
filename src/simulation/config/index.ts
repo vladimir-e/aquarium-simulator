@@ -46,10 +46,8 @@ export {
   plantsConfigMeta,
   quotaMinMeta,
   quotaMaxMeta,
-  MAX_SIZE_PER_SURPLUS,
-  MAX_SUFFICIENCY_EDGE,
+  MAX_DROOP_EDGE,
 } from './plants.js';
-export { MAX_SURPLUS_CAP } from './vitality.js';
 export {
   NUTRIENTS,
   type Nutrient,

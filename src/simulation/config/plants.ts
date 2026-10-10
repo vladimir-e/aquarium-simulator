@@ -8,7 +8,6 @@
  * - Nitrate consumption: ~5-10 mg/day
  */
 
-import { MAX_SURPLUS_CAP, SURPLUS_CAP_DEFAULT } from './vitality.js';
 import type { NutrientVector, NutrientVectorMeta } from './nutrients.js';
 
 export interface PlantsConfig {
@@ -37,46 +36,22 @@ export interface PlantsConfig {
   respirationQ10: number;
   /** Reference temperature for respiration calculations (°C) */
   respirationReferenceTemp: number;
-  /** Dissolved O2 (mg/L) at which respiration runs at half its base rate. */
-  respirationOxygenHalfSaturation: number;
+  /**
+   * Dissolved O2 (mg/L) half-saturating the oxygen pace ω, read against
+   * saturated water: it scales what a flora assimilates and mobilises, never
+   * the upkeep it owes.
+   */
+  oxygenHalfSaturation: number;
 
   // Gas exchange
   /**
    * mg of CO2 carried by one rate unit — an hour of 500 cm² of leaf at growth
-   * rate 1 under saturating light and carbon. Photosynthesis fixes it and respiration
-   * releases it: one reaction run both ways, so one yield, and the day/night
-   * asymmetry belongs to `baseRespirationRate`. The oxygen partner is not a
-   * second knob — it derives at `CO2_TO_O2_MASS_RATIO`.
+   * rate 1 under saturating light and carbon. Photosynthesis fixes it into
+   * photosynthate and burning that releases it: one reaction run both ways, so
+   * one yield. The oxygen partner is not a second knob — it derives at
+   * `CO2_TO_O2_MASS_RATIO`.
    */
   co2PerRateUnit: number;
-
-  // Surplus-driven growth knobs.
-  /**
-   * First-order rate, per hour, a plant draws its bank toward new tissue at,
-   * before the taper `1 − size/100` closes it down as the unit fills.
-   */
-  growthDrawRate: number;
-  /**
-   * Rate, per hour and per unit of species `growthRate`, a plant's bank heals
-   * condition below 100 at: a plant repairs at the rate it grows.
-   */
-  healingDrawRate: number;
-  /**
-   * Size gained per surplus unit converted, before the species growth-rate
-   * multiplier. With species growth rates in the 0.3–1.8 band this knob sets
-   * the order of magnitude of the surplus → size conversion.
-   */
-  sizePerSurplus: number;
-  /**
-   * Ceiling on the bank. Income past full condition banks up to it, and a full
-   * bank buys an offshoot (see `propagate`). The blooms bank to it too.
-   */
-  surplusCap: number;
-  /**
-   * Organic matter in a % of a rate unit of tissue (g): what growth draws the
-   * recipe for, and shedding and death return as waste.
-   */
-  tissuePerSize: number;
 
   // Energy budget — a plant's own, and the blooms' too where a kind's traits
   // carry nothing of their own.
@@ -88,6 +63,10 @@ export interface PlantsConfig {
   reserveCapacity: number;
   /** Days an empty store takes to fill at saturating concentration, at its opening rate. */
   storeFillDays: number;
+  /** Share of its condition deficit a flora repairs an hour, at the reference temperature. */
+  healingRate: number;
+  /** Hours of its maintenance a point of repair costs its reserve. */
+  healingCost: number;
   /** Q_min: mg of each nutrient's element — N, P, K, Fe — in a gram of a plant's structure. */
   quotaMin: NutrientVector;
   /** Q_max: the same, with every store full. */
@@ -96,12 +75,8 @@ export interface PlantsConfig {
   // Vitality stressor severities — see systems/plant-vitality.ts. Each is
   // a pre-hardiness damage rate (%/h per unit deviation), scaled by
   // `1 − hardiness` for the species, except nitrate, whose edge hardiness moves.
-  /**
-   * Damage at a daily light integral of zero and growth rate 1, falling
-   * linearly to nothing at the species' daily light edge and moved off
-   * `respirationReferenceTemp` by the respiration Q10.
-   */
-  lightStarvationSeverity: number;
+  /** Damage with the hour's whole upkeep unpaid, in proportion to the share unpaid. */
+  starvationSeverity: number;
   /** Damage per PAR unit above the species' tolerable upper bound. */
   lightExcessiveSeverity: number;
   /** Damage per °C of temperature outside the species' tolerable range. */
@@ -110,13 +85,10 @@ export interface PlantsConfig {
   phStressSeverity: number;
   /** Damage per dGH outside the species' tolerable range. */
   ghStressSeverity: number;
-  /**
-   * Damage at a Liebig sufficiency of 0 under saturating light, falling
-   * linearly to nothing at `sufficiencyEdge`.
-   */
+  /** Damage at a Droop limit of 0, falling linearly to nothing at `droopEdge`. */
   nutrientDeficiencySeverity: number;
-  /** Liebig sufficiency a plant counts as fed: deficiency harm starts under it. */
-  sufficiencyEdge: number;
+  /** Droop limit its stores count as fed at: deficiency harm starts under it. */
+  droopEdge: number;
   /** Damage per e-fold of NO3 past the plant's nitrate edge. */
   nitrateStressSeverity: number;
   /**
@@ -125,12 +97,10 @@ export interface PlantsConfig {
    */
   nitrateEdge: number;
 
-  // Vitality benefit peaks (%/h), each at the best its factor gets. Every one
-  // of them is realised through photosynthesis, so all three run on its drive:
-  // the light term `tanh(PAR / Ik)` times the Liebig sufficiency. The budget is
-  // the plant's income, and good water is worth nothing at midnight or with a
-  // nutrient run dry. Sum at saturating light, full sufficiency and band
-  // centre: 0.375 %/h.
+  // Vitality benefit peaks (%/h), each at the best its factor gets, earned on
+  // reserve density times the stores' Droop limit: good water is worth nothing
+  // to a flora that has burned its reserve or run its stores dry. Sum at a
+  // full reserve, a Droop limit of 1 and band centre: 0.375 %/h.
   /** CO2, earned in proportion to the species' carbon Monod. */
   co2BenefitPeak: number;
   /** Temperature at the centre of the tolerable band, falling to 0 at its edges. */
@@ -138,7 +108,7 @@ export interface PlantsConfig {
   /** pH at the centre of the tolerable band, falling to 0 at its edges. */
   phBenefitPeak: number;
 
-  // Lifecycle (shedding + death) — see `systems/plant-lifecycle.ts`.
+  // Shedding and death.
   /**
    * Share of itself a plant sheds per hour at condition 0, falling with the
    * square of the condition deficit to nothing at 100.
@@ -160,12 +130,11 @@ export const plantsDefaults: PlantsConfig = {
   // `plants/species.ts`.
   saturationIrradianceFactor: 2.0,
 
-  // Dark respiration, runs 24/7 — a share of the rate at saturating light and
+  // Maintenance, owed 24/7 — a share of the rate at saturating light and
   // carbon. On the 4 mg/L an uninjected tank holds, 0.03 is 4–9 % of what a
   // plant actually fixes, low-need to high-need: at or just below the bottom
   // of the 5–15 % the macrophyte literature reports against light-saturated
-  // gross photosynthesis. The Monod below leaves 94 % of it standing in
-  // air-saturated water.
+  // gross photosynthesis.
   baseRespirationRate: 0.03,
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
@@ -173,9 +142,9 @@ export const plantsDefaults: PlantsConfig = {
   // rather than out of air, so the limit a plant meets is diffusion into the
   // leaf and not the mitochondrion's own affinity — macrophyte tissue starts
   // losing respiratory rate below roughly 1–2 mg/L. Half rate at 0.5 leaves a
-  // healthy tank untouched (94 % at 8 mg/L) and only bites where the tank is
-  // already in trouble.
-  respirationOxygenHalfSaturation: 0.5,
+  // healthy tank untouched and only bites where the tank is already in
+  // trouble.
+  oxygenHalfSaturation: 0.5,
 
   // mg CO2 per rate unit. Pinned against a grown-in planted 150 L — three
   // swords, four monte carlo patches, two java ferns and an anubias, all full:
@@ -185,30 +154,18 @@ export const plantsDefaults: PlantsConfig = {
   // Under the planted preset's 90 PAR and 0.5 bps that tank admits 14–32.
   co2PerRateUnit: 30.0,
 
-  // Surplus-driven growth — vitality banks the income a full-condition plant
-  // earns; growth draws a share of the bank round the clock and only what
-  // becomes size leaves it.
-  //
-  // 2 %/h is a ~50-hour time constant, two days: how long a cutting takes to
-  // stop sulking and start growing. The bank settles near a day or two of
-  // income, what a plant carries into a bad spell, and stays well under
-  // `surplusCap` until the taper closes the draw down and it fills to buy an
-  // offshoot.
-  growthDrawRate: 0.02,
-  // 0.05 /h at growth rate 1: a sword spends a bank on repair with a 20 h time
-  // constant, a monte carlo in half that, an anubias over three days.
-  healingDrawRate: 0.05,
-  sizePerSurplus: 0.4, // size % per (surplus × growthRate) unit converted
-  surplusCap: SURPLUS_CAP_DEFAULT,
-  tissuePerSize: 0.01,
 
   // Energy budget. κ, κ_G, the full reserve and the stores' fill time are
   // Tune's: nothing checked against its source fixes them for a submerged
   // plant.
-  somaShare: 0.8,
+  somaShare: 0.95,
   growthEfficiency: 0.8,
-  reserveCapacity: 0.3,
+  reserveCapacity: 0.2,
   storeFillDays: 3,
+  // A flora closes 5 % of its deficit an hour at 25 °C, a sick plant back to
+  // full in a few days, and a point costs it an hour of its upkeep.
+  healingRate: 0.05,
+  healingCost: 1,
   // Plants share one composition, macrophyte dry-weight figures × 1.25 for ash.
   // N: PCLake submerged vegetation 1.0–3.5 % (Janse 2005); Gerloff 1975 culture
   // floors 0.4–1.1 %, maxima 3.3–4.3 %; critical 1.3 % (Gerloff & Krombholz
@@ -223,11 +180,10 @@ export const plantsDefaults: PlantsConfig = {
   // scales them by `1 − hardiness` for the species, except nitrate, whose edge
   // hardiness moves).
   //
-  // Full darkness costs 0.3 %/h pre-hardiness at 25 °C and growth rate 1 —
-  // 0.38 %/h for a monte carlo, 0.02 %/h for an anubias — so a carpet lasts two
-  // weeks unlit and an anubias months, and the hobby's three-day algae
-  // blackout costs a carpet its bank and a few points of condition.
-  lightStarvationSeverity: 0.3,
+  // A flora whose upkeep goes wholly unpaid loses 0.5 %/h before hardiness,
+  // what a fish does: a plant that has burned its reserve in the dark melts
+  // over a week or two.
+  starvationSeverity: 0.5,
   // %/h per PAR unit over the species band: 10 PAR over costs 0.15 %/h
   // pre-hardiness.
   lightExcessiveSeverity: 0.015,
@@ -235,19 +191,16 @@ export const plantsDefaults: PlantsConfig = {
   phStressSeverity: 3.0,
   ghStressSeverity: 0.1,
   nutrientDeficiencySeverity: 0.3,
-  // Monod never reaches 1, so the edge sits where a plant has 90 % of its
-  // need met.
-  sufficiencyEdge: 0.9,
+  // A plant's Droop limit runs 0.7–0.9 on full stores. Harm starts at 0.3,
+  // where its nitrogen store has fallen to a sixth of full — a quota near the
+  // critical 1.3 % of Gerloff & Krombholz 1966.
+  droopEdge: 0.3,
   // Plants take nitrate far past where fish do: the edge sits at 100 ppm, so
   // only a runaway doser reaches it, and each e-fold past it costs what one
   // costs a fish.
   nitrateStressSeverity: 1.0,
   nitrateEdge: 100,
 
-  // Vitality benefit peaks. The light term and sufficiency take the whole
-  // budget down together: a monte carlo at 30 PAR earns 0.46 of it, and every
-  // plant earns none of it in the dark or starved. With a healthy lit tank the
-  // plant heals to 100 in a few sim days, then surplus drives growth.
   co2BenefitPeak: 0.125,
   temperatureBenefitPeak: 0.125,
   phBenefitPeak: 0.125,
@@ -259,16 +212,10 @@ export const plantsDefaults: PlantsConfig = {
 };
 
 /**
- * A Monod share reaches 1 only at infinite concentration, so the need an edge
- * sets, `K × edge / (1 − edge)`, runs away as the edge nears it.
+ * A Droop limit reaches 1 only on an infinite store, so the store an edge
+ * asks, `Q_min × edge / (1 − edge)`, runs away as the edge nears it.
  */
-export const MAX_SUFFICIENCY_EDGE = 0.95;
-
-/**
- * The most a bank point buys at growth rate 1: `sizePerSurplus`'s ceiling,
- * held alike by the tunables drawer and the save boundary.
- */
-export const MAX_SIZE_PER_SURPLUS = 2;
+export const MAX_DROOP_EDGE = 0.95;
 
 export interface PlantsConfigMeta {
   key: keyof PlantsConfig;
@@ -319,37 +266,26 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     max: 30,
     step: 1,
   },
-  {
-    key: 'respirationOxygenHalfSaturation',
-    label: 'Respiration O2 Half-Saturation',
-    unit: 'mg/L',
-    min: 0.05,
-    max: 3,
-    step: 0.05,
-  },
+  { key: 'oxygenHalfSaturation', label: 'O2 Pace Half-Saturation', unit: 'mg/L', min: 0.05, max: 3, step: 0.05 },
   // Gas exchange
   { key: 'co2PerRateUnit', label: 'CO2 per Rate Unit', unit: 'mg', min: 1, max: 200, step: 1 },
-  // Surplus-driven growth
-  { key: 'growthDrawRate', label: 'Growth Draw Rate', unit: '/hr', min: 0.005, max: 0.2, step: 0.005 },
-  { key: 'healingDrawRate', label: 'Healing Draw Rate', unit: '/hr per growth rate', min: 0.005, max: 0.5, step: 0.005 },
-  { key: 'sizePerSurplus', label: 'Size per Bank Point', unit: '%/pt', min: 0.01, max: MAX_SIZE_PER_SURPLUS, step: 0.01 },
-  { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: MAX_SURPLUS_CAP, step: 5 },
-  { key: 'tissuePerSize', label: 'Tissue per Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
 
   // Energy budget
   { key: 'somaShare', label: 'Soma Share (κ)', unit: '', min: 0.1, max: 1, step: 0.05 },
   { key: 'growthEfficiency', label: 'Growth Efficiency (κ_G)', unit: '', min: 0.5, max: 0.95, step: 0.05 },
   { key: 'reserveCapacity', label: 'Full Reserve (E_m)', unit: 'g/g', min: 0.05, max: 0.6, step: 0.01 },
   { key: 'storeFillDays', label: 'Store Fill Time', unit: 'days', min: 0.25, max: 14, step: 0.25 },
+  { key: 'healingRate', label: 'Healing Rate', unit: '/hr at ref temp', min: 0, max: 0.5, step: 0.005 },
+  { key: 'healingCost', label: 'Healing Cost', unit: 'h upkeep/pt', min: 0.05, max: 10, step: 0.05 },
 
   // Vitality stressor severities
-  { key: 'lightStarvationSeverity', label: 'Light Starvation Severity', unit: '%/hr', min: 0.05, max: 2, step: 0.05 },
+  { key: 'starvationSeverity', label: 'Starvation Severity', unit: '%/hr unpaid', min: 0, max: 5, step: 0.05 },
   { key: 'lightExcessiveSeverity', label: 'Light Excess Severity', unit: '%/PAR/hr', min: 0.005, max: 0.1, step: 0.005 },
   { key: 'temperatureStressSeverity', label: 'Plant Temp Severity', unit: '%/°C/hr', min: 0.1, max: 2.0, step: 0.1 },
   { key: 'phStressSeverity', label: 'Plant pH Severity', unit: '%/pH/hr', min: 0.5, max: 10, step: 0.5 },
   { key: 'ghStressSeverity', label: 'Plant GH Severity', unit: '%/dGH/hr', min: 0, max: 2, step: 0.05 },
   { key: 'nutrientDeficiencySeverity', label: 'Nutrient Defic. Severity', unit: '%/hr', min: 0.1, max: 2.0, step: 0.1 },
-  { key: 'sufficiencyEdge', label: 'Sufficiency Edge', unit: '', min: 0.1, max: MAX_SUFFICIENCY_EDGE, step: 0.05 },
+  { key: 'droopEdge', label: 'Droop Edge', unit: '', min: 0.05, max: MAX_DROOP_EDGE, step: 0.05 },
   { key: 'nitrateStressSeverity', label: 'Plant Nitrate Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
   { key: 'nitrateEdge', label: 'Plant Nitrate Edge', unit: 'ppm', min: 50, max: 300, step: 10 },
 

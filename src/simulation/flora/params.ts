@@ -1,15 +1,14 @@
 /**
  * Each kind of flora's budget: carbon off the plants' photosynthesis and
  * respiration tunables, so a gram of tissue fixes and burns what its rate
- * units do today, and Droop quotas off the plants' config or a bloom kind's
- * traits.
+ * units do, and Droop quotas off the plants' config or a bloom kind's traits.
  */
 
 import type { PlantsConfig } from '../config/plants.js';
 import { mapNutrients, type NutrientVector } from '../config/nutrients.js';
 import { CO2_TO_CH2O_MASS_RATIO, N_TO_NO3_MASS_RATIO, P_TO_PO4_MASS_RATIO } from '../core/chemistry.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
-import { tissuePerRateUnit, type FloraTraits } from '../systems/flora.js';
+import { TISSUE_PER_RATE_UNIT, type FloraTraits } from '../systems/flora.js';
 import type { FloraParams } from '../systems/flora-budget.js';
 import { plantTraits, type PlantSpecies } from '../plants/species.js';
 import { ALGAE, type AlgaeKind } from '../algae/traits.js';
@@ -35,7 +34,7 @@ function floraParams(
   config: PlantsConfig
 ): FloraParams {
   const photosynthatePerGram =
-    (growthRate * config.co2PerRateUnit * CO2_TO_CH2O_MASS_RATIO) / (MG_PER_G * tissuePerRateUnit(config));
+    (growthRate * config.co2PerRateUnit * CO2_TO_CH2O_MASS_RATIO) / (MG_PER_G * TISSUE_PER_RATE_UNIT);
   const pAm = config.basePhotosynthesisRate * photosynthatePerGram;
   return {
     pAm,

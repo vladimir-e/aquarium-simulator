@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { burn, fishPace, gillAmmonia, liveHour, oxygenPace, processMetabolism } from './metabolism.js';
+import { burn, fishPace, gillAmmonia, liveHour, processMetabolism } from './metabolism.js';
+import { oxygenPace } from './reserve.js';
 import { gutCapacity, gutRoom, type Pace } from './digestion.js';
 import { livestockDefaults as config } from '../config/livestock.js';
 import { speciesTau } from '../livestock/species.js';

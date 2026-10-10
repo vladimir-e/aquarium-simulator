@@ -192,8 +192,8 @@ describe('processBodies', () => {
     ];
     for (const tank of tanks) {
       const out = breed(tank);
-      expect(held(tank) - held(out.state)).toBeCloseTo(out.waste + out.burned, 15);
-      expect(wasteOf(out)).toBeCloseTo(out.waste, 15);
+      expect(held(tank) - held(out.state)).toBeCloseTo(out.waste.grams + out.burned, 15);
+      expect(wasteOf(out)).toBeCloseTo(out.waste.grams, 15);
     }
   });
 

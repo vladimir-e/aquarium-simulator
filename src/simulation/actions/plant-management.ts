@@ -3,6 +3,7 @@
  */
 
 import { produce } from 'immer';
+import type { PlantsConfig } from '../config/plants.js';
 import type { Plant, SimulationState } from '../state.js';
 import { calculateFloorArea } from '../core/geometry.js';
 import type { PlantSpecies } from '../plants/species.js';
@@ -54,7 +55,7 @@ export function canAddPlant(state: SimulationState, species: PlantSpecies): bool
 /**
  * Add a plant to the tank, at a size between `MIN_PLANTABLE_SIZE` and a full unit.
  */
-export function addPlant(state: SimulationState, action: AddPlantAction): ActionResult {
+export function addPlant(state: SimulationState, action: AddPlantAction, config: PlantsConfig): ActionResult {
   const { species, initialSize = DEFAULT_PLANT_SIZE } = action;
 
   // Validate species
@@ -80,7 +81,7 @@ export function addPlant(state: SimulationState, action: AddPlantAction): Action
   const plantData = PLANT_SPECIES_DATA[species];
 
   const newState = produce(state, (draft) => {
-    draft.plants.push(createPlant({ species, size: initialSize, rng: draft.rng }));
+    draft.plants.push(createPlant({ species, size: initialSize, rng: draft.rng, config }));
 
     draft.logs.push(
       createLog(

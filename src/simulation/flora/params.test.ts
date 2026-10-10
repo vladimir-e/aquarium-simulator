@@ -4,11 +4,9 @@ import { plantsDefaults, quotaMaxMeta, quotaMinMeta, type PlantsConfig } from '.
 import { NUTRIENTS } from '../config/nutrients.js';
 import { CO2_TO_CH2O_MASS_RATIO } from '../core/chemistry.js';
 import { maxReserveDensity, structureOrganics } from '../systems/reserve.js';
-import { calculatePhotosynthesis } from '../systems/photosynthesis.js';
-import { calculateRespiration } from '../systems/respiration.js';
+import { offerCarbon, photosynthateOf } from '../systems/photosynthesis.js';
 import { metabolicRateUnits } from '../systems/flora.js';
-import { tissueMass } from '../systems/plant-lifecycle.js';
-import { rateUnits } from '../plants/canopy.js';
+import { rateUnits, tissueMass } from '../plants/canopy.js';
 import { PLANT_SPECIES_DATA, plantTraits, type PlantSpecies } from '../plants/species.js';
 import { ALGAE, ALGAE_KINDS, bloomRateUnits, bloomTissue } from '../algae/index.js';
 import type { FloraParams } from '../systems/flora-budget.js';
@@ -21,34 +19,33 @@ const units = [
   ...SPECIES.map((species) => ({
     name: species,
     p: plantParams(species, config),
-    grams: tissueMass(species, 60, config),
+    grams: tissueMass(species, 60),
     rated: metabolicRateUnits(rateUnits({ species, size: 60 }), plantTraits(species)),
   })),
   ...ALGAE_KINDS.map((kind) => ({
     name: kind,
     p: bloomParams(kind, config),
     grams: bloomTissue(40, 120, ALGAE[kind]),
-    rated: bloomRateUnits(40, 120, ALGAE[kind], config),
+    rated: bloomRateUnits(bloomTissue(40, 120, ALGAE[kind]), ALGAE[kind]),
   })),
 ];
 
-const photosynthate = (co2Mg: number): number => (co2Mg * CO2_TO_CH2O_MASS_RATIO) / 1000;
 const close = (a: number, b: number): boolean => Math.abs(a - b) <= 1e-9 * Math.abs(b);
 
 describe.each(units)('$name', ({ p, grams, rated }) => {
   it('assimilates at saturation the photosynthate its rate units fix', () => {
-    const { co2ConsumedMg } = calculatePhotosynthesis(
-      [{ metabolicRateUnits: rated, lightResponse: 1, sufficiency: 1, co2HalfSaturation: 0 }],
+    const [offered] = offerCarbon(
+      [{ metabolicRateUnits: rated, lightResponse: 1, omega: 1, co2HalfSaturation: 0 }],
       1e9,
       100,
       config
     );
-    expect(close(p.pAm * grams, photosynthate(co2ConsumedMg))).toBe(true);
+    expect(close(p.pAm * grams, photosynthateOf(offered))).toBe(true);
   });
 
-  it('pays in maintenance what its rate units respire', () => {
-    const { co2ProducedMg } = calculateRespiration(rated, config.respirationReferenceTemp, 1e12, config);
-    expect(close(p.pM * grams, photosynthate(co2ProducedMg))).toBe(true);
+  it('owes in maintenance the base respiration rate’s share of what its rate units fix', () => {
+    const fixed = rated * config.co2PerRateUnit * config.baseRespirationRate;
+    expect(close(p.pM * grams, (fixed * CO2_TO_CH2O_MASS_RATIO) / 1000)).toBe(true);
   });
 
   it('holds a gram of organics in a gram of structure, built at κ_G of what it costs', () => {

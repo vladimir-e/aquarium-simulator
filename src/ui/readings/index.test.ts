@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { netPerHour, ratePerHour, readTank, type ReadingBook } from './index.js';
+import { bloomAt } from '../../simulation/tests/blooms.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   ALGAE_KINDS,
@@ -209,7 +210,7 @@ describe('readTank', () => {
     for (const mass of [0.4, 4.7, 12.5, 63.49]) {
       for (const units of ['metric', 'imperial'] as const) {
         for (const kind of ALGAE_KINDS) {
-          const bloomed = { ...state, algae: { ...state.algae, [kind]: { ...state.algae[kind], mass } } };
+          const bloomed = { ...state, algae: { ...state.algae, [kind]: bloomAt(state, kind, mass) } };
           const reading = readTank({ state: bloomed, config: DEFAULT_CONFIG, history, units }).byId[kind];
           expect(`${reading.value} ${reading.unit}`).toBe(logQuantityIn(units)(coverage(mass)));
         }

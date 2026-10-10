@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { bloomAt } from '../tests/blooms.js';
 import { produce, type Draft } from 'immer';
 import {
   alerts,
@@ -73,7 +74,7 @@ const CASES: Case[] = [
       flag: kind,
       source: 'algae',
       set: (draft, mass): void => {
-        draft.algae[kind].mass = mass;
+        draft.algae[kind] = bloomAt(draft, kind, mass);
       },
       firing: BLOOM_COVERAGE_LINE + 5,
       quiet: BLOOM_COVERAGE_LINE / 2,
@@ -231,10 +232,10 @@ describe('bloomAlert', () => {
   const planted = (kind: AlgaeKind, mass: number): SimulationState =>
     produce(createSimulation({ tankCapacity: CAPACITY }), (draft) => {
       draft.plants = [
-        plantRecord({ id: 'carpet', species: 'monte_carlo', size: 80, condition: 100, surplus: 0 }),
-        plantRecord({ id: 'sword', species: 'amazon_sword', size: 80, condition: 100, surplus: 0 }),
+        plantRecord({ id: 'carpet', species: 'monte_carlo', size: 80 }),
+        plantRecord({ id: 'sword', species: 'amazon_sword', size: 80 }),
       ];
-      draft.algae[kind].mass = mass;
+      draft.algae[kind] = bloomAt(draft, kind, mass);
     });
   const unplanted = (kind: AlgaeKind, mass: number): SimulationState => ({ ...planted(kind, mass), plants: [] });
   const attenuated = (perGram: number): TunableConfig => ({ ...config, optics: { ...config.optics, algaeAttenuationPerGram: perGram } });
@@ -261,7 +262,7 @@ describe('bloomAlert', () => {
 
   it('is each kind’s own: one kind’s bloom raises its flag alone', () => {
     const state = produce(createSimulation({ tankCapacity: CAPACITY }), (draft) => {
-      draft.algae.film.mass = BLOOM_COVERAGE_LINE + 10;
+      draft.algae.film = bloomAt(draft, 'film', BLOOM_COVERAGE_LINE + 10);
     });
     const { alertState } = checkAlerts(state, config);
     expect(alertState.film).toBe(true);

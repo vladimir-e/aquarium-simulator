@@ -1,28 +1,27 @@
 /**
- * The flora pass — every plant and every kind of bloom through one supply
- * chain per tick, so they fix carbon from one CO₂ stock and draw their tissue
- * from one pool in one call, none served before another.
+ * The flora pass — every plant and every kind of bloom through one hour of its
+ * budget, on one law, so they fix carbon from one CO₂ stock and fill their
+ * stores from the pools in one call, none served before another.
  *
- * Pipeline:
+ * The hour:
  * 1. Light: each plant's at its own height in the canopy, each bloom's as the
  *    mean over its habitat, all through the water and the blooms in it.
- * 2. Each feeder's draw on the water and the bed, read once: its Liebig
- *    sufficiency runs photosynthesis and vitality, and the draws request its
- *    tissue.
- * 3. Photosynthesis: O2 production and CO2 uptake only, zero at night.
- * 4. Respiration: O2/CO2 effects, 24/7.
- * 5. Vitality: each plant's and each bloom's new condition and bank — income
- *    at full condition banks, the bank heals condition below it.
- * 6. What each bank buys at full supply: a plant's offshoot, then its growth;
- *    a bloom's mass and the spores that land. Day and night.
- * 7. The pools supply that tissue: each form in each delivers on every
- *    request at one fraction — nitrogen from ammonia first, then nitrate for
- *    what ammonia left — and each feeder gets the share of its purchase they
- *    allow. The uptake moves GH, and KH by the protons each form carries.
- * 8. Shedding and death — low condition sheds tissue, and condition 0 kills.
- *    Both return it as waste.
- * 9. Offshoots and spores join at condition 100 — offshoots at the end of the
- *    list at age 0, spores into their bloom by mass — and surviving plants age
+ * 2. Uptake: each one's stores ask for what they lack, and a bloom's spores for
+ *    their structure at Q_min. The water and the bed deliver on every request
+ *    at one fraction — nitrogen from ammonia first, then nitrate for what
+ *    ammonia left — and the stores take it up. The uptake moves GH, and KH by
+ *    the protons each form carries.
+ * 3. Photosynthate: light, carbon and oxygen set what each is offered, all
+ *    drawn on the one CO₂ stock.
+ * 4. The budget: each runs its hour on what it was offered, asking its reserve
+ *    to repair its deficit. What it assimilates draws CO₂ and releases O₂;
+ *    what it burns does the reverse.
+ * 5. Condition: one vitality step for every organism.
+ * 6. Shedding and death: low condition sheds structure as waste, and condition
+ *    0 kills — its remains are waste and its stores leach to the water.
+ * 7. Offshoots and spores: a buffer that holds a new unit buys one, and the
+ *    spores land into their bloom.
+ * 8. Offshoots join at the end of the list at age 0, and surviving plants age
  *    a tick.
  *
  * Plants read the blooms and the blooms read the planting as the hour starts,
@@ -33,12 +32,21 @@ import { produce } from 'immer';
 import type { SimulationState, Plant } from '../state.js';
 import type { Effect } from '../core/effects.js';
 import { coverage, createLog, measured, type LogEvent, type LogSeverity, type LogText } from '../core/logging.js';
-import { NUTRIENT_FORMS, NUTRIENTS, mapForms, type FormVector, type NutrientForm, type TunableConfig } from '../config/index.js';
+import {
+  mapForms,
+  mapNutrients,
+  NUTRIENT_FORMS,
+  NUTRIENTS,
+  type FormVector,
+  type NutrientForm,
+  type TunableConfig,
+} from '../config/index.js';
 import { getPpm } from '../resources/index.js';
 import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
 import type { PlantLight } from '../plants/canopy.js';
+import { sizeOf } from '../plants/canopy.js';
 import { readPlantLight } from '../plants/index.js';
-import { createOffshoot } from '../plants/create-plant.js';
+import { createOffshoot, offshootStructure } from '../plants/create-plant.js';
 import {
   ALGAE,
   ALGAE_KINDS,
@@ -49,44 +57,43 @@ import {
   habitatGain,
   habitatSize,
   landSpores,
-  loseBloom,
   mapKinds,
-  massBought,
-  purchaseBloom,
-  supplyBloom,
+  massOf,
+  sporesBuilt,
   type AlgaeKind,
   type BloomLight,
 } from '../algae/index.js';
 import { computeAlgaeVitality } from '../systems/algae-vitality.js';
-import { calculatePhotosynthesis, plantFixer } from '../systems/photosynthesis.js';
+import { carbonGases, offerCarbon, photosynthateOf, plantFixer } from '../systems/photosynthesis.js';
 import {
-  drawTissue,
-  feederShares,
+  drawNutrients,
   ghDrawn,
-  liebig,
   nutrientsIn,
   plantFeeder,
   poolDraws,
   tankPools,
   uptakeAlkalinity,
 } from '../systems/nutrients.js';
-import { calculateRespiration } from '../systems/respiration.js';
-import { purchase, sizeBought, supply } from '../systems/plant-growth.js';
+import { getRespirationTemperatureFactor } from '../systems/respiration.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
-import { losePlant, tissueMass } from '../systems/plant-lifecycle.js';
+import { buyOffshoot, stepFlora, storeRequest, takeUp, type FloraFluxes } from '../systems/flora-budget.js';
+import { growthTaper, healingAsked, loseFlora } from '../systems/flora.js';
+import { oxygenPace, totalBurned } from '../systems/reserve.js';
+import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import type { VitalityResult } from '../systems/vitality.js';
 import { sum } from '../core/sum.js';
-import { atRecipe, foodRecipe } from '../core/organics.js';
+import { addOrganics, type Organics } from '../core/organics.js';
+import { bloomParams, plantParams } from './params.js';
 
 /** A bloom's hour in the pass. */
 export interface BloomHour {
   vitality: VitalityResult;
   light: BloomLight;
-  /** Grams of waste shed, apart from a die-back's one-off lump. */
-  shedding: number;
-  /** Bank points its growth cost — nothing the hour it dies back. */
-  spent: number;
-  /** mg of each form its new tissue took up from the water. */
+  /** What its budget did over the hour. */
+  fluxes: FloraFluxes;
+  /** Waste shed, apart from a die-back's one-off lump. */
+  shedding: Organics;
+  /** mg of each form its stores and its spores took up from the water. */
   waterUptake: FormVector;
 }
 
@@ -98,9 +105,11 @@ export interface FloraProcessingResult {
   vitalities: VitalityResult[];
   /** The light each plant stood in this tick, in the same order. */
   light: PlantLight[];
-  /** Grams of waste the plants shed this tick, apart from a death's one-off lump. */
-  shedding: number;
-  /** mg of each form the plants' new tissue took up from the water. */
+  /** What each plant's budget did over the hour, in the same order. */
+  fluxes: FloraFluxes[];
+  /** Waste the plants shed this tick, apart from a death's one-off lump. */
+  shedding: Organics;
+  /** mg of each form the plants' stores took up from the water. */
   waterUptake: FormVector;
   algae: Record<AlgaeKind, BloomHour>;
 }
@@ -111,127 +120,146 @@ const sumForms = (vectors: readonly FormVector[]): FormVector =>
 export function processFlora(state: SimulationState, config: TunableConfig): FloraProcessingResult {
   const effects: Effect[] = [];
   const { plants: plantsConfig, nutrients: nutrientsConfig } = config;
-  const waterVolume = state.resources.water;
+  const { resources } = state;
+  const waterVolume = resources.water;
 
   const pushDelta = (resource: NutrientForm | 'oxygen' | 'co2' | 'gh' | 'kh', delta: number, source: string): void => {
     if (delta !== 0) effects.push({ tier: 'active', resource, delta, source });
   };
-  const pushWaste = (grams: number, source: string): void => {
-    if (grams !== 0) effects.push({ tier: 'active', resource: 'waste', delta: atRecipe(grams, config), source });
+  const pushWaste = (waste: Organics, source: string): void => {
+    if (waste.grams !== 0) effects.push({ tier: 'active', resource: 'waste', delta: waste, source });
   };
 
-  // 1–2. Light, and where each feeder feeds, once.
+  // 1. Light, the hour's pace, and where each one feeds.
   const light = readPlantLight(state, config);
+  const tau = getRespirationTemperatureFactor(resources.temperature, plantsConfig);
+  const saturation = calculateO2Saturation(resources.temperature, config.gasExchange);
+  const omega = oxygenPace(resources.oxygen, saturation, plantsConfig.oxygenHalfSaturation);
   const pools = tankPools(state);
-  const draws = state.plants.map((plant) => poolDraws(pools, plantFeeder(plant.species, nutrientsConfig)));
-  const sufficiency = draws.map((draw) => liebig(feederShares(draw)));
+  const plants = state.plants.map((plant, i) => ({
+    budget: plant.budget,
+    condition: plant.condition,
+    p: plantParams(plant.species, plantsConfig),
+    draws: poolDraws(pools, plantFeeder(plant.species, nutrientsConfig)),
+    room: growthTaper(sizeOf(plant)),
+    fixer: plantFixer(plant, light[i].par, omega, plantsConfig),
+  }));
   const blooms = ALGAE_KINDS.map((kind) => {
     const traits = ALGAE[kind];
+    const { budget, condition } = state.algae[kind];
     const habitat = habitatSize(traits.habitat, state);
-    const bloomDraws = poolDraws(pools, bloomFeeder(traits, nutrientsConfig));
+    const lit = bloomLight(resources, habitatGain(traits.habitat, state, config.optics), traits);
+    const room = growthTaper(massOf(budget.structure, habitat, traits));
     return {
       kind,
       traits,
-      bloom: state.algae[kind],
+      budget,
+      condition,
       habitat,
-      light: bloomLight(state.resources, habitatGain(traits.habitat, state, config.optics), traits),
-      draws: bloomDraws,
-      sufficiency: liebig(feederShares(bloomDraws)),
+      light: lit,
+      p: bloomParams(kind, plantsConfig),
+      draws: poolDraws(pools, bloomFeeder(traits, nutrientsConfig)),
+      room,
+      spores: bloomTissue(traits.sporeRate * room, habitat, traits),
+      fixer: bloomFixer(state.algae[kind], lit, omega, traits, plantsConfig),
     };
   });
+  const flora = [...plants, ...blooms];
+  const plantCount = plants.length;
+  const kinds = blooms.length;
 
-  // 3. Photosynthesis: the gases only. Only the gases are stored as a
-  //    concentration, so only they convert through the water volume.
-  const fixers = [
-    ...state.plants.map((plant, i) => plantFixer(plant, light[i].par, sufficiency[i], plantsConfig)),
-    ...blooms.map((b) => bloomFixer(b.bloom, b.habitat, b.light, b.sufficiency, b.traits, plantsConfig)),
-  ];
-  const photosynthesis = calculatePhotosynthesis(fixers, state.resources.co2, waterVolume, plantsConfig);
-  pushDelta('oxygen', getPpm(photosynthesis.oxygenProducedMg, waterVolume), 'photosynthesis');
-  pushDelta('co2', -getPpm(photosynthesis.co2ConsumedMg, waterVolume), 'photosynthesis');
-
-  // 4. Respiration, on the rate units that fix.
-  const respiration = calculateRespiration(
-    sum(fixers.map((fixer) => fixer.metabolicRateUnits)),
-    state.resources.temperature,
-    state.resources.oxygen,
-    plantsConfig
+  // 2. The water and the bed fill every store, and build the spores, at once.
+  const delivery = drawNutrients(
+    [
+      ...flora.map(({ budget, p, draws }) => ({ asked: storeRequest(budget, p, tau), draws })),
+      ...blooms.map(({ p, draws, spores }) => ({ asked: mapNutrients((n) => p.qMin[n] * spores), draws })),
+    ],
+    pools
   );
-  pushDelta('oxygen', -getPpm(respiration.oxygenConsumedMg, waterVolume), 'respiration');
-  pushDelta('co2', getPpm(respiration.co2ProducedMg, waterVolume), 'respiration');
+  const fromWater = delivery.uptake.map(([water]) => water);
+  const plantUptake = sumForms(fromWater.slice(0, plantCount));
+  const bloomUptakes = blooms.map((_, k) =>
+    sumForms([fromWater[plantCount + k], fromWater[plantCount + kinds + k]])
+  );
+  const fromBed = sumForms(delivery.uptake.map(([, bed]) => bed));
+  const uptake = sumForms([...fromWater, fromBed]);
+  for (const f of NUTRIENT_FORMS) pushDelta(f, -sumForms(fromWater)[f], 'uptake');
+  pushDelta('gh', -ghDrawn(nutrientsIn(uptake).nitrate, resources), 'uptake');
+  pushDelta('kh', uptakeAlkalinity(uptake), 'uptake');
+  const spores = blooms.map(({ spores, p }, k) => sporesBuilt(spores, delivery.delivered[plantCount + kinds + k], p));
 
-  // 5. Vitality.
+  // 3–4. What light, carbon and oxygen offer, and each budget's hour on it.
+  const offered = offerCarbon(
+    flora.map(({ fixer }) => fixer),
+    resources.co2,
+    waterVolume,
+    plantsConfig
+  ).map(photosynthateOf);
+  const steps = flora.map(({ budget, condition, p, room }, i) => {
+    const fed = takeUp(budget, delivery.delivered[i]);
+    return stepFlora(fed, p, {
+      offered: offered[i],
+      tau,
+      omega,
+      room,
+      healing: healingAsked(fed, p, condition, tau, plantsConfig),
+    });
+  });
+
+  // 5. Condition.
   const vitalities = state.plants.map((plant, i) =>
     computePlantVitality({
       plant,
-      resources: state.resources,
+      fluxes: steps[i].fluxes,
+      resources,
       waterVolume,
       plantsConfig,
-      nutrientSufficiency: sufficiency[i],
       light: light[i],
     })
   );
-  const bloomVitalities = blooms.map((b) =>
+  const bloomVitalities = blooms.map((b, k) =>
     computeAlgaeVitality({
-      bloom: b.bloom,
+      bloom: state.algae[b.kind],
+      fluxes: steps[plantCount + k].fluxes,
       traits: b.traits,
-      resources: state.resources,
+      params: b.p,
+      resources,
       plants: state.plants,
       plantsConfig,
       algaeConfig: config.algae,
-      nutrientSufficiency: b.sufficiency,
-      light: b.light,
     })
   );
+  const conditions = [...vitalities, ...bloomVitalities].map((vitality) => vitality.newCondition);
 
-  // 6. What each bank buys at full supply.
-  const purchases = state.plants.map((start, i) =>
-    purchase({ ...start, condition: vitalities[i].newCondition, surplus: vitalities[i].surplus }, plantsConfig)
-  );
-  const bloomPurchases = blooms.map((b, k) =>
-    purchaseBloom(
-      { ...b.bloom, condition: bloomVitalities[k].newCondition, surplus: bloomVitalities[k].surplus },
-      b.traits,
-      plantsConfig
-    )
-  );
-
-  // 7. The water and the bed supply the tissue, to everyone at once.
-  const tissue = drawTissue(
-    [
-      ...purchases.map((bought, i) => ({
-        grams: tissueMass(bought.before.species, sizeBought(bought), plantsConfig),
-        draws: draws[i],
-      })),
-      ...blooms.map((b, k) => ({ grams: bloomTissue(massBought(bloomPurchases[k]), b.habitat, b.traits), draws: b.draws })),
-    ],
-    pools,
-    foodRecipe(config)
-  );
-  const plantCount = state.plants.length;
-  const plantUptake = sumForms(tissue.uptake.slice(0, plantCount).map(([water]) => water));
-  const bloomUptakes = tissue.uptake.slice(plantCount).map(([water]) => water);
-  const fromWater = sumForms([plantUptake, ...bloomUptakes]);
-  const fromBed = sumForms(tissue.uptake.map(([, bed]) => bed));
-  const uptake = sumForms([fromWater, fromBed]);
-  for (const f of NUTRIENT_FORMS) pushDelta(f, -fromWater[f], 'growth');
-  pushDelta('gh', -ghDrawn(nutrientsIn(uptake).nitrate, state.resources), 'growth');
-  pushDelta('kh', uptakeAlkalinity(uptake), 'growth');
-  const supplied = purchases.map((bought, i) => supply(bought, tissue.supplied[i]));
-  const bloomsSupplied = blooms.map((b, k) =>
-    supplyBloom(bloomPurchases[k], tissue.supplied[plantCount + k], b.traits, plantsConfig)
-  );
-
-  // 8. Losses: low condition sheds, condition 0 kills, and both return the tissue as waste.
-  const plantLosses = supplied.map(({ after }) => losePlant(after, plantsConfig));
-  const bloomLosses = blooms.map((b, k) => loseBloom(bloomsSupplied[k].after, b.habitat, b.traits, plantsConfig));
-  const plantShedding = sum(plantLosses.map((loss) => loss.shed));
+  // 6. Losses: low condition sheds, condition 0 kills.
+  const losses = flora.map(({ p }, i) => loseFlora(steps[i].state, p, conditions[i], plantsConfig));
+  const plantLosses = losses.slice(0, plantCount);
+  const bloomLosses = losses.slice(plantCount);
+  const plantShedding = addOrganics(...plantLosses.map((loss) => loss.shed));
   pushWaste(plantShedding, 'plant-shedding');
-  pushWaste(sum(plantLosses.map((loss) => loss.died)), 'plant-death');
-  pushWaste(sum(bloomLosses.map((loss) => loss.shed)), 'algae-shedding');
-  pushWaste(sum(bloomLosses.map((loss) => loss.died)), 'algae-death');
+  pushWaste(addOrganics(...plantLosses.map((loss) => loss.died)), 'plant-death');
+  pushWaste(addOrganics(...bloomLosses.map((loss) => loss.shed)), 'algae-shedding');
+  pushWaste(addOrganics(...bloomLosses.map((loss) => loss.died)), 'algae-death');
+  for (const n of NUTRIENTS) pushDelta(n, sum(losses.map((loss) => loss.leachate[n])), 'leaching');
 
-  // 9. Offshoots and spores join, the survivors age a tick. An offshoot's id and vigour come off the tank's stream.
+  // 7. A buffer that holds a unit buys one.
+  const offshoots = state.plants.map((plant, i) => {
+    const survivor = plantLosses[i].survivor;
+    if (survivor === null) return null;
+    return buyOffshoot(survivor, plants[i].p, offshootStructure(plant.species));
+  });
+
+  const assimilated = sum(steps.map(({ fluxes }) => fluxes.assimilated));
+  const burned =
+    sum(steps.map(({ fluxes }) => totalBurned(fluxes))) + sum(offshoots.map((bought) => bought?.overhead ?? 0));
+  const fixed = carbonGases(assimilated);
+  const respired = carbonGases(burned);
+  pushDelta('co2', -getPpm(fixed.co2, waterVolume), 'photosynthesis');
+  pushDelta('oxygen', getPpm(fixed.oxygen, waterVolume), 'photosynthesis');
+  pushDelta('co2', getPpm(respired.co2, waterVolume), 'respiration');
+  pushDelta('oxygen', -getPpm(respired.oxygen, waterVolume), 'respiration');
+
+  // 8. Offshoots and spores join, the survivors age a tick. An offshoot's id and vigour come off the tank's stream.
   const newState = produce(state, (draft) => {
     for (const n of NUTRIENTS) draft.equipment.substrate.nutrients[n] -= fromBed[n];
     const log = (severity: LogSeverity, text: string | LogText, event: LogEvent): void => {
@@ -239,25 +267,37 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     };
 
     const survivors: Plant[] = [];
-    const offshoots: Plant[] = [];
-    supplied.forEach(({ after, offshootSize }, i) => {
-      const species = PLANT_SPECIES_DATA[after.species];
-      if (offshootSize > 0) {
-        offshoots.push(createOffshoot(after, offshootSize, draft.rng));
-        log('info', `${species.name} ${growthFormOf(after.species).offshootVerb}`, 'plant-propagated');
-      }
+    const born: Plant[] = [];
+    state.plants.forEach((plant, i) => {
+      const species = PLANT_SPECIES_DATA[plant.species];
       const { survivor } = plantLosses[i];
-      if (survivor === null) log('warning', `${species.name} died from poor conditions`, 'plant-died');
-      else survivors.push({ ...survivor, age: survivor.age + 1 });
-    });
-    draft.plants = [...survivors, ...offshoots];
-
-    blooms.forEach(({ kind, traits }, k) => {
-      const { survivor } = bloomLosses[k];
       if (survivor === null) {
-        log('warning', measured`${traits.name} died back from ${coverage(bloomsSupplied[k].after.mass)} coverage`, 'algae-died');
+        log('warning', `${species.name} died from poor conditions`, 'plant-died');
+        return;
       }
-      draft.algae[kind] = landSpores(survivor, bloomsSupplied[k].spores);
+      const bought = offshoots[i];
+      const parent: Plant = {
+        ...plant,
+        budget: bought?.parent ?? survivor,
+        condition: conditions[i],
+        age: plant.age + 1,
+      };
+      survivors.push(parent);
+      if (bought) {
+        born.push(createOffshoot(parent, bought.offshoot, draft.rng));
+        log('info', `${species.name} ${growthFormOf(plant.species).offshootVerb}`, 'plant-propagated');
+      }
+    });
+    draft.plants = [...survivors, ...born];
+
+    blooms.forEach(({ kind, traits, habitat }, k) => {
+      const { survivor } = bloomLosses[k];
+      const condition = conditions[plantCount + k];
+      if (survivor === null) {
+        const mass = massOf(steps[plantCount + k].state.structure, habitat, traits);
+        log('warning', measured`${traits.name} died back from ${coverage(mass)} coverage`, 'algae-died');
+      }
+      draft.algae[kind] = landSpores(survivor === null ? null : { budget: survivor, condition }, spores[k]);
     });
   });
 
@@ -266,13 +306,14 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     effects,
     vitalities,
     light,
+    fluxes: steps.slice(0, plantCount).map(({ fluxes }) => fluxes),
     shedding: plantShedding,
     waterUptake: plantUptake,
     algae: mapKinds((_, k) => ({
       vitality: bloomVitalities[k],
       light: blooms[k].light,
+      fluxes: steps[plantCount + k].fluxes,
       shedding: bloomLosses[k].shed,
-      spent: bloomLosses[k].survivor === null ? 0 : bloomVitalities[k].surplus - bloomsSupplied[k].after.surplus,
       waterUptake: bloomUptakes[k],
     })),
   };

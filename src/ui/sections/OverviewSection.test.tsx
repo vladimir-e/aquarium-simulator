@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
+import { bloomAt } from '../../simulation/tests/blooms.js';
 import { screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { OverviewSection } from './OverviewSection';
 import { activeNeeds } from '../nav';
@@ -90,7 +91,7 @@ describe('OverviewSection', () => {
   it('opens the verb that answers a need, rather than routing to the module', () => {
     const onAct = vi.fn();
     const coated = createSimulation({ tankCapacity: 200 });
-    coated.algae.film.mass = 40;
+    coated.algae.film = bloomAt(coated, 'film', 40);
     renderOverview(bare(coated), { film: true }, onAct);
 
     fireEvent.click(within(strip()!).getByRole('button', { name: /Scrub/ }));
@@ -100,7 +101,7 @@ describe('OverviewSection', () => {
   it('answers green water’s need with a water change', () => {
     const onAct = vi.fn();
     const green = createSimulation({ tankCapacity: 200 });
-    green.algae.greenWater.mass = 40;
+    green.algae.greenWater = bloomAt(green, 'greenWater', 40);
     renderOverview(bare(green), { greenWater: true }, onAct);
 
     fireEvent.click(within(strip()!).getByRole('button', { name: /Water change/ }));

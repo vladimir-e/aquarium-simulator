@@ -11,6 +11,8 @@
  */
 
 import {
+  sizeOf,
+  bloomMass,
   ALGAE,
   ALGAE_KINDS,
   floorLight,
@@ -370,7 +372,7 @@ const READINGS: Reading[] = [
     (kind): Reading => ({
       key: kind,
       label: ALGAE[kind].name,
-      read: ({ state }) => state.algae[kind].mass,
+      read: ({ state }) => bloomMass(state, kind),
       unit: PERCENT,
       display: same,
       decimals: COVERAGE_DECIMALS,
@@ -409,7 +411,7 @@ const READINGS: Reading[] = [
   {
     key: 'largest',
     label: 'Largest',
-    read: ({ state }) => state.plants.reduce((largest, plant) => Math.max(largest, plant.size), 0),
+    read: ({ state }) => state.plants.reduce((largest, plant) => Math.max(largest, sizeOf(plant)), 0),
     unit: PERCENT,
     display: Math.floor,
     decimals: 0,

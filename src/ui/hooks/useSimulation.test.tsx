@@ -709,7 +709,7 @@ describe('useSimulation', () => {
 
       const { state } = result.current.sim;
       const depth = calculateTankHeight(state.tank.capacity);
-      expect(state.resources.light).toBeCloseTo(calculateParAtDepth(par, depth, waterExtinction(state.algae, optics)), 10);
+      expect(state.resources.light).toBeCloseTo(calculateParAtDepth(par, depth, waterExtinction(state, optics)), 10);
       expect(state.resources.light).toBeLessThan(before);
       expect(state.tick).toBe(tickBefore);
     });

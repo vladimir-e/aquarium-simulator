@@ -13,7 +13,7 @@
 
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
-import { ALGAE, ALGAE_KINDS, placeShare } from '../algae/index.js';
+import { clearPlace } from '../algae/index.js';
 import { createLog, liters, logText, measured, type LogText } from '../core/logging.js';
 import { blendTemperature, blendConcentration } from '../core/blending.js';
 import { scaleOrganics } from '../core/organics.js';
@@ -88,9 +88,7 @@ export function waterChange(
     draft.resources.phosphate *= 1 - amount;
     draft.resources.potassium *= 1 - amount;
     draft.resources.iron *= 1 - amount;
-    for (const kind of ALGAE_KINDS) {
-      draft.algae[kind].mass *= 1 - amount * placeShare(ALGAE[kind].habitat, 'column', state);
-    }
+    draft.algae = clearPlace(state, 'column', amount);
 
     // 2. Temperature blending (remaining tank water + fresh tap water)
     const oldTemp = draft.resources.temperature;

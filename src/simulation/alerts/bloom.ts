@@ -7,7 +7,7 @@
 import type { Alert, AlertResult } from './types.js';
 import type { SimulationState } from '../state.js';
 import type { TunableConfig } from '../config/index.js';
-import { ALGAE, ALGAE_KINDS, REMOVED_BY, type AlgaeKind, type BloomRemoval } from '../algae/index.js';
+import { ALGAE, ALGAE_KINDS, bloomMass, REMOVED_BY, type AlgaeKind, type BloomRemoval } from '../algae/index.js';
 import { plantLightTaken } from '../plants/canopy.js';
 import { ceiled, latch } from './latch.js';
 
@@ -45,7 +45,7 @@ export function bloomAlert(kind: AlgaeKind): Alert {
     id: `bloom-${kind}`,
 
     check(state: SimulationState, config: TunableConfig): AlertResult {
-      const { mass } = state.algae[kind];
+      const mass = bloomMass(state, kind);
       const taken = plantLightTaken(state, config.optics)[kind] * 100;
       const { level, leads } = bloomLevel(mass, taken);
       return latch(

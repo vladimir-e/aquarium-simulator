@@ -2,25 +2,14 @@
  * Vitality — the one model every organism with a condition runs on.
  *
  * `condition` (0–100) is the buffer between dying and thriving, normal at 100.
- * Each tick benefit rates raise it and damage rates lower it, so nothing dies
- * or heals instantly. Income past 100 banks as `surplus`, capped at
- * `surplusCap`; below 100 the bank heals condition at the organism's healing
- * rate, a first-order drain integrated over the hour. Damage never reaches the
- * bank: the only way out of it is the heal, and whatever the caller spends on
- * growth or offspring.
+ * Each tick benefit rates raise it and damage rates lower it, and the repair
+ * its reserve paid for heals it, so nothing dies or heals instantly. Nothing
+ * banks: condition past 100 is lost.
  *
  * Pure / framework-free — no Immer, no state mutation.
  */
 
-import { hourlyDraw } from '../core/kinetics.js';
-
-/**
- * Whether a bank is full, the moment it buys a plant an offshoot. Never at a
- * cap of 0, where every bank would read full.
- */
-export function bankFull(surplus: number, cap: number): boolean {
-  return cap > 0 && surplus >= cap;
-}
+import { sum } from '../core/sum.js';
 
 /**
  * A single contribution to either damage or benefit, kept for UI display.
@@ -49,12 +38,8 @@ export interface VitalityInput {
   benefits: VitalityFactor[];
   /** Current condition (0–100). */
   condition: number;
-  /** Current bank, clamped into `[0, surplusCap]` on entry. */
-  surplus: number;
-  /** Ceiling on the bank; a negative cap reads as 0. */
-  surplusCap: number;
-  /** First-order rate, per hour, the bank heals condition below 100 at. */
-  healingRate: number;
+  /** Points its reserve repaired this hour. */
+  healed: number;
 }
 
 /** Per-factor breakdown plus aggregated rates, for UI / debug. */
@@ -67,18 +52,14 @@ export interface VitalityBreakdown {
   benefitRate: number;
   /** benefitRate − damageRate (%/h). */
   net: number;
-  /** Condition restored this tick: from the bank, or from a fish's reserve. */
+  /** Points its reserve repaired this tick. */
   healed: number;
-  /** Income that went into the bank this tick. */
-  banked: number;
 }
 
 /** Result of a vitality tick. */
 export interface VitalityResult {
   /** Updated condition (0–100). */
   newCondition: number;
-  /** The bank after this tick, within `[0, surplusCap]`. */
-  surplus: number;
   breakdown: VitalityBreakdown;
 }
 
@@ -92,51 +73,14 @@ export function hardened(factors: VitalityFactor[], hardiness: number): Vitality
   return factors.map((f) => ({ ...f, amount: f.amount * factor }));
 }
 
-/**
- * One tick of vitality:
- * 1. clamp the bank into `[0, cap]`;
- * 2. `condition += Σ benefits − Σ stressors`;
- * 3. above 100 the excess banks (overflow past the cap is discarded) and
- *    condition sits at 100;
- * 4. below 100 the bank heals `min(100 − condition, (1 − e^−healingRate) × bank)`;
- * 5. condition is floored at 0.
- */
-export function computeVitality(input: VitalityInput): VitalityResult {
-  const sum = (factors: VitalityFactor[]): number =>
-    factors.reduce((total, factor) => total + factor.amount, 0);
-
-  const damageRate = sum(input.stressors);
-  const benefitRate = sum(input.benefits);
+/** One tick of vitality: `condition + Σ benefits − Σ stressors + healed`, held within [0, 100]. */
+export function computeVitality({ stressors, benefits, condition, healed }: VitalityInput): VitalityResult {
+  const damageRate = sum(stressors.map((factor) => factor.amount));
+  const benefitRate = sum(benefits.map((factor) => factor.amount));
   const net = benefitRate - damageRate;
-
-  const cap = Math.max(0, input.surplusCap);
-  let surplus = Math.min(cap, Math.max(0, input.surplus));
-  let condition = Math.max(0, Math.min(100, input.condition)) + net;
-  let banked = 0;
-  let healed = 0;
-
-  if (condition > 100) {
-    banked = Math.min(cap - surplus, condition - 100);
-    surplus += banked;
-    condition = 100;
-  } else if (condition < 100) {
-    healed = Math.min(100 - condition, hourlyDraw(input.healingRate) * surplus);
-    surplus -= healed;
-    condition += healed;
-  }
-
   return {
-    newCondition: Math.max(0, condition),
-    surplus,
-    breakdown: {
-      stressors: input.stressors,
-      benefits: input.benefits,
-      damageRate,
-      benefitRate,
-      net,
-      healed,
-      banked,
-    },
+    newCondition: Math.max(0, Math.min(100, condition + net + healed)),
+    breakdown: { stressors, benefits, damageRate, benefitRate, net, healed },
   };
 }
 

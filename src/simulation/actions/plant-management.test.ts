@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { plantsDefaults } from '../config/plants.js';
+import { sizeOf } from '../plants/canopy.js';
 import {
   addPlant,
   removePlant,
@@ -22,7 +24,7 @@ const FERN_FOOTPRINT = GROWTH_FORMS.attached.footprintCm2;
 const FERNS_TO_LAST_GAP = Math.floor(calculateFloorArea(SMALL) / FERN_FOOTPRINT) - 1;
 
 function plant(id: string, size = 50): Plant {
-  return plantRecord({ id, species: 'java_fern', size, condition: 100, surplus: 0 });
+  return plantRecord({ id, species: 'java_fern', size });
 }
 
 function planted(count: number, size = 50): SimulationState {
@@ -42,7 +44,7 @@ const add = (
   species: PlantSpecies,
   initialSize?: number
 ): ActionResult =>
-  addPlant(state, { type: 'addPlant', species, initialSize });
+  addPlant(state, { type: 'addPlant', species, initialSize }, plantsDefaults);
 
 describe('canAddPlant / checkPlantFootprint', () => {
   it('fits a unit while its footprint fits the floor left free', () => {
@@ -87,7 +89,7 @@ describe('addPlant', () => {
 
     expect(result.state.plants).toHaveLength(2);
     expect(second.species).toBe('java_fern');
-    expect(second.size).toBe(DEFAULT_PLANT_SIZE);
+    expect(sizeOf(second)).toBeCloseTo(DEFAULT_PLANT_SIZE, 9);
     expect(second.id).not.toBe(first.id);
     expect(result.message).toBe('Added Java Fern');
     expect(result.state.logs).toHaveLength(state.logs.length + 1);
@@ -98,7 +100,7 @@ describe('addPlant', () => {
 
   it.each([MIN_PLANTABLE_SIZE, 10, 100])('takes an initial size of %d%%', (initialSize) => {
     const result = add(onSubstrate('none'), 'java_fern', initialSize);
-    expect(result.state.plants[0].size).toBe(initialSize);
+    expect(sizeOf(result.state.plants[0])).toBeCloseTo(initialSize, 9);
     expect(result.state.logs.at(-1)!.message).toContain(`${initialSize}%`);
   });
 

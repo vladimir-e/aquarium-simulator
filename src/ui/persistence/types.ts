@@ -25,11 +25,18 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
- * v36: Organic pools carry their content. `Resources.waste` and
- *      `Substrate.organicReserve` become `{ grams, nutrients }` — the grams
- *      and the mg of each nutrient inside them. `PlantsConfig` gains the
- *      flora's energy budget: `somaShare`, `growthEfficiency`,
- *      `reserveCapacity`, `storeFillDays`, `quotaMin` and `quotaMax`.
+ * v36: Organic pools carry their content, and the flora run on energy
+ *      budgets. `Resources.waste` and `Substrate.organicReserve` become
+ *      `{ grams, nutrients }` — the grams and the mg of each nutrient inside
+ *      them. `Plant` trades `size` and `surplus`, and `AlgaeState` `mass` and
+ *      `surplus`, for `budget` — structure, reserve, offshoot buffer and
+ *      stores. `PlantsConfig` drops the bank's `growthDrawRate`,
+ *      `healingDrawRate`, `sizePerSurplus` and `surplusCap`, and
+ *      `tissuePerSize`; gains `somaShare`, `growthEfficiency`,
+ *      `reserveCapacity`, `storeFillDays`, `quotaMin`, `quotaMax`,
+ *      `healingRate` and `healingCost`; and `lightStarvationSeverity`,
+ *      `sufficiencyEdge` and `respirationOxygenHalfSaturation` become
+ *      `starvationSeverity`, `droopEdge` and `oxygenHalfSaturation`.
  * v35: A fish runs on its energy budget. `Fish` trades `mass`, `surplus` and
  *      `ovary` for `deb` — structure, reserve, maturity, brood buffer, wear
  *      and hazard — `survival` and `survivalDraw`. `LivestockConfig` drops the

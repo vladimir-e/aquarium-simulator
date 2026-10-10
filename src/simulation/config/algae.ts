@@ -1,7 +1,7 @@
 /**
  * Algae tunable configuration. The bloom runs on the plants' constants — its
- * light curve, income peaks, severities, bank, healing, growth draw and
- * shedding are `PlantsConfig`'s — and what a kind of bloom is sits in its
+ * light curve, budget, income peaks, severities, healing and shedding are
+ * `PlantsConfig`'s — and what a kind of bloom is sits in its
  * traits (`algae/traits.ts`). What lives here is what thriving plants do to
  * any bloom.
  */

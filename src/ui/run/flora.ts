@@ -19,6 +19,8 @@ import {
   getSubstrateNutrients,
   growthFormOf,
   isOvergrown,
+  offshootShare,
+  sizeOf,
   PLANT_SPECIES_DATA,
   plantFeeder,
   plantNitrateEdge,
@@ -57,7 +59,6 @@ import type { HourAhead } from './ahead.js';
 import { groupBy, mean, numbered } from './fold.js';
 import { plantLightStatus } from './light.js';
 import {
-  bankShare,
   groupMember,
   groupReading,
   printsAsZero,
@@ -206,7 +207,7 @@ export interface PlantRow {
   /** The day's light at its own height over the day's light its species starves under. */
   light: number;
   lightStatus: Status;
-  /** Its bank as a share of what the next offshoot costs. */
+  /** Its offshoot buffer as a share of what the next offshoot costs. */
   bank: number;
 }
 
@@ -221,14 +222,14 @@ export function plantRows(state: SimulationState, config: TunableConfig, ahead: 
       name: PLANT_SPECIES_DATA[plant.species].name,
       familyId: plant.familyId,
       label: labels.get(plant.id)!,
-      size: plant.size,
+      size: sizeOf(plant),
       age: plant.age,
       condition: plant.condition,
       sick,
       reading,
       light: light.needShare,
       lightStatus: plantLightStatus(light, plant.species),
-      bank: bankShare(plant.surplus, config.plants.surplusCap),
+      bank: offshootShare(plant, config.plants),
     };
   });
 }
@@ -379,6 +380,9 @@ export function feedsFromBed(species: PlantSpecies): boolean {
   return growthFormOf(species).rootShare > 0;
 }
 
+/** Share of a plant's need its pools meet that reads as fed. */
+export const FED_SHARE = 0.9;
+
 /** The plants that feed from the water, and the ones that feed through their roots from the bed. */
 const FEEDS_FROM = {
   water: (plant: Plant): boolean => growthFormOf(plant.species).rootShare < 1,
@@ -392,7 +396,7 @@ const FEEDS_FROM = {
  * A plant feeding from both pools reaches that edge with each at its own.
  */
 function neededPpm(plants: readonly Plant[], key: Nutrient, pool: NutrientPool, config: TunableConfig): number {
-  const edge = config.plants.sufficiencyEdge;
+  const edge = FED_SHARE;
   const forms = FORMS_OF[key];
   const before = forms.slice(0, forms.indexOf(key));
   return Math.max(
