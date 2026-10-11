@@ -93,6 +93,30 @@ describe('healing', () => {
   });
 });
 
+describe('shedShare', () => {
+  it('is nothing at full condition and maxSheddingRate at 0', () => {
+    expect(shedShare(100, config)).toBe(0);
+    expect(shedShare(0, config)).toBe(config.maxSheddingRate);
+  });
+
+  it('follows the square of the condition deficit', () => {
+    expect(shedShare(50, config)).toBeCloseTo(shedShare(0, config) / 4, 12);
+    expect(shedShare(90, config)).toBeCloseTo(shedShare(0, config) / 100, 12);
+  });
+
+  it('is smooth in condition: no step anywhere, and flat as it leaves 100', () => {
+    const top = config.maxSheddingRate;
+    let previous = shedShare(100, config);
+    for (let condition = 99.9; condition > 0; condition -= 0.1) {
+      const now = shedShare(condition, config);
+      expect(now).toBeGreaterThan(previous);
+      expect(now - previous).toBeLessThan(top * 0.0021);
+      previous = now;
+    }
+    expect(shedShare(99.9, config) / top).toBeLessThan(1e-5);
+  });
+});
+
 describe('loseFlora', () => {
   const p = plantParams('java_fern', config);
   const budget = stocked(2, p);

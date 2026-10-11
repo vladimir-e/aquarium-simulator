@@ -11,6 +11,7 @@ import { ALGAE_KINDS, bloomMass } from '../algae/index.js';
 import { bloomParams, plantParams } from '../flora/params.js';
 import type { FloraParams, FloraState } from '../systems/flora-budget.js';
 import { offshootStructure } from '../plants/create-plant.js';
+import { sizeOf } from '../plants/canopy.js';
 import { fishOrganics, fishParams, fishSize, frySize } from '../systems/fish-body.js';
 import { stockedBody } from '../livestock/create-fish.js';
 import { mature } from '../systems/deb.js';
@@ -157,16 +158,17 @@ describe('nitrogen mass', () => {
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 2);
   });
 
-  it('is conserved through the bed and the chain for waste of a composition far from food’s', () => {
+  it('is conserved through the bed and the chain for waste of a composition far from food’s, most of it ending as dissolved nitrate in the dark', () => {
     const start = produce(cycledBareTank(), (draft) => {
       draft.equipment.substrate.type = 'gravel';
+      draft.equipment.light.enabled = false;
       draft.resources.waste = ofComposition(10, LEAN);
     });
     const mid = run(start, 24);
     const end = run(mid, 2000);
 
     expect(mid.equipment.substrate.organicReserve.grams).toBeGreaterThan(0);
-    expect(pooled(end).nitrate).toBeLessThan(pooled(start).nitrate / 2);
+    expect(end.resources.nitrate / (end.resources.nitrate + pooled(end).nitrate)).toBeGreaterThan(0.5);
     for (const state of [mid, end]) {
       expect(nitrogenInPools(state) / nitrogenInPools(start)).toBeCloseTo(1, 10);
       for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(state, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
@@ -577,21 +579,22 @@ describe('blooms at every tunable’s maximum', () => {
     );
   });
 
+  const expectBounded = (fill: number, { budget, condition }: { budget: FloraState; condition: number }): void => {
+    expect(fill).toBeGreaterThanOrEqual(0);
+    expect(fill).toBeLessThanOrEqual(100);
+    expect(condition).toBeGreaterThanOrEqual(0);
+    expect(condition).toBeLessThanOrEqual(100);
+    for (const held of [budget.structure, budget.reserve, budget.offshootBuffer, ...Object.values(budget.stores)]) {
+      expect(held).toBeGreaterThanOrEqual(0);
+    }
+  };
+
   const keepBounded = (start: SimulationState, config: TunableConfig): SimulationState => {
     let state = start;
     for (let hour = 0; hour < 48; hour++) {
       state = tick(state, config);
-      for (const kind of ALGAE_KINDS) {
-        const { budget, condition } = state.algae[kind];
-        const mass = bloomMass(state, kind);
-        expect(mass).toBeGreaterThanOrEqual(0);
-        expect(mass).toBeLessThanOrEqual(100);
-        expect(condition).toBeGreaterThanOrEqual(0);
-        expect(condition).toBeLessThanOrEqual(100);
-        for (const held of [budget.structure, budget.reserve, budget.offshootBuffer, ...Object.values(budget.stores)]) {
-          expect(held).toBeGreaterThanOrEqual(0);
-        }
-      }
+      for (const kind of ALGAE_KINDS) expectBounded(bloomMass(state, kind), state.algae[kind]);
+      for (const plant of state.plants) expectBounded(sizeOf(plant), plant);
     }
     return state;
   };
@@ -600,7 +603,7 @@ describe('blooms at every tunable’s maximum', () => {
     keepBounded(crowded, config);
   });
 
-  it.each(maxed)('keep those bounds over a planting, every figure finite, with %s at its max', (_path, config) => {
+  it.each(maxed)('keep those bounds over a planting, every plant within a full unit, every figure finite, with %s at its max', (_path, config) => {
     expect(nonFinitePaths(keepBounded(planted, config))).toEqual([]);
   });
 });

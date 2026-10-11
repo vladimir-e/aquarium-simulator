@@ -80,7 +80,7 @@ describe('LifeSection', () => {
     expect(drawer.getByText('% condition')).toBeTruthy();
     expect(drawer.getByText('Coverage')).toBeTruthy();
     expect(drawer.getByText('% of need')).toBeTruthy();
-    expect(drawer.queryByText('Bank')).toBeNull();
+    expect(drawer.queryByText('Buffer')).toBeNull();
     expect(drawer.queryByRole('button', { name: 'Remove' })).toBeNull();
   });
 

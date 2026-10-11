@@ -457,15 +457,12 @@ describe('nutrientReadings', () => {
     ];
     for (const [species, hungriest] of plantings) {
       const state = planted(species);
-      for (const edge of [FED_SHARE]) {
-        const config = DEFAULT_CONFIG;
-        const { need } = nutrientProbe(state, config);
-        const atNeed = produce(state, (draft) => {
-          for (const reading of nutrientReadings(state, config)) draft.resources[reading.key] = reading.needed * state.resources.water;
-          draft.equipment.substrate.nutrients = mapNutrients((n) => getMassFromPpm(need.bed[n], state.tank.capacity));
-        });
-        expect(calculateNutrientSufficiency(tankPools(atNeed), hungriest, config.nutrients)).toBeCloseTo(edge, 6);
-      }
+      const { need } = nutrientProbe(state, DEFAULT_CONFIG);
+      const atNeed = produce(state, (draft) => {
+        for (const reading of nutrientReadings(state, DEFAULT_CONFIG)) draft.resources[reading.key] = reading.needed * state.resources.water;
+        draft.equipment.substrate.nutrients = mapNutrients((n) => getMassFromPpm(need.bed[n], state.tank.capacity));
+      });
+      expect(calculateNutrientSufficiency(tankPools(atNeed), hungriest, DEFAULT_CONFIG.nutrients)).toBeCloseTo(FED_SHARE, 6);
     }
   });
 

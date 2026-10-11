@@ -140,6 +140,25 @@ describe('readLedger', () => {
       expect(plantLedger(starving).bank!.note).toBe('short of upkeep');
     });
 
+    it('names the buffer by what the next tick does to it', () => {
+      const unit = offshootStructure('java_fern');
+      const unfedInTheDark = (state: SimulationState): SimulationState => ({
+        ...state,
+        equipment: { ...state.equipment, light: { ...state.equipment.light, enabled: false } },
+        resources: { ...state.resources, lightByHour: state.resources.lightByHour.map(() => 0) },
+        plants: state.plants.map((plant) => ({ ...plant, budget: { ...plant.budget, reserve: 0 } })),
+      });
+      const states = [planted(10, unit / 2), planted(0, unit / 2), planted(10, 1.01 * unit), unfedInTheDark(planted(0, unit / 2))];
+      const notes = states.map((state) => {
+        const next = tick(state, DEFAULT_CONFIG);
+        const moved = next.plants[0].budget.offshootBuffer - state.plants[0].budget.offshootBuffer;
+        const note = plantLedger(state).bank!.note;
+        expect(note).toBe(next.plants.length > state.plants.length ? 'buying an offshoot' : moved > 0 ? 'filling' : 'short of upkeep');
+        return note;
+      });
+      expect(new Set(notes)).toEqual(new Set(['filling', 'buying an offshoot', 'short of upkeep']));
+    });
+
     it('tones its light warn exactly while the light-high stressor charges it, whatever its need', () => {
       const burns = [20, 200, 800].map((par) => {
         const state = produce(planted(10), (draft) => {

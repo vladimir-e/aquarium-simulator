@@ -3,17 +3,27 @@ import { produce } from 'immer';
 import { processFlora } from './index.js';
 import { bloomParams, plantParams } from './params.js';
 import { readPlantLight } from '../plants/index.js';
-import { sizeOf } from '../plants/canopy.js';
+import { floorCover, sizeOf } from '../plants/canopy.js';
 import { offshootStructure } from '../plants/create-plant.js';
 import { nutrientsIn, uptakeAlkalinity } from '../systems/nutrients.js';
 import { carbonGases } from '../systems/photosynthesis.js';
-import type { FloraFluxes, FloraState } from '../systems/flora-budget.js';
+import { floraNutrients, type FloraFluxes, type FloraState } from '../systems/flora-budget.js';
 import { totalBurned } from '../systems/reserve.js';
 import { shedShare } from '../systems/flora.js';
 import { deltaOf } from '../tests/effects.js';
 import { getPpm } from '../resources/index.js';
 import { createSimulation, type Plant, type Resources, type SimulationState } from '../state.js';
-import { ALGAE, ALGAE_KINDS, allelopathy, bloomMass, habitatGain, type AlgaeKind } from '../algae/index.js';
+import {
+  ALGAE,
+  ALGAE_KINDS,
+  allelopathy,
+  bloomMass,
+  bloomTissue,
+  habitatGain,
+  habitatSize,
+  type AlgaeKind,
+} from '../algae/index.js';
+import { createRng } from '../core/rng.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { mapNutrients, NUTRIENTS, nutrientsDefaults, type NutrientVector } from '../config/nutrients.js';
 import { PLANT_SPECIES_DATA, growthFormOf, type PlantSpecies } from '../plants/species.js';
@@ -120,6 +130,33 @@ describe('processFlora — the gases', () => {
   it('emits no gas into a tank with no water in it', () => {
     const { effects } = processFlora(tank({ plants: [sword()], ...LIT, water: 0 }), config);
     expect(total(effects, 'oxygen', 'photosynthesis')).toBe(0);
+  });
+
+  describe('the compensation point', () => {
+    const netOxygen = (species: PlantSpecies, light: number): number =>
+      total(processFlora(tank({ plants: [plantRecord({ id: 'p', species, size: 50 })], light, co2: 30 }), config).effects, 'oxygen');
+
+    const crossover = (species: PlantSpecies): number => {
+      let dark = 0;
+      let lit = 400;
+      for (let step = 0; step < 40; step++) {
+        const mid = (dark + lit) / 2;
+        if (netOxygen(species, mid) < 0) dark = mid;
+        else lit = mid;
+      }
+      return lit;
+    };
+
+    it('runs a planting under too dim a fixture at a net loss, lamps on', () => {
+      for (const species of ['java_fern', 'monte_carlo'] as const) {
+        expect(netOxygen(species, crossover(species) / 2)).toBeLessThan(0);
+        expect(netOxygen(species, 400)).toBeGreaterThan(0);
+      }
+    });
+
+    it('breaks even in dimmer light the lower a species saturates', () => {
+      expect(crossover('java_fern')).toBeLessThan(crossover('monte_carlo'));
+    });
   });
 });
 
@@ -244,6 +281,35 @@ describe('processFlora — plants', () => {
     expect(result.state.logs.at(-1)!.message).toContain(growthFormOf('java_fern').offshootVerb);
   });
 
+  it('buys offshoots whatever the floor', () => {
+    const crammed = Array.from({ length: 12 }, (_, i) =>
+      withBudget(plantRecord({ id: `m${i}`, species: 'amazon_sword', size: 100 }), {
+        offshootBuffer: 1.01 * offshootStructure('amazon_sword'),
+      })
+    );
+    const state = tank({ plants: crammed, ...LIT });
+    expect(floorCover(state.plants, state.tank.capacity)).toBeGreaterThan(1);
+    expect(processFlora(state, config).state.plants).toHaveLength(24);
+  });
+
+  it('draws ids and vigours in plant order, so one seed gives one lineage', () => {
+    const mothers = ['a', 'b', 'c'].map((id) =>
+      withBudget(plantRecord({ id, species: 'java_fern', size: 80 }), { offshootBuffer: 1.01 * offshootStructure('java_fern') })
+    );
+    const born = (rngSeed: number): Plant[] =>
+      processFlora(
+        produce(tank({ plants: mothers, ...LIT }), (draft) => {
+          draft.rng = createRng(rngSeed);
+        }),
+        config
+      ).state.plants.slice(3);
+    const lineage = (plants: Plant[]): unknown[] => plants.map(({ id, parentId, familyId, vigour }) => ({ id, parentId, familyId, vigour }));
+
+    expect(born(11).map((p) => p.parentId)).toEqual(['a', 'b', 'c']);
+    expect(lineage(born(11))).toEqual(lineage(born(11)));
+    expect(born(11).map((p) => p.vigour)).not.toEqual(born(12).map((p) => p.vigour));
+  });
+
   it('cuts one offshoot loose an hour: a buffer holding two buys one, and the other the hour after', () => {
     const fern = plantRecord({ id: 'fern', species: 'java_fern', size: 80 });
     const budding = withBudget(fern, { offshootBuffer: 2.02 * offshootStructure('java_fern') });
@@ -267,7 +333,7 @@ describe('processFlora — plants', () => {
     expect(JSON.stringify(state)).toBe(frozen);
   });
 
-  it('keeps every field finite every hour of a lit month', () => {
+  it('keeps every field finite every hour of a lit month, the sword budding within it', () => {
     let state = tank({ plants: [sword(), plantRecord({ id: 'c', species: 'monte_carlo', size: 30 })], ...LIT, algae: { greenWater: 1, film: 1 } });
     for (let hour = 0; hour < 30 * 24; hour++) {
       const lit = hour % 24 < CARE_SHEET_PHOTOPERIOD;
@@ -275,6 +341,7 @@ describe('processFlora — plants', () => {
     }
     expect(nonFinitePaths(state)).toEqual([]);
     expect(state.plants.every((p) => sizeOf(p) <= 100)).toBe(true);
+    expect(state.plants.some((p) => p.parentId === 'sword')).toBe(true);
   });
 });
 
@@ -316,11 +383,20 @@ describe.each(ALGAE_KINDS)('processFlora — %s', (kind) => {
     expect(result.state.algae[kind].condition).toBe(100);
   });
 
-  it('lands spores every hour, even on an empty habitat, out of the water', () => {
+  it('lands spores every hour, even on an empty habitat, unfed, at Q_min and stores no fuller than full, out of exactly what the water lost', () => {
     const state = tank({ ...DARK });
     const result = processFlora(state, config);
-    expect(result.state.algae[kind].budget.structure).toBeGreaterThan(0);
-    expect(result.algae[kind].waterUptake.phosphate).toBeGreaterThan(0);
+    const p = bloomParams(kind, config.plants);
+    const landed = result.state.algae[kind].budget;
+    const held = floraNutrients(landed, p);
+    const took = nutrientsIn(result.algae[kind].waterUptake);
+    expect(landed.structure).toBeGreaterThan(0);
+    expect(landed.structure).toBeLessThanOrEqual(bloomTissue(traits.sporeRate, habitatSize(traits.habitat, state), traits));
+    expect(landed.reserve).toBe(0);
+    for (const n of NUTRIENTS) {
+      expect(held[n]).toBeCloseTo(took[n], 12);
+      expect(landed.stores[n]).toBeLessThanOrEqual((p.qMax[n] - p.qMin[n]) * landed.structure * (1 + 1e-12));
+    }
   });
 
   it('is offered carbon to the ceiling thriving plants’ exudates leave it, and the lower the more of them', () => {
