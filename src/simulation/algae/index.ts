@@ -148,7 +148,7 @@ export function landSpores(bloom: AlgaeState | null, spores: FloraState): AlgaeS
   };
 }
 
-/** Each kind's coverage at a place: its coverage times the share of its habitat that lies there. */
+/** Each kind's coverage at a place: its whole coverage times the share of its habitat that lies there. */
 export function coverageAt(
   tank: HabitatTank & Pick<SimulationState, 'algae'>,
   place: HabitatPlace
