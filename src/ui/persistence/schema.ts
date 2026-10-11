@@ -491,8 +491,8 @@ const PlantsConfigSchema = z
     highCo2HalfSaturation: z.number(),
     saturationIrradianceFactor: z.number(),
     baseRespirationRate: z.number(),
-    respirationQ10: z.number(),
-    respirationReferenceTemp: z.number(),
+    paceQ10: z.number(),
+    paceReferenceTemp: z.number(),
     oxygenHalfSaturation: z.number(),
     co2PerRateUnit: z.number(),
     // Vitality stressor severities

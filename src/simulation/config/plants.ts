@@ -29,13 +29,13 @@ export interface PlantsConfig {
    */
   saturationIrradianceFactor: number;
 
-  // Respiration constants
+  // Respiration and pace
   /** Respiration rate per rate unit of leaf at growth rate 1, per hour. */
   baseRespirationRate: number;
-  /** Q10 temperature coefficient (rate multiplier per 10°C) */
-  respirationQ10: number;
-  /** Reference temperature for respiration calculations (°C) */
-  respirationReferenceTemp: number;
+  /** Q10 of the pace τ every rate of a flora's budget runs at (multiplier per 10 °C). */
+  paceQ10: number;
+  /** Temperature the pace τ is 1 at (°C). */
+  paceReferenceTemp: number;
   /**
    * Dissolved O2 (mg/L) half-saturating the oxygen pace ω, read against
    * saturated water: it scales what a flora assimilates and mobilises, never
@@ -136,8 +136,8 @@ export const plantsDefaults: PlantsConfig = {
   // of the 5–15 % the macrophyte literature reports against light-saturated
   // gross photosynthesis.
   baseRespirationRate: 0.03,
-  respirationQ10: 2.0, // Rate doubles per 10°C increase
-  respirationReferenceTemp: 25.0, // °C
+  paceQ10: 2.0, // Rate doubles per 10°C increase
+  paceReferenceTemp: 25.0, // °C
   // Submerged tissue takes its oxygen out of the water across a boundary layer
   // rather than out of air, so the limit a plant meets is diffusion into the
   // leaf and not the mitochondrion's own affinity — macrophyte tissue starts
@@ -243,7 +243,7 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     step: 0.1,
   },
 
-  // Respiration
+  // Respiration and pace
   {
     key: 'baseRespirationRate',
     label: 'Base Respiration Rate',
@@ -252,10 +252,10 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     max: 0.2,
     step: 0.005,
   },
-  { key: 'respirationQ10', label: 'Respiration Q10', unit: '', min: 1.5, max: 3.0, step: 0.1 },
+  { key: 'paceQ10', label: 'Pace Q10', unit: '', min: 1.5, max: 3.0, step: 0.1 },
   {
-    key: 'respirationReferenceTemp',
-    label: 'Respiration Ref Temp',
+    key: 'paceReferenceTemp',
+    label: 'Pace Ref Temp',
     unit: '°C',
     min: 20,
     max: 30,

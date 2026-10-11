@@ -154,7 +154,7 @@ for every kind.
 | `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which a species of each carbon need photosynthesises at half rate | mg/L |
 | `saturationIrradianceFactor` | Multiple of a species' band low at which its light response saturates — the `Ik` of the light curve | × band low |
 | `baseRespirationRate` | Maintenance per rate unit of leaf at growth rate 1, as a share of the saturated rate, owed around the clock | /hr |
-| `respirationQ10` · `respirationReferenceTemp` | Factor every rate of a flora's budget multiplies by per 10 °C, and the temperature they are quoted at | — · °C |
+| `paceQ10` · `paceReferenceTemp` | Factor the pace every rate of a flora's budget runs at multiplies by per 10 °C, and the temperature it is 1 at | — · °C |
 | `oxygenHalfSaturation` | Dissolved O₂ half-saturating a flora's oxygen pace, read against saturated water — its intake and mobilisation, never its upkeep | mg/L |
 | `co2PerRateUnit` | CO₂ carried by one rate unit, fixed and released alike; oxygen derives from it at the molar ratio | mg |
 

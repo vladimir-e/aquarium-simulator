@@ -354,6 +354,7 @@ export { plantParams, bloomParams } from './flora/params.js';
 export {
   saturationIrradiance,
   dailyLightEdge,
+  floraPace,
   TISSUE_PER_RATE_UNIT,
   shedShare,
 } from './systems/flora.js';
@@ -436,7 +437,6 @@ export {
   sizeOf,
   unitOf,
   calculateCo2Factor,
-  getRespirationTemperatureFactor,
   VIGOUR_SPAN,
   MIN_PLANTABLE_SIZE,
   isPlantableSize,

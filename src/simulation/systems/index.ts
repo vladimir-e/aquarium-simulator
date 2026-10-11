@@ -27,11 +27,10 @@ export {
 
 export { offerCarbon, calculateCo2Factor } from './photosynthesis.js';
 
-export { getRespirationTemperatureFactor } from './respiration.js';
-
 export {
   saturationIrradiance,
   dailyLightEdge,
+  floraPace,
   growthTaper,
   floraStressors,
   floraBenefits,

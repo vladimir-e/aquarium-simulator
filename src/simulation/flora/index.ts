@@ -82,10 +82,9 @@ import {
   tankPools,
   uptakeAlkalinity,
 } from '../systems/nutrients.js';
-import { getRespirationTemperatureFactor } from '../systems/respiration.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
 import { buyOffshoot, stepFlora, storeRequest, takeUp, type FloraFluxes } from '../systems/flora-budget.js';
-import { growthTaper, loseFlora } from '../systems/flora.js';
+import { floraPace, growthTaper, loseFlora } from '../systems/flora.js';
 import { NO_STRESS, oxygenPace, repairAsked, totalBurned } from '../systems/reserve.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import type { VitalityResult } from '../systems/vitality.js';
@@ -144,7 +143,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
 
   // 1. Light, the hour's pace, and where each one feeds.
   const light = readPlantLight(state, config);
-  const tau = getRespirationTemperatureFactor(resources.temperature, plantsConfig);
+  const tau = floraPace(resources.temperature, plantsConfig);
   const saturation = calculateO2Saturation(resources.temperature, config.gasExchange);
   const omega = oxygenPace(resources.oxygen, saturation, plantsConfig.oxygenHalfSaturation);
   const pools = tankPools(state);

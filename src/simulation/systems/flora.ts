@@ -8,7 +8,7 @@
 import type { Resources } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { getPh } from '../core/carbonate.js';
-import { monodFactor } from '../core/kinetics.js';
+import { monodFactor, q10Factor } from '../core/kinetics.js';
 import { parHoursToDli } from '../equipment/light.js';
 import { ZERO_NUTRIENTS, type NutrientVector } from '../config/nutrients.js';
 import { NO_ORGANICS, type Organics } from '../core/organics.js';
@@ -53,6 +53,15 @@ export function saturationIrradiance(traits: FloraTraits, config: PlantsConfig):
  */
 export function dailyLightEdge(traits: FloraTraits): number {
   return parHoursToDli(traits.lowLight, CARE_SHEET_PHOTOPERIOD);
+}
+
+/**
+ * τ, the pace its tissue lives at: every rate of its budget — what it
+ * assimilates, mobilises and owes, and what its stores take up — runs on this
+ * Q10 off the reference temperature.
+ */
+export function floraPace(temperature: number, plantsConfig: PlantsConfig): number {
+  return q10Factor(temperature, plantsConfig.paceQ10, plantsConfig.paceReferenceTemp);
 }
 
 /** Share of its growth room left: 1 empty, none at a full 100 or past it. */

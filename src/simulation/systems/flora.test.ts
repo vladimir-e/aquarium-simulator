@@ -3,6 +3,7 @@ import {
   CARE_SHEET_PHOTOPERIOD,
   dailyLightEdge,
   floraBenefits,
+  floraPace,
   floraStressors,
   growthTaper,
   loseFlora,
@@ -51,6 +52,22 @@ describe('dailyLightEdge', () => {
       expect(dailyLightEdge(traits)).toBe(parHoursToDli(traits.lowLight, CARE_SHEET_PHOTOPERIOD));
     }
     expect(dailyLightEdge(plantTraits('monte_carlo'))).toBeGreaterThan(dailyLightEdge(plantTraits('anubias')));
+  });
+});
+
+describe('floraPace', () => {
+  const { paceQ10: q10, paceReferenceTemp: ref } = config;
+
+  it('is 1 at the reference temperature and q10 per 10 °C either way', () => {
+    expect(floraPace(ref, config)).toBeCloseTo(1, 10);
+    expect(floraPace(ref + 10, config)).toBeCloseTo(q10, 10);
+    expect(floraPace(ref - 30, config)).toBeCloseTo(q10 ** -3, 10);
+  });
+
+  it('reads the reference and q10 off the config', () => {
+    const custom = { ...config, paceReferenceTemp: 20, paceQ10: 3 };
+    expect(floraPace(20, custom)).toBeCloseTo(1, 10);
+    expect(floraPace(30, custom)).toBeCloseTo(3, 10);
   });
 });
 
