@@ -4,6 +4,7 @@
  * units do, and Droop quotas off the plants' config or a bloom kind's traits.
  */
 
+import type { Plant } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { mapNutrients, type NutrientVector } from '../config/nutrients.js';
 import { CO2_TO_CH2O_MASS_RATIO, N_TO_NO3_MASS_RATIO, P_TO_PO4_MASS_RATIO } from '../core/chemistry.js';
@@ -50,8 +51,11 @@ function floraParams(
   };
 }
 
-/** A species' params, or a unit's at its vigour: its assimilation ceiling lifted by `1 + vigour`. */
-export const plantParams = (species: PlantSpecies, plantsConfig: PlantsConfig, vigour = 0): FloraParams =>
+export const plantParams = (species: PlantSpecies, plantsConfig: PlantsConfig): FloraParams =>
+  floraParams(plantTraits(species), plantsConfig.somaShare, plantsConfig, plantsConfig);
+
+/** A unit's params: its species', its assimilation ceiling lifted by `1 + vigour`. */
+export const unitParams = ({ species, vigour }: Pick<Plant, 'species' | 'vigour'>, plantsConfig: PlantsConfig): FloraParams =>
   floraParams(plantTraits(species), plantsConfig.somaShare, plantsConfig, plantsConfig, vigour);
 
 /** A bloom's growth is its reproduction: it keeps no offshoot buffer, so its whole mobilisation goes to the soma. */

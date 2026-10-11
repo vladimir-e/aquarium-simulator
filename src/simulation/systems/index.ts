@@ -25,7 +25,7 @@ export {
   calculateDecay,
 } from './decay.js';
 
-export { offerCarbon, calculateCo2Factor } from './photosynthesis.js';
+export { offerCarbon } from './photosynthesis.js';
 
 export {
   saturationIrradiance,
@@ -46,7 +46,6 @@ export {
   calculateSeeding,
   calculateColonyFlows,
   ammoniaIn,
-  mineralise,
   wasteMineralised,
   calculateAmmoniaToNitrite,
   calculateNitriteToNitrate,

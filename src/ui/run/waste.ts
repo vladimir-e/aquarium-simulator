@@ -9,7 +9,6 @@
 import {
   ALGAE_KINDS,
   addOrganics,
-  atRecipe,
   calculateSubstrateLeach,
   scaleOrganics,
   decayFraction,
@@ -70,7 +69,7 @@ export function wasteInflow(
   ahead: HourAhead
 ): WasteInflowReadout {
   const inflow: Record<WasteSourceKey, Organics> = {
-    food: atRecipe(ahead.foodWaste, config),
+    food: ahead.foodWaste,
     fish: ahead.fishWaste,
     plants: ahead.shedding,
     algae: addOrganics(...ALGAE_KINDS.map((kind) => ahead.algae[kind].shedding)),

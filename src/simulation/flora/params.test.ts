@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bloomParams, plantParams } from './params.js';
+import { bloomParams, plantParams, unitParams } from './params.js';
 import { plantsDefaults, quotaMaxMeta, quotaMinMeta, type PlantsConfig } from '../config/plants.js';
 import { NUTRIENTS, type Nutrient, type NutrientVectorMeta } from '../config/nutrients.js';
 import { CO2_TO_CH2O_MASS_RATIO } from '../core/chemistry.js';
@@ -87,7 +87,7 @@ describe('pace', () => {
 
 describe('vigour', () => {
   const vigour = 0.1;
-  const own = plantParams('amazon_sword', config, vigour);
+  const own = unitParams({ species: 'amazon_sword', vigour }, config);
   const species = plantParams('amazon_sword', config);
 
   it('lifts a unit’s assimilation ceiling by 1 + vigour, its reserve filling to the same E_m on the same upkeep', () => {

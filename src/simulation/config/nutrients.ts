@@ -1,8 +1,8 @@
 /**
  * Nutrients tunable configuration: what the fertilizer and a root tab carry,
  * how fast the bed gives its store up to the water, how hard each species
- * leans on a pool, and the minerals in a gram of food — and of the fish and
- * plant tissue made at its recipe.
+ * leans on a pool, and the minerals in a gram of food — and of the fish made
+ * of it.
  */
 
 import type { NutrientDemand } from '../plants/species.js';

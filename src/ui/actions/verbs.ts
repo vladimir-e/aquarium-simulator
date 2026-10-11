@@ -13,6 +13,7 @@ import {
   ALGAE_KINDS,
   applyAction,
   bloomCoverage,
+  bloomShows,
   canDose,
   canRootTab,
   coverage,
@@ -32,7 +33,6 @@ import { FoodResource, getPpm, NitrateResource } from '../../simulation/resource
 import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
 import {
   bedReading,
-  bloomShows,
   bloomVerb,
   doseToCover,
   nutrientReadings,

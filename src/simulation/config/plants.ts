@@ -192,10 +192,10 @@ export const plantsDefaults: PlantsConfig = {
   ghStressSeverity: 0.1,
   nutrientDeficiencySeverity: 0.3,
   // A plant's full stores reach a Droop limit of 33/45 on nitrogen, the least
-  // of the four. Harm starts at 9/22 of that, a limit of 0.3, where its
-  // nitrogen store has fallen to a sixth of full — a quota near the critical
-  // 1.3 % of Gerloff & Krombholz 1966.
-  droopEdge: 9 / 22,
+  // of the four. Harm starts at 0.41 of that, a limit of 0.3007, where its
+  // nitrogen store has fallen to about a sixth of full — a quota near the
+  // critical 1.3 % of Gerloff & Krombholz 1966.
+  droopEdge: 0.41,
   // Plants take nitrate far past where fish do: the edge sits at 100 ppm, so
   // only a runaway doser reaches it, and each e-fold past it costs what one
   // costs a fish.

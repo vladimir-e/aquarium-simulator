@@ -9,6 +9,7 @@
 import {
   addOrganics,
   applyEffects,
+  atRecipe,
   bloomCoverage,
   calculateDecay,
   dailyLightIntegral,
@@ -78,8 +79,8 @@ export interface HourAhead {
   gillAmmonia: number;
   /** Grams of food a day that would pay the fish's upkeep at the hour's pace. */
   ration: number;
-  /** Grams of waste decaying food leaves, off what the fish have not eaten. */
-  foodWaste: number;
+  /** Waste decaying food leaves, off what the fish have not eaten. */
+  foodWaste: Organics;
   /** mg of NH₃ the oxidised share of that food releases straight into the water. */
   foodAmmonia: number;
   /** mg of each form the plants' stores take up from the water. */
@@ -137,7 +138,7 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     fishWaste: addOrganics(livestock.feces, bodies.waste),
     gillAmmonia: gillAmmonia(livestock.burned + bodies.burned, config.livestock),
     ration: TICKS_PER_DAY * sum(livestock.hours.map((hour) => ration(hour.fish, hour.fluxes.owed))),
-    foodWaste: decayed * wasteShare,
+    foodWaste: atRecipe(decayed * wasteShare, config),
     foodAmmonia: decayed * (1 - wasteShare) * ammoniaPerGramOfFood(config.livestock),
     waterUptake: flora.waterUptake,
   };

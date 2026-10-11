@@ -1,10 +1,6 @@
 /**
  * Trim plants action - reduces plant size, either a single plant (when `plantId` is set)
  * or every plant above `targetSize` in bulk — of one family when `familyId` is set.
- *
- * Trimmed material exits the system cleanly (not converted to waste), its
- * reserve and stores with it. This simulates the aquarist properly removing
- * and disposing of trimmed leaves.
  */
 
 import { produce } from 'immer';
@@ -41,8 +37,8 @@ export function getPlantsToTrimCount(state: SimulationState, targetSize: number)
  * If `action.plantId` is set, trims only that plant down to `targetSize` (no-op if
  * the plant is missing or already at/below target). Otherwise, reduces every plant
  * above `targetSize` to the target — every plant of `action.familyId` when that is
- * set. Trimmed material exits the system — the waste pool is untouched. A target
- * under `MIN_PLANTABLE_SIZE` is refused.
+ * set. Trimmed material exits the system, its reserve and stores with it — the
+ * waste pool is untouched. A target under `MIN_PLANTABLE_SIZE` is refused.
  */
 export function trimPlants(state: SimulationState, action: TrimPlantsAction): ActionResult {
   const { targetSize, plantId, familyId } = action;

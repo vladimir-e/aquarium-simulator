@@ -22,7 +22,7 @@ import {
   nutrientsIn,
   offshootShare,
   plantFeeder,
-  plantParams,
+  unitParams,
   poolDraws,
   sizeOf,
   storeFill,
@@ -55,7 +55,7 @@ import {
   type TunableConfig,
 } from '../../simulation/config/index.js';
 import { NITRATE_EDGE } from '../../simulation/livestock/tolerance.js';
-import { BLOOM_COVERAGE_LINE, BLOOM_VISIBLE_LINE, bloomLevel, PLANT_LIGHT_LINE } from '../../simulation/alerts/index.js';
+import { BLOOM_COVERAGE_LINE, bloomLevel, bloomShows, PLANT_LIGHT_LINE } from '../../simulation/alerts/index.js';
 import type { HourAhead } from './ahead.js';
 import { groupBy, mean, numbered } from './fold.js';
 import { plantLightStatus } from './light.js';
@@ -74,11 +74,6 @@ import {
  * every rung here is reachable in an ordinary run.
  */
 export const TRIM_TARGETS = [50, 75, 85];
-
-/** Whether there is any bloom to see. */
-export function bloomShows(coverage: number): boolean {
-  return coverage >= BLOOM_VISIBLE_LINE;
-}
 
 /**
  * Where a figure's tone turns, as a multiple of the line the engine alerts
@@ -401,7 +396,7 @@ function poolStores(feedings: readonly Feeding[], pool: number, held: NutrientVe
 export function plantingStores(state: SimulationState, config: TunableConfig): PlantingStores {
   const pools = tankPools(state);
   const feedings = state.plants.map((plant): Feeding => {
-    const p = plantParams(plant.species, config.plants);
+    const p = unitParams(plant, config.plants);
     return {
       draws: poolDraws(pools, plantFeeder(plant.species, config.nutrients)),
       fill: storeFill(plant.budget, p),

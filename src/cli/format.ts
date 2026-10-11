@@ -9,7 +9,7 @@ import {
   getDgh,
   getDkh,
   getPh,
-  plantParams,
+  unitParams,
   wellFed,
   type AlgaeKind,
   type SimulationState,
@@ -61,7 +61,7 @@ function sick(readings: { sick: boolean }[]): string {
 
 /** The planting's mean reserve. */
 function meanReserve(state: SimulationState, config: TunableConfig): number {
-  const reserve = state.plants.reduce((sum, plant) => sum + wellFed(plant.budget, plantParams(plant.species, config.plants)), 0);
+  const reserve = state.plants.reduce((sum, plant) => sum + wellFed(plant.budget, unitParams(plant, config.plants)), 0);
   return reserve / state.plants.length;
 }
 

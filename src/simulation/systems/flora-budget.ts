@@ -64,7 +64,7 @@ export interface FloraBudgetHour {
   healing?: number;
 }
 
-export interface FloraBurned {
+interface FloraBurned {
   maintenance: number;
   growth: number;
   starvation: number;
@@ -285,7 +285,7 @@ export function offshootReady(state: FloraState, p: FloraParams, structure: numb
   return state.offshootBuffer >= structure && NUTRIENTS.every((n) => state.stores[n] >= p.qMin[n] * structure);
 }
 
-export interface Offshoot {
+interface Offshoot {
   parent: FloraState;
   offshoot: FloraState;
 }
@@ -316,6 +316,9 @@ export function buyOffshoot(state: FloraState, p: FloraParams, structure: number
   };
 }
 
+const tissueOrganics = (p: FloraParams, structure: number, reserve: number): Organics =>
+  addOrganics(ofComposition(structure, p.qMin), ofComposition(reserve, ZERO_NUTRIENTS));
+
 /**
  * `structure` shed as waste at Q_min, with its reserve at the unit's density;
  * the store it held is resorbed and stays.
@@ -324,7 +327,7 @@ export function shed(state: FloraState, p: FloraParams, structure: number): { st
   const reserve = state.structure > 0 ? (state.reserve * structure) / state.structure : 0;
   return {
     state: { ...state, structure: state.structure - structure, reserve: state.reserve - reserve },
-    waste: addOrganics(ofComposition(structure, p.qMin), ofComposition(reserve, ZERO_NUTRIENTS)),
+    waste: tissueOrganics(p, structure, reserve),
   };
 }
 
@@ -334,10 +337,7 @@ export function shed(state: FloraState, p: FloraParams, structure: number): { st
  */
 export function remains(state: FloraState, p: FloraParams): { waste: Organics; leachate: NutrientVector } {
   return {
-    waste: addOrganics(
-      ofComposition(state.structure, p.qMin),
-      ofComposition(state.reserve + state.offshootBuffer, ZERO_NUTRIENTS)
-    ),
+    waste: tissueOrganics(p, state.structure, state.reserve + state.offshootBuffer),
     leachate: { ...state.stores },
   };
 }

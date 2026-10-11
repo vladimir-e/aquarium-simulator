@@ -98,8 +98,8 @@ interface FishFactorContext {
  * `getPlantPower`). The sum runs through `min(1, power / SAT)` so the
  * benefit tops out at `peak` regardless of overplanting — see
  * `plantBenefitSaturationPoint` in `LivestockConfig` for the calibration
- * choice. Algae vitality reads the same `getPlantPower` primitive for
- * its allelopathy, so the two consumers stay consistent.
+ * choice. The blooms' allelopathy reads the same primitive through
+ * `thrivingPlantDensity`, so the two consumers stay consistent.
  */
 function plantBenefitAmount(plants: Plant[], config: LivestockConfig): number {
   const power = getPlantPower(plants);

@@ -20,6 +20,11 @@ export const BLOOM_COVERAGE_LINE = 30;
 /** Coverage a bloom shows from: under it there is none to see. */
 export const BLOOM_VISIBLE_LINE = 0.5;
 
+/** Whether there is any bloom to see. */
+export function bloomShows(coverage: number): boolean {
+  return coverage >= BLOOM_VISIBLE_LINE;
+}
+
 export interface BloomLevel {
   level: number;
   leads: 'coverage' | 'light';

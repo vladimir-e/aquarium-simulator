@@ -93,7 +93,7 @@ describe('wasteInflow', () => {
       ) * config.decay.wasteConversionRatio;
     const food = inflowOf(state).sources[0].gramsPerHour;
 
-    expect(food).toBe(readHourAhead(state, config).foodWaste);
+    expect(food).toBe(readHourAhead(state, config).foodWaste.grams);
     expect(food).toBeGreaterThan(0);
     expect(food).toBeLessThan(standing);
   });

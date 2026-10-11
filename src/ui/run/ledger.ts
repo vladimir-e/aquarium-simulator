@@ -19,7 +19,7 @@ import {
   offshootStructure,
   PLANT_SPECIES_DATA,
   plantLightTaken,
-  plantParams,
+  unitParams,
   REMOVED_BY,
   starvation,
   storeFill,
@@ -409,7 +409,7 @@ function plantLedger(
   const { vitality, fluxes, buds, light, next } = ahead.plants[index];
   const { breakdown } = vitality;
   const label = plantLabels(state.plants).get(id)!;
-  const p = plantParams(plant.species, config.plants);
+  const p = unitParams(plant, config.plants);
   const offshoot = offshootShare(plant);
   const data = PLANT_SPECIES_DATA[plant.species];
   const helping = factors(breakdown.benefits);

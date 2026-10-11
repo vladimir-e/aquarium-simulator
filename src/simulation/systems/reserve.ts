@@ -56,7 +56,7 @@ export function oxygenPace(oxygen: number, saturation: number, halfSaturation: n
 }
 
 /** What repair costs an organism and how fast it asks for it, off its own config. */
-export interface RepairTerms {
+interface RepairTerms {
   healingCost: number;
   healingRate: number;
 }
@@ -94,18 +94,18 @@ export function starvation({ fluxes }: { fluxes: { owed: number; shortfall: numb
 }
 
 /** Maintenance due over the hour: the soma's, and whatever the branch owes before it covers the soma. */
-export interface Upkeep {
+interface Upkeep {
   soma: number;
   branch: number;
 }
 
 /** What each organism makes of its two shares: the reserve its growth invests, and what its buffer keeps. */
-export interface SpendRules<G extends { invested: number }> {
+interface SpendRules<G extends { invested: number }> {
   invest: (surplus: number) => G;
   deposit: (rest: number, growth: G) => number;
 }
 
-export interface Spent<G> {
+interface Spent<G> {
   somaticPaid: number;
   somaticUnpaid: number;
   surplus: number;
@@ -199,7 +199,7 @@ export interface ReserveSlice<S, F> {
 }
 
 /** What an organism makes of the reserve its hour releases. */
-export interface ReserveBudget<S extends ReserveState, F> {
+interface ReserveBudget<S extends ReserveState, F> {
   /** 0–1: the share of a full reserve's growth its limits leave it. */
   growthLimit: (state: S) => number;
   slice: (state: S, released: number, hour: Readonly<ReserveHour>) => ReserveSlice<S, F>;

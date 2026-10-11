@@ -3,31 +3,6 @@
  * budget, on one law, so they fix carbon from one CO₂ stock and fill their
  * stores from the pools in one call, none served before another.
  *
- * The hour:
- * 1. Light: each plant's at its own height in the canopy, each bloom's as the
- *    mean over its habitat, all through the water and the blooms in it.
- * 2. Uptake: each one's stores ask for what they lack, and a bloom's spores for
- *    their structure at Q_min. The water and the bed deliver on every request
- *    at one fraction — nitrogen from ammonia first, then nitrate for what
- *    ammonia left — and the stores take it up; the spores take up only what
- *    they build and can store. The uptake moves GH, and KH by the protons each
- *    form carries.
- * 3. Photosynthate: light, carbon and oxygen set what each is offered, all
- *    drawn on the one CO₂ stock — a bloom's up to the ceiling thriving plants'
- *    exudates leave it.
- * 4. The budget: each runs its hour on what it was offered, asking its
- *    reserve to repair its deficit. What it assimilates draws CO₂ and releases
- *    O₂; what it burns does the reverse.
- * 5. Condition: one vitality step for every organism.
- * 6. Shedding and death: low condition sheds structure as waste, and condition
- *    0 kills — its remains are waste and its stores leach to the water, KH
- *    moving back by the charge their uptake moved. A bloom's die-back is logged
- *    where there was any of it to see.
- * 7. Offshoots and spores: a buffer that holds a new unit cuts it loose, and
- *    the spores land into their bloom.
- * 8. Offshoots join at the end of the list at age 0, and surviving plants age
- *    a tick.
- *
  * Plants read the blooms and the blooms read the planting as the hour starts,
  * so none sees another's hour until the next.
  */
@@ -69,7 +44,7 @@ import {
   type AlgaeKind,
   type BloomLight,
 } from '../algae/index.js';
-import { BLOOM_VISIBLE_LINE } from '../alerts/bloom.js';
+import { bloomShows } from '../alerts/bloom.js';
 import { computeAlgaeVitality } from '../systems/algae-vitality.js';
 import { carbonGases, offerCarbon, photosynthateOf, plantFixer } from '../systems/photosynthesis.js';
 import {
@@ -90,7 +65,7 @@ import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import type { VitalityResult } from '../systems/vitality.js';
 import { sum } from '../core/sum.js';
 import { addOrganics, type Organics } from '../core/organics.js';
-import { bloomParams, plantParams } from './params.js';
+import { bloomParams, unitParams } from './params.js';
 
 /** A bloom's hour in the pass. */
 export interface BloomHour {
@@ -151,7 +126,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const plants = state.plants.map((plant, i) => ({
     budget: plant.budget,
     condition: plant.condition,
-    p: plantParams(plant.species, plantsConfig, plant.vigour),
+    p: unitParams(plant, plantsConfig),
     draws: poolDraws(pools, plantFeeder(plant.species, nutrientsConfig)),
     room: growthTaper(sizeOf(plant)),
     fixer: plantFixer(plant, light[i].par, omega, plantsConfig),
@@ -311,7 +286,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
       const { survivor } = bloomLosses[k];
       const condition = conditions[plantCount + k];
       const lost = coverageOf(steps[plantCount + k].state.structure, habitat, traits);
-      if (survivor === null && lost >= BLOOM_VISIBLE_LINE) {
+      if (survivor === null && bloomShows(lost)) {
         log('warning', measured`${traits.name} died back from ${coverage(lost)} coverage`, 'algae-died');
       }
       draft.algae[kind] = landSpores(survivor === null ? null : { budget: survivor, condition }, spores[k]);

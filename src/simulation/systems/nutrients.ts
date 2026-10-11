@@ -148,7 +148,7 @@ export interface NutrientRequest<P extends readonly NutrientPool[] = TankPools> 
   draws: PerPool<P, PoolDraw>;
 }
 
-export interface NutrientDelivery<P extends readonly NutrientPool[] = TankPools> {
+interface NutrientDelivery<P extends readonly NutrientPool[] = TankPools> {
   /** mg of each nutrient each feeder received, in the order of the requests. */
   delivered: NutrientVector[];
   /** mg of each form each feeder took up from each pool, in the order of the requests. */

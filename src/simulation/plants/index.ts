@@ -19,7 +19,7 @@ export function readPlantLight(state: SimulationState, config: TunableConfig): P
   );
 }
 
-export { offerCarbon, calculateCo2Factor, plantFixer } from '../systems/photosynthesis.js';
+export { offerCarbon, plantFixer } from '../systems/photosynthesis.js';
 export type { CarbonFixer } from '../systems/photosynthesis.js';
 export {
   LEAF_AREA_PER_RATE_UNIT,

@@ -130,7 +130,6 @@ export {
 } from './light.js';
 export {
   algaeReading,
-  bloomShows,
   type PlantLabel,
   plantLabels,
   familyTitle,
@@ -145,8 +144,6 @@ export {
   sharePercent,
   NUTRIENT_LABEL,
   type StoresFigure,
-  type PoolStores,
-  type PlantingStores,
   plantingStores,
   feedsFromBed,
   type NutrientReading,

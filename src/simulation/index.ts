@@ -288,6 +288,7 @@ export {
   bloomAlert,
   bloomAlerts,
   bloomLevel,
+  bloomShows,
   waterLevelAlertLine,
   BLOOM_COVERAGE_LINE,
   BLOOM_VISIBLE_LINE,
@@ -350,7 +351,7 @@ export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 // Flora — plants and the blooms in one pass, on one law
 export { processFlora } from './flora/index.js';
 export type { FloraProcessingResult, BloomHour } from './flora/index.js';
-export { plantParams, bloomParams } from './flora/params.js';
+export { plantParams, unitParams, bloomParams } from './flora/params.js';
 export {
   saturationIrradiance,
   dailyLightEdge,
@@ -436,7 +437,6 @@ export {
   tissueMass,
   sizeOf,
   unitOf,
-  calculateCo2Factor,
   VIGOUR_SPAN,
   MIN_PLANTABLE_SIZE,
   isPlantableSize,
@@ -468,12 +468,12 @@ export type {
   TankPools,
   PoolDraw,
 } from './plants/index.js';
+export { offshootShare, offshootStructure } from './plants/create-plant.js';
 
 // Livestock
 export { processLivestock, tankPaces } from './livestock/index.js';
 export { processBodies } from './livestock/bodies.js';
 export { isStockableSize, MAX_STOCKED_SIZE, STOCKED_FISH_SIZE } from './livestock/create-fish.js';
-export { offshootShare, offshootStructure } from './plants/create-plant.js';
 export {
   computeFishVitality,
   predationStress,
@@ -487,6 +487,8 @@ export { appetite, fullPaceLine, gutCapacity, ration, type Pace } from './system
 export { burn, gillAmmonia } from './systems/metabolism.js';
 export type { FishHour } from './systems/metabolism.js';
 export { mature, type DebState, type DebParams } from './systems/deb.js';
+
+// Energy budget — the reserve core every organism's budget runs on
 export { reserveDensity, wellFed, starvation, oxygenPace, NO_STRESS, type DebStress } from './systems/reserve.js';
 
 // Vitality

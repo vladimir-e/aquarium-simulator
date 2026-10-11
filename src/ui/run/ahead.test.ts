@@ -181,13 +181,13 @@ describe('readHourAhead', () => {
 
   it('reads the waste the fish pass, the ammonia they breathe out and the food they leave to rot off the hour the plants and bloom leave them', () => {
     const fed = hours.map(({ state }) => readHourAhead(state, config));
-    expect(fed.some((ahead) => ahead.fishWaste.grams > 0 && ahead.gillAmmonia > 0 && ahead.foodWaste > 0)).toBe(true);
+    expect(fed.some((ahead) => ahead.fishWaste.grams > 0 && ahead.gillAmmonia > 0 && ahead.foodWaste.grams > 0)).toBe(true);
 
     const readsTheRot = (state: SimulationState, next: SimulationState): void => {
       const ahead = readHourAhead(state, config);
       const rotted = bodiesOf(state).bodies.state.resources.food - next.resources.food;
       const share = config.decay.wasteConversionRatio;
-      expect(ahead.foodWaste).toBeCloseTo(rotted * share, 12);
+      expect(ahead.foodWaste.grams).toBeCloseTo(rotted * share, 12);
       expect(ahead.foodAmmonia).toBeCloseTo(rotted * (1 - share) * ammoniaPerGramOfFood(config.livestock), 12);
     };
 

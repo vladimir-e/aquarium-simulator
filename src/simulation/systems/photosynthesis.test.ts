@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  calculateCo2Factor,
   carbonGases,
   offerCarbon,
   photosynthateOf,
@@ -23,23 +22,6 @@ const PLENTIFUL_CO2 = 1e9;
 function plant(size: number, species: PlantSpecies = 'amazon_sword'): Plant {
   return plantRecord({ id: `p-${species}-${size}`, species, size });
 }
-
-describe('calculateCo2Factor', () => {
-  it('is 0 without CO2 and half rate at the species half-saturation', () => {
-    expect(calculateCo2Factor(0, 'monte_carlo')).toBe(0);
-    expect(calculateCo2Factor(plantsDefaults.highCo2HalfSaturation, 'monte_carlo')).toBeCloseTo(0.5, 10);
-  });
-
-  it('saturates: each doubling of CO2 buys less', () => {
-    const f = (co2: number): number => calculateCo2Factor(co2, 'amazon_sword');
-    expect(f(8) - f(4)).toBeLessThan(f(4) - f(2));
-    expect(f(1000)).toBeLessThan(1);
-  });
-
-  it('runs a high-need species further below saturation than a low-need one on the same water', () => {
-    expect(calculateCo2Factor(4, 'monte_carlo')).toBeLessThan(calculateCo2Factor(4, 'anubias'));
-  });
-});
 
 describe('offerCarbon', () => {
   const waterVolume = 100;
