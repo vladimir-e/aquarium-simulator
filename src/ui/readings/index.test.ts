@@ -150,21 +150,17 @@ describe('readTank', () => {
     expect(read({ state: fed, history: [snapshotFromState(fed)] }).byId.iron.stores).toMatchObject({ value: '50', tone: 'ink' });
   });
 
-  it('prints a store’s edge on the side of it the store is on, and never past full', () => {
+  it('prints a store’s edge on the side of it the store is on', () => {
     const fern = applyAction(createSimulation({ tankCapacity: 200 }), { type: 'addPlant', species: 'java_fern' }).state;
-    const ironAt = (fill: number, config = DEFAULT_CONFIG): string => {
+    const ironAt = (fill: number): string => {
       const state = { ...fern, plants: fern.plants.map((plant) => withStores(plant, { iron: fill })) };
-      return readTank({ state, config, history: [snapshotFromState(state)], units: 'metric' }).byId.iron.sentence;
+      return readTank({ state, config: DEFAULT_CONFIG, history: [snapshotFromState(state)], units: 'metric' }).byId.iron.sentence;
     };
     const p = plantParams('java_fern', DEFAULT_CONFIG.plants);
     const edge = fillAtDroop(p, DEFAULT_CONFIG.plants.droopEdge).iron * 100;
 
     expect(ironAt((0.99 * edge) / 100)).toContain(`under ${Math.ceil(edge)} % a plant takes harm`);
     expect(ironAt((1.01 * edge) / 100)).toContain(`under ${Math.floor(edge)} % a plant takes harm`);
-
-    const steep = { ...DEFAULT_CONFIG, plants: { ...DEFAULT_CONFIG.plants, droopEdge: 0.95 } };
-    expect(fillAtDroop(p, steep.plants.droopEdge).iron).toBeGreaterThan(1);
-    expect(ironAt(1, steep)).toContain('under 100 % a plant takes harm');
   });
 
   it('names the nutrient of the root feeders’ store running lowest in the bed’s words', () => {

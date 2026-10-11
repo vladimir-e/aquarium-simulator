@@ -17,7 +17,6 @@ import {
 import {
   MAX_ALGAE_ATTENUATION_PER_CM,
   MAX_ALGAE_COAT_OPTICAL_DEPTH,
-  MAX_DROOP_EDGE,
   MAX_LEAF_ATTENUATION_PER_LAI,
   MAX_WATER_ATTENUATION_PER_CM,
   NUTRIENT_FORMS,
@@ -503,7 +502,7 @@ const PlantsConfigSchema = z
     phStressSeverity: z.number(),
     ghStressSeverity: z.number(),
     nutrientDeficiencySeverity: z.number(),
-    droopEdge: z.number().min(0).max(MAX_DROOP_EDGE),
+    droopEdge: z.number().min(0).max(1),
     nitrateStressSeverity: z.number(),
     nitrateEdge: z.number(),
     // Vitality benefit peaks

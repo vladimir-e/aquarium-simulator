@@ -1,16 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { bloomParams, plantParams } from './params.js';
-import { MAX_DROOP_EDGE, plantsDefaults, quotaMaxMeta, quotaMinMeta, type PlantsConfig } from '../config/plants.js';
-import { NUTRIENTS } from '../config/nutrients.js';
+import { plantsDefaults, quotaMaxMeta, quotaMinMeta, type PlantsConfig } from '../config/plants.js';
+import { NUTRIENTS, type Nutrient, type NutrientVectorMeta } from '../config/nutrients.js';
 import { CO2_TO_CH2O_MASS_RATIO } from '../core/chemistry.js';
 import { maxReserveDensity, structureOrganics } from '../systems/reserve.js';
 import { offerCarbon, photosynthateOf, plantFixer } from '../systems/photosynthesis.js';
-import { metabolicRateUnits } from '../systems/flora.js';
+import { floraStressors, metabolicRateUnits } from '../systems/flora.js';
 import { rateUnits, tissueMass } from '../plants/canopy.js';
 import { PLANT_SPECIES_DATA, plantTraits, type PlantSpecies } from '../plants/species.js';
 import { ALGAE, ALGAE_KINDS, bloomRateUnits, bloomTissue } from '../algae/index.js';
 import { plantRecord } from '../tests/plant.js';
-import { fullDroopFactor, type FloraParams } from '../systems/flora-budget.js';
+import { droopFactor, fullDroopFactor, stocked, type FloraParams } from '../systems/flora-budget.js';
+import { createSimulation } from '../state.js';
 
 const config = plantsDefaults;
 const SPECIES = Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[];
@@ -56,10 +57,6 @@ describe.each(units)('$name', ({ p, grams, rated }) => {
 
   it('has room in every store above its structure’s own content', () => {
     expect(NUTRIENTS.every((n) => p.qMax[n] > p.qMin[n] && p.qMin[n] > 0 && p.storeFillRate[n] > 0)).toBe(true);
-  });
-
-  it('clears on full stores the highest Droop edge the tunable takes', () => {
-    expect(fullDroopFactor(p)).toBeGreaterThanOrEqual(MAX_DROOP_EDGE);
   });
 });
 
@@ -115,10 +112,42 @@ describe('quotas', () => {
     );
   });
 
+  const range = (meta: NutrientVectorMeta[], n: Nutrient): NutrientVectorMeta => meta.find((m) => m.key === n)!;
+
   it('leave a store room above Q_min at every setting: each floor’s range sits below its ceiling’s', () => {
-    expect(NUTRIENTS.every((n) => quotaMinMeta.find((m) => m.key === n)!.max < quotaMaxMeta.find((m) => m.key === n)!.min)).toBe(
-      true
+    expect(NUTRIENTS.every((n) => range(quotaMinMeta, n).max < range(quotaMaxMeta, n).min)).toBe(true);
+  });
+
+  it('leave full stores unharmed at the shipped Droop edge, at every corner of their bounds', () => {
+    const ends = (meta: NutrientVectorMeta[], n: Nutrient): number[] => [range(meta, n).min, range(meta, n).max];
+    const corners = NUTRIENTS.reduce<PlantsConfig[]>(
+      (configs, n) =>
+        configs.flatMap((c) =>
+          ends(quotaMinMeta, n).flatMap((least) =>
+            ends(quotaMaxMeta, n).map((most) => ({
+              ...c,
+              quotaMin: { ...c.quotaMin, [n]: least },
+              quotaMax: { ...c.quotaMax, [n]: most },
+            }))
+          )
+        ),
+      [config]
     );
+    const harm = (p: FloraParams, c: PlantsConfig): number =>
+      floraStressors({
+        traits: plantTraits('amazon_sword'),
+        resources: createSimulation({ tankCapacity: 100 }).resources,
+        plantsConfig: c,
+        wellFed: 1,
+        droop: droopFactor(stocked(1, p), p),
+        fullDroop: fullDroopFactor(p),
+        starvation: 0,
+        co2HalfSaturation: 0,
+      }).find(({ key }) => key === 'nutrients')!.amount;
+
+    expect(corners).toHaveLength(4 ** NUTRIENTS.length);
+    expect(corners.every((c) => SPECIES.every((species) => harm(plantParams(species, c), c) === 0))).toBe(true);
+    expect(Math.min(...corners.map((c) => fullDroopFactor(plantParams('amazon_sword', c))))).toBeLessThan(config.droopEdge);
   });
 });
 

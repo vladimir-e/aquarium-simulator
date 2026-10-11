@@ -276,14 +276,13 @@ the reserve it fills, so a fed plant earns through the night.
 | Starvation | maintenance the hour left unpaid | share of the hour's upkeep |
 | Light high | PAR at the crown top over the band's high end, while the lamp is on | PAR |
 | Temperature · pH · GH | outside the species band | °C · pH unit · dGH |
-| Nutrient deficiency | the Droop limit short of `droopEdge` | share of the edge |
+| Nutrient deficiency | the Droop limit short of `droopEdge` of its full stores' | share of the edge |
 | Nitrate | past the plant's own edge | e-fold over |
 
-A Droop limit never reaches 1, so deficiency starts under an edge rather than
-under full: `droopEdge`, where a plant's nitrogen store has fallen to a sixth of
-full, near the critical 1.3 % of Gerloff & Krombholz. The edge tops out at
-`MAX_DROOP_EDGE`, 0.55: film's full stores reach 0.575 on nitrogen, the lowest
-of any flora, and an edge past it would harm a bloom however full. Hardiness
+A Droop limit never reaches 1, so deficiency starts under a share of the limit
+full stores reach: `droopEdge`, a limit of 0.3 for a plant, where its nitrogen
+store has fallen to a sixth of full, near the critical 1.3 % of Gerloff &
+Krombholz. As a share, the edge sits under full stores at any quotas. Hardiness
 scales every stressor by `1 − hardiness` except nitrate, whose edge it carries
 out by the same factor a fish's is.
 

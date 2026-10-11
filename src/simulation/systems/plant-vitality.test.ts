@@ -21,7 +21,7 @@ import { monodFactor } from '../core/kinetics.js';
 import { plantRecord } from '../tests/plant.js';
 import { mapKinds } from '../algae/blooms.js';
 import { plantParams } from '../flora/params.js';
-import { droopFactor, type FloraFluxes } from './flora-budget.js';
+import { droopFactor, fullDroopFactor, type FloraFluxes } from './flora-budget.js';
 import { maxReserveDensity } from './reserve.js';
 
 function makePlant(species: PlantSpecies, overrides: Partial<Omit<Plant, 'budget'>> = {}): Plant {
@@ -151,8 +151,9 @@ describe('buildPlantStressors', () => {
     );
     const lean = storedAt(makePlant('monte_carlo'), 0.05);
     const droop = droopFactor(lean.budget, p);
-    expect(droop).toBeLessThan(plantsDefaults.droopEdge);
-    expect(charged(0.05)).toBeCloseTo(empty * (1 - droop / plantsDefaults.droopEdge), 12);
+    const edge = plantsDefaults.droopEdge * fullDroopFactor(p);
+    expect(droop).toBeLessThan(edge);
+    expect(charged(0.05)).toBeCloseTo(empty * (1 - droop / edge), 12);
   });
 
   describe('nitrate, on log dose past an edge hardiness carries out', () => {

@@ -15,7 +15,7 @@ import { PLANT_SPECIES_DATA, getCo2HalfSaturation, plantTraits, type PlantSpecie
 import { toleranceFactor } from '../livestock/tolerance.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { getDgh, getPpm } from '../resources/index.js';
-import { droopFactor, type FloraFluxes, type FloraParams } from './flora-budget.js';
+import { droopFactor, fullDroopFactor, type FloraFluxes, type FloraParams } from './flora-budget.js';
 import { pointsHealed, starvation, wellFed } from './reserve.js';
 import { floraBenefits, floraStressors, type FloraHour } from './flora.js';
 import {
@@ -47,6 +47,7 @@ function floraHour({ plant, params, fluxes, resources, plantsConfig }: PlantVita
     plantsConfig,
     wellFed: wellFed(plant.budget, params),
     droop: droopFactor(plant.budget, params),
+    fullDroop: fullDroopFactor(params),
     starvation: starvation({ fluxes }),
     co2HalfSaturation: getCo2HalfSaturation(plant.species, plantsConfig),
   };

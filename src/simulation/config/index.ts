@@ -47,7 +47,6 @@ export {
   plantsConfigMeta,
   quotaMinMeta,
   quotaMaxMeta,
-  MAX_DROOP_EDGE,
 } from './plants.js';
 export {
   NUTRIENTS,

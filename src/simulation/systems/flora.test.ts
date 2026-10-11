@@ -126,6 +126,7 @@ describe('the channels a plant and a bloom share', () => {
     plantsConfig: config,
     wellFed: 1,
     droop: 1,
+    fullDroop: 1,
     starvation: 0,
     co2HalfSaturation: 3,
     ...overrides,
@@ -138,9 +139,14 @@ describe('the channels a plant and a bloom share', () => {
     expect(amount(floraStressors(hour({ starvation: 0.4 })), 'starvation')).toBeCloseTo(0.4 * config.starvationSeverity, 15);
   });
 
-  it('charges nutrient deficiency on the Droop limit under its edge, linear to full at an empty store', () => {
-    expect(amount(floraStressors(hour({ droop: config.droopEdge })), 'nutrients')).toBe(0);
-    expect(amount(floraStressors(hour({ droop: 0 })), 'nutrients')).toBeCloseTo(config.nutrientDeficiencySeverity, 15);
+  it('charges nutrient deficiency on the Droop limit under its edge’s share of full stores’, linear to full at an empty store', () => {
+    const full = 0.8;
+    const edge = config.droopEdge * full;
+    const charged = (droop: number): number => amount(floraStressors(hour({ droop, fullDroop: full })), 'nutrients');
+    expect(charged(full)).toBe(0);
+    expect(charged(edge)).toBe(0);
+    expect(charged(edge / 2)).toBeCloseTo(config.nutrientDeficiencySeverity / 2, 15);
+    expect(charged(0)).toBeCloseTo(config.nutrientDeficiencySeverity, 15);
   });
 
   it('earns on reserve density and the Droop limit, and CO₂ on the feeder’s own half-saturation', () => {

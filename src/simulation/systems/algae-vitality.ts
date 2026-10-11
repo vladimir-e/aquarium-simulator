@@ -7,7 +7,7 @@ import type { AlgaeState, Resources } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import type { AlgaeTraits } from '../algae/traits.js';
 import type { FloraFluxes, FloraParams } from './flora-budget.js';
-import { droopFactor } from './flora-budget.js';
+import { droopFactor, fullDroopFactor } from './flora-budget.js';
 import { pointsHealed, starvation, wellFed } from './reserve.js';
 import { floraBenefits, floraStressors, type FloraHour } from './flora.js';
 import { computeVitality, hardened, type VitalityFactor, type VitalityResult } from './vitality.js';
@@ -30,6 +30,7 @@ function floraHour({ bloom, fluxes, traits, params, resources, plantsConfig }: A
     plantsConfig,
     wellFed: wellFed(bloom.budget, params),
     droop: droopFactor(bloom.budget, params),
+    fullDroop: fullDroopFactor(params),
     starvation: starvation({ fluxes }),
     co2HalfSaturation: traits.co2HalfSaturation,
   };

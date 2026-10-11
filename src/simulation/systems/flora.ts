@@ -99,6 +99,8 @@ export interface FloraHour {
   wellFed: number;
   /** Its stores' Droop limit as the hour starts, 0–1. */
   droop: number;
+  /** The Droop limit its full stores reach, 0–1. */
+  fullDroop: number;
   /** Share of its upkeep the hour's budget left unpaid. */
   starvation: number;
   /** Dissolved CO₂ (mg/L) it fixes at half rate on. */
@@ -107,7 +109,7 @@ export interface FloraHour {
 
 /** The harms both have, unhardened. */
 export function floraStressors(hour: FloraHour): VitalityFactor[] {
-  const { traits, resources, plantsConfig, droop, starvation } = hour;
+  const { traits, resources, plantsConfig, droop, fullDroop, starvation } = hour;
   return [
     { key: 'starvation', label: 'Starvation', amount: plantsConfig.starvationSeverity * starvation },
     {
@@ -123,7 +125,7 @@ export function floraStressors(hour: FloraHour): VitalityFactor[] {
     {
       key: 'nutrients',
       label: 'Nutrient deficiency',
-      amount: plantsConfig.nutrientDeficiencySeverity * shortfall(droop, plantsConfig.droopEdge),
+      amount: plantsConfig.nutrientDeficiencySeverity * shortfall(droop, plantsConfig.droopEdge * fullDroop),
     },
   ];
 }

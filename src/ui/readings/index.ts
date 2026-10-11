@@ -432,11 +432,11 @@ function storesGauge(asked: boolean, { fill, edge, status }: StoresFigure): Stor
 
 /**
  * A store's Droop edge, % full, printed on the side of it the store is on, so a
- * store just past its edge never reads as sitting on it; never past full.
+ * store just past its edge never reads as sitting on it.
  */
 function edgePercent(fill: number, edge: number): number {
   const percent = edge * 100;
-  return Math.min(100, fill < edge ? Math.ceil(percent) : Math.floor(percent));
+  return fill < edge ? Math.ceil(percent) : Math.floor(percent);
 }
 
 /** What the plants' stores of a nutrient say, and what the water does for them. */

@@ -85,9 +85,9 @@ export interface PlantsConfig {
   phStressSeverity: number;
   /** Damage per dGH outside the species' tolerable range. */
   ghStressSeverity: number;
-  /** Damage at a Droop limit of 0, falling linearly to nothing at `droopEdge`. */
+  /** Damage at a Droop limit of 0, falling linearly to nothing at the Droop edge. */
   nutrientDeficiencySeverity: number;
-  /** Droop limit its stores count as fed at: deficiency harm starts under it. */
+  /** Share of its full stores' Droop limit under which a flora takes deficiency harm. */
   droopEdge: number;
   /** Damage per e-fold of NO3 past the plant's nitrate edge. */
   nitrateStressSeverity: number;
@@ -191,10 +191,11 @@ export const plantsDefaults: PlantsConfig = {
   phStressSeverity: 3.0,
   ghStressSeverity: 0.1,
   nutrientDeficiencySeverity: 0.3,
-  // A plant's Droop limit runs 0.7–0.9 on full stores. Harm starts at 0.3,
-  // where its nitrogen store has fallen to a sixth of full — a quota near the
-  // critical 1.3 % of Gerloff & Krombholz 1966.
-  droopEdge: 0.3,
+  // A plant's full stores reach a Droop limit of 33/45 on nitrogen, the least
+  // of the four. Harm starts at 9/22 of that, a limit of 0.3, where its
+  // nitrogen store has fallen to a sixth of full — a quota near the critical
+  // 1.3 % of Gerloff & Krombholz 1966.
+  droopEdge: 9 / 22,
   // Plants take nitrate far past where fish do: the edge sits at 100 ppm, so
   // only a runaway doser reaches it, and each e-fold past it costs what one
   // costs a fish.
@@ -210,13 +211,6 @@ export const plantsDefaults: PlantsConfig = {
   // so a plant relit before its condition collapses keeps most of itself.
   maxSheddingRate: 0.02,
 };
-
-/**
- * The highest edge every flora clears on full stores at the shipped quotas:
- * past its `fullDroopFactor` — film's, on nitrogen, the lowest — an edge harms
- * a flora however full it is.
- */
-export const MAX_DROOP_EDGE = 0.55;
 
 export interface PlantsConfigMeta {
   key: keyof PlantsConfig;
@@ -286,7 +280,7 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'phStressSeverity', label: 'Plant pH Severity', unit: '%/pH/hr', min: 0.5, max: 10, step: 0.5 },
   { key: 'ghStressSeverity', label: 'Plant GH Severity', unit: '%/dGH/hr', min: 0, max: 2, step: 0.05 },
   { key: 'nutrientDeficiencySeverity', label: 'Nutrient Defic. Severity', unit: '%/hr', min: 0.1, max: 2.0, step: 0.1 },
-  { key: 'droopEdge', label: 'Droop Edge', unit: '', min: 0.05, max: MAX_DROOP_EDGE, step: 0.05 },
+  { key: 'droopEdge', label: 'Droop Edge', unit: '× full', min: 0, max: 0.95, step: 0.01 },
   { key: 'nitrateStressSeverity', label: 'Plant Nitrate Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
   { key: 'nitrateEdge', label: 'Plant Nitrate Edge', unit: 'ppm', min: 50, max: 300, step: 10 },
 

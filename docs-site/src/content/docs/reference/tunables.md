@@ -172,7 +172,7 @@ for every kind.
 | Tunable | Meaning | Unit |
 |---|---|---|
 | `storeFillDays` | Days an empty store fills 63 % of the way in, from a saturating pool | days |
-| `droopEdge` · `nutrientDeficiencySeverity` | The Droop limit stores count as fed at — at most `0.55`, under film's full-store ceiling — and the damage at a Droop limit of 0, falling linearly to nothing at the edge | — · %/hr |
+| `droopEdge` · `nutrientDeficiencySeverity` | The share of the Droop limit its full stores reach that a flora counts as fed at, so the edge sits under full stores at any quotas, and the damage at a Droop limit of 0, falling linearly to nothing at the edge | × full · %/hr |
 | `quotaMin.nitrate` · `.phosphate` · `.potassium` · `.iron` | Q_min: each nutrient's element in a gram of plant structure | mg/g |
 | `quotaMax.nitrate` · `.phosphate` · `.potassium` · `.iron` | Q_max: the same, with every store full | mg/g |
 

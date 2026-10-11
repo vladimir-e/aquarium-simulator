@@ -100,10 +100,6 @@ const storeDensity = (state: FloraState, n: Nutrient): number =>
 export const storeFill = (state: FloraState, p: FloraParams): NutrientVector =>
   mapNutrients((n) => storeDensity(state, n) / storeMax(p, n));
 
-/** The fill at which each store's Droop limit stands at `limit`. */
-export const fillAtDroop = (p: FloraParams, limit: number): NutrientVector =>
-  mapNutrients((n) => (p.qMin[n] * limit) / ((1 - limit) * storeMax(p, n)));
-
 /** mg each store lacks of full. */
 export const storeGap = (state: FloraState, p: FloraParams): NutrientVector =>
   mapNutrients((n) => Math.max(0, storeMax(p, n) * state.structure - state.stores[n]));
@@ -121,6 +117,12 @@ export const droopFactor = (state: FloraState, p: FloraParams): number => {
 /** Droop's growth limit on full stores: ρ/(1 + ρ) of the least nutrient. */
 export const fullDroopFactor = (p: FloraParams): number =>
   Math.min(...NUTRIENTS.map((n) => monodFactor(storeMax(p, n), p.qMin[n])));
+
+/** The fill at which each store's Droop limit stands at `edge` of the one full stores reach. */
+export const fillAtDroop = (p: FloraParams, edge: number): NutrientVector => {
+  const limit = edge * fullDroopFactor(p);
+  return mapNutrients((n) => (p.qMin[n] * limit) / ((1 - limit) * storeMax(p, n)));
+};
 
 export const floraOrganics = (state: FloraState): number =>
   state.reserve + state.offshootBuffer + state.structure;

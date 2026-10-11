@@ -642,13 +642,14 @@ describe('readings', () => {
     expect(Object.values(storeGap(shed(flora(sword, 2, 0.5), sword, 1).state, sword)).every((mg) => mg === 0)).toBe(true);
   });
 
-  it.each(KINDS)('reads $name’s Droop factor as the least store’s limit, and the fill at a limit as its inverse', ({ p }) => {
+  it.each(KINDS)('reads $name’s Droop factor as the least store’s limit, and the fill at an edge as its share of full stores’', ({ p }) => {
     const s = flora(p, 1, 1, { nitrate: 0.4, phosphate: 0.2, potassium: 0.9, iron: 0.6 });
     const limits = droopLimits(s, p);
     expect(droopFactor(s, p)).toBe(Math.min(...NUTRIENTS.map((n) => limits[n])));
 
-    const edge = fillAtDroop(p, 0.3);
-    expect(NUTRIENTS.every((n) => near(droopLimits(flora(p, 1, 1, edge), p)[n], 0.3, 1))).toBe(true);
+    const edge = fillAtDroop(p, 0.4);
+    expect(NUTRIENTS.every((n) => near(droopLimits(flora(p, 1, 1, edge), p)[n], 0.4 * fullDroopFactor(p), 1))).toBe(true);
+    expect(Math.max(...Object.values(fillAtDroop(p, 1)))).toBeCloseTo(1, 12);
   });
 });
 

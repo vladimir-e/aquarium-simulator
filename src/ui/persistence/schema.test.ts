@@ -11,7 +11,6 @@ import {
   MAX_ALGAE_ATTENUATION_PER_CM,
   MAX_ALGAE_COAT_OPTICAL_DEPTH,
   MAX_LEAF_ATTENUATION_PER_LAI,
-  MAX_DROOP_EDGE,
   MAX_WATER_ATTENUATION_PER_CM,
 } from '../../simulation/config/index.js';
 import {
@@ -182,15 +181,15 @@ describe('TunableConfigSchema', () => {
     }
   });
 
-  it('takes a Droop edge up to its ceiling, and refuses the 1 a Droop limit never reaches', () => {
+  it('takes a Droop edge as a share of the limit full stores reach, and refuses one past them', () => {
     const edge = (droopEdge: number): boolean =>
       TunableConfigSchema.safeParse({
         ...DEFAULT_CONFIG,
         plants: { ...DEFAULT_CONFIG.plants, droopEdge },
       }).success;
     expect(edge(0)).toBe(true);
-    expect(edge(MAX_DROOP_EDGE)).toBe(true);
-    expect(edge(1)).toBe(false);
+    expect(edge(1)).toBe(true);
+    expect(edge(1.01)).toBe(false);
     expect(edge(-0.1)).toBe(false);
   });
 
