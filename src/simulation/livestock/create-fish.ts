@@ -18,6 +18,7 @@ import { debParams, FISH_SPECIES_DATA, midRangeTemperature, speciesTau } from '.
 import { hatchling, size, stepDeb, type DebState } from '../systems/deb.js';
 import { appetite } from '../systems/digestion.js';
 import { frySize } from '../systems/fish-body.js';
+import { ZERO_TOXINS } from '../config/livestock.js';
 
 /** Per-fish hardiness offset span as a fraction of species baseline. */
 export const HARDINESS_OFFSET_SPAN = 0.15;
@@ -104,6 +105,7 @@ function individual(
     budget: body.budget,
     survival: body.survival,
     survivalDraw,
+    load: ZERO_TOXINS,
   };
 }
 

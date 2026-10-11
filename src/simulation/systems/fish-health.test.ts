@@ -37,6 +37,8 @@ import {
   toleranceFactor,
 } from '../livestock/tolerance.js';
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
+import { waterToxins } from './toxicokinetics.js';
+import { TOXINS, ZERO_TOXINS } from '../config/livestock.js';
 import { plantRecord } from '../tests/plant.js';
 import { gutCapacity, type Pace } from './digestion.js';
 import { liveHour, type FishHour } from './metabolism.js';
@@ -110,6 +112,7 @@ const asked = (fish: Fish, pace: Pace, config = livestockDefaults): number =>
 const hourOf = (fish: Fish, config = AGELESS): FishHour =>
   liveHour(fish, REFERENCE, asked(fish, REFERENCE, config), config);
 
+/** A fish's vitality in this water, carrying the water's toxin levels as its load unless it names one. */
 function vitality(
   fish: Partial<Fish> = {},
   resources: ResourceOverrides = {},
@@ -127,11 +130,12 @@ function vitality(
     predatorMass?: number;
   }
 ): VitalityResult {
-  const record = fishRecord(fish);
+  const tank = makeResources(resources);
+  const record = fishRecord({ load: waterToxins(tank), ...fish });
   return computeFishVitality(
     record,
     hourOf(record, config),
-    makeResources(resources),
+    tank,
     plants,
     water,
     capacity,
@@ -216,6 +220,17 @@ describe('stressors', () => {
     expect(high).toBeGreaterThan(low * 10);
   });
 
+  it('reads its toxins off its load, not the water', () => {
+    const toxic = { ammonia: 2000, nitrite: 100, nitrate: 20000 };
+    const unloaded = vitality({ load: ZERO_TOXINS }, toxic);
+    const carrying = vitality({ load: waterToxins(makeResources(toxic)) });
+    for (const key of TOXINS) {
+      expect(stressorAmount(unloaded, key)).toBe(0);
+      expect(stressorAmount(carrying, key)).toBeGreaterThan(0);
+      expect(stressorAmount(carrying, key)).toBeCloseTo(stressorAmount(vitality({}, toxic), key), 12);
+    }
+  });
+
   it('charges no toxin or flow in a drained tank', () => {
     const v = vitality({}, { ammonia: 1000, nitrite: 1000, nitrate: 1000, flow: 1000, water: 0 });
     for (const key of ['ammonia', 'nitrite', 'nitrate', 'flow']) expect(stressorAmount(v, key)).toBe(0);
@@ -223,9 +238,9 @@ describe('stressors', () => {
   });
 
   it('sums every active stressor into the total', () => {
-    const small = fishRecord({ size: 20 });
+    const { budget } = fishRecord({ size: 20 });
     const v = vitality(
-      { ...small, budget: { ...small.budget, reserve: 0, hazard: 1e-4 } },
+      { budget: { ...budget, reserve: 0, hazard: 1e-4 } },
       {
         temperature: 18,
         ph: 8.5,

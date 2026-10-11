@@ -6,6 +6,7 @@ import { debParams, FISH_SPECIES_DATA, incubation } from '../livestock/species.j
 import { arrheniusFactor } from '../core/kinetics.js';
 import { developmentRate, eggHarmRate, eggPredationRate, settleClutch } from './clutch.js';
 import { speciesHardiness, waterStressors } from './fish-health.js';
+import { waterToxins } from './toxicokinetics.js';
 
 const config = DEFAULT_CONFIG.livestock;
 const clean = createSimulation({ tankCapacity: 100 }).resources;
@@ -22,7 +23,7 @@ describe('eggHarmRate', () => {
 
   it('is the fish water channel at the species hardiness, eggSensitivity times as hard, as a share an hour', () => {
     const water = withNitrite(8);
-    const damage = waterStressors('neon_tetra', speciesHardiness('neon_tetra'), water, volume, config).reduce(
+    const damage = waterStressors('neon_tetra', neon, waterToxins(water), water, volume, config).reduce(
       (sum, f) => sum + f.amount,
       0
     );
@@ -32,7 +33,7 @@ describe('eggHarmRate', () => {
 
   it('harms a brood its mother carries as hard as her, at her hardiness', () => {
     const water = withNitrite(8);
-    const damage = waterStressors('guppy', speciesHardiness('guppy'), water, volume, config).reduce(
+    const damage = waterStressors('guppy', speciesHardiness('guppy'), waterToxins(water), water, volume, config).reduce(
       (sum, f) => sum + f.amount,
       0
     );

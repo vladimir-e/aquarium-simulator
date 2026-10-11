@@ -10,6 +10,10 @@ import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { getPpm } from '../resources/index.js';
 import { atRecipe } from '../core/organics.js';
 import { fishRecord } from '../tests/fish.js';
+import { fishHardiness, waterStressors } from '../systems/fish-health.js';
+import { loadFish, waterToxins } from '../systems/toxicokinetics.js';
+import { TOXINS, type Toxin, type ToxinVector } from '../config/livestock.js';
+import type { VitalityResult } from '../systems/vitality.js';
 
 function makeFish(overrides: Partial<Fish> & { size?: number } = {}): Fish {
   return fishRecord({ gut: 0.001, ...overrides });
@@ -98,5 +102,56 @@ describe('processLivestock', () => {
     expect(result.state.fish).toHaveLength(0);
     expect(result.state.logs.filter((l) => l.event === 'fish-died')).toHaveLength(1);
     expect(effectOf(result, 'waste', 'fish-death')).toBeGreaterThan(0);
+  });
+});
+
+describe('toxin loads', () => {
+  const livestock = DEFAULT_CONFIG.livestock;
+  const spiked = (state: SimulationState): SimulationState =>
+    produce(state, (draft) => {
+      draft.resources.ammonia = 20 * draft.resources.water;
+      draft.resources.nitrite = 20 * draft.resources.water;
+      draft.resources.nitrate = 2000 * draft.resources.water;
+    });
+  const carrying = (state: SimulationState, load: ToxinVector): SimulationState =>
+    produce(state, (draft) => {
+      for (const fish of draft.fish) fish.load = { ...load };
+    });
+  const charge = (vitality: VitalityResult, toxin: Toxin): number =>
+    vitality.breakdown.stressors.find((factor) => factor.key === toxin)!.amount;
+
+  it('loads every fish on the hour’s water first: its hour, its health and the survivors carry the load', () => {
+    const state = spiked(makeState([makeFish({ id: 'a' }), makeFish({ id: 'b', size: 30 })]));
+    const paces = tankPaces(state, DEFAULT_CONFIG);
+    const levels = waterToxins(state.resources);
+    const loaded = state.fish.map((fish, i) => loadFish(fish, levels, paces[i].tau, livestock.loadRate));
+    const result = processLivestock(state, DEFAULT_CONFIG);
+
+    expect(result.hours.map((hour) => hour.fish.load)).toEqual(loaded.map((fish) => fish.load));
+    expect(result.state.fish.map((fish) => fish.load)).toEqual(loaded.map((fish) => fish.load));
+    const { resources } = state;
+    loaded.forEach((fish, i) => {
+      const read = waterStressors(fish.species, fishHardiness(fish), fish.load, resources, resources.water, livestock);
+      for (const toxin of TOXINS) {
+        expect(charge(result.vitalities[i], toxin)).toBe(read.find((factor) => factor.key === toxin)!.amount);
+      }
+    });
+  });
+
+  it('harms less in the first hour of a spike than the water read straight would', () => {
+    const state = spiked(makeState([makeFish()]));
+    const fresh = processLivestock(state, DEFAULT_CONFIG).vitalities[0];
+    const saturated = processLivestock(carrying(state, waterToxins(state.resources)), DEFAULT_CONFIG).vitalities[0];
+    for (const toxin of TOXINS) expect(charge(fresh, toxin)).toBeLessThan(charge(saturated, toxin));
+  });
+
+  it('keeps harming once the water clears, less each hour as the load clears', () => {
+    const state = carrying(makeState([makeFish()]), { ammonia: 1, nitrite: 20, nitrate: 2000 });
+    const first = processLivestock(state, DEFAULT_CONFIG);
+    const second = processLivestock(first.state, DEFAULT_CONFIG);
+    for (const toxin of TOXINS) {
+      expect(charge(first.vitalities[0], toxin)).toBeGreaterThan(0);
+      expect(charge(second.vitalities[0], toxin)).toBeLessThan(charge(first.vitalities[0], toxin));
+    }
   });
 });

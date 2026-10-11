@@ -18,6 +18,9 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v22 loaded the fish with their toxins. `Fish` gains `load` and
+ *    `LivestockConfig` gains `loadRate`. A v21 session parses and its first
+ *    tick steps a load no fish carries.
  * v21 gave the organic pools their content and the flora their energy budgets.
  *    `Resources.waste` and `Substrate.organicReserve` become
  *    `{ grams, nutrients }`; `Plant` trades `size` and `surplus`, and
@@ -171,7 +174,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 21;
+export const SESSION_VERSION = 22;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

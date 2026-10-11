@@ -13,6 +13,7 @@
  *   scaled by `1 − fishHardiness`.
  * - Free NH3, nitrite, nitrate and oxygen instead carry hardiness on the
  *   concentration axis: it moves where harm starts, not how steeply it grows.
+ *   The toxins read the fish's load, oxygen the water of this moment.
  * - Starvation is the hour's maintenance shortfall as a share of its upkeep.
  * - Age is the DEB hazard at `hazardSeverity`: intrinsic, no hardiness
  *   shields it.
@@ -27,9 +28,8 @@
 import type { Fish, Plant, Resources } from '../state.js';
 import { getPh } from '../core/carbonate.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
-import { getDgh, getPpm } from '../resources/index.js';
-import type { LivestockConfig } from '../config/livestock.js';
-import { freeAmmoniaPpm } from './nitrogen-cycle.js';
+import { getDgh } from '../resources/index.js';
+import type { LivestockConfig, ToxinVector } from '../config/livestock.js';
 import { shareOut, swallow, type Pace } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import { sum } from '../core/sum.js';
@@ -111,11 +111,13 @@ function plantBenefitAmount(plants: Plant[], config: LivestockConfig): number {
 /**
  * What the water charges an organism of this species and hardiness, in %/h:
  * the tolerance bands scaled by `1 − hardiness`, the toxins and oxygen with
- * hardiness moving their edge instead. Fish and their clutches both read it.
+ * hardiness moving their edge instead. The toxins are read at `toxins` — a
+ * fish's load, or a clutch's water.
  */
 export function waterStressors(
   species: FishSpecies,
   hardiness: number,
+  toxins: ToxinVector,
   resources: Resources,
   waterVolume: number,
   config: LivestockConfig
@@ -129,13 +131,9 @@ export function waterStressors(
   const ghStress =
     config.ghStressSeverity * outsideBand(getDgh(resources.gh, waterVolume), speciesData.ghRange);
 
-  // Only the unionized NH3 fraction is acutely toxic.
-  const freeNH3Ppm = freeAmmoniaPpm({ ...resources, water: waterVolume });
-  const ammoniaStress = config.ammoniaStressSeverity * eFoldsPast(freeNH3Ppm, FREE_AMMONIA_EDGE * tolerance);
-  const nitriteStress =
-    config.nitriteStressSeverity * eFoldsPast(getPpm(resources.nitrite, waterVolume), NITRITE_EDGE * tolerance);
-  const nitrateStress =
-    config.nitrateStressSeverity * eFoldsPast(getPpm(resources.nitrate, waterVolume), NITRATE_EDGE * tolerance);
+  const ammoniaStress = config.ammoniaStressSeverity * eFoldsPast(toxins.ammonia, FREE_AMMONIA_EDGE * tolerance);
+  const nitriteStress = config.nitriteStressSeverity * eFoldsPast(toxins.nitrite, NITRITE_EDGE * tolerance);
+  const nitrateStress = config.nitrateStressSeverity * eFoldsPast(toxins.nitrate, NITRATE_EDGE * tolerance);
   const oxygenStress =
     config.oxygenStressSeverity * eFoldsUnder(resources.oxygen, OXYGEN_EDGE / tolerance, OXYGEN_LOG_OFFSET);
 
@@ -217,7 +215,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   const huntedStress = predationStress(fishSize(fish), ctx.predatorMass, waterVolume, config);
 
   return [
-    ...waterStressors(fish.species, ctx.hardiness, resources, waterVolume, config),
+    ...waterStressors(fish.species, ctx.hardiness, fish.load, resources, waterVolume, config),
     ...hardened(
       [
         { key: 'starvation', label: 'Starvation', amount: config.starvationSeverity * starvation(hour) },

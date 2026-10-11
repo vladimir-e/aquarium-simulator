@@ -12,6 +12,19 @@
 
 import { N_TO_NH3_MASS_RATIO, N_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
 
+/** What a fish loads from the water: free NH₃, nitrite as NO₂⁻ and nitrate as NO₃⁻. */
+export const TOXINS = ['ammonia', 'nitrite', 'nitrate'] as const;
+
+export type Toxin = (typeof TOXINS)[number];
+
+export type ToxinVector = Record<Toxin, number>;
+
+export function mapToxins(value: (t: Toxin) => number): ToxinVector {
+  return Object.fromEntries(TOXINS.map((t) => [t, value(t)])) as ToxinVector;
+}
+
+export const ZERO_TOXINS: Readonly<ToxinVector> = Object.freeze(mapToxins(() => 0));
+
 export interface LivestockConfig {
   // Feeding
   /** First-order rate, per hour, a gut digests at 20 °C; the species' τ paces it. */
@@ -64,6 +77,10 @@ export interface LivestockConfig {
   starvationSeverity: number;
   /** Damage, %/h, per unit of DEB hazard (per hour): what age does to health. */
   hazardSeverity: number;
+
+  // Toxicokinetics
+  /** First-order rate, per hour at 20 °C, a fish of 1 cm structural length loads and clears each toxin at. */
+  loadRate: ToxinVector;
 
   // Vitality benefit peaks (%/h) — each earned in full only on a full
   // reserve. Sum at all-good (no plants) ≈ 0.7 %/h; with saturated
@@ -153,6 +170,12 @@ export const livestockDefaults: LivestockConfig = {
   // Hazard at the species lifespan runs 2–9 × 10⁻⁵ /h, so 0.1–0.5 %/h there.
   hazardSeverity: 5000,
 
+  loadRate: {
+    ammonia: 0.3, // NH₃ crosses the gill as a gas, so blood ammonia follows the water within hours
+    nitrite: 0.04, // methaemoglobin builds over a day of nitrite and clears over one or two
+    nitrate: 0.01, // the gill barely passes nitrate, so it loads and clears over days
+  },
+
   // Benefit peaks (%/h), each scaled by reserve density. Sum at all-good in a
   // bare tank, pH at its band centre: pH 0.4 + O2 0.3 = 0.7 %/h. With a
   // saturating planting (see `plantBenefitSaturationPoint`): +0.2 → 0.9 %/h.
@@ -204,6 +227,21 @@ export interface LivestockConfigMeta {
   max: number;
   step: number;
 }
+
+export interface ToxinVectorMeta {
+  key: Toxin;
+  label: string;
+  unit: string;
+  min: number;
+  max: number;
+  step: number;
+}
+
+export const loadRateMeta: ToxinVectorMeta[] = [
+  { key: 'ammonia', label: 'Free NH3 load rate', unit: '/hr at 1 cm, 20 °C', min: 0.01, max: 5, step: 0.01 },
+  { key: 'nitrite', label: 'Nitrite load rate', unit: '/hr at 1 cm, 20 °C', min: 0.001, max: 1, step: 0.001 },
+  { key: 'nitrate', label: 'Nitrate load rate', unit: '/hr at 1 cm, 20 °C', min: 0.001, max: 1, step: 0.001 },
+];
 
 export const livestockConfigMeta: LivestockConfigMeta[] = [
   // Feeding

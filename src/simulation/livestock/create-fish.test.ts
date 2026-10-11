@@ -14,6 +14,7 @@ import { debParams, FISH_SPECIES_DATA, midRangeTemperature, type FishSpecies } f
 import { hatchling, mature, size } from '../systems/deb.js';
 import { wellFed } from '../systems/reserve.js';
 import { frySize } from '../systems/fish-body.js';
+import { ZERO_TOXINS } from '../config/livestock.js';
 
 const SPECIES = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
 const stock = (o: Partial<Parameters<typeof stockFish>[0]> = {}): ReturnType<typeof stockFish> =>
@@ -87,6 +88,13 @@ describe('a hatched fish', () => {
     const fry = hatchFish({ species: 'corydoras', rng: createRng(2) });
     expect(fry.budget).toEqual(hatchling(debParams('corydoras')));
     expect([fry.age, fry.survival, fry.gut]).toEqual([0, 1, 0]);
+  });
+});
+
+describe('every new fish', () => {
+  it('arrives unloaded, stocked or hatched', () => {
+    expect(stock().load).toEqual(ZERO_TOXINS);
+    expect(hatchFish({ species: 'corydoras', rng: createRng(2) }).load).toEqual(ZERO_TOXINS);
   });
 });
 

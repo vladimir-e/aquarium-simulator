@@ -1,10 +1,11 @@
 import type { Fish } from '../state.js';
 import { STOCKED_FISH_SIZE, stockedBody } from '../livestock/create-fish.js';
 import { debParams } from '../livestock/species.js';
+import { ZERO_TOXINS } from '../config/livestock.js';
 
 /**
  * A fish record as a test names it: a neon male from the shop at the stocking size, fasting at full health and never
- * dying of old age, unless it says otherwise; `size` raises it to that % of grown length.
+ * dying of old age, unloaded, unless it says otherwise; `size` raises it to that % of grown length.
  */
 export function fishRecord({ size = STOCKED_FISH_SIZE, ...fields }: Partial<Fish> & { size?: number } = {}): Fish {
   const species = fields.species ?? 'neon_tetra';
@@ -16,6 +17,7 @@ export function fishRecord({ size = STOCKED_FISH_SIZE, ...fields }: Partial<Fish
     sex: 'male',
     hardinessOffset: 0,
     survivalDraw: 0,
+    load: ZERO_TOXINS,
     ...stockedBody(species, size),
     ...fields,
   };

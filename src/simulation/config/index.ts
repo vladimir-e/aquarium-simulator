@@ -76,6 +76,12 @@ export {
   type LivestockConfig,
   livestockDefaults,
   livestockConfigMeta,
+  loadRateMeta,
+  TOXINS,
+  type Toxin,
+  type ToxinVector,
+  mapToxins,
+  ZERO_TOXINS,
 } from './livestock.js';
 
 import { type DecayConfig, decayDefaults, decayConfigMeta } from './decay.js';
@@ -117,7 +123,7 @@ import {
   demandMeta,
   foodMineralContentMeta,
 } from './nutrients.js';
-import { type LivestockConfig, livestockDefaults, livestockConfigMeta } from './livestock.js';
+import { type LivestockConfig, livestockDefaults, livestockConfigMeta, loadRateMeta } from './livestock.js';
 
 /**
  * Complete tunable configuration for all simulation systems.
@@ -166,7 +172,8 @@ type NestedPath =
   | 'nutrients.rootTab'
   | 'nutrients.halfSaturation'
   | 'nutrients.foodMineralContent'
-  | `nutrients.demand.${keyof NutrientsConfig['demand']}`;
+  | `nutrients.demand.${keyof NutrientsConfig['demand']}`
+  | 'livestock.loadRate';
 
 const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
   Object.entries({
@@ -190,6 +197,7 @@ const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
     'nutrients.demand.high': demandMeta,
     'nutrients.foodMineralContent': foodMineralContentMeta,
     livestock: livestockConfigMeta,
+    'livestock.loadRate': loadRateMeta,
   } satisfies Record<keyof TunableConfig | NestedPath, readonly RangedMeta[]>)
 );
 

@@ -14,6 +14,7 @@ import { gutCapacity } from '../systems/digestion.js';
 import { spawnsAt } from '../systems/brood.js';
 import { clutchOrganics } from '../systems/clutch.js';
 import { fishRecord, holdingEggs } from '../tests/fish.js';
+import { ZERO_TOXINS } from '../config/livestock.js';
 
 let idSeq = 0;
 function mkFish(o: Partial<Fish> = {}): Fish {
@@ -146,6 +147,19 @@ describe('processBodies', () => {
     expect(left(-0.1)).toBeLessThan(left(0));
   });
 
+  it('thins a carried brood on the water, whatever its mother has loaded', () => {
+    const left = (load: Fish['load']): number => {
+      const mother = mkFish({ id: 'mother', load });
+      const brood: Clutch = { id: 'c', species: 'guppy', eggs: 100, development: 0, motherId: 'mother' };
+      const state = produce(withTank([mother], [brood]), (draft) => {
+        draft.resources.nitrite = 5 * draft.resources.water;
+      });
+      return breed(state).state.clutches[0].eggs;
+    };
+    expect(left(ZERO_TOXINS)).toBeLessThan(100);
+    expect(left({ ammonia: 2, nitrite: 50, nitrate: 3000 })).toBe(left(ZERO_TOXINS));
+  });
+
   it('hatches each whole egg into a hatchling, the reserve its embryo spent burned, the part egg to waste', () => {
     const clutch: Clutch = { id: 'c', species: 'neon_tetra', eggs: 7.6, development: 0.9999 };
     const p = debParams('neon_tetra');
@@ -156,6 +170,7 @@ describe('processBodies', () => {
       expect(fry.gut).toBe(0);
       expect(fry.age).toBe(0);
       expect(fry.survival).toBe(1);
+      expect(fry.load).toEqual(ZERO_TOXINS);
     }
     expect(wasteOf(out)).toBeCloseTo(0.6 * p.E0, 15);
     expect(out.burned).toBeCloseTo(7 * (p.E0 - organics(hatchling(p), p)), 15);

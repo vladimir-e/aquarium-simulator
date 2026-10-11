@@ -1,6 +1,7 @@
 /**
- * Livestock processing — every fish's hour: its budget runs on what its gut
- * digests, it eats, and its health moves; the dead leave the tank.
+ * Livestock processing — every fish's hour: its loads follow the water, its
+ * budget runs on what its gut digests, it eats, and its health moves; the
+ * dead leave the tank.
  *
  * Called during ACTIVE tier processing in tick.ts (after plants). Returns the
  * updated state, the effects of what the fish ate, passed, burned and left,
@@ -24,6 +25,7 @@ import { mintAmmonia } from '../systems/nitrogen-cycle.js';
 import { createLog } from '../core/logging.js';
 import { atRecipe, NO_ORGANICS, type Organics } from '../core/organics.js';
 import { clutchOrganics, clutchesWithMothers } from '../systems/clutch.js';
+import { loadFish, waterToxins } from '../systems/toxicokinetics.js';
 import { getPpm } from '../resources/index.js';
 import type { LivestockConfig } from '../config/livestock.js';
 
@@ -73,10 +75,10 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
   const livestock = config.livestock;
   const water = state.resources.water;
   const paces = tankPaces(state, config);
-  const healing = state.fish.map((fish, i) =>
-    repairAsked(fish.budget, fishParams(fish), fish.health, paces[i].tau, livestock)
-  );
-  const metabolism = processMetabolism(state.fish, paces, healing, state.resources, livestock);
+  const levels = waterToxins(state.resources);
+  const fish = state.fish.map((f, i) => loadFish(f, levels, paces[i].tau, livestock.loadRate));
+  const healing = fish.map((f, i) => repairAsked(f.budget, fishParams(f), f.health, paces[i].tau, livestock));
+  const metabolism = processMetabolism(fish, paces, healing, state.resources, livestock);
 
   const carried = new Map<string, number>();
   for (const clutch of state.clutches) {
@@ -84,14 +86,14 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
     if (mother !== undefined) carried.set(mother, (carried.get(mother) ?? 0) + clutchOrganics(clutch));
   }
   const health = processHealth(
-    state.fish,
+    fish,
     metabolism.hours,
     metabolism.updatedFish,
     state.resources,
     state.plants,
     state.tank.capacity,
     livestock,
-    state.fish.map((fish) => carried.get(fish.id) ?? 0)
+    fish.map((f) => carried.get(f.id) ?? 0)
   );
 
   const feces = atRecipe(metabolism.feces, config);
