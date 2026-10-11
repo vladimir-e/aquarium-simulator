@@ -22,7 +22,7 @@ export function fishRecord({ size = STOCKED_FISH_SIZE, ...fields }: Partial<Fish
 }
 
 /** The fish with a brood buffer holding `eggs` of its species' eggs, at the cost a female lays them. */
-export function holdingEggs<F extends Pick<Fish, 'species' | 'deb'>>(fish: F, eggs: number): F {
+export function holdingEggs<F extends Pick<Fish, 'species' | 'budget'>>(fish: F, eggs: number): F {
   const p = debParams(fish.species);
-  return { ...fish, deb: { ...fish.deb, broodBuffer: (eggs * p.E0) / p.kappaR } };
+  return { ...fish, budget: { ...fish.budget, broodBuffer: (eggs * p.E0) / p.kappaR } };
 }

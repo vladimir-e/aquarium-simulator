@@ -1,24 +1,25 @@
 /**
  * Algae tunable configuration. The bloom runs on the plants' constants — its
- * light curve, income peaks, severities, bank, healing, growth draw and
- * shedding are `PlantsConfig`'s — and what a kind of bloom is sits in its
+ * light curve, budget, income peaks, severities, healing and shedding are
+ * `PlantsConfig`'s — and what a kind of bloom is sits in its
  * traits (`algae/traits.ts`). What lives here is what thriving plants do to
  * any bloom.
  */
 
 export interface AlgaeConfig {
   /**
-   * Damage per rate unit of thriving plant per litre: the allelochemicals a
-   * healthy planting leaks.
+   * Litres per rate unit of thriving plant: the allelochemicals a healthy
+   * planting leaks halve a bloom's assimilation at a dose of its inverse.
    */
   allelopathySeverity: number;
 }
 
 export const algaeDefaults: AlgaeConfig = {
-  // A healthy planting of 0.1 rate units per litre — a well-planted tank —
-  // charges 0.05 %/h before hardiness, half what a fed bloom earns averaged
-  // over a lit day.
-  allelopathySeverity: 0.5,
+  // Tune's: nothing measures a tank's exudates. A well-planted tank's 0.1 rate
+  // units a litre halves what a bloom assimilates, and a 75 gal community's few
+  // easy plants take a quarter, so kept planted water stays clear or hazy while
+  // a climbing doser still tips a high-tech tank.
+  allelopathySeverity: 10,
 };
 
 export interface AlgaeConfigMeta {
@@ -31,5 +32,5 @@ export interface AlgaeConfigMeta {
 }
 
 export const algaeConfigMeta: AlgaeConfigMeta[] = [
-  { key: 'allelopathySeverity', label: 'Allelopathy Severity', unit: '%/(unit/L)/hr', min: 0, max: 20, step: 0.5 },
+  { key: 'allelopathySeverity', label: 'Allelopathy Severity', unit: 'L/unit', min: 0, max: 100, step: 1 },
 ];

@@ -6,7 +6,8 @@
  * and a hard cap keeps the session file size predictable.
  */
 
-import { mapKinds, type Blooms, type SimulationState } from '../simulation/index.js';
+import { bloomCoverage, bloomParams, mapKinds, wellFed, type AlgaeKind, type SimulationState } from '../simulation/index.js';
+import type { TunableConfig } from '../simulation/config/index.js';
 
 export const HISTORY_CAP = 720; // 30 days of hourly samples
 
@@ -36,7 +37,14 @@ export interface HistorySnapshot {
   };
   fish: { count: number; avgHealth: number };
   plants: { count: number; avgCondition: number };
-  algae: Blooms;
+  algae: Record<AlgaeKind, BloomTrace>;
+}
+
+/** A bloom as the trace reads it: its coverage, its condition and its reserve density. */
+export interface BloomTrace {
+  coverage: number;
+  condition: number;
+  reserve: number;
 }
 
 function avg(values: number[]): number {
@@ -44,7 +52,7 @@ function avg(values: number[]): number {
   return values.reduce((s, v) => s + v, 0) / values.length;
 }
 
-export function snapshot(state: SimulationState): HistorySnapshot {
+export function snapshot(state: SimulationState, config: TunableConfig): HistorySnapshot {
   const r = state.resources;
   return {
     tick: state.tick,
@@ -56,7 +64,7 @@ export function snapshot(state: SimulationState): HistorySnapshot {
       light: r.light,
       aeration: r.aeration,
       food: r.food,
-      waste: r.waste,
+      waste: r.waste.grams,
       ammonia: r.ammonia,
       nitrite: r.nitrite,
       nitrate: r.nitrate,
@@ -78,7 +86,11 @@ export function snapshot(state: SimulationState): HistorySnapshot {
       count: state.plants.length,
       avgCondition: avg(state.plants.map((p) => p.condition)),
     },
-    algae: mapKinds((kind) => ({ ...state.algae[kind] })),
+    algae: mapKinds((kind) => ({
+      coverage: bloomCoverage(state, kind),
+      condition: state.algae[kind].condition,
+      reserve: wellFed(state.algae[kind].budget, bloomParams(kind, config.plants)),
+    })),
   };
 }
 

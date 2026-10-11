@@ -1,9 +1,6 @@
 /**
  * Trim plants action - reduces plant size, either a single plant (when `plantId` is set)
  * or every plant above `targetSize` in bulk — of one family when `familyId` is set.
- *
- * Trimmed material exits the system cleanly (not converted to waste).
- * This simulates the aquarist properly removing and disposing of trimmed leaves.
  */
 
 import { produce } from 'immer';
@@ -11,6 +8,8 @@ import type { Plant, SimulationState } from '../state.js';
 import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import { createLog } from '../core/logging.js';
 import { isPlantableSize, MIN_PLANTABLE_SIZE } from '../plants/create-plant.js';
+import { sizeOf } from '../plants/canopy.js';
+import { scaleFlora } from '../systems/flora-budget.js';
 import type { ActionResult, TrimPlantsAction } from './types.js';
 
 type TrimScope = Omit<TrimPlantsAction, 'type'>;
@@ -18,7 +17,7 @@ type TrimScope = Omit<TrimPlantsAction, 'type'>;
 /** Whether a trim cuts this plant: over the target, and the plant or family it names if it names one. */
 function cuts({ targetSize, plantId, familyId }: TrimScope): (plant: Plant) => boolean {
   return (plant) =>
-    plant.size > targetSize &&
+    sizeOf(plant) > targetSize &&
     (plantId !== undefined ? plant.id === plantId : familyId === undefined || plant.familyId === familyId);
 }
 
@@ -38,8 +37,8 @@ export function getPlantsToTrimCount(state: SimulationState, targetSize: number)
  * If `action.plantId` is set, trims only that plant down to `targetSize` (no-op if
  * the plant is missing or already at/below target). Otherwise, reduces every plant
  * above `targetSize` to the target — every plant of `action.familyId` when that is
- * set. Trimmed material exits the system — the waste pool is untouched. A target
- * under `MIN_PLANTABLE_SIZE` is refused.
+ * set. Trimmed material exits the system, its reserve and stores with it — the
+ * waste pool is untouched. A target under `MIN_PLANTABLE_SIZE` is refused.
  */
 export function trimPlants(state: SimulationState, action: TrimPlantsAction): ActionResult {
   const { targetSize, plantId, familyId } = action;
@@ -56,6 +55,11 @@ export function trimPlants(state: SimulationState, action: TrimPlantsAction): Ac
     : trimSingle(state, targetSize, plantId);
 }
 
+/** Cut a plant down to `targetSize`, every pool of its budget pro rata. */
+function trimTo(plant: Plant, targetSize: number): void {
+  plant.budget = scaleFlora(plant.budget, targetSize / sizeOf(plant));
+}
+
 function trimBulk(state: SimulationState, targetSize: number, familyId?: string): ActionResult {
   const trims = cuts({ targetSize, familyId });
   const plantsToTrim = state.plants.filter(trims);
@@ -67,15 +71,13 @@ function trimBulk(state: SimulationState, targetSize: number, familyId?: string)
   }
 
   const totalTrimmed = plantsToTrim.reduce(
-    (sum, p) => sum + (p.size - targetSize),
+    (sum, p) => sum + (sizeOf(p) - targetSize),
     0
   );
 
   const newState = produce(state, (draft) => {
     for (const plant of draft.plants) {
-      if (trims(plant)) {
-        plant.size = targetSize;
-      }
+      if (trims(plant)) trimTo(plant, targetSize);
     }
     draft.logs.push(
       createLog(
@@ -102,7 +104,7 @@ function trimSingle(
   if (!plant) {
     return { state, message: `Plant not found` };
   }
-  if (plant.size <= targetSize) {
+  if (sizeOf(plant) <= targetSize) {
     const speciesName = PLANT_SPECIES_DATA[plant.species].name;
     return {
       state,
@@ -111,13 +113,13 @@ function trimSingle(
   }
 
   const speciesName = PLANT_SPECIES_DATA[plant.species].name;
-  const removed = plant.size - targetSize;
+  const removed = sizeOf(plant) - targetSize;
 
   const newState = produce(state, (draft) => {
     const target = draft.plants.find((p) => p.id === plantId);
     // Guarded above; the find on the draft cannot realistically miss, but be defensive.
     if (!target) return;
-    target.size = targetSize;
+    trimTo(target, targetSize);
     draft.logs.push(
       createLog(
         draft.tick,

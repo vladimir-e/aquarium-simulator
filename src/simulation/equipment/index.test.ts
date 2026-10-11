@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { bloomAt } from '../tests/blooms.js';
+import { addOrganics, NO_ORGANICS, ofComposition, scaleOrganics } from '../core/organics.js';
+import { LEAN, organicsCloseTo } from '../tests/organics.js';
 import { produce } from 'immer';
 import {
   biofilmKept,
@@ -123,15 +126,15 @@ describe('calculatePassiveResources', () => {
         passive(
           produce(tank(), (draft) => {
             draft.tick = 10;
-            draft.algae.greenWater.mass = greenWater;
-            draft.algae.film.mass = film;
+            draft.algae.greenWater = bloomAt(draft, 'greenWater', greenWater);
+            draft.algae.film = bloomAt(draft, 'film', film);
           })
         ).light;
-      const green = produce(tank(), (draft) => void (draft.algae.greenWater.mass = 50));
+      const green = produce(tank(), (draft) => void (draft.algae.greenWater = bloomAt(draft, 'greenWater', 50)));
       const { light } = green.equipment;
 
       expect(bloomed(50, 0)).toBeCloseTo(
-        calculateParAtDepth(light.par, calculateTankHeight(100), waterExtinction(green.algae, opticsDefaults)),
+        calculateParAtDepth(light.par, calculateTankHeight(100), waterExtinction(green, opticsDefaults)),
         10
       );
       expect(bloomed(50, 0)).toBeLessThan(bloomed(0, 0));
@@ -201,7 +204,7 @@ describe('rescape', () => {
       }),
       (draft) => {
         draft.resources.aob = 1000;
-        for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 40, condition: 80, surplus: 3 };
+        for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 40, 80);
       }
     );
 
@@ -220,7 +223,7 @@ describe('rescape', () => {
     for (const kind of ALGAE_KINDS) {
       const floor = placeShare(ALGAE[kind].habitat, 'floor', state);
       expect(kindTissue(swapped, kind)).toBeCloseTo(kindTissue(state, kind) * (1 - floor), 12);
-      expect(swapped.algae[kind]).toMatchObject({ condition: 80, surplus: 3 });
+      expect(swapped.algae[kind].condition).toBe(80);
     }
     expect(bloomsTissue(swapped)).toBeLessThan(bloomsTissue(state));
   });
@@ -236,18 +239,19 @@ describe('disturbBed', () => {
     produce(createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } }), (draft) => {
       draft.resources.aob = 1000;
       draft.resources.nob = 500;
-      draft.resources.waste = 0;
+      draft.resources.waste = NO_ORGANICS;
+      draft.equipment.substrate.organicReserve = ofComposition(2, LEAN);
     });
   const disturbed = (state: SimulationState, share: number): SimulationState =>
     produce(state, (draft) => disturbBed(draft, share));
 
-  it('moves that share of the bed’s organics into the water, conserving them', () => {
+  it('moves that share of the bed’s organics into the water, its content pro rata, conserving them', () => {
     const state = settled();
     const after = disturbed(state, 0.25);
     const reserve = state.equipment.substrate.organicReserve;
 
-    expect(after.resources.waste).toBeCloseTo(reserve * 0.25, 12);
-    expect(after.equipment.substrate.organicReserve + after.resources.waste).toBeCloseTo(reserve, 12);
+    expect(after.resources.waste).toEqual(organicsCloseTo(scaleOrganics(reserve, 0.25)));
+    expect(addOrganics(after.equipment.substrate.organicReserve, after.resources.waste)).toEqual(organicsCloseTo(reserve));
   });
 
   it('scrapes that share of the bed’s colony and nothing off the glass or the filter', () => {
@@ -308,7 +312,7 @@ describe('hardscape moves', () => {
     expect(lifted.equipment.hardscape.items).toEqual([]);
     expect(lifted.resources.surface).toBe(calculateSurface(lifted));
     expect(lifted.resources.aob).toBeCloseTo(density * (lifted.resources.surface - stirred), 9);
-    expect(lifted.resources.waste).toBeGreaterThan(state.resources.waste);
+    expect(lifted.resources.waste.grams).toBeGreaterThan(state.resources.waste.grams);
   });
 
   it('stirs no bed on a tank with no slots', () => {
@@ -340,7 +344,7 @@ describe('hardscape moves', () => {
     const lifted = liftHardscape(state, 'rock-0', 'rock-1', 'rock-2');
 
     expect(lifted.equipment.hardscape.items.map((i) => i.id)).toEqual(['rock-3']);
-    expect(lifted.equipment.substrate.organicReserve).toBeCloseTo(reserve * (1 - 3 / 8), 12);
+    expect(lifted.equipment.substrate.organicReserve).toEqual(organicsCloseTo(scaleOrganics(reserve, 1 - 3 / 8)));
   });
 
   it('sets every piece back fresh, stirring the whole bed they sat on', () => {
@@ -351,14 +355,14 @@ describe('hardscape moves', () => {
       state.equipment.hardscape.items.map((i) => createHardscapeItem(i.id, i.type))
     );
     expect(reset.equipment.hardscape.items[0]!.tannins).toBeGreaterThan(0);
-    expect(reset.equipment.substrate.organicReserve).toBe(0);
+    expect(reset.equipment.substrate.organicReserve).toEqual(NO_ORGANICS);
     expect(reset.resources.surface).toBe(calculateSurface(reset));
     expect(reset.resources.aob).toBeLessThan(state.resources.aob);
   });
 
   it('takes the lifted pieces’ share of every bloom out and sets them back bare', () => {
     const state = produce(crowded(4, 8), (draft) => {
-      for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 40, condition: 100, surplus: 0 };
+      for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 40);
     });
     const reset = resetHardscape(state);
 

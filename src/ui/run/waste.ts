@@ -8,13 +8,16 @@
 
 import {
   ALGAE_KINDS,
+  addOrganics,
   calculateSubstrateLeach,
+  scaleOrganics,
   decayFraction,
   wasteSettlingShare,
   getTemperatureFactor,
+  type Organics,
   type SimulationState,
 } from '../../simulation/index.js';
-import { calculateWasteToAmmonia } from '../../simulation/systems/index.js';
+import { wasteMineralised } from '../../simulation/systems/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { HourAhead } from './ahead.js';
 
@@ -23,6 +26,8 @@ export type WasteSourceKey = 'food' | 'fish' | 'plants' | 'algae' | 'substrate';
 export interface WasteSource {
   key: WasteSourceKey;
   label: string;
+  /** What it feeds the pool an hour, its content with it. */
+  inflow: Organics;
   gramsPerHour: number;
   /** Share of the hour's production, 0–1. */
   share: number;
@@ -63,32 +68,31 @@ export function wasteInflow(
   config: TunableConfig,
   ahead: HourAhead
 ): WasteInflowReadout {
-  const grams: Record<WasteSourceKey, number> = {
+  const inflow: Record<WasteSourceKey, Organics> = {
     food: ahead.foodWaste,
     fish: ahead.fishWaste,
     plants: ahead.shedding,
-    algae: ALGAE_KINDS.reduce((sum, kind) => sum + ahead.algae[kind].shedding, 0),
+    algae: addOrganics(...ALGAE_KINDS.map((kind) => ahead.algae[kind].shedding)),
     substrate: calculateSubstrateLeach(state.equipment.substrate.organicReserve, config.decay),
   };
 
-  const perHour = Object.values(grams).reduce((sum, g) => sum + g, 0);
+  const perHour = Object.values(inflow).reduce((sum, organics) => sum + organics.grams, 0);
   const sources = (Object.keys(LABEL) as WasteSourceKey[]).map((key) => ({
     key,
     label: LABEL[key],
-    gramsPerHour: grams[key],
-    share: perHour > 0 ? grams[key] / perHour : 0,
+    inflow: inflow[key],
+    gramsPerHour: inflow[key].grams,
+    share: perHour > 0 ? inflow[key].grams / perHour : 0,
   }));
 
   return { perHour, sources };
 }
 
-/** Sources the engine applies before the passive tier, and so before the nitrogen cycle. */
-const BEFORE_CYCLE: WasteSourceKey[] = ['fish', 'plants', 'algae', 'substrate'];
+const SHED_BEFORE_CYCLE: WasteSourceKey[] = ['fish', 'plants', 'algae'];
 
-function beforeCycleInflow(inflow: WasteInflowReadout): number {
-  return inflow.sources
-    .filter((source) => BEFORE_CYCLE.includes(source.key))
-    .reduce((total, source) => total + source.gramsPerHour, 0);
+/** What the named sources feed the pool an hour, together. */
+export function inflowFrom(inflow: WasteInflowReadout, keys: readonly WasteSourceKey[]): Organics {
+  return addOrganics(...inflow.sources.filter((source) => keys.includes(source.key)).map((source) => source.inflow));
 }
 
 /**
@@ -98,9 +102,12 @@ function beforeCycleInflow(inflow: WasteInflowReadout): number {
  * already sees all of it; food decay is collected in the same passive pass and
  * only arrives next hour.
  */
-export function mineralisationBase(state: SimulationState, config: TunableConfig, inflow: WasteInflowReadout): number {
-  const standing = state.resources.waste * (1 - wasteSettlingShare(state, config.decay));
-  return standing + beforeCycleInflow(inflow);
+export function mineralisationBase(state: SimulationState, config: TunableConfig, inflow: WasteInflowReadout): Organics {
+  return addOrganics(
+    scaleOrganics(state.resources.waste, 1 - wasteSettlingShare(state, config.decay)),
+    calculateSubstrateLeach(state.equipment.substrate.organicReserve, config.decay),
+    inflowFrom(inflow, SHED_BEFORE_CYCLE)
+  );
 }
 
 export function wasteReadout(
@@ -114,13 +121,10 @@ export function wasteReadout(
   const settlingShare = wasteSettlingShare(state, config.decay);
   return {
     ...inflow,
-    standing: r.waste,
-    mineralised: calculateWasteToAmmonia(
-      mineralisationBase(state, config, inflow),
-      config
-    ).wasteConsumed,
+    standing: r.waste.grams,
+    mineralised: wasteMineralised(mineralisationBase(state, config, inflow), config.nitrogenCycle).grams,
     settlingShare,
-    settled: r.waste * settlingShare,
+    settled: r.waste.grams * settlingShare,
     food: r.food,
     decayRate: decayFraction(r.temperature, r.oxygen, config.decay),
     q10,
@@ -137,7 +141,7 @@ export function wasteLevel(readout: WasteReadout, config: TunableConfig): number
   const mineralising = config.nitrogenCycle.wasteConversionRate;
   const settling = readout.settlingShare;
   return (
-    (readout.perHour - mineralising * beforeCycleInflow(readout)) /
+    (readout.perHour - mineralising * inflowFrom(readout, [...SHED_BEFORE_CYCLE, 'substrate']).grams) /
     (settling + mineralising * (1 - settling))
   );
 }

@@ -24,6 +24,16 @@ export function hourlyDraw(rate: number): number {
   return -Math.expm1(-rate);
 }
 
+/** Share of a steady inflow over the hour that the same draw takes before the hour ends. */
+export function hourlyInflowDraw(rate: number): number {
+  return 1 - meanOfExp(-rate);
+}
+
+/** The mean of `e^{xt}` over t from 0 to 1: `(e^x − 1)/x`, and 1 at x = 0. */
+export function meanOfExp(x: number): number {
+  return x === 0 ? 1 : Math.expm1(x) / x;
+}
+
 /**
  * Substrate scaling for biological rates — `[S] / (K + [S])`, the Monod curve.
  *

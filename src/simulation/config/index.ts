@@ -33,7 +33,8 @@ export {
   opticsConfigMeta,
   MAX_WATER_ATTENUATION_PER_CM,
   MAX_LEAF_ATTENUATION_PER_LAI,
-  MAX_ALGAE_ATTENUATION_PER_GRAM,
+  MAX_ALGAE_ATTENUATION_PER_CM,
+  MAX_ALGAE_COAT_OPTICAL_DEPTH,
 } from './optics.js';
 export {
   type WaterChemistryConfig,
@@ -44,10 +45,9 @@ export {
   type PlantsConfig,
   plantsDefaults,
   plantsConfigMeta,
-  MAX_SIZE_PER_SURPLUS,
-  MAX_SUFFICIENCY_EDGE,
+  quotaMinMeta,
+  quotaMaxMeta,
 } from './plants.js';
-export { MAX_SURPLUS_CAP } from './vitality.js';
 export {
   NUTRIENTS,
   type Nutrient,
@@ -106,7 +106,7 @@ import {
   waterChemistryDefaults,
   waterChemistryConfigMeta,
 } from './water-chemistry.js';
-import { type PlantsConfig, plantsDefaults, plantsConfigMeta } from './plants.js';
+import { type PlantsConfig, plantsDefaults, plantsConfigMeta, quotaMinMeta, quotaMaxMeta } from './plants.js';
 import {
   type NutrientsConfig,
   nutrientsDefaults,
@@ -159,7 +159,9 @@ interface RangedMeta {
   max?: number;
 }
 
-type NestedNutrientsPath =
+type NestedPath =
+  | 'plants.quotaMin'
+  | 'plants.quotaMax'
   | 'nutrients.fertilizerFormula'
   | 'nutrients.rootTab'
   | 'nutrients.halfSaturation'
@@ -177,6 +179,8 @@ const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
     optics: opticsConfigMeta,
     waterChemistry: waterChemistryConfigMeta,
     plants: plantsConfigMeta,
+    'plants.quotaMin': quotaMinMeta,
+    'plants.quotaMax': quotaMaxMeta,
     nutrients: nutrientsConfigMeta,
     'nutrients.fertilizerFormula': fertilizerFormulaMeta,
     'nutrients.rootTab': rootTabMeta,
@@ -186,7 +190,7 @@ const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
     'nutrients.demand.high': demandMeta,
     'nutrients.foodMineralContent': foodMineralContentMeta,
     livestock: livestockConfigMeta,
-  } satisfies Record<keyof TunableConfig | NestedNutrientsPath, readonly RangedMeta[]>)
+  } satisfies Record<keyof TunableConfig | NestedPath, readonly RangedMeta[]>)
 );
 
 export interface ConfigRange {

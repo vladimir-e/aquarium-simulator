@@ -11,6 +11,7 @@ import {
 } from '../../ui/run/index.js';
 import { renderObserve } from '../format.js';
 import { SESSION_VERSION } from '../session.js';
+import { withStores } from '../../simulation/tests/plant.js';
 
 function observe(state: SimulationState): string {
   return renderObserve({
@@ -50,12 +51,11 @@ describe('renderObserve', () => {
     );
     const failing = produce(stocked, (draft) => {
       draft.resources.ammonia = 20 * draft.resources.water;
-      draft.equipment.light.enabled = false;
-      draft.resources.lightByHour.fill(0);
+      draft.resources.temperature = 38;
     });
     const ahead = readHourAhead(failing, DEFAULT_CONFIG);
     const fish = readFish(failing, DEFAULT_CONFIG, ahead).filter((read) => read.sick).length;
-    const plants = plantRows(failing, DEFAULT_CONFIG, ahead).filter((row) => row.sick).length;
+    const plants = plantRows(failing, ahead).filter((row) => row.sick).length;
     expect(fish).toBeGreaterThan(0);
     expect(plants).toBeGreaterThan(0);
 
@@ -66,6 +66,18 @@ describe('renderObserve', () => {
     const healthy = observe(stocked);
     expect(line(healthy, '**Fish')).not.toContain(' sick');
     expect(line(healthy, '**Plants')).not.toContain(' sick');
+  });
+
+  it('prints the planting’s reserve and the store running its Droop limit lowest, and what the nutrients say where the console flags them', () => {
+    const planted = applyAction(createSimulation({ tankCapacity: 100 }), { type: 'addPlant', species: 'java_fern' }).state;
+    const drained = { ...planted, plants: planted.plants.map((plant) => withStores(plant, { iron: 0.05 })) };
+
+    expect(line(observe(planted), '**Plants')).toBe('**Plants (1)** avg condition 100% · reserve 100%');
+    expect(line(observe(planted), '**Nutrients**')).toMatch(/ppm · stores 100% · nothing dosed !$/);
+    expect(line(observe(drained), '**Nutrients**')).toMatch(/ppm · stores 5% · nothing dosed !$/);
+    const skewed = { ...planted, plants: planted.plants.map((plant) => withStores(plant, { nitrate: 0.3, phosphate: 0.2 })) };
+    expect(line(observe(skewed), '**Nutrients**')).toMatch(/ppm · stores 30% · /);
+    expect(line(observe(createSimulation({ tankCapacity: 100 })), '**Nutrients**')).toMatch(/ ppm$/);
   });
 
   it('prints the day of light the plants starve on, marked where the console tints it', () => {

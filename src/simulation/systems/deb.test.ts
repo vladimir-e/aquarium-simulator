@@ -6,25 +6,27 @@ import {
   hatchling,
   layEggs,
   mature,
-  maxReserveDensity,
   maxStructuralLength,
-  NO_STRESS,
   organics,
-  reserveDensity,
   size,
   stepDeb,
   structuralLength,
-  structureOrganics,
-  totalBurned,
-  wellFed,
   wetMass,
   type DebFluxes,
   type DebHour,
   type DebParams,
   type DebState,
   type DebStep,
-  type DebStress,
 } from './deb.js';
+import {
+  maxReserveDensity,
+  NO_STRESS,
+  reserveDensity,
+  structureOrganics,
+  totalBurned,
+  wellFed,
+  type DebStress,
+} from './reserve.js';
 import { fromAmP, GENERALISED_ANIMAL, readEntry } from '../livestock/amp.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
 

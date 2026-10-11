@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { deltaOf } from '../tests/effects.js';
 import { produce } from 'immer';
 import { processBodies } from './bodies.js';
 import { processLivestock, tankPaces } from './index.js';
@@ -35,7 +36,7 @@ const born = (before: Fish[], after: Fish[]): Fish[] => after.slice(before.lengt
 const events = (s: SimulationState, e: string): LogEntry[] => s.logs.filter((l) => l.event === e);
 const egg = eggOrganics;
 const wasteOf = (out: ReturnType<typeof processBodies>): number =>
-  out.effects.reduce((sum, e) => (e.resource === 'waste' ? sum + e.delta : sum), 0);
+  out.effects.reduce((sum, e) => (e.resource === 'waste' ? sum + e.delta.grams : sum), 0);
 
 /** Grams of organics the fish and their clutches hold, guts included. */
 const held = ({ fish, clutches }: SimulationState): number =>
@@ -63,7 +64,7 @@ describe('processBodies', () => {
       const [clutch] = out.state.clutches;
       expect(clutch.eggs).toBe(bout + 3);
       expect(clutch.development).toBe(0);
-      expect(out.state.fish[0].deb.broodBuffer).toBeLessThan(debParams(species).E0 / debParams(species).kappaR);
+      expect(out.state.fish[0].budget.broodBuffer).toBeLessThan(debParams(species).E0 / debParams(species).kappaR);
     });
   }
 
@@ -71,8 +72,8 @@ describe('processBodies', () => {
     const she = holdingEggs(mkFish({ species: 'neon_tetra' }), spawnsAt('neon_tetra') + 0.5);
     const out = breed(withTank([she]));
     expect(out.state.clutches).toHaveLength(0);
-    expect(out.state.fish[0].deb.broodBuffer).toBeLessThan(she.deb.broodBuffer);
-    expect(out.burned).toBeCloseTo(she.deb.broodBuffer - out.state.fish[0].deb.broodBuffer, 15);
+    expect(out.state.fish[0].budget.broodBuffer).toBeLessThan(she.budget.broodBuffer);
+    expect(out.burned).toBeCloseTo(she.budget.broodBuffer - out.state.fish[0].budget.broodBuffer, 15);
   });
 
   it('hatches a clutch when its development completes, not before', () => {
@@ -124,7 +125,7 @@ describe('processBodies', () => {
       const out = processLivestock(state, DEFAULT_CONFIG);
       expect(out.state.fish).toHaveLength(0);
       expect(out.state.clutches).toHaveLength(0);
-      return out.effects.find((e) => e.source === 'fish-death')!.delta;
+      return deltaOf(out.effects.find((e) => e.source === 'fish-death')!);
     };
     expect(deathWaste(dying([brood])) - deathWaste(dying([]))).toBeCloseTo(12 * egg('guppy'), 12);
     const second: Clutch = { ...brood, id: 'd', eggs: 5 };
@@ -151,7 +152,7 @@ describe('processBodies', () => {
     const out = breed(withTank([], [clutch]));
     expect(out.state.fish).toHaveLength(7);
     for (const fry of out.state.fish) {
-      expect(fry.deb).toEqual(hatchling(p));
+      expect(fry.budget).toEqual(hatchling(p));
       expect(fry.gut).toBe(0);
       expect(fry.age).toBe(0);
       expect(fry.survival).toBe(1);
@@ -191,8 +192,8 @@ describe('processBodies', () => {
     ];
     for (const tank of tanks) {
       const out = breed(tank);
-      expect(held(tank) - held(out.state)).toBeCloseTo(out.waste + out.burned, 15);
-      expect(wasteOf(out)).toBeCloseTo(out.waste, 15);
+      expect(held(tank) - held(out.state)).toBeCloseTo(out.waste.grams + out.burned, 15);
+      expect(wasteOf(out)).toBeCloseTo(out.waste.grams, 15);
     }
   });
 
@@ -241,9 +242,9 @@ describe('processBodies', () => {
     const tank = withTank([he, she]);
     const out = breed(tank);
     const tau = speciesTau('guppy', tank.resources.temperature);
-    const turned = he.deb.broodBuffer * hourlyDraw(DEFAULT_CONFIG.livestock.maleBufferTurnover * tau);
-    expect(out.state.fish[0].deb.broodBuffer).toBeCloseTo(he.deb.broodBuffer - turned, 15);
-    expect(out.state.fish[1].deb.broodBuffer).toBe(she.deb.broodBuffer);
+    const turned = he.budget.broodBuffer * hourlyDraw(DEFAULT_CONFIG.livestock.maleBufferTurnover * tau);
+    expect(out.state.fish[0].budget.broodBuffer).toBeCloseTo(he.budget.broodBuffer - turned, 15);
+    expect(out.state.fish[1].budget.broodBuffer).toBe(she.budget.broodBuffer);
     expect(out.burned).toBeCloseTo(turned, 15);
   });
 });

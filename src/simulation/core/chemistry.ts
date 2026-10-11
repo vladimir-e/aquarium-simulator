@@ -22,9 +22,19 @@ export const MW_NO3 = 62.0;
 export const MW_O2 = 32.0;
 /** Carbon dioxide (g/mol). */
 export const MW_CO2 = 44.01;
+/** Carbohydrate, CH2O: photosynthate as a budget counts it (g/mol). */
+export const MW_CH2O = 30.03;
+/** Elemental phosphorus (g/mol). */
+export const MW_P = 30.97;
+/** Phosphate, PO4³⁻ (g/mol). */
+export const MW_PO4 = 94.97;
 
 /** ≈ 1.216. */
 export const N_TO_NH3_MASS_RATIO = MW_NH3 / MW_N;
+/** ≈ 4.425. The nitrate that carries a gram of nitrogen, the unit every nitrogen content is counted in. */
+export const N_TO_NO3_MASS_RATIO = MW_NO3 / MW_N;
+/** ≈ 3.066. The phosphate that carries a gram of phosphorus. */
+export const P_TO_PO4_MASS_RATIO = MW_PO4 / MW_P;
 /** ≈ 2.702. */
 export const NH3_TO_NO2_MASS_RATIO = MW_NO2 / MW_NH3;
 /** ≈ 1.348. */
@@ -44,6 +54,11 @@ export const NO3_TO_NH3_MASS_RATIO = MW_NH3 / MW_NO3;
 export const CO2_TO_O2_MASS_RATIO = MW_O2 / MW_CO2;
 /** ≈ 1.375 — the same 1:1 reaction read from the oxygen side. */
 export const O2_TO_CO2_MASS_RATIO = MW_CO2 / MW_O2;
+/**
+ * ≈ 0.682. CO2 + H2O → CH2O + O2, per gram of CO2: the photosynthate it fixes
+ * into, and respiration burns back out of.
+ */
+export const CO2_TO_CH2O_MASS_RATIO = MW_CH2O / MW_CO2;
 
 /**
  * ≈ 2.819. NH4⁺ + 1.5 O2 → NO2⁻ + 2H⁺ + H2O, read per gram of ammonia. Per

@@ -5,17 +5,23 @@
  * Reserve density can exceed 1 while structure burns at ω < 1; readouts use wellFed.
  */
 
-import { sum } from '../core/sum.js';
+import {
+  maxReserveDensity,
+  NO_STRESS,
+  spend,
+  structureOrganics,
+  type DebStress,
+  type ReserveParams,
+  type ReserveState,
+} from './reserve.js';
 
-export interface DebParams {
+export interface DebParams extends ReserveParams {
   /** g/h·cm² */
   pAm: number;
   /** cm/h */
   v: number;
-  kappa: number;
   kappaX: number;
   kappaR: number;
-  kappaG: number;
   /** g/h·cm³ */
   pM: number;
   /** 1/h */
@@ -40,20 +46,9 @@ export interface DebParams {
   delM: number;
 }
 
-/** Multipliers on the budget: assimilation in [0, 1]; maintenance, growthCost and eggCost ≥ 1. */
-export interface DebStress {
-  assimilation: number;
-  maintenance: number;
-  growthCost: number;
-  eggCost: number;
-}
-
-export const NO_STRESS: Readonly<DebStress> = { assimilation: 1, maintenance: 1, growthCost: 1, eggCost: 1 };
-
-export interface DebState {
+export interface DebState extends ReserveState {
   /** cm³ */
   structure: number;
-  reserve: number;
   maturity: number;
   broodBuffer: number;
   /** 1/h² */
@@ -64,22 +59,12 @@ export interface DebState {
 
 export const structuralLength = (state: DebState): number => Math.cbrt(state.structure);
 
-export const maxReserveDensity = (p: DebParams): number => p.pAm / p.v;
-
-export const reserveDensity = (state: DebState, p: DebParams): number =>
-  state.structure > 0 ? state.reserve / (maxReserveDensity(p) * state.structure) : 0;
-
-export const wellFed = (state: DebState, p: DebParams): number => Math.min(1, reserveDensity(state, p));
-
 export const maxStructuralLength = (p: DebParams): number => (p.kappa * p.pAm) / p.pM;
 
 export const size = (state: DebState, p: DebParams): number =>
   (100 * structuralLength(state)) / maxStructuralLength(p);
 
 export const mature = (state: DebState, p: DebParams): boolean => state.maturity >= p.EHp;
-
-/** Grams of organics a cm³ of structure holds: its cost net of the overhead burned building it. */
-export const structureOrganics = (p: DebParams): number => p.kappaG * p.EG;
 
 export const organics = (state: DebState, p: DebParams): number =>
   state.reserve + state.broodBuffer + structureOrganics(p) * state.structure;
@@ -123,8 +108,6 @@ export interface DebStep {
   fluxes: DebFluxes;
 }
 
-export const totalBurned = ({ burned }: DebFluxes): number => sum(Object.values(burned));
-
 export function assimilationCeiling(
   state: DebState,
   p: DebParams,
@@ -155,27 +138,31 @@ export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
         )
       : 0;
 
-  const somaShare = p.kappa * mobilised;
-  const somaticUpkeep = pMStressed * V * tau;
-  const somaticPaid = Math.min(somaShare, somaticUpkeep);
-  const somaticUnpaid = somaticUpkeep - somaticPaid;
-  const invested = somaShare - somaticPaid;
+  const upkeep = { soma: pMStressed * V * tau, branch: p.kJ * tau * EH };
+  const {
+    somaticPaid,
+    somaticUnpaid,
+    growth: { invested },
+    branchPaid: upkept,
+    branchUnpaid: maturityDue,
+    somaFromBranch,
+    rest: reproduction,
+    toBuffer,
+    buffer,
+    somaFromBuffer,
+    fromStructure,
+  } = spend(
+    mobilised,
+    p.kappa,
+    upkeep,
+    { buffer: ER, structure: gramsPerCm3 * V },
+    {
+      invest: (surplus) => ({ invested: surplus }),
+      deposit: (rest) => (adult ? rest : Math.max(0, EH + rest - p.EHp)),
+    }
+  );
   const grown = invested / EGStressed;
   const toStructure = gramsPerCm3 * grown;
-
-  const branch = mobilised - somaShare;
-  const maturityUpkeep = p.kJ * tau * EH;
-  const upkept = Math.min(branch, maturityUpkeep);
-  const maturityDue = maturityUpkeep - upkept;
-  const surplus = branch - upkept;
-  const somaFromSurplus = Math.min(surplus, somaticUnpaid);
-  const reproduction = surplus - somaFromSurplus;
-  const toBuffer = adult ? reproduction : Math.max(0, EH + reproduction - p.EHp);
-
-  const somaticDue = somaticUnpaid - somaFromSurplus;
-  const buffer = ER + toBuffer;
-  const somaFromBuffer = Math.min(buffer, somaticDue);
-  const fromStructure = Math.min(somaticDue - somaFromBuffer, gramsPerCm3 * V);
   const maturityFromBuffer = Math.min(buffer - somaFromBuffer, maturityDue);
   const healed = Math.min(omega * healing, E + assimilated - mobilised);
 
@@ -205,10 +192,10 @@ export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
         maintenance: somaticPaid,
         development: upkept + reproduction - toBuffer,
         growth: invested - toStructure,
-        starvation: somaFromSurplus + somaFromBuffer + maturityFromBuffer + fromStructure,
+        starvation: somaFromBranch + somaFromBuffer + maturityFromBuffer + fromStructure,
         healing: healed,
       },
-      owed: somaticUpkeep + maturityUpkeep,
+      owed: upkeep.soma + upkeep.branch,
       shortfall: somaticUnpaid + maturityDue,
     },
   };

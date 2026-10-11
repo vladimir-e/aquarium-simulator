@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { deltaOf } from '../tests/effects.js';
 import { produce } from 'immer';
 import {
   calculateCo2Injection,
@@ -78,8 +79,8 @@ describe('co2GeneratorUpdate', () => {
       draft.resources.water = 50;
     });
 
-    expect(co2GeneratorUpdate(evaporated).effects[0].delta).toBe(
-      co2GeneratorUpdate(state).effects[0].delta * 2
+    expect(deltaOf(co2GeneratorUpdate(evaporated).effects[0])).toBe(
+      deltaOf(co2GeneratorUpdate(state).effects[0]) * 2
     );
   });
 

@@ -1,4 +1,5 @@
 /* eslint-disable no-undef */
+import { emptyBlooms } from '../../simulation/index.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   loadPersistedState,
@@ -347,7 +348,7 @@ function createValidSimulation(): PersistedSimulation {
       lightByHour: new Array(24).fill(0),
       aeration: false,
       food: 0,
-      waste: 0,
+      waste: { grams: 0, nutrients: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 } },
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
@@ -375,7 +376,7 @@ function createValidSimulation(): PersistedSimulation {
       powerhead: { enabled: false, flowRateGPH: 240 },
       substrate: {
         type: 'gravel',
-        organicReserve: 0.5,
+        organicReserve: { grams: 0.5, nutrients: { nitrate: 110, phosphate: 10, potassium: 4, iron: 0.1 } },
         khReserve: 0,
         nutrients: { nitrate: 400, phosphate: 60, potassium: 200, iron: 10 },
       },
@@ -389,7 +390,7 @@ function createValidSimulation(): PersistedSimulation {
     plants: [],
     fish: [],
     clutches: [],
-    algae: { greenWater: { mass: 0, condition: 100, surplus: 0 }, film: { mass: 0, condition: 100, surplus: 0 } },
+    algae: emptyBlooms(),
     rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,

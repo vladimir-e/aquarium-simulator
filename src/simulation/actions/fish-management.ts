@@ -55,13 +55,13 @@ export function getMaxFishMass(tankCapacity: number): number {
 }
 
 /** Current total body mass (grams) of a set of fish, fry included. */
-export function totalFishMass(fish: readonly Pick<Fish, 'species' | 'deb'>[]): number {
+export function totalFishMass(fish: readonly Pick<Fish, 'species' | 'budget'>[]): number {
   return sum(fish.map(fishMass));
 }
 
 /** Grams a fish of this species weighs bought at this size; a size it is never stocked at throws a `RangeError`. */
 export function stockedMass(species: FishSpecies, size: number): number {
-  return fishMass({ species, deb: stockedBody(species, size).deb });
+  return fishMass({ species, budget: stockedBody(species, size).budget });
 }
 
 export interface FishCapacityResult {

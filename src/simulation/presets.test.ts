@@ -7,6 +7,9 @@ import {
   type PresetDefinition,
 } from './presets.js';
 import { cycledColony } from './seed.js';
+import { DEFAULT_CONFIG, withTunable } from './config/index.js';
+import { plantParams } from './flora/params.js';
+import { maxReserveDensity, wellFed } from './systems/reserve.js';
 
 describe('presets', () => {
   it('resolves every shipped preset by id, and nothing else', () => {
@@ -64,11 +67,25 @@ describe('presets', () => {
     expect(state.fish.every((f) => f.sex === 'female')).toBe(true);
   });
 
-  it('opens the tank on the stream its caller names, or on one of its own', () => {
-    const named = createPresetSimulation(seeded, 2026);
+  it('stocks its seeded plants on the plants config it will run on, and reads its first day through that config’s optics', () => {
+    const planted: PresetDefinition = { ...seeded, seed: { plants: [{ species: 'java_fern', count: 1 }] } };
+    const tuned = withTunable(withTunable(DEFAULT_CONFIG, 'plants.reserveCapacity', 0.4), 'optics.waterAttenuationPerCm', 0.04);
+    const [plant] = createPresetSimulation(planted, tuned, 1).plants;
+    const p = plantParams('java_fern', tuned.plants);
 
-    expect(named).toEqual(createPresetSimulation(seeded, 2026));
-    expect(named).not.toEqual(createPresetSimulation(seeded, 9001));
+    expect(wellFed(plant.budget, p)).toBe(1);
+    expect(plant.budget.reserve).toBeCloseTo(maxReserveDensity(p) * plant.budget.structure, 12);
+    expect(maxReserveDensity(p)).not.toBeCloseTo(maxReserveDensity(plantParams('java_fern', DEFAULT_CONFIG.plants)), 6);
+    expect(createPresetSimulation(planted, tuned, 1).resources.lightByHour).not.toEqual(
+      createPresetSimulation(planted, DEFAULT_CONFIG, 1).resources.lightByHour
+    );
+  });
+
+  it('opens the tank on the stream its caller names, or on one of its own', () => {
+    const named = createPresetSimulation(seeded, DEFAULT_CONFIG, 2026);
+
+    expect(named).toEqual(createPresetSimulation(seeded, DEFAULT_CONFIG, 2026));
+    expect(named).not.toEqual(createPresetSimulation(seeded, DEFAULT_CONFIG, 9001));
     expect(createPresetSimulation(seeded).fish).not.toEqual(createPresetSimulation(seeded).fish);
   });
 });

@@ -20,7 +20,7 @@ describe('canDose', () => {
     expect(
       canDose({
         ...state,
-        plants: [plantRecord({ id: 'test', species: 'java_fern', size: 50, condition: 100, surplus: 0 })],
+        plants: [plantRecord({ id: 'test', species: 'java_fern', size: 50 })],
       })
     ).toBe(true);
   });

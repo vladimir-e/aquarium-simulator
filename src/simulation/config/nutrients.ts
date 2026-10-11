@@ -1,8 +1,8 @@
 /**
  * Nutrients tunable configuration: what the fertilizer and a root tab carry,
  * how fast the bed gives its store up to the water, how hard each species
- * leans on a pool, and the minerals in a gram of organic matter — the fish
- * food, the waste it becomes and plant tissue alike.
+ * leans on a pool, and the minerals in a gram of food — and of the fish made
+ * of it.
  */
 
 import type { NutrientDemand } from '../plants/species.js';
@@ -13,8 +13,8 @@ export type Nutrient = (typeof NUTRIENTS)[number];
 
 export type NutrientVector = Record<Nutrient, number>;
 
-export function mapNutrients(value: (n: Nutrient) => number): NutrientVector {
-  return Object.fromEntries(NUTRIENTS.map((n) => [n, value(n)])) as NutrientVector;
+export function mapNutrients<T>(value: (n: Nutrient) => T): Record<Nutrient, T> {
+  return Object.fromEntries(NUTRIENTS.map((n) => [n, value(n)])) as Record<Nutrient, T>;
 }
 
 export const ZERO_NUTRIENTS: Readonly<NutrientVector> = Object.freeze(mapNutrients(() => 0));
@@ -76,8 +76,8 @@ export interface NutrientsConfig {
    */
   demand: Record<NutrientDemand, NutrientVector>;
   /**
-   * mg of each mineral in a gram of food, in the waste it becomes and in plant
-   * tissue. Its nitrogen is `livestock.foodNitrogenFraction`.
+   * mg of each mineral in a gram of food, and in the fish made of it. Its
+   * nitrogen is `livestock.foodNitrogenFraction`.
    */
   foodMineralContent: MineralVector;
 }
@@ -126,8 +126,7 @@ export const nutrientsDefaults: NutrientsConfig = {
   },
 
   // Against its 5 % N, fish food carries N:P ≈ 7 by mass (~20 mg PO₄/g) —
-  // Redfield, so the same recipe serves plant tissue — about 1 % K and a few
-  // hundred ppm Fe.
+  // Redfield — about 1 % K and a few hundred ppm Fe.
   foodMineralContent: {
     phosphate: 20,
     potassium: 8,
@@ -187,7 +186,7 @@ export const demandMeta: NutrientVectorMeta[] = [
 ];
 
 export const foodMineralContentMeta: NutrientVectorMeta[] = [
-  { key: 'phosphate', label: 'Phosphate in food and tissue', unit: 'mg/g', min: 0, max: 100, step: 1 },
-  { key: 'potassium', label: 'Potassium in food and tissue', unit: 'mg/g', min: 0, max: 50, step: 0.5 },
-  { key: 'iron', label: 'Iron in food and tissue', unit: 'mg/g', min: 0, max: 2, step: 0.01 },
+  { key: 'phosphate', label: 'Phosphate in food', unit: 'mg/g', min: 0, max: 100, step: 1 },
+  { key: 'potassium', label: 'Potassium in food', unit: 'mg/g', min: 0, max: 50, step: 0.5 },
+  { key: 'iron', label: 'Iron in food', unit: 'mg/g', min: 0, max: 2, step: 0.01 },
 ];

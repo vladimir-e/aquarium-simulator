@@ -8,6 +8,7 @@ import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { type WaterChemistryConfig, waterChemistryDefaults } from '../config/water-chemistry.js';
+import { livestockDefaults } from '../config/livestock.js';
 import {
   mapNutrients,
   NUTRIENTS,
@@ -16,14 +17,15 @@ import {
   type NutrientsConfig,
   type NutrientVector,
 } from '../config/nutrients.js';
+import { addOrganics, foodRecipe, NO_ORGANICS, ofComposition, scaleOrganics, type Organics } from '../core/organics.js';
 
 export type SubstrateType = 'none' | 'sand' | 'gravel' | 'aqua_soil';
 
 export interface Substrate {
   /** Substrate type affects surface area and plant rooting */
   type: SubstrateType;
-  /** Organic matter held in the bed, grams — filled by settling waste, drained by leaching */
-  organicReserve: number;
+  /** Organic matter held in the bed — filled by settling waste, drained by leaching */
+  organicReserve: Organics;
   /** Alkalinity the bed can still take up, mg of CaCO3 — spent as it buffers and never refills */
   khReserve: number;
   /** mg of each nutrient the bed holds — filled by root tabs, drained by roots and the leak */
@@ -32,7 +34,7 @@ export interface Substrate {
 
 export const DEFAULT_SUBSTRATE: Substrate = {
   type: 'none',
-  organicReserve: 0,
+  organicReserve: NO_ORGANICS,
   khReserve: 0,
   nutrients: ZERO_NUTRIENTS,
 };
@@ -57,6 +59,12 @@ export const SUBSTRATE_ORGANIC_PER_LITER: Record<SubstrateType, number> = {
   gravel: 0.013,
   aqua_soil: 0.05,
 };
+
+/** mg of each nutrient in a gram of a fresh bag's organic matter — its own, whatever the keeper feeds. */
+export const SUBSTRATE_ORGANIC_COMPOSITION: NutrientVector = foodRecipe({
+  livestock: livestockDefaults,
+  nutrients: nutrientsDefaults,
+});
 
 /**
  * Alkalinity a fresh bed can take up per liter of tank (mg CaCO3/L). Only
@@ -89,11 +97,11 @@ export function getSubstrateSurface(type: SubstrateType, tankCapacity: number): 
 }
 
 /**
- * Gets the organic reserve a fresh bed of this type starts with (g).
+ * Gets the organic reserve a fresh bed of this type starts with.
  * Scales with tank capacity, so concentration is volume-independent.
  */
-export function getSubstrateOrganicReserve(type: SubstrateType, tankCapacity: number): number {
-  return SUBSTRATE_ORGANIC_PER_LITER[type] * tankCapacity;
+export function getSubstrateOrganicReserve(type: SubstrateType, tankCapacity: number): Organics {
+  return ofComposition(SUBSTRATE_ORGANIC_PER_LITER[type] * tankCapacity, SUBSTRATE_ORGANIC_COMPOSITION);
 }
 
 /** Gets the alkalinity a fresh bed of this type can take up (mg CaCO3). */
@@ -135,17 +143,16 @@ export function replaceSubstrate(
 }
 
 /**
- * Grams of organics the bed releases this tick — a fixed fraction of
- * what is left, so the source tapers as the bed is spent. Never more than
- * the bed still holds: the rate is a tunable a debug session can push past
- * 1, and a bed cannot release mass it does not have.
+ * Organics the bed releases this tick — a fixed fraction of what is left, so
+ * the source tapers as the bed is spent. Never more than the bed still holds:
+ * the rate is a tunable a debug session can push past 1, and a bed cannot
+ * release mass it does not have.
  */
 export function calculateSubstrateLeach(
-  organicReserve: number,
+  organicReserve: Organics,
   config: DecayConfig = decayDefaults
-): number {
-  if (organicReserve <= 0) return 0;
-  return Math.min(organicReserve, organicReserve * config.substrateLeachRate);
+): Organics {
+  return scaleOrganics(organicReserve, Math.min(1, config.substrateLeachRate));
 }
 
 /** mg of each nutrient the bed leaks into the water this tick — a share of what it holds. */
@@ -210,7 +217,7 @@ export function substrateUpdate(
   const { substrate } = state.equipment;
   const leaked = calculateBedLeak(substrate.nutrients, nutrients);
   const leached = calculateSubstrateLeach(substrate.organicReserve, decay);
-  const settled = state.resources.waste * wasteSettlingShare(state, decay);
+  const settled = scaleOrganics(state.resources.waste, wasteSettlingShare(state, decay));
   const uptake =
     state.resources.water > 0
       ? Math.min(
@@ -220,7 +227,7 @@ export function substrateUpdate(
       : 0;
 
   const leaking = NUTRIENTS.filter((n) => leaked[n] > 0);
-  if (leached <= 0 && settled <= 0 && uptake <= 0 && leaking.length === 0) {
+  if (leached.grams <= 0 && settled.grams <= 0 && uptake <= 0 && leaking.length === 0) {
     return { state, effects: [] };
   }
 
@@ -230,11 +237,16 @@ export function substrateUpdate(
     delta: leaked[n],
     source: 'substrate-leak',
   }));
-  if (leached > 0) {
+  if (leached.grams > 0) {
     effects.push({ tier: 'immediate', resource: 'waste', delta: leached, source: 'substrate-leach' });
   }
-  if (settled > 0) {
-    effects.push({ tier: 'immediate', resource: 'waste', delta: -settled, source: 'substrate-settling' });
+  if (settled.grams > 0) {
+    effects.push({
+      tier: 'immediate',
+      resource: 'waste',
+      delta: scaleOrganics(settled, -1),
+      source: 'substrate-settling',
+    });
   }
   if (uptake > 0) {
     effects.push(
@@ -245,7 +257,11 @@ export function substrateUpdate(
 
   return {
     state: produce(state, (draft) => {
-      draft.equipment.substrate.organicReserve += settled - leached;
+      draft.equipment.substrate.organicReserve = addOrganics(
+        substrate.organicReserve,
+        settled,
+        scaleOrganics(leached, -1)
+      );
       draft.equipment.substrate.khReserve -= uptake;
       for (const n of leaking) draft.equipment.substrate.nutrients[n] -= leaked[n];
     }),

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { bloomAt } from '../../simulation/tests/blooms.js';
 import { produce } from 'immer';
 import {
   snapshotFromState,
@@ -18,7 +19,7 @@ function makeState(mutate: (draft: SimulationState) => void): SimulationState {
 }
 
 function makePlant(size: number): Plant {
-  return plantRecord({ id: `p-${size}`, species: 'java_fern', size, condition: 80, surplus: 0 });
+  return plantRecord({ id: `p-${size}`, species: 'java_fern', size, condition: 80 });
 }
 
 describe('snapshotFromState', () => {
@@ -32,8 +33,8 @@ describe('snapshotFromState', () => {
       d.resources.co2 = 18;
       d.resources.temperature = 24.5;
       d.resources.food = 0.3;
-      d.algae.greenWater.mass = 4;
-      d.algae.film.mass = 9;
+      d.algae.greenWater = bloomAt(d, 'greenWater', 4);
+      d.algae.film = bloomAt(d, 'film', 9);
     });
 
     const snap = snapshotFromState(state);

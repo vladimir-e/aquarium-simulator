@@ -14,7 +14,7 @@ export const DAILY_LIGHT_UNIT = 'mol/m²/d';
 export interface DailyLightReading {
   value: number;
   text: string;
-  /** The day's light at the substrate the worst-lit plant starves under; 0 when nothing is planted. */
+  /** The day's light at the substrate that gives the worst-lit plant the day it is rated to live on; 0 when nothing is planted. */
   needed: number;
   /** `need …` beside the reading, empty while nothing is planted. */
   need: string;
@@ -29,7 +29,7 @@ function worstLit(plants: readonly PlantLight[]): PlantLight | null {
   );
 }
 
-/** How a day's light reads off its share of what the species starves under. */
+/** How a day's light reads off its share of the day the species is rated to live on. */
 export function lightStatus(needShare: number): Status {
   return needShare >= 1 ? 'ok' : needShare > 0 ? 'warn' : 'alert';
 }

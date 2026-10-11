@@ -11,6 +11,9 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Flora run on energy budgets** (#77) - plants and blooms grow on a reserve and Droop nutrient stores, starve on reserve in the dark; breaking (v36).
+- **Organic matter carries its nutrients** (#77) - waste and the bed's mulm keep the N, P, K and Fe of what made them; breaking: waste is Organics.
+- **The console reads the budget** (#77) - reserve, stores and the next offshoot in the ledgers, foods against the stores; breaking: preset factory args.
 - **Fish run on energy budgets** (#75) - fish grow, breed, starve and age on their species' Add-my-Pet DEB; breaking: `Fish` and livestock config reshaped (v35).
 - **Predation** (#74) - larger fish hunt the young by the grams they outweigh them and eat what they kill; breaking (v34).
 - **Eggs are a stock** (#74) - water and fish thin a clutch as it develops, and livebearers carry theirs; breaking (v34).

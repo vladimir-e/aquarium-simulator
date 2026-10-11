@@ -3,8 +3,8 @@
  *
  * The same primitive feeds two consumers:
  *   - Fish vitality: `plantPower` saturates a shelter benefit.
- *   - Algae vitality: `plantPower` per litre is the allelopathy every bloom
- *     takes from thriving plants.
+ *   - Allelopathy: `plantPower` per litre is the dose that lowers every
+ *     bloom's assimilation ceiling.
  *
  * Per-plant contribution is its rate units × `condition / 100`: a full
  * thriving sword counts 2.8, a full monte carlo patch 0.5, a half-grown
@@ -14,13 +14,12 @@
  */
 
 import type { Plant } from '../state.js';
-import { rateUnits } from '../plants/canopy.js';
+import { rateUnits, unitOf } from '../plants/canopy.js';
 
-export function getPlantPower(plants: readonly Plant[]): number {
-  if (plants.length === 0) return 0;
+export function getPlantPower(plants: readonly Pick<Plant, 'species' | 'budget' | 'condition'>[]): number {
   let total = 0;
   for (const plant of plants) {
-    total += rateUnits(plant) * (plant.condition / 100);
+    total += rateUnits(unitOf(plant)) * (plant.condition / 100);
   }
   return total;
 }

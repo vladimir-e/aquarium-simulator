@@ -1,23 +1,21 @@
 /**
- * Nutrition — how much of each nutrient a feeder needs, how much of that need
- * the tank's pools meet, and what new tissue takes out of them. Plants and
- * algae feed the same way.
+ * Nutrition — how much of each nutrient a feeder needs, where it feeds, and
+ * what its stores take out of the tank's pools. Plants and algae feed the same
+ * way.
  *
  * A feeder draws on two pools: the water column and, through roots, the bed. A
  * plant's growth form fixes the share it draws through its roots, and algae
  * has none. Every form a pool holds saturates on its own Monod curve, at the
  * feeder's own half-saturation for it. Nitrogen comes in two — ammonia, taken
- * first, and nitrate for what ammonia leaves unmet — so a nutrient's share in a
- * pool is what its forms meet between them, `1 − Π(1 − share)`. Its share of a
- * nutrient is the two pools' shares weighted by where it feeds, and
- * sufficiency is the scarcest of them (Liebig).
+ * first, and nitrate for what ammonia leaves unmet.
  *
- * Tissue is the organic matter it rots into, at food's recipe: growing draws
- * that recipe out of the pools, and shedding and death hand it back as waste,
- * so a plant or a bloom holds its N, P, K and Fe and never makes or loses any.
+ * A feeder's stores ask for what they lack, and what the pools deliver moves
+ * into them: a plant or a bloom holds the N, P, K and Fe it took up, in its
+ * stores and its structure, and never makes or loses any.
  */
 
 import type { Resources, SimulationState } from '../state.js';
+import type { Effect } from '../core/effects.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
 import {
@@ -28,9 +26,9 @@ import {
   NUTRIENTS,
   nutrientsDefaults,
   type FormVector,
-  type NutrientForm,
   type NutrientsConfig,
   type NutrientVector,
+  ZERO_FORMS,
 } from '../config/nutrients.js';
 import {
   alkalinityMoved,
@@ -41,7 +39,6 @@ import {
 } from '../core/chemistry.js';
 import { monodFactor, monodUptake } from '../core/kinetics.js';
 import { getMassFromPpm, getPpm } from '../resources/index.js';
-import { nitratePerGramOfFood, type LivestockConfig } from '../config/livestock.js';
 
 /**
  * mg of GH, as CaCO3, a plant takes up per mg of nitrogen its tissue takes,
@@ -77,25 +74,6 @@ export function formHalfSaturations(
   config: NutrientsConfig = nutrientsDefaults
 ): FormVector {
   return mapForms((f) => demand[NUTRIENT_OF[f]] * config.halfSaturation[f]);
-}
-
-/** ppm at which this species takes the form at half its need. */
-export function speciesHalfSaturation(
-  species: PlantSpecies,
-  form: NutrientForm,
-  config: NutrientsConfig = nutrientsDefaults
-): number {
-  return formHalfSaturations(speciesDemand(species, config), config)[form];
-}
-
-/** Share of the species' need for a form's nutrient that this ppm of the form alone meets, 0–1. */
-export function nutrientShare(
-  ppm: number,
-  species: PlantSpecies,
-  form: NutrientForm,
-  config: NutrientsConfig = nutrientsDefaults
-): number {
-  return monodFactor(ppm, speciesHalfSaturation(species, form, config));
 }
 
 /** A stock feeders draw on: mg of each form, and the litres it reads against. */
@@ -144,11 +122,6 @@ export function formShares(pool: NutrientPool, feeder: Feeder): FormVector {
   return mapForms((f) => monodFactor(getPpm(pool.stock[f], pool.volume), feeder.halfSaturation[f]));
 }
 
-/** Share of each nutrient's need its forms meet between them, each taking what those before it left. */
-export function formsMeet(shares: FormVector): NutrientVector {
-  return mapNutrients((n) => 1 - FORMS_OF[n].reduce((unmet, f) => unmet * (1 - shares[f]), 1));
-}
-
 /** A feeder's draw on one pool: the share of its feeding done there, and the share each form there meets on its own. */
 export interface PoolDraw {
   weight: number;
@@ -164,85 +137,52 @@ export function poolDraws([water, bed]: TankPools, feeder: Feeder): PerPool<Tank
   ];
 }
 
-/** Share of a feeder's need for each nutrient its pools meet together, 0–1. */
-export function feederShares(draws: readonly PoolDraw[]): NutrientVector {
-  const met = draws.map(({ shares }) => formsMeet(shares));
-  return mapNutrients((n) => draws.reduce((sum, { weight }, p) => sum + weight * met[p][n], 0));
-}
-
-/** Liebig sufficiency: the scarcest nutrient's share, 0–1. */
-export function liebig(shares: NutrientVector): number {
-  return Math.min(...NUTRIENTS.map((n) => shares[n]));
-}
-
-export function calculateNutrientSufficiency(
-  pools: TankPools,
-  species: PlantSpecies,
-  config: NutrientsConfig = nutrientsDefaults
-): number {
-  return liebig(feederShares(poolDraws(pools, plantFeeder(species, config))));
-}
-
-/** mg of each nutrient in a gram of organic matter — food, its waste, plant and algae tissue alike — its nitrogen counted as the nitrate it ends up as. */
-export function organicNutrients(livestock: LivestockConfig, nutrients: NutrientsConfig): NutrientVector {
-  return { nitrate: nitratePerGramOfFood(livestock), ...nutrients.foodMineralContent };
-}
-
 /** mg of each nutrient, as the recipe counts it, that these masses of its forms carry. */
 export function nutrientsIn(forms: FormVector): NutrientVector {
   return mapNutrients((n) => FORMS_OF[n].reduce((sum, f) => sum + forms[f] / FORM_MASS[f], 0));
 }
 
-export interface TissueNeed<P extends readonly NutrientPool[] = TankPools> {
-  grams: number;
+/** mg of each nutrient a feeder asks of saturating water, and where it feeds. */
+export interface NutrientRequest<P extends readonly NutrientPool[] = TankPools> {
+  asked: NutrientVector;
   draws: PerPool<P, PoolDraw>;
 }
 
-export interface TissueDraw<P extends readonly NutrientPool[] = TankPools> {
-  /** Share of each feeder's tissue the pools supplied, 0–1, in the order of the needs. */
-  supplied: number[];
-  /** mg of each form each feeder took up from each pool, in the order of the needs. */
+interface NutrientDelivery<P extends readonly NutrientPool[] = TankPools> {
+  /** mg of each nutrient each feeder received, in the order of the requests. */
+  delivered: NutrientVector[];
+  /** mg of each form each feeder took up from each pool, in the order of the requests. */
   uptake: PerPool<P, FormVector>[];
 }
 
 /**
- * The share of each feeder's new tissue its pools supply, and what that tissue
- * takes out of each pool at the recipe. Each form in a pool meets every
- * request on it at one fraction, through `monodUptake`, so no pool is ever
- * overdrawn and no feeder is served before another; a nutrient's later forms
- * are asked only for what its earlier ones left unmet.
+ * What the pools deliver on every request: each form in a pool meets every
+ * request on it at its feeder's Monod share and one fraction, through
+ * `monodUptake`, so no pool is ever overdrawn and no feeder is served before
+ * another; a nutrient's later forms are asked only for what its earlier ones
+ * left unmet.
  */
-export function drawTissue<P extends readonly NutrientPool[]>(
-  needs: readonly TissueNeed<P>[],
-  pools: P,
-  recipe: NutrientVector
-): TissueDraw<P> {
-  const perForm = mapForms((f) => recipe[NUTRIENT_OF[f]] * FORM_MASS[f]);
+export function drawNutrients<P extends readonly NutrientPool[]>(
+  requests: readonly NutrientRequest<P>[],
+  pools: P
+): NutrientDelivery<P> {
   const reach = pools.map((pool, p) =>
     poolReach(
-      needs.map(({ grams, draws }) => ({ grams, ...draws[p] })),
-      pool.stock,
-      perForm
+      requests.map(({ asked, draws }) => ({ asked, ...draws[p] })),
+      pool.stock
     )
   );
-  const supply = needs.map((_, i) =>
-    mapNutrients((n) => reach.reduce((sum, pool) => sum + FORMS_OF[n].reduce((met, f) => met + pool[i][f], 0), 0))
+  const delivered = requests.map(({ asked }, i) =>
+    mapNutrients((n) => asked[n] * reach.reduce((sum, pool) => sum + FORMS_OF[n].reduce((met, f) => met + pool[i][f], 0), 0))
   );
-  const supplied = supply.map((share) => Math.min(...NUTRIENTS.map((n) => (recipe[n] > 0 ? share[n] : 1))));
-
-  const uptake = needs.map(({ grams }, i) =>
-    pools.map((_, p) =>
-      mapForms((f) => {
-        const r = reach[p][i][f];
-        return r > 0 ? grams * supplied[i] * perForm[f] * (r / supply[i][NUTRIENT_OF[f]]) : 0;
-      })
-    )
+  const uptake = requests.map(({ asked }, i) =>
+    pools.map((_, p) => mapForms((f) => asked[NUTRIENT_OF[f]] * reach[p][i][f] * FORM_MASS[f]))
   ) as PerPool<P, FormVector>[];
-  return { supplied, uptake };
+  return { delivered, uptake };
 }
 
 /**
- * mg of GH, as CaCO3, new tissue takes out of the water beside the nitrogen it
+ * mg of GH, as CaCO3, uptake takes out of the water beside the nitrogen it
  * took, counted as nitrate: on its own Monod, and never a limit on growth.
  */
 export function ghDrawn(nitrate: number, water: Pick<Resources, 'gh' | 'water'>): number {
@@ -261,23 +201,33 @@ export function uptakeAlkalinity(uptake: FormVector): number {
   );
 }
 
+/** Stores leached back to the water: every nutrient, its nitrogen as nitrate, and KH moved back by the charge that nitrate's uptake moved. */
+export function leach(leachate: Readonly<NutrientVector>): Effect[] {
+  const effects: Effect[] = [
+    ...NUTRIENTS.map((n): Effect => ({ tier: 'active', resource: n, delta: leachate[n], source: 'leaching' })),
+    {
+      tier: 'active',
+      resource: 'kh',
+      delta: -uptakeAlkalinity({ ...ZERO_FORMS, nitrate: leachate.nitrate }),
+      source: 'leaching',
+    },
+  ];
+  return effects.filter((effect) => effect.delta !== 0);
+}
+
 /**
- * Share of each request's need, per form, that one pool delivers this tick:
- * its weight there, times what it asked of the form, times the fraction the
- * form met. A nutrient's forms are asked in turn, each for what those before
- * it left unmet.
+ * Share of each request's ask, per form, that one pool delivers this tick:
+ * its weight there, times the share the form meets, times the fraction the
+ * pool can deliver. A nutrient's forms are asked in turn, each for what those
+ * before it left unmet.
  */
-function poolReach(
-  requests: readonly (PoolDraw & { grams: number })[],
-  stock: FormVector,
-  recipe: FormVector
-): FormVector[] {
+function poolReach(requests: readonly (PoolDraw & { asked: NutrientVector })[], stock: FormVector): FormVector[] {
   const reach = requests.map(() => mapForms(() => 0));
   for (const n of NUTRIENTS) {
     const unmet = requests.map(() => 1);
     for (const f of FORMS_OF[n]) {
-      const asked = requests.map(({ grams, weight }, i) => grams * weight * unmet[i]);
-      const met = metFraction(asked, requests.map(({ shares }) => shares[f]), stock[f], recipe[f]);
+      const asked = requests.map(({ asked, weight }, i) => asked[n] * FORM_MASS[f] * weight * unmet[i]);
+      const met = metFraction(asked, requests.map(({ shares }) => shares[f]), stock[f]);
       requests.forEach(({ weight, shares }, i) => {
         const arrived = unmet[i] * shares[f] * met;
         reach[i][f] = weight * arrived;
@@ -289,14 +239,13 @@ function poolReach(
 }
 
 /**
- * Fraction of what its requests ask of one form that the stock delivers: one
- * consumer at the half-saturation that would ask, at the tick's start, what
- * they ask together, drawn through `monodUptake`.
+ * Fraction of what its requests ask of one form, mg each, that the stock
+ * delivers: one consumer at the half-saturation that would ask, at the tick's
+ * start, what they ask together, drawn through `monodUptake`.
  */
-function metFraction(asked: readonly number[], shares: readonly number[], stock: number, recipe: number): number {
-  const grams = asked.reduce((sum, a) => sum + a, 0);
+function metFraction(asked: readonly number[], shares: readonly number[], stock: number): number {
+  const capacity = asked.reduce((sum, a) => sum + a, 0);
   const requested = asked.reduce((sum, a, i) => sum + a * shares[i], 0);
-  if (requested <= 0 || recipe <= 0) return 0;
-  const delivered = monodUptake(stock, grams * recipe, stock * (grams / requested - 1));
-  return delivered / (requested * recipe);
+  if (requested <= 0) return 0;
+  return monodUptake(stock, capacity, stock * (capacity / requested - 1)) / requested;
 }

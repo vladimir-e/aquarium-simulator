@@ -61,13 +61,13 @@ have been written to do.
 
 | Shape | Form | Reads |
 |---|---|---|
-| Monod | `[S] / (K + [S])` | A stock something consumes — dissolved oxygen, a nutrient |
+| Monod | `[S] / (K + [S])` | A stock something consumes — dissolved oxygen, a nutrient, a store |
 | Q10 | `q10 ^ ((T − Tref) / 10)` | Temperature, on anything enzymatic |
 | Arrhenius | `exp(T_A / Tref − T_A / T)`, in kelvin | Temperature on a fish's energy budget, each species on its own `T_A`, 1 at 20 °C |
 | Jassby–Platt | `tanh(PAR / Ik)` | Light. Nothing can overdraw it, so the curve comes from the leaf rather than from the pool |
 | Beer–Lambert | `exp(−k × x)` | Light on its way down, `x` the water or the leaf area above — so depth and a canopy share one exponent |
-| First order | `1 − e^−k` of the stock over the hour | A stock drained in proportion to itself — a gut digesting, a bank healing |
-| Shortfall | `max(0, 1 − x / edge)` | A need short of its edge — the share of a fish's upkeep its budget left unpaid, a plant under its nutrient sufficiency |
+| First order | `1 − e^−k` of the stock over the hour | A stock or gap closing in proportion to itself — a gut digesting, a store filling |
+| Shortfall | `max(0, 1 − x / edge)` | A need short of its edge — a plant's Droop limit under the edge its stores count as fed |
 | Band comfort | Symmetric parabola `4(x − lo)(hi − x) / (hi − lo)²` | The in-band benefit of a tolerance band — full at the centre, zero at each edge where the band's damage starts |
 | Log dose | `ln(x / edge)` past an edge, or `ln((edge + a) / (x + a))` under one, the offset `a` keeping it finite at zero | A toxin, where every doubling costs the same, or a shortfall like oxygen's — and, between two anchors, the fish O₂ benefit |
 

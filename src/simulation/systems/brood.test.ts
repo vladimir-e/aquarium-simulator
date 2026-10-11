@@ -64,14 +64,14 @@ describe.each(SPECIES)('a %s brood', (species) => {
       const result = brood(females, males);
       result.females.forEach((after, i) => {
         expect(eggsReady(after, p)).toBe(0);
-        expect(result.offspring[i]).toBeLessThanOrEqual(eggsReady(females[i].deb, p));
+        expect(result.offspring[i]).toBeLessThanOrEqual(eggsReady(females[i].budget, p));
       });
     }
   });
 
   it('lays every egg the males can father, up to all the eggs ready', () => {
     for (const [females, males] of cases) {
-      const ready = sum(females.map((f) => eggsReady(f.deb, p)));
+      const ready = sum(females.map((f) => eggsReady(f.budget, p)));
       const fathering = sum(males.map(offspringFathered));
       expect(sum(brood(females, males).offspring)).toBe(Math.floor(Math.min(ready, fathering)));
     }
@@ -80,18 +80,18 @@ describe.each(SPECIES)('a %s brood', (species) => {
   it('charges the males exactly the offspring they father, at their share, the same share of each', () => {
     for (const [females, males] of cases) {
       const result = brood(females, males);
-      const paid = males.map((m, i) => m.deb.broodBuffer - result.males[i].broodBuffer);
+      const paid = males.map((m, i) => m.budget.broodBuffer - result.males[i].broodBuffer);
       const cost = (FISH_SPECIES_DATA[species].breeding.maleShare * p.E0) / p.kappaR;
       expect(sum(paid) / cost).toBeCloseTo(sum(result.offspring), 8);
-      if (paid[1] > 0) expect(paid[0] / males[0].deb.broodBuffer).toBeCloseTo(paid[1] / males[1].deb.broodBuffer, 12);
+      if (paid[1] > 0) expect(paid[0] / males[0].budget.broodBuffer).toBeCloseTo(paid[1] / males[1].budget.broodBuffer, 12);
     }
   });
 
   it('closes its ledger: the buffers drawn are the clutches’ organics plus what it burns', () => {
     for (const [females, males] of cases) {
       const result = brood(females, males);
-      const before = sum([...females, ...males].map((f) => organics(f.deb, p)));
-      const after = sum([...result.females, ...result.males].map((deb) => organics(deb, p)));
+      const before = sum([...females, ...males].map((f) => organics(f.budget, p)));
+      const after = sum([...result.females, ...result.males].map((budget) => organics(budget, p)));
       expect(before - after).toBeCloseTo(sum(result.offspring) * p.E0 + result.burned, 12);
       expect(result.burned).toBeGreaterThanOrEqual(0);
     }

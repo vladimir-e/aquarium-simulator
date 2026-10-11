@@ -31,7 +31,7 @@ tank's fish thin, and the larger fish hunt the young that hatch.
 | Water quality | <Badge text="settled" variant="success" /> | Log-dose harm from each fish's own edge. Chloride, which blunts nitrite, is not modelled. |
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits. |
 | Starvation | <Badge text="settled" variant="success" /> | The hour's unpaid maintenance as a damage rate; the buffer, then structure, pay it. |
-| Repair | <Badge text="settled" variant="success" /> | A first-order share of the deficit, paid from reserve; nothing banks. |
+| Repair | <Badge text="settled" variant="success" /> | A first-order share of the deficit, paid from reserve; condition past 100 is lost. |
 | Old age | <Badge text="settled" variant="success" /> | The DEB hazard damages health and accumulates into survival against a per-fish threshold. |
 | Broods | <Badge text="settled" variant="success" /> | From the brood buffer, in bouts: an egg-layer spawns once her buffer holds a clutch, a livebearer carries one brood; males pay their share from their own buffers. |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge; damage starts at the edge. |
@@ -124,11 +124,11 @@ The fish's own stocks; what it reads and writes in the tank is under [Seams](#se
 |---|---|---|---|
 | `health` | Benefits; repair paid from reserve | Stressors | %, normal at 100 |
 | `gut` | Eating, up to a day of appetite; what the budget hands back; eggs and fry it eats | Digestion, first order | g |
-| `deb.structure` | Growth | A shortfall the buffer cannot pay | cm³ |
-| `deb.reserve` | Assimilation | Mobilisation; repair | g |
-| `deb.maturity` | The maturity share, until puberty | Unpaid maturity upkeep, short of puberty | g |
-| `deb.broodBuffer` | The maturity share after puberty | Spawning; fathering; a male's turnover; a shortfall | g |
-| `deb.wearLoad` · `deb.hazard` | Mobilisation | Dilution as the fish grows | 1/h² · 1/h |
+| `budget.structure` | Growth | A shortfall the buffer cannot pay | cm³ |
+| `budget.reserve` | Assimilation | Mobilisation; repair | g |
+| `budget.maturity` | The maturity share, until puberty | Unpaid maturity upkeep, short of puberty | g |
+| `budget.broodBuffer` | The maturity share after puberty | Spawning; fathering; a male's turnover; a shortfall | g |
+| `budget.wearLoad` · `budget.hazard` | Mobilisation | Dilution as the fish grows | 1/h² · 1/h |
 | `survival` | — | `× e^−hazard` each hour | share of a cohort alive |
 | clutch `eggs` | A brood | Water harm and predation, first order; hatching | eggs |
 | clutch `development` | `τ / incubation` each hour | Hatching, at 1 | share of the way to hatching |
@@ -136,11 +136,11 @@ The fish's own stocks; what it reads and writes in the tank is under [Seams](#se
 
 ### Health
 
-Health moves by benefits less damage, plus repair: the fish asks
-`(1 − e^−healingRate × τ) × (100 − health)` points an hour of its reserve at
-`healingCost` hours of its somatic maintenance a point, paid at the hour's
-oxygen; an empty reserve repairs nothing. Health above 100 is lost. A fish is
-sick while its damage outruns what it earns and repairs.
+Health runs the [vitality](/concepts/vitality/) step and the repair rule every
+organism shares: the fish asks a first-order share of its deficit at
+`healingRate` and its pace, priced at `healingCost` hours of its upkeep a point
+and paid from its reserve at the hour's oxygen; an empty reserve repairs
+nothing. A fish is sick while its damage outruns what it earns and repairs.
 
 | Stressor | Activates | Per |
 |---|---|---|

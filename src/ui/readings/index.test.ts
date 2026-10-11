@@ -1,14 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { netPerHour, ratePerHour, readTank, type ReadingBook } from './index.js';
+import { bloomAt } from '../../simulation/tests/blooms.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   ALGAE_KINDS,
   applyAction,
   coverage,
   createSimulation,
+  fillAtDroop,
+  plantParams,
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
+import { withStores } from '../../simulation/tests/plant.js';
 import { ammoniaAlertLine } from '../../simulation/alerts/index.js';
 import { FREE_AMMONIA_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
 import { snapshotFromState, type RunSnapshot } from '../run/index.js';
@@ -85,7 +89,7 @@ describe('readTank', () => {
 
     expect(byId.ph.sentence).toMatch(/^pH \d+\.\d{2}–\d+\.\d{2} — the span/);
     expect(byId.nitrite.sentence).toContain(`${NITRITE_EDGE.toFixed(3)} ppm`);
-    expect(byId.nitrate.sentence).toMatch(/under \d+\.\d ppm; the engine alerts over \d+\.\d\./);
+    expect(byId.nitrate.sentence).toMatch(/; the engine alerts over \d+\.\d\.$/);
   });
 
   it('takes the ammonia band off the free-NH₃ alert line at this pH, and states both', () => {
@@ -106,7 +110,7 @@ describe('readTank', () => {
       expect(asFood.band).toEqual(book.byId.nitrate.band);
       expect(asFood.sentence).not.toBe(book.byId.nitrate.sentence);
     }
-    expect(read(stocked()).byId.nitrateDemand.need).toMatch(/^need /);
+    expect(read(stocked()).byId.nitrateDemand.stores!.value).toMatch(/^\d+$/);
   });
 
   it('gives the demand reading the same stock to inspect as the toxin', () => {
@@ -119,12 +123,52 @@ describe('readTank', () => {
     expect(asFood.series!(latest)).toBe(book.byId.nitrate.series!(latest));
   });
 
-  it('leaves a nutrient unbanded when there is nothing planted to want it, bar nitrate’s alert line', () => {
-    for (const reading of read(bare()).demand) {
-      expect(reading.band === null).toBe(reading.id !== 'nitrateDemand');
-      expect(reading.need).toBe('');
+  it('bands no plant food but nitrate, on its alert line, and reads no stores beside them with nothing planted', () => {
+    for (const run of [stocked(), bare()]) {
+      for (const reading of read(run).demand) expect(reading.band === null).toBe(reading.id !== 'nitrateDemand');
+      expect(read(run).byId.nitrateDemand.band?.from).toBe(0);
     }
-    expect(read(bare()).byId.nitrateDemand.band?.from).toBe(0);
+    for (const reading of [...read(bare()).demand, read(bare()).byId.bed]) expect(reading.stores).toBeNull();
+  });
+
+  it('reads the feeders’ stores on a strip of their own — the lowest store banded from its Droop edge, coral under it — and leaves what the pool holds ink', () => {
+    const sword = applyAction(createSimulation({ tankCapacity: 200, substrate: { type: 'gravel' } }), { type: 'addPlant', species: 'amazon_sword' }).state;
+    const starved = { ...sword, plants: sword.plants.map((plant) => withStores(plant, 0.02)) };
+    const book = read({ state: starved, history: [snapshotFromState(starved)] });
+    const edge = fillAtDroop(plantParams('amazon_sword', DEFAULT_CONFIG.plants), DEFAULT_CONFIG.plants.droopEdge);
+
+    for (const [id, n] of [['nitrateDemand', 'nitrate'], ['phosphate', 'phosphate'], ['potassium', 'potassium'], ['iron', 'iron']] as const) {
+      const food = book.byId[id];
+      expect(food.tone).toBe('ink');
+      expect(food.stores).toMatchObject({ value: '2', band: { from: edge[n], to: 1 }, tone: 'alert' });
+      expect(food.stores!.at).toBeCloseTo(0.02, 12);
+      expect(food.sentence).toContain(`the store running lowest 2 % full; under ${Math.ceil(edge[n] * 100)} % a plant takes harm`);
+    }
+    expect(book.byId.bed).toMatchObject({ band: null, tone: 'ink', stores: { value: '2', tone: 'alert' } });
+
+    const fed = { ...sword, plants: sword.plants.map((plant) => withStores(plant, 0.5)) };
+    expect(read({ state: fed, history: [snapshotFromState(fed)] }).byId.iron.stores).toMatchObject({ value: '50', tone: 'ink' });
+  });
+
+  it('prints a store’s edge on the side of it the store is on', () => {
+    const fern = applyAction(createSimulation({ tankCapacity: 200 }), { type: 'addPlant', species: 'java_fern' }).state;
+    const ironAt = (fill: number): string => {
+      const state = { ...fern, plants: fern.plants.map((plant) => withStores(plant, { iron: fill })) };
+      return readTank({ state, config: DEFAULT_CONFIG, history: [snapshotFromState(state)], units: 'metric' }).byId.iron.sentence;
+    };
+    const p = plantParams('java_fern', DEFAULT_CONFIG.plants);
+    const edge = fillAtDroop(p, DEFAULT_CONFIG.plants.droopEdge).iron * 100;
+
+    expect(ironAt((0.99 * edge) / 100)).toContain(`under ${Math.ceil(edge)} % a plant takes harm`);
+    expect(ironAt((1.01 * edge) / 100)).toContain(`under ${Math.floor(edge)} % a plant takes harm`);
+  });
+
+  it('names the nutrient of the root feeders’ store running lowest in the bed’s words', () => {
+    const sword = applyAction(createSimulation({ tankCapacity: 200, substrate: { type: 'gravel' } }), { type: 'addPlant', species: 'amazon_sword' }).state;
+    const lean = { ...sword, plants: sword.plants.map((plant) => withStores(plant, { nitrate: 0.6, phosphate: 0.04, potassium: 0.6, iron: 0.6 })) };
+    const { bed } = read({ state: lean, history: [snapshotFromState(lean)] }).byId;
+
+    expect(bed.sentence).toContain('the store running lowest, its PO₄, 4 % full.');
   });
 
   it('balances ammonia against what makes it and what clears it', () => {
@@ -163,14 +207,14 @@ describe('readTank', () => {
     expect(fouled.band).toBeNull();
   });
 
-  it('bands the day’s light on what the worst-lit plant starves under, and not at all unplanted', () => {
+  it('bands the day’s light on the day the worst-lit plant is rated to live on, and not at all unplanted', () => {
     const planted = read(stocked(1)).byId.dailyLight;
     const unplanted = read(bare()).byId.dailyLight;
 
     expect(planted.band).not.toBeNull();
-    expect(planted.need).toMatch(/^need /);
+    expect(planted.beside).toMatch(/^need /);
     expect(unplanted.band).toBeNull();
-    expect(unplanted.need).toBe('');
+    expect(unplanted.beside).toBe('');
     expect(unplanted.tone).toBe('ink');
   });
 
@@ -178,8 +222,8 @@ describe('readTank', () => {
     const settled = stocked();
     const dosed = applyAction(settled.state, { type: 'dose', amountMl: 5 }).state;
 
-    const before = read(settled).byId.potassium;
-    const after = read({ state: dosed, history: settled.history }).byId.potassium;
+    const before = read(settled).byId.nitrateDemand;
+    const after = read({ state: dosed, history: settled.history }).byId.nitrateDemand;
 
     expect(after.at).toBeGreaterThan(before.at);
     expect(after.band).toEqual(before.band);
@@ -206,12 +250,12 @@ describe('readTank', () => {
 
   it('prints coverage as the log states it, in either system', () => {
     const { state, history } = stocked(1);
-    for (const mass of [0.4, 4.7, 12.5, 63.49]) {
+    for (const percent of [0.4, 4.7, 12.5, 63.49]) {
       for (const units of ['metric', 'imperial'] as const) {
         for (const kind of ALGAE_KINDS) {
-          const bloomed = { ...state, algae: { ...state.algae, [kind]: { ...state.algae[kind], mass } } };
+          const bloomed = { ...state, algae: { ...state.algae, [kind]: bloomAt(state, kind, percent) } };
           const reading = readTank({ state: bloomed, config: DEFAULT_CONFIG, history, units }).byId[kind];
-          expect(`${reading.value} ${reading.unit}`).toBe(logQuantityIn(units)(coverage(mass)));
+          expect(`${reading.value} ${reading.unit}`).toBe(logQuantityIn(units)(coverage(percent)));
         }
       }
     }

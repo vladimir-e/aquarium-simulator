@@ -16,21 +16,15 @@
 import type { Fish, Resources } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { N_TO_NH3_MASS_RATIO, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
-import { monodFactor } from '../core/kinetics.js';
 import { WASTE_NUTRIENTS, type MineralVector } from '../config/nutrients.js';
 import { sum } from '../core/sum.js';
 import { speciesTau, type FishSpecies } from '../livestock/species.js';
-import { NO_STRESS, stepDeb, totalBurned, type DebFluxes } from './deb.js';
+import { stepDeb, type DebFluxes } from './deb.js';
+import { NO_STRESS, oxygenPace, totalBurned } from './reserve.js';
 import { fishParams } from './fish-body.js';
 import { digest, gutRoom, shareCapped, type Pace } from './digestion.js';
 
 const NH3_MG_PER_G_N = N_TO_NH3_MASS_RATIO * 1000;
-
-/** ω: a Monod on dissolved O2 read against saturated water, so a healthy tank paces a fish at 1. */
-export function oxygenPace(oxygen: number, saturation: number, halfSaturation: number): number {
-  const saturated = monodFactor(saturation, halfSaturation);
-  return saturated > 0 ? Math.min(1, monodFactor(oxygen, halfSaturation) / saturated) : 0;
-}
 
 /** The pace a fish of this species runs at in this water, `saturation` the O2 it holds saturated. */
 export function fishPace(
@@ -82,14 +76,14 @@ export interface FishHour {
 export function liveHour(fish: Fish, pace: Pace, healing: number, config: LivestockConfig): FishHour {
   const p = fishParams(fish);
   const digested = digest(fish.gut, pace.tau, config);
-  const { state, fluxes } = stepDeb(fish.deb, p, { fromGut: digested, ...pace, healing });
+  const { state, fluxes } = stepDeb(fish.budget, p, { fromGut: digested, ...pace, healing });
   return {
     fish: {
       ...fish,
       gut: fish.gut - digested + fluxes.returned,
-      deb: state,
+      budget: state,
       age: fish.age + 1,
-      survival: fish.survival * Math.exp(-fish.deb.hazard),
+      survival: fish.survival * Math.exp(-fish.budget.hazard),
     },
     pace,
     digested,

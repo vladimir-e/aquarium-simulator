@@ -50,7 +50,7 @@ describe('dailyLightReading', () => {
     expect(read(state).value).toBeLessThan(dailyLightIntegral(state.resources.lightByHour));
   });
 
-  it('needs what the plant furthest from its need starves under, at its own height', () => {
+  it('needs the day the plant furthest from its need is rated to live on, at its own height', () => {
     const state = planted(['anubias', 'monte_carlo', 'java_fern']);
     const light = readPlantLight(settleEnvironment(state, DEFAULT_CONFIG), DEFAULT_CONFIG);
     const needed = Math.max(...light.map((plant) => plant.substrateEdge));

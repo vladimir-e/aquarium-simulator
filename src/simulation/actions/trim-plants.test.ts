@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { sizeOf } from '../plants/canopy.js';
 import { canTrimPlants, getPlantsToTrimCount, trimPlants } from './trim-plants.js';
 import { createSimulation, type SimulationState, type Plant } from '../state.js';
 import { MIN_PLANTABLE_SIZE } from '../plants/create-plant.js';
@@ -8,12 +9,12 @@ import { plantRecord } from '../tests/plant.js';
 function tankWith(...sizes: number[]): SimulationState {
   return produce(createSimulation({ tankCapacity: 100 }), (draft) => {
     draft.plants = sizes.map(
-      (size, i): Plant => plantRecord({ id: `p${i + 1}`, species: 'java_fern', size, condition: 100, surplus: 0 })
+      (size, i): Plant => plantRecord({ id: `p${i + 1}`, species: 'java_fern', size })
     );
   });
 }
 
-const sizes = (state: SimulationState): number[] => state.plants.map((p) => p.size);
+const sizes = (state: SimulationState): number[] => state.plants.map((p) => Math.round(sizeOf(p) * 1e9) / 1e9);
 
 describe('canTrimPlants', () => {
   it('answers exactly whether trimPlants would cut anything, for every scope', () => {

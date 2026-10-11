@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest';
+import { bloomCoverage } from '../algae/index.js';
+import { bloomAt } from '../tests/blooms.js';
 import { produce } from 'immer';
 import { waterChange } from './water-change.js';
 import { logText } from '../core/logging.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { getDgh, getDkh, getGhMass, getKhMass } from '../resources/helpers.js';
 import type { ActionResult, WaterChangeAction } from './types.js';
+import { NO_ORGANICS, ofComposition, scaleOrganics } from '../core/organics.js';
+import { LEAN, organicsCloseTo } from '../tests/organics.js';
 
 const DISSOLVED = ['ammonia', 'nitrite', 'nitrate', 'phosphate', 'potassium', 'iron'] as const;
 
@@ -39,12 +43,13 @@ describe('waterChange', () => {
 
   it.each([0.1, 0.5, 1])('carries %d of the green water out with the water, and leaves the film on the glass', (amount) => {
     const before = produce(tank(), (draft) => {
-      draft.algae.greenWater = { mass: 60, condition: 80, surplus: 5 };
-      draft.algae.film = { mass: 40, condition: 90, surplus: 3 };
+      draft.algae.greenWater = bloomAt(draft, 'greenWater', 60, 80);
+      draft.algae.film = bloomAt(draft, 'film', 40, 90);
     });
     const after = change(before, amount).state;
 
-    expect(after.algae.greenWater).toEqual({ ...before.algae.greenWater, mass: 60 * (1 - amount) });
+    expect(bloomCoverage(after, 'greenWater')).toBeCloseTo(60 * (1 - amount), 9);
+    expect(after.algae.greenWater.condition).toBe(80);
     expect(after.algae.film).toEqual(before.algae.film);
   });
 
@@ -102,15 +107,16 @@ describe('waterChange', () => {
     }
   });
 
-  it('leaves the bed alone unless asked to vacuum it', () => {
+  it('leaves the bed alone unless asked to vacuum it, and vacuums its content pro rata', () => {
+    const mulm = ofComposition(2, LEAN);
     const before = produce(tank(), (draft) => {
       draft.equipment.substrate.type = 'gravel';
-      draft.equipment.substrate.organicReserve = 2;
+      draft.equipment.substrate.organicReserve = mulm;
     });
-    expect(change(before, 0.25).state.equipment.substrate.organicReserve).toBe(2);
+    expect(change(before, 0.25).state.equipment.substrate.organicReserve).toEqual(mulm);
 
     const vacuumed = waterChange(before, { type: 'waterChange', amount: 0.25, vacuum: 0.3 });
-    expect(vacuumed.state.equipment.substrate.organicReserve).toBeCloseTo(2 * 0.7, 12);
+    expect(vacuumed.state.equipment.substrate.organicReserve).toEqual(organicsCloseTo(scaleOrganics(mulm, 0.7)));
     expect(vacuumed.message).toContain('vacuumed 30%');
   });
 
@@ -129,14 +135,14 @@ describe('waterChange', () => {
     const bare = tank();
     const spent = produce(tank(), (draft) => {
       draft.equipment.substrate.type = 'gravel';
-      draft.equipment.substrate.organicReserve = 0;
+      draft.equipment.substrate.organicReserve = NO_ORGANICS;
     });
     expect(bare.equipment.substrate.type).toBe('none');
 
     for (const before of [bare, spent]) {
       const result = waterChange(before, { type: 'waterChange', amount: 0.25, vacuum: 0.3 });
       expect(result.message).not.toContain('vacuumed');
-      expect(result.state.equipment.substrate.organicReserve).toBe(before.equipment.substrate.organicReserve);
+      expect(result.state.equipment.substrate.organicReserve).toEqual(before.equipment.substrate.organicReserve);
     }
   });
 

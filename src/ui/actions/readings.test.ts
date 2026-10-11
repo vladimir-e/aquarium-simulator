@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { bloomCoverage } from '../../simulation/algae/index.js';
+import { bloomAt } from '../../simulation/tests/blooms.js';
+import { atSize } from '../../simulation/tests/plant.js';
 import { produce } from 'immer';
 import {
   applyAction,
@@ -45,8 +48,8 @@ function fixture(species: FishSpecies[] = ['neon_tetra', 'corydoras', 'betta']):
   state.resources.nitrite = 0.412 * 196.4;
   state.resources.nitrate = 18.6 * 196.4;
   state.resources.food = 0.12;
-  state.algae.greenWater.mass = 12;
-  state.algae.film.mass = 47;
+  state.algae.greenWater = bloomAt(state, 'greenWater', 12);
+  state.algae.film = bloomAt(state, 'film', 47);
 
   for (const s of species) {
     state = applyAction(state, { type: 'addFish', species: s }).state;
@@ -56,7 +59,7 @@ function fixture(species: FishSpecies[] = ['neon_tetra', 'corydoras', 'betta']):
   expect(state.plants).toHaveLength(2);
 
   const sizes = [80, 60];
-  return { ...state, plants: state.plants.map((plant, i) => ({ ...plant, size: sizes[i] })) };
+  return { ...state, plants: state.plants.map((plant, i) => atSize(plant, sizes[i])) };
 }
 
 function gassed(): SimulationState {
@@ -188,19 +191,20 @@ describe('preview readings', () => {
     expect(detail(fixture(), 'feed').preview.map((r) => r.key)).toEqual(['food']);
   });
 
-  it('previews a scrub as the film the glass holds coming off, and nothing else living', () => {
+  it('previews a scrub as the film the glass holds coming off, its stores leached with the KH their uptake moved, and nothing else living', () => {
     const state = fixture();
     const rows = detail(state, 'scrubAlgae').preview;
 
-    expect(row(rows, 'film').after).toBe((state.algae.film.mass - onTheGlass(state).film).toFixed(0));
-    expect(rows.map((r) => r.key)).toEqual(['waste', 'film']);
+    expect(row(rows, 'film').after).toBe((bloomCoverage(state, 'film') - onTheGlass(state).film).toFixed(0));
+    expect(rows.map((r) => r.key)).toEqual(expect.arrayContaining(['waste', 'film']));
+    for (const r of rows) expect(['nitrate', 'phosphate', 'potassium', 'iron', 'kh', 'ph', 'waste', 'film']).toContain(r.key);
   });
 
   it('previews a water change carrying the green water out, and leaving the film', () => {
     const state = fixture();
     const rows = detail(state, 'waterChange').preview;
 
-    expect(row(rows, 'greenWater').before).toBe(state.algae.greenWater.mass.toFixed(0));
+    expect(row(rows, 'greenWater').before).toBe(bloomCoverage(state, 'greenWater').toFixed(0));
     expect(rows.map((r) => r.key)).not.toContain('film');
   });
 

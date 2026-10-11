@@ -173,7 +173,7 @@ function lightReadings({ state, config, ahead }: DeviceReadingInput): DeviceRead
   const lit = light.enabled && isScheduleActive(hour, light.schedule);
   const depth = calculateTankHeight(state.tank.capacity);
   const surfacePar = getLightOutput(light, hour);
-  const loss = lightLoss(state.algae, config.optics);
+  const loss = lightLoss(state, config.optics);
   const wouldLand = Math.round(calculateParAtDepth(light.par, depth, loss.extinction));
   const clouding = ALGAE_KINDS.flatMap((kind) => {
     const taken = (1 - columnPass(loss.blooms[kind], depth)) * 100;

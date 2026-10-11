@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
+import { bloomAt } from '../../simulation/tests/blooms.js';
 import { screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { OverviewSection } from './OverviewSection';
 import { activeNeeds } from '../nav';
@@ -16,7 +17,14 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { bedReading, doseToCover, nutrientReadings } from '../run';
+import { plantRecord, withStores } from '../../simulation/tests/plant.js';
 import type { useSimulation } from '../hooks/useSimulation';
+
+/** Eight grown plants with every store empty: more than one dose or push covers what they lack. */
+function starved(tank: SimulationState, species: 'java_fern' | 'amazon_sword'): SimulationState {
+  const plants = Array.from({ length: 8 }, (_, i) => withStores(plantRecord({ id: `${species}_${i}`, species, size: 100 }), 0));
+  return { ...tank, plants };
+}
 
 afterEach(cleanup);
 
@@ -90,7 +98,7 @@ describe('OverviewSection', () => {
   it('opens the verb that answers a need, rather than routing to the module', () => {
     const onAct = vi.fn();
     const coated = createSimulation({ tankCapacity: 200 });
-    coated.algae.film.mass = 40;
+    coated.algae.film = bloomAt(coated, 'film', 40);
     renderOverview(bare(coated), { film: true }, onAct);
 
     fireEvent.click(within(strip()!).getByRole('button', { name: /Scrub/ }));
@@ -100,7 +108,7 @@ describe('OverviewSection', () => {
   it('answers green water’s need with a water change', () => {
     const onAct = vi.fn();
     const green = createSimulation({ tankCapacity: 200 });
-    green.algae.greenWater.mass = 40;
+    green.algae.greenWater = bloomAt(green, 'greenWater', 40);
     renderOverview(bare(green), { greenWater: true }, onAct);
 
     fireEvent.click(within(strip()!).getByRole('button', { name: /Water change/ }));
@@ -252,15 +260,45 @@ describe('OverviewSection', () => {
     expect(screen.getByRole('dialog', { name: 'Daily light' })).toBeTruthy();
   });
 
-  it('reads the plant foods against what the plants ask for', () => {
+  it('reads the plant foods beside the plants’ stores of them', () => {
     const run = stocked();
-    const asked = nutrientReadings(run.state, DEFAULT_CONFIG).filter((reading) => reading.needed > 0);
+    const asked = nutrientReadings(run.state, DEFAULT_CONFIG).filter((reading) => reading.asked);
     renderOverview(run);
     const nutrients = within(widget('Nutrients'));
 
     expect(asked.length).toBeGreaterThan(0);
-    expect(nutrients.getAllByText(/^need /)).toHaveLength(asked.length);
+    expect(nutrients.getAllByText('stores')).toHaveLength(asked.length);
+    expect(nutrients.getAllByText(/^\d+ %$/)).toHaveLength(asked.length);
     expect(nutrients.getByText(/1 ml moves/)).toBeTruthy();
+  });
+
+  it('reads stores under their edge as refilling while the tank holds what they lack, and short once it does not', () => {
+    const fern = applyAction(createSimulation({ tankCapacity: 200 }), { type: 'addPlant', species: 'java_fern' }).state;
+    const starving = { ...fern, plants: fern.plants.map((plant) => withStores(plant, 0.02)) };
+    renderOverview(bare(applyAction(starving, { type: 'dose', amountMl: 20 }).state));
+    expect(within(widget('Nutrients')).getByText('stores refilling')).toBeTruthy();
+    cleanup();
+
+    renderOverview(bare(applyAction(starving, { type: 'dose', amountMl: 1 }).state));
+    expect(within(widget('Nutrients')).getByText('2 nutrients short')).toBeTruthy();
+    expect(within(widget('Nutrients')).queryByText('stores refilling')).toBeNull();
+  });
+
+  it('names the dose that covers what the stores lack, and lights it only while the plants go short', () => {
+    const fern = applyAction(createSimulation({ tankCapacity: 200 }), { type: 'addPlant', species: 'java_fern' }).state;
+    const at = (fill: number): SimulationState =>
+      applyAction({ ...fern, plants: fern.plants.map((plant) => withStores(plant, fill)) }, { type: 'dose', amountMl: 1 }).state;
+    const dose = (state: SimulationState): HTMLElement => {
+      const { ml } = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
+      renderOverview(bare(state));
+      return within(widget('Nutrients')).getByRole('button', { name: `Dose · ${ml} ml` });
+    };
+
+    expect(dose(at(0.5)).className).not.toContain('bg-accent-tint');
+    expect(within(widget('Nutrients')).getByText('plants have what they need')).toBeTruthy();
+    cleanup();
+
+    expect(dose(at(0.02)).className).toContain('bg-accent-tint');
   });
 
   it('says nothing is asking for the nutrients when nothing is planted', () => {
@@ -268,11 +306,11 @@ describe('OverviewSection', () => {
     const nutrients = within(widget('Nutrients'));
 
     expect(nutrients.getByText('no plants to feed')).toBeTruthy();
-    expect(nutrients.queryByText(/^need /)).toBeNull();
+    expect(nutrients.queryByText(/^stores /)).toBeNull();
   });
 
   it('offers the dose a big tank asks for only as far as one dose goes', () => {
-    const state = applyAction(createSimulation({ tankCapacity: 1000 }), { type: 'addPlant', species: 'monte_carlo' }).state;
+    const state = starved(createSimulation({ tankCapacity: 1000 }), 'java_fern');
     expect(doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!.ml).toBeGreaterThan(MAX_DOSE_ML);
     const onAct = vi.fn();
     renderOverview(bare(state), {}, onAct);
@@ -286,13 +324,28 @@ describe('OverviewSection', () => {
       applyAction(createSimulation(tank), { type: 'addPlant', species: 'amazon_sword' }).state;
 
     it('offers the tabs a big bed asks for only as far as one push goes', () => {
-      const state = sword({ tankCapacity: 1000, substrate: { type: 'gravel' } });
+      const state = starved(createSimulation({ tankCapacity: 1000, substrate: { type: 'gravel' } }), 'amazon_sword');
       expect(bedReading(state, DEFAULT_CONFIG).advice).toBeGreaterThan(MAX_ROOT_TABS);
       const onAct = vi.fn();
       renderOverview(bare(state), {}, onAct);
 
       fireEvent.click(within(widget('Nutrients')).getByRole('button', { name: `Root tab · ${MAX_ROOT_TABS} tabs` }));
       expect(onAct).toHaveBeenCalledWith('rootTab', MAX_ROOT_TABS);
+    });
+
+    it('names the tabs that cover what the roots’ stores lack, and lights them only while the bed runs short', () => {
+      const bedded = (fill: number): SimulationState => {
+        const state = sword({ tankCapacity: 200, substrate: { type: 'gravel' } });
+        return { ...state, plants: state.plants.map((plant) => withStores(plant, fill)) };
+      };
+      const tabs = (state: SimulationState): HTMLElement => {
+        renderOverview(bare(state));
+        return within(widget('Nutrients')).getByRole('button', { name: /^Root tab · \d+ tabs?$/ });
+      };
+
+      expect(tabs(bedded(0.5)).className).not.toContain('bg-accent-tint');
+      cleanup();
+      expect(tabs(bedded(0.02)).className).toContain('bg-accent-tint');
     });
 
     it('reads roots starving over a bare bottom, and offers no tab to push', () => {

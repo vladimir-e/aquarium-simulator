@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { bloomAt } from '../tests/blooms.js';
 import { applyAction } from './index';
 import type { Action } from './types';
 import { createSimulation, type SimulationState } from '../state';
@@ -29,8 +30,8 @@ describe('applyAction', () => {
         { type: 'addPlant', species: 'anubias' }
       ).state;
       return produce(planted, (draft) => {
-        draft.algae.greenWater.mass = 50;
-        draft.algae.film.mass = 50;
+        draft.algae.greenWater = bloomAt(draft, 'greenWater', 50);
+        draft.algae.film = bloomAt(draft, 'film', 50);
       });
     };
 
@@ -64,7 +65,7 @@ describe('applyAction', () => {
           optics: config.optics,
         }),
         (draft) => {
-          draft.algae.greenWater.mass = 60;
+          draft.algae.greenWater = bloomAt(draft, 'greenWater', 60);
         }
       );
     const changed = (state: SimulationState): SimulationState =>

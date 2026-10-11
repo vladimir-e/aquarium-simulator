@@ -3,12 +3,12 @@ import { LIFESPAN_SURVIVAL } from '../livestock/amp.js';
 import {
   hatchling,
   mature,
-  maxReserveDensity,
   maxStructuralLength,
   stepDeb,
   type DebParams,
   type DebState,
 } from '../systems/deb.js';
+import { maxReserveDensity } from '../systems/reserve.js';
 
 export function feastFromHatching(p: DebParams, hours: number, tau = 1): DebState[] {
   const states: DebState[] = [];

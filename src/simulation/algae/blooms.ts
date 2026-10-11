@@ -4,12 +4,18 @@
 
 import type { AlgaeState, Blooms } from '../state.js';
 import { ALGAE_KINDS, type AlgaeKind } from './traits.js';
+import { ZERO_NUTRIENTS } from '../config/nutrients.js';
+
+const emptyBloom = (): AlgaeState => ({
+  budget: { structure: 0, reserve: 0, offshootBuffer: 0, stores: { ...ZERO_NUTRIENTS } },
+  condition: 100,
+});
 
 /** A bloom with nothing standing: what a clean tank holds of every kind. */
-export const EMPTY_BLOOM: AlgaeState = { mass: 0, condition: 100, surplus: 0 };
+export const EMPTY_BLOOM: Readonly<AlgaeState> = emptyBloom();
 
 export function emptyBlooms(): Blooms {
-  return mapKinds(() => ({ ...EMPTY_BLOOM }));
+  return mapKinds(emptyBloom);
 }
 
 export function isAlgaeKind(key: string): key is AlgaeKind {

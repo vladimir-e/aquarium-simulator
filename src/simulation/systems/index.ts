@@ -25,32 +25,17 @@ export {
   calculateDecay,
 } from './decay.js';
 
-export {
-  calculatePhotosynthesis,
-  calculateCo2Factor,
-} from './photosynthesis.js';
-
-export {
-  calculateRespiration,
-  getRespirationTemperatureFactor,
-} from './respiration.js';
-
-export {
-  spendSurplus,
-  getSpeciesGrowthRate,
-} from './plant-growth.js';
+export { offerCarbon } from './photosynthesis.js';
 
 export {
   saturationIrradiance,
   dailyLightEdge,
-  floraHealingRate,
+  floraPace,
   growthTaper,
-  bankDraw,
-  bankConversion,
   floraStressors,
   floraBenefits,
   type FloraTraits,
-  type FloraHour,
+  type FloraVitalityInput,
 } from './flora.js';
 
 export {
@@ -60,7 +45,8 @@ export {
   calculateMaxBacteria,
   calculateSeeding,
   calculateColonyFlows,
-  calculateWasteToAmmonia,
+  ammoniaIn,
+  wasteMineralised,
   calculateAmmoniaToNitrite,
   calculateNitriteToNitrate,
   aobCapacity,

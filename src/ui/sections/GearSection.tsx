@@ -118,7 +118,7 @@ export function GearSection({
               at={dailyLight.at}
               band={dailyLight.band}
               tone={dailyLight.tone}
-              note={dailyLight.need}
+              note={dailyLight.beside}
               onClick={() => setReading('dailyLight')}
             />
             <ReadingRow

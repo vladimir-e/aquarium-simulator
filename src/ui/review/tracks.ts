@@ -66,7 +66,6 @@ export const TRACKS: TrackDef[] = [
   },
   {
     id: 'population',
-    // `AlgaeState.mass` is a coverage percentage despite the name, as `Plant.size` is.
     title: 'Populations',
     shortLabel: 'pop.',
     alertKinds: ['algae'],

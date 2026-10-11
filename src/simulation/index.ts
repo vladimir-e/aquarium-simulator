@@ -144,6 +144,16 @@ export { carbonatePh, getPh } from './core/carbonate.js';
 
 export type { Effect, EffectTier } from './core/effects.js';
 export { applyEffects } from './core/effects.js';
+export {
+  NO_ORGANICS,
+  addOrganics,
+  atRecipe,
+  foodRecipe,
+  ofComposition,
+  scaleOrganics,
+  type Organics,
+  type RecipeConfig,
+} from './core/organics.js';
 
 export { tick } from './tick.js';
 export { getHourOfDay, getDayNumber } from './core/clock.js';
@@ -278,8 +288,10 @@ export {
   bloomAlert,
   bloomAlerts,
   bloomLevel,
+  bloomShows,
   waterLevelAlertLine,
   BLOOM_COVERAGE_LINE,
+  BLOOM_VISIBLE_LINE,
   PLANT_LIGHT_LINE,
 } from './alerts/index.js';
 
@@ -339,14 +351,28 @@ export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 // Flora — plants and the blooms in one pass, on one law
 export { processFlora } from './flora/index.js';
 export type { FloraProcessingResult, BloomHour } from './flora/index.js';
+export { plantParams, unitParams, bloomParams } from './flora/params.js';
 export {
   saturationIrradiance,
   dailyLightEdge,
-  floraHealingRate,
-  tissuePerRateUnit,
+  floraPace,
+  TISSUE_PER_RATE_UNIT,
   shedShare,
 } from './systems/flora.js';
 export type { FloraTraits, FloraLoss } from './systems/flora.js';
+export {
+  droopFactor,
+  droopLimits,
+  fullDroopFactor,
+  fillAtDroop,
+  storeFill,
+  storeGap,
+  floraOrganics,
+  offshootReady,
+  stocked,
+  scaleFlora,
+} from './systems/flora-budget.js';
+export type { FloraState, FloraParams, FloraFluxes } from './systems/flora-budget.js';
 
 // Algae
 export {
@@ -356,8 +382,9 @@ export {
   emptyBlooms,
   isAlgaeKind,
   mapKinds,
-  resettle,
   bloomLight,
+  bloomCoverage,
+  coverageOf,
   columnGain,
   lightLoss,
   waterExtinction,
@@ -371,15 +398,15 @@ export {
   bloomRateUnits,
   bloomFeeder,
   bloomFixer,
-  purchaseBloom,
-  massBought,
-  supplyBloom,
-  loseBloom,
+  sporesBuilt,
   landSpores,
+  coverageAt,
+  clearPlace,
   computeAlgaeVitality,
   buildAlgaeStressors,
   buildAlgaeBenefits,
   thrivingPlantDensity,
+  allelopathy,
 } from './algae/index.js';
 export type {
   AlgaeKind,
@@ -391,39 +418,28 @@ export type {
   BloomLightLoss,
   LightLoss,
   BloomRemoval,
-  BloomPurchase,
+  BloomTank,
   AlgaeVitalityContext,
 } from './algae/index.js';
 
 // Plants
 export {
-  calculatePhotosynthesis,
+  offerCarbon,
   plantFixer,
-  calculateNutrientSufficiency,
   speciesDemand,
-  speciesHalfSaturation,
-  nutrientShare,
   formHalfSaturations,
   formShares,
-  formsMeet,
   bedPool,
   tankPools,
   plantFeeder,
   poolDraws,
-  feederShares,
-  organicNutrients,
   nutrientsIn,
   tissueMass,
-  losePlant,
-  calculateCo2Factor,
-  calculateRespiration,
-  getRespirationTemperatureFactor,
-  spendSurplus,
-  propagate,
+  sizeOf,
+  unitOf,
   VIGOUR_SPAN,
   MIN_PLANTABLE_SIZE,
   isPlantableSize,
-  getSpeciesGrowthRate,
   computePlantVitality,
   plantNitrateEdge,
   buildPlantStressors,
@@ -444,13 +460,15 @@ export type {
   PlantLight,
   CanopyLight,
   LightPath,
-  Propagation,
+  Planted,
+  Unit,
   CarbonFixer,
   Feeder,
   NutrientPool,
   TankPools,
   PoolDraw,
 } from './plants/index.js';
+export { offshootShare, offshootStructure } from './plants/create-plant.js';
 
 // Livestock
 export { processLivestock, tankPaces } from './livestock/index.js';
@@ -461,9 +479,6 @@ export {
   predationStress,
   predatorWeight,
   preyVulnerability,
-  starvation,
-  type FishBreakdown,
-  type FishVitality,
 } from './systems/fish-health.js';
 export { fishMass, fishSize, fishOrganics, frySize, eggMass, fishLifeStage, countFry } from './systems/fish-body.js';
 export { readyToBrood, paysTowardBrood } from './systems/brood.js';
@@ -471,15 +486,10 @@ export { clutchMass, clutchesWithMothers } from './systems/clutch.js';
 export { appetite, fullPaceLine, gutCapacity, ration, type Pace } from './systems/digestion.js';
 export { burn, gillAmmonia } from './systems/metabolism.js';
 export type { FishHour } from './systems/metabolism.js';
-export {
-  reserveDensity,
-  wellFed,
-  mature,
-  NO_STRESS,
-  type DebState,
-  type DebParams,
-  type DebStress,
-} from './systems/deb.js';
+export { mature, type DebState, type DebParams } from './systems/deb.js';
+
+// Energy budget — the reserve core every organism's budget runs on
+export { reserveDensity, wellFed, starvation, oxygenPace, NO_STRESS, type DebStress } from './systems/reserve.js';
 
 // Vitality
 export {

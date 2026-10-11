@@ -29,8 +29,8 @@ and the config layer cannot reach it.
 | Algae | `algae.` | What thriving plants do to any bloom; a bloom's own kind is its traits, and the rest of it runs on `plants.` |
 | Optics | `optics.` | What the water column, the blooms and the leaves above take out of the light on the way down |
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
-| Plants | `plants.` | Photosynthesis, respiration, vitality, growth and offshoots, lifecycle |
-| Nutrients | `nutrients.` | Fertilizer formula, root tab, the bed's leak, half-saturations, demand tiers, minerals in organic matter |
+| Plants | `plants.` | Photosynthesis, the energy budget and stores, harm, income, shedding |
+| Nutrients | `nutrients.` | Fertilizer formula, root tab, the bed's leak, half-saturations, demand tiers, minerals in food |
 | Livestock | `livestock.` | Feeding, pace, burn, health and repair, broods, death |
 
 The values themselves are not repeated here. They move when the model is
@@ -115,14 +115,14 @@ the one pinned to a real measurement.
 ## Algae
 
 Both kinds of bloom run on the plants' constants, and what a kind is — its
-habitat, its pace, its carbon, nitrogen and phosphorus affinities, its tissue,
-its spores — sits in its traits, beside the plant species
+habitat, its pace, its carbon, nitrogen and phosphorus affinities, its tissue
+and quotas, its spores — sits in its traits, beside the plant species
 ([Algae](/subsystems/algae/#key-tunables-and-traits)). What is left here holds
 for every kind.
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `allelopathySeverity` | Damage per rate unit of thriving plant per litre | %/(unit/L)/hr |
+| `allelopathySeverity` | How hard thriving plants' exudates cut a bloom's assimilation: it runs at 1 / (1 + severity × rate units of thriving plant per litre); at 0 plants leave blooms alone | L/unit |
 
 ## Optics
 
@@ -130,7 +130,13 @@ for every kind.
 |---|---|---|
 | `waterAttenuationPerCm` | Beer–Lambert attenuation of the water column, per cm of depth | /cm |
 | `leafAttenuationPerLai` | Beer–Lambert extinction of a canopy, per unit of leaf area index; at 0 leaves shade nothing and a plant reads the water alone | /LAI |
-| `algaeAttenuationPerGram` | Beer–Lambert extinction per gram of algal tissue crossed, per cm² — green water's in the column, film's as a coat on every leaf; at 0 a bloom shades nothing | cm²/g |
+
+### Blooms
+
+| Tunable | Meaning | Unit |
+|---|---|---|
+| `algaeAttenuationPerCm` | Beer–Lambert extinction a bloom suspended in the column adds at full coverage, per cm of depth; at 0 it shades nothing | /cm |
+| `algaeCoatOpticalDepth` | Beer–Lambert optical depth of a full coat of bloom on a lit surface, every leaf included; at 0 it shades nothing | – |
 
 ## Water chemistry
 
@@ -147,26 +153,42 @@ for every kind.
 | `basePhotosynthesisRate` | Rate one rate unit — 500 cm² of leaf at growth rate 1 — fixes carbon at, at full carbon and saturating light | /hr |
 | `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which a species of each carbon need photosynthesises at half rate | mg/L |
 | `saturationIrradianceFactor` | Multiple of a species' band low at which its light response saturates — the `Ik` of the light curve | × band low |
+| `baseRespirationRate` | Maintenance per rate unit of leaf at growth rate 1, as a share of the saturated rate, owed around the clock | /hr |
+| `paceQ10` · `paceReferenceTemp` | Factor the pace every rate of a flora's budget runs at multiplies by per 10 °C, and the temperature it is 1 at | — · °C |
+| `oxygenHalfSaturation` | Dissolved O₂ half-saturating a flora's oxygen pace, read against saturated water — its intake and mobilisation, never its upkeep | mg/L |
 | `co2PerRateUnit` | CO₂ carried by one rate unit, fixed and released alike; oxygen derives from it at the molar ratio | mg |
-| `baseRespirationRate` | Dark respiration per rate unit of leaf at growth rate 1, as a share of the light- and carbon-saturated rate, running around the clock | /hr |
-| `respirationQ10` | Factor respiration and light starvation multiply by per 10 °C | — |
-| `respirationReferenceTemp` | Temperature respiration and light starvation are quoted at | °C |
-| `respirationOxygenHalfSaturation` | Dissolved O₂ at which respiration runs at half rate | mg/L |
-| `growthDrawRate` | First-order rate the bank draws toward new tissue at, before the taper `1 − size/100` | /hr |
-| `healingDrawRate` | First-order rate the bank heals condition at, per unit of species growth rate | /hr per growth rate |
-| `sizePerSurplus` | Size gained per bank point converted, before the species growth multiplier — the conversion growth and offshoots share | %/pt |
-| `surplusCap` | Ceiling on the bank; a full one buys an offshoot | pts |
-| `tissuePerSize` | Organic matter in a % of a rate unit of tissue, so a unit weighs by its leaf, not its size — what growth draws the recipe for, and shedding and death return as waste | g/% |
-| `lightStarvationSeverity` | Damage in a day without light, falling to nothing at the species' daily light edge; quoted at growth rate 1 and the respiration reference temperature | %/hr |
+
+### Energy budget
+
+| Tunable | Meaning | Unit |
+|---|---|---|
+| `somaShare` | κ: share of a plant's mobilised reserve that goes to its soma; the rest fills its offshoot buffer | — |
+| `growthEfficiency` | κ_G: share of new structure's cost that ends up in it; the rest is burned building it | — |
+| `reserveCapacity` | [E_m]: reserve a gram of structure holds when full | g/g |
+| `healingRate` · `healingCost` | First-order rate a flora repairs its condition deficit at, at the reference temperature, and the hours of its maintenance a point costs | /hr · h |
+
+### Nutrient stores
+
+| Tunable | Meaning | Unit |
+|---|---|---|
+| `storeFillDays` | Days an empty store fills 63 % of the way in, from a saturating pool | days |
+| `droopEdge` · `nutrientDeficiencySeverity` | The share of the Droop limit its full stores reach that a flora counts as fed at, so the edge sits under full stores at any quotas, and the damage at a Droop limit of 0, falling linearly to nothing at the edge | × full · %/hr |
+| `quotaMin.nitrate` · `.phosphate` · `.potassium` · `.iron` | Q_min: each nutrient's element in a gram of plant structure | mg/g |
+| `quotaMax.nitrate` · `.phosphate` · `.potassium` · `.iron` | Q_max: the same, with every store full | mg/g |
+
+### Harm, income, shedding
+
+| Tunable | Meaning | Unit |
+|---|---|---|
+| `starvationSeverity` | Damage at the hour's upkeep wholly unpaid, scaled by the share unpaid | %/hr |
 | `lightExcessiveSeverity` | Damage per PAR unit above the species' tolerable band | %/PAR/hr |
-| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per °C, pH unit or dGH outside the species' tolerable band, one per factor | %/unit/hr |
-| `nutrientDeficiencySeverity` · `sufficiencyEdge` | Damage at a Liebig sufficiency of 0 under saturating light, falling linearly to nothing at the edge; and the sufficiency a plant counts as fed, since a Monod share never reaches 1 | %/hr · — |
+| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per °C, pH unit or dGH outside the species' tolerable band | %/unit/hr |
 | `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the plant's own edge, and where a hardiness-0 plant's edge sits | %/e-fold/hr · ppm |
-| `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on the light term times the Liebig sufficiency | %/hr |
+| `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on reserve density times the Droop limit's share of full stores' | %/hr |
 | `maxSheddingRate` | Share of itself a plant sheds per hour at condition 0, falling with the square of the deficit | /hr |
 
-Every severity above is pre-hardiness. The species' own hardiness scales every
-channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
+Every severity is pre-hardiness: a species' hardiness scales each by
+`1 − hardiness`, except nitrate, whose edge it carries out.
 
 ## Nutrients
 
@@ -175,9 +197,9 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `fertilizerFormula.nitrate` · `.phosphate` · `.potassium` · `.iron` | The all-in-one fertilizer's composition per ml | mg/ml |
 | `rootTab.nitrate` · `.phosphate` · `.potassium` · `.iron` | What one root tab pushes into the bed | mg |
 | `bedLeakRate` | Share of each nutrient the bed holds that leaks into the water per hour | /hr |
-| `halfSaturation.ammonia` · `.nitrate` · `.phosphate` · `.potassium` · `.iron` | The ppm of each form — total ammonia as NH₃ — at which a full-demand plant takes it at half its need for the nutrient it carries | ppm |
+| `halfSaturation.ammonia` · `.nitrate` · `.phosphate` · `.potassium` · `.iron` | The ppm of each form — total ammonia as NH₃ — at which a full-demand plant's stores get half what they ask of its nutrient | ppm |
 | `demand.low.*` · `demand.medium.*` · `demand.high.*` | Each tier's share of the full need, per nutrient; scales the half-saturation of every form the nutrient comes in, ammonia's by nitrate's | — |
-| `foodMineralContent.phosphate` · `.potassium` · `.iron` | Minerals in a gram of food, in the waste it becomes, and in plant tissue | mg/g |
+| `foodMineralContent.phosphate` · `.potassium` · `.iron` | Minerals in a gram of food, and in the fish made of it | mg/g |
 
 ## Livestock
 
@@ -215,8 +237,8 @@ can move them at runtime.
 | Table | Holds |
 |---|---|
 | Fish species | Per species: its Add-my-Pet energy budget — or a relative's, rescaled by hobby length, weight, maturity age and lifespan — hardiness, temperature / pH / GH / flow tolerance bands, and a breeding block — mode, clutch exposure, the male's share of an egg's cost |
-| Plant species | Per species: growth rate, growth form, hardiness, CO₂ requirement, nutrient demand tier, and the PAR band it tolerates, whose low end sets the daily light it starves under |
-| Growth forms | Per form: what one full unit is — its height and how height grows with size, its footprint, its leaf area index — the share of its food it draws through its roots, and what its offshoot is called |
+| Plant species | Per species: growth rate, growth form, hardiness, CO₂ requirement, nutrient demand tier, and the PAR band it tolerates, whose low end sets its `Ik` and its rated day |
+| Growth forms | Per form: what one full unit is — its height and how height grows with size, its footprint, its leaf area index — the share of its food it draws through its roots, and its plantlet's size and name |
 | Filters | Per type: biological surface, target turnover, flow ceiling, tank-size ceiling, and whether it is air-driven |
 | Substrates | Per type: colony surface per litre, and the organic and KH reserves and the nutrient charge a fresh bed holds per litre |
 | Hardscape | Per type: colony surface, and the tannins a fresh piece carries |

@@ -14,11 +14,10 @@ export type PlantSpecies =
 
 /**
  * How a species builds one unit — a carpet patch, a rosette specimen, a rhizome
- * clump. `Plant.size` is how full that unit is, so the form fixes what size 100
- * means: how tall it stands, how much floor it claims and how much leaf it
- * carries over it. It also says where the plant feeds and names what a full
- * bank buys — a runner, a plantlet, a rhizome branch — though every form buys
- * it the same way.
+ * clump. A plant's size is how full that unit is, so the form fixes what size
+ * 100 means: how tall it stands, how much floor it claims and how much leaf it
+ * carries over it. It also says where the plant feeds, and at what size its
+ * offshoot buffer buys a unit, though every form buys it the same way.
  */
 export type GrowthForm = 'carpet' | 'rosette' | 'attached';
 
@@ -30,6 +29,8 @@ export interface GrowthFormData {
   leafAreaIndex: number;
   /** Share of its nutrients the plant draws through its roots from the bed; the rest comes from the water. */
   rootShare: number;
+  /** % of one full unit an offshoot is born at. */
+  offshootSize: number;
   offshootVerb: string;
 }
 
@@ -42,11 +43,16 @@ export interface GrowthFormData {
  * fronds of 40 cm² over its 200. A sword draws most of its food through its
  * roots; a carpet roots a dense mat into the bed but lies spread under the
  * water, so it takes half from each; an epiphyte on wood has no roots in the bed.
+ * An offshoot is a unit that stands on its own: a sword's runner plantlet
+ * carries a few leaves of a grown unit's two dozen, about a tenth of it; a
+ * rhizome branch is cut loose on three or four of a clump's dozen-odd fronds,
+ * a quarter of it; and a carpet's runner roots a tuft at a node, a twentieth
+ * of a patch. The sizes are Tune's.
  */
 export const GROWTH_FORMS: Record<GrowthForm, GrowthFormData> = {
-  carpet: { heightCm: 5, heightExponent: 0, footprintCm2: 100, leafAreaIndex: 2.5, rootShare: 0.5, offshootVerb: 'sent a runner' },
-  rosette: { heightCm: 40, heightExponent: 1 / 3, footprintCm2: 700, leafAreaIndex: 2.0, rootShare: 0.7, offshootVerb: 'threw a plantlet' },
-  attached: { heightCm: 20, heightExponent: 1 / 3, footprintCm2: 200, leafAreaIndex: 2.5, rootShare: 0, offshootVerb: 'branched at the rhizome' },
+  carpet: { heightCm: 5, heightExponent: 0, footprintCm2: 100, leafAreaIndex: 2.5, rootShare: 0.5, offshootSize: 5, offshootVerb: 'sent a runner' },
+  rosette: { heightCm: 40, heightExponent: 1 / 3, footprintCm2: 700, leafAreaIndex: 2.0, rootShare: 0.7, offshootSize: 10, offshootVerb: 'threw a plantlet' },
+  attached: { heightCm: 20, heightExponent: 1 / 3, footprintCm2: 200, leafAreaIndex: 2.5, rootShare: 0, offshootSize: 25, offshootVerb: 'branched at the rhizome' },
 };
 
 /**
@@ -81,7 +87,7 @@ export interface PlantSpeciesData {
   /**
    * Tolerable PAR range (µmol/m²/s) on the plant's own leaves, as care sheets
    * quote it for the flora law's care-sheet day. The low end held
-   * that long is the daily light the species starves under (see
+   * that long is the day the species is rated to live on (see
    * {@link plantTraits}); past the high end the light-excessive stressor
    * burns the top of its crown while the lamps are on. The hobby's published
    * tiers are low 15-30, medium 30-50, high 50-80+.
@@ -177,25 +183,26 @@ export function growthFormOf(species: PlantSpecies): GrowthFormData {
 }
 
 /**
- * A species in the terms the flora law reads. The low end of its PAR band is
- * where it starves over a care-sheet day and, at `saturationIrradianceFactor ×`
- * it, the `Ik` it saturates at: anubias 16, java fern 20, amazon sword 40, dwarf
- * hairgrass 50, monte carlo 60. That is inside the published macrophyte range —
- * shade species saturate at 10–30 µmol/m²/s, sun species at 50–150 — and at the
- * shipped factor a plant at its lower bound runs at 46 % of its rate.
+ * A species in the terms the flora law reads. The low end of its PAR band,
+ * held over a care-sheet day, is the day it is rated to live on, and at
+ * `saturationIrradianceFactor ×` it the `Ik` it saturates at: anubias 16, java
+ * fern 20, amazon sword 40, dwarf hairgrass 50, monte carlo 60. That is inside
+ * the published macrophyte range — shade species saturate at 10–30 µmol/m²/s,
+ * sun species at 50–150 — and at the shipped factor a plant at its lower bound
+ * runs at 46 % of its rate.
  */
 export function plantTraits(species: PlantSpecies): FloraTraits {
   const { growthRate, tolerableLight, tolerableTemp, tolerablePH } = PLANT_SPECIES_DATA[species];
   return { growthRate, lowLight: tolerableLight[0], tolerableTemp, tolerablePH };
 }
 
-export function getCo2HalfSaturation(species: PlantSpecies, config: PlantsConfig): number {
+export function getCo2HalfSaturation(species: PlantSpecies, plantsConfig: PlantsConfig): number {
   switch (PLANT_SPECIES_DATA[species].co2Requirement) {
     case 'low':
-      return config.lowCo2HalfSaturation;
+      return plantsConfig.lowCo2HalfSaturation;
     case 'medium':
-      return config.mediumCo2HalfSaturation;
+      return plantsConfig.mediumCo2HalfSaturation;
     case 'high':
-      return config.highCo2HalfSaturation;
+      return plantsConfig.highCo2HalfSaturation;
   }
 }

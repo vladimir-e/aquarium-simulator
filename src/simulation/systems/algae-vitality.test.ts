@@ -3,36 +3,44 @@ import {
   buildAlgaeBenefits,
   buildAlgaeStressors,
   computeAlgaeVitality,
-  thrivingPlantDensity,
   type AlgaeVitalityContext,
 } from './algae-vitality.js';
-import { dailyLightEdge, floraHealingRate, saturationIrradiance } from './flora.js';
-import { getPlantPower } from './plant-power.js';
-import { getRespirationTemperatureFactor } from './respiration.js';
+import { repairPrice } from './reserve.js';
 import { monodFactor } from '../core/kinetics.js';
 import { ALGAE, ALGAE_KINDS } from '../algae/traits.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { createSimulation, type Plant } from '../state.js';
-import { plantRecord } from '../tests/plant.js';
+import { createSimulation } from '../state.js';
+import { bloomParams } from '../flora/params.js';
+import { stocked, type FloraFluxes } from './flora-budget.js';
 
-const { plants: plantsConfig, algae: algaeConfig } = DEFAULT_CONFIG;
+const { plants: plantsConfig } = DEFAULT_CONFIG;
 const LITRES = 100;
+
+const PAID: FloraFluxes = {
+  returned: 0,
+  assimilated: 0,
+  mobilised: 0,
+  toStructure: 0,
+  fromStructure: 0,
+  burned: { maintenance: 1, growth: 0, starvation: 0, healing: 0 },
+  owed: 1,
+  shortfall: 0,
+  droopLimit: 1,
+};
 
 describe.each(ALGAE_KINDS)('%s', (kind) => {
   const traits = ALGAE[kind];
+  const params = bloomParams(kind, plantsConfig);
 
   function context(overrides: Partial<AlgaeVitalityContext> = {}): AlgaeVitalityContext {
     const resources = { ...createSimulation({ tankCapacity: LITRES }).resources, temperature: 25, co2: 4 };
-    const edge = dailyLightEdge(traits);
     return {
-      bloom: { mass: 20, condition: 100, surplus: 0 },
+      bloom: { budget: stocked(2, params), condition: 100 },
+      fluxes: PAID,
       traits,
+      params,
       resources,
-      plants: [],
       plantsConfig,
-      algaeConfig,
-      nutrientSufficiency: 1,
-      light: { par: 200, dailyLight: 4 * edge, needShare: 4 },
       ...overrides,
     };
   }
@@ -41,41 +49,13 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
     factors.find((f) => f.key === key)!.amount;
   const sum = (factors: { amount: number }[]): number => factors.reduce((total, f) => total + f.amount, 0);
 
-  const sword = (condition: number): Plant =>
-    plantRecord({ id: `s${condition}`, species: 'amazon_sword', size: 100, condition, surplus: 0 });
-
-  describe('allelopathy', () => {
-    it('harms the bloom in proportion to thriving plant per litre of standing water, hardened, from no plants up', () => {
-      const harm = (plants: Plant[], water = LITRES): number => {
-        const ctx = context({ plants });
-        return amount(buildAlgaeStressors({ ...ctx, resources: { ...ctx.resources, water } }), 'allelopathy');
-      };
-
-      expect(harm([])).toBe(0);
-      expect(harm([sword(100)])).toBeCloseTo(
-        algaeConfig.allelopathySeverity * (getPlantPower([sword(100)]) / LITRES) * (1 - traits.hardiness),
-        12
-      );
-      expect(harm([sword(100), sword(100)])).toBeCloseTo(2 * harm([sword(100)]), 12);
-      expect(harm([sword(100)], 2 * LITRES)).toBeCloseTo(harm([sword(100)]) / 2, 12);
-    });
-
-    it('comes from thriving plants only: a dying one harms nothing, a half-well one half', () => {
-      expect(thrivingPlantDensity([sword(0)], LITRES)).toBe(0);
-      expect(thrivingPlantDensity([sword(50)], LITRES)).toBeCloseTo(thrivingPlantDensity([sword(100)], LITRES) / 2, 12);
-    });
-  });
-
   describe('income', () => {
-    it('runs on the plants’ light curve and the Liebig sufficiency, and is nothing in the dark', () => {
-      const earned = (par: number, nutrientSufficiency = 1): number =>
-        sum(buildAlgaeBenefits(context({ light: { par, dailyLight: 1, needShare: 1 }, nutrientSufficiency })));
-      const ik = saturationIrradiance(traits, plantsConfig);
-
+    it('runs on its reserve density, and is nothing on a burned reserve', () => {
+      const earned = (reserve: number): number =>
+        sum(buildAlgaeBenefits(context({ bloom: { budget: { ...stocked(2, params), reserve }, condition: 100 } })));
+      const full = stocked(2, params).reserve;
+      expect(earned(full / 2)).toBeCloseTo(earned(full) / 2, 12);
       expect(earned(0)).toBe(0);
-      expect(earned(ik) / earned(1e6)).toBeCloseTo(Math.tanh(1), 6);
-      expect(earned(200, 0.5)).toBeCloseTo(earned(200) / 2, 12);
-      expect(earned(200, 0)).toBe(0);
     });
 
     it('earns CO₂ on its own half-saturation', () => {
@@ -89,48 +69,19 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
     });
   });
 
-  describe('light starvation', () => {
-    const starvation = (needShare: number): number =>
-      amount(
-        buildAlgaeStressors(
-          context({ light: { par: 0, dailyLight: needShare * dailyLightEdge(traits), needShare } })
-        ),
-        'lightStarvation'
-      );
-
-    it('charges nothing while the day’s light meets its edge, and grows as it falls short', () => {
-      expect(starvation(1)).toBe(0);
-      expect(starvation(2)).toBe(0);
-      expect(starvation(0.25)).toBeCloseTo(0.75 * starvation(0), 12);
-    });
-
-    it('costs what respiration does, at the bloom’s growth rate', () => {
-      expect(starvation(0)).toBeCloseTo(
-        plantsConfig.lightStarvationSeverity *
-          traits.growthRate *
-          getRespirationTemperatureFactor(25, plantsConfig) *
-          (1 - traits.hardiness),
-        12
-      );
-    });
+  it('starves on the share of its upkeep the hour left unpaid, hardened', () => {
+    const starved = amount(buildAlgaeStressors(context({ fluxes: { ...PAID, shortfall: 1 } })), 'starvation');
+    expect(starved).toBeCloseTo(plantsConfig.starvationSeverity * (1 - traits.hardiness), 12);
+    expect(amount(buildAlgaeStressors(context()), 'starvation')).toBe(0);
   });
 
-  describe('computeAlgaeVitality', () => {
-    it('heals on the plants’ law, integrated over the hour', () => {
-      const hurt = computeAlgaeVitality(
-        context({ bloom: { mass: 20, condition: 10, surplus: 10 }, light: { par: 0, dailyLight: 4 * dailyLightEdge(traits), needShare: 4 } })
-      );
-      expect(hurt.breakdown.healed).toBeCloseTo(10 * -Math.expm1(-floraHealingRate(traits, plantsConfig)), 12);
-    });
-
-    it('banks income only at full condition, and heals a bloom below it from the bank', () => {
-      const full = computeAlgaeVitality(context());
-      expect(full.newCondition).toBe(100);
-      expect(full.surplus).toBeGreaterThan(0);
-
-      const hurt = computeAlgaeVitality(context({ bloom: { mass: 20, condition: 60, surplus: 10 } }));
-      expect(hurt.breakdown.healed).toBeGreaterThan(0);
-      expect(hurt.surplus).toBeLessThan(10);
-    });
+  it('heals the points its reserve paid for, and holds a fed bloom at full condition at 100', () => {
+    const budget = stocked(2, params);
+    const price = repairPrice(budget, params, plantsConfig);
+    const hurt = computeAlgaeVitality(
+      context({ bloom: { budget, condition: 60 }, fluxes: { ...PAID, burned: { ...PAID.burned, healing: 2 * price } } })
+    );
+    expect(hurt.breakdown.healed).toBeCloseTo(2, 12);
+    expect(computeAlgaeVitality(context()).newCondition).toBe(100);
   });
 });

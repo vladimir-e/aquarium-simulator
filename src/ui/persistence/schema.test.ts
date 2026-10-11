@@ -8,15 +8,14 @@ import {
 import { PERSISTENCE_VERSION } from './types.js';
 import {
   DEFAULT_CONFIG,
-  MAX_ALGAE_ATTENUATION_PER_GRAM,
+  MAX_ALGAE_ATTENUATION_PER_CM,
+  MAX_ALGAE_COAT_OPTICAL_DEPTH,
   MAX_LEAF_ATTENUATION_PER_LAI,
-  MAX_SIZE_PER_SURPLUS,
-  MAX_SUFFICIENCY_EDGE,
-  MAX_SURPLUS_CAP,
   MAX_WATER_ATTENUATION_PER_CM,
 } from '../../simulation/config/index.js';
 import {
   createSimulation,
+  emptyBlooms,
   BUBBLE_RATE_OPTIONS,
   DOSE_AMOUNT_OPTIONS,
   FEED_AMOUNT_OPTIONS,
@@ -166,26 +165,31 @@ describe('TunableConfigSchema', () => {
   });
 
   it('takes blooms that shade nothing, and refuses blooms that make light or take past the ceiling', () => {
-    const blooms = (algaeAttenuationPerGram: number): boolean =>
+    const blooms = (key: 'algaeAttenuationPerCm' | 'algaeCoatOpticalDepth', value: number): boolean =>
       TunableConfigSchema.safeParse({
         ...DEFAULT_CONFIG,
-        optics: { ...DEFAULT_CONFIG.optics, algaeAttenuationPerGram },
+        optics: { ...DEFAULT_CONFIG.optics, [key]: value },
       }).success;
-    expect(blooms(0)).toBe(true);
-    expect(blooms(MAX_ALGAE_ATTENUATION_PER_GRAM)).toBe(true);
-    expect(blooms(-1)).toBe(false);
-    expect(blooms(MAX_ALGAE_ATTENUATION_PER_GRAM + 1)).toBe(false);
+    for (const [key, max] of [
+      ['algaeAttenuationPerCm', MAX_ALGAE_ATTENUATION_PER_CM],
+      ['algaeCoatOpticalDepth', MAX_ALGAE_COAT_OPTICAL_DEPTH],
+    ] as const) {
+      expect(blooms(key, 0)).toBe(true);
+      expect(blooms(key, max)).toBe(true);
+      expect(blooms(key, -0.1)).toBe(false);
+      expect(blooms(key, max + 1)).toBe(false);
+    }
   });
 
-  it('takes a sufficiency edge up to its ceiling, and refuses the 1 a Monod share never reaches', () => {
-    const edge = (sufficiencyEdge: number): boolean =>
+  it('takes a Droop edge as a share of the limit full stores reach, and refuses one past them', () => {
+    const edge = (droopEdge: number): boolean =>
       TunableConfigSchema.safeParse({
         ...DEFAULT_CONFIG,
-        plants: { ...DEFAULT_CONFIG.plants, sufficiencyEdge },
+        plants: { ...DEFAULT_CONFIG.plants, droopEdge },
       }).success;
     expect(edge(0)).toBe(true);
-    expect(edge(MAX_SUFFICIENCY_EDGE)).toBe(true);
-    expect(edge(1)).toBe(false);
+    expect(edge(1)).toBe(true);
+    expect(edge(1.01)).toBe(false);
     expect(edge(-0.1)).toBe(false);
   });
 
@@ -194,33 +198,20 @@ describe('TunableConfigSchema', () => {
   const livestock = (overrides: Partial<typeof DEFAULT_CONFIG.livestock>): boolean =>
     TunableConfigSchema.safeParse({ ...DEFAULT_CONFIG, livestock: { ...DEFAULT_CONFIG.livestock, ...overrides } }).success;
 
-  it('takes any draw rate from 0, since a first-order draw never takes more than the bank', () => {
-    expect(plants({ growthDrawRate: 0, healingDrawRate: 0 })).toBe(true);
-    expect(plants({ growthDrawRate: 50, healingDrawRate: 50 })).toBe(true);
+  it('takes any healing rate from 0, since a first-order draw never repairs past the deficit', () => {
+    expect(plants({ healingRate: 0 })).toBe(true);
+    expect(plants({ healingRate: 50 })).toBe(true);
     expect(livestock({ healingRate: 0, maleBufferTurnover: 0 })).toBe(true);
   });
 
-  it('refuses a negative draw rate, which runs the bank backwards: healing overfills it and drains condition', () => {
-    expect(plants({ growthDrawRate: -0.01 })).toBe(false);
-    expect(plants({ healingDrawRate: -0.01 })).toBe(false);
+  it('refuses a negative healing rate, which drains condition to fill the reserve', () => {
+    expect(plants({ healingRate: -0.01 })).toBe(false);
     expect(livestock({ healingRate: -0.01 })).toBe(false);
     expect(livestock({ maleBufferTurnover: -0.01 })).toBe(false);
   });
 
-  it('takes a bank cap from 0 up to the whole condition scale, and refuses one past it', () => {
-    expect(plants({ surplusCap: 0 })).toBe(true);
-    expect(plants({ surplusCap: MAX_SURPLUS_CAP })).toBe(true);
-    expect(plants({ surplusCap: -1 })).toBe(false);
-    expect(plants({ surplusCap: MAX_SURPLUS_CAP + 1 })).toBe(false);
-  });
-
-  it('takes a bank point that buys something up to its ceiling, and refuses one that buys nothing or past it', () => {
-    expect(plants({ sizePerSurplus: MAX_SIZE_PER_SURPLUS })).toBe(true);
-    expect(plants({ sizePerSurplus: 0 })).toBe(false);
-    expect(plants({ sizePerSurplus: MAX_SIZE_PER_SURPLUS * 2 })).toBe(false);
-  });
-
-  it('refuses a healing cost of nothing, since a fish pays every point of repair from its reserve', () => {
+  it('refuses a healing cost of nothing, since a fish or a flora pays every point of repair from its reserve', () => {
+    expect(plants({ healingCost: 0 })).toBe(false);
     expect(livestock({ healingCost: 0.05 })).toBe(true);
     expect(livestock({ healingCost: 0 })).toBe(false);
   });
@@ -256,7 +247,7 @@ describe('PersistedSimulationSchema', () => {
       lightByHour: new Array(24).fill(0),
       aeration: false,
       food: 0,
-      waste: 0,
+      waste: { grams: 0, nutrients: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 } },
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
@@ -284,7 +275,7 @@ describe('PersistedSimulationSchema', () => {
       powerhead: { enabled: false, flowRateGPH: 240 },
       substrate: {
         type: 'gravel',
-        organicReserve: 0.5,
+        organicReserve: { grams: 0.5, nutrients: { nitrate: 110, phosphate: 10, potassium: 4, iron: 0.1 } },
         khReserve: 0,
         nutrients: { nitrate: 400, phosphate: 60, potassium: 200, iron: 10 },
       },
@@ -298,7 +289,7 @@ describe('PersistedSimulationSchema', () => {
     plants: [],
     fish: [],
     clutches: [],
-    algae: { greenWater: { mass: 0, condition: 100, surplus: 0 }, film: { mass: 0, condition: 100, surplus: 0 } },
+    algae: emptyBlooms(),
     rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,
@@ -315,6 +306,26 @@ describe('PersistedSimulationSchema', () => {
 
   it('validates valid simulation state', () => {
     expect(PersistedSimulationSchema.safeParse(validSimulation).success).toBe(true);
+  });
+
+  it('rejects the v35 shape, the waste and the mulm as bare grams', () => {
+    const { resources, equipment } = validSimulation;
+    const bareWaste = { ...validSimulation, resources: { ...resources, waste: 0 } };
+    const bareMulm = {
+      ...validSimulation,
+      equipment: { ...equipment, substrate: { ...equipment.substrate, organicReserve: 0.5 } },
+    };
+    expect(PersistedSimulationSchema.safeParse(bareWaste).success).toBe(false);
+    expect(PersistedSimulationSchema.safeParse(bareMulm).success).toBe(false);
+  });
+
+  it('rejects organics holding less than nothing of a nutrient', () => {
+    const { resources } = validSimulation;
+    const negative = {
+      ...validSimulation,
+      resources: { ...resources, waste: { grams: 1, nutrients: { ...resources.waste.nutrients, iron: -0.1 } } },
+    };
+    expect(PersistedSimulationSchema.safeParse(negative).success).toBe(false);
   });
 
   it('keeps the seed a tank started from, and refuses one that names a stock it cannot seed', () => {
@@ -352,14 +363,13 @@ describe('PersistedSimulationSchema', () => {
     const withPlants = {
       ...validSimulation,
       plants: [
-        { id: 'plant-1', species: 'java_fern', size: 50, condition: 100, surplus: 0, ...founder('plant-1'), age: 240, vigour: -VIGOUR_SPAN },
-        { id: 'plant-2', species: 'anubias', size: 75, condition: 85, surplus: 0, ...founder('plant-2') },
+        { id: 'plant-1', species: 'java_fern', budget: { structure: 1, reserve: 0.2, offshootBuffer: 0, stores: { nitrate: 1, phosphate: 0.1, potassium: 1, iron: 0.01 } }, condition: 100, ...founder('plant-1'), age: 240, vigour: -VIGOUR_SPAN },
+        { id: 'plant-2', species: 'anubias', budget: { structure: 1, reserve: 0.2, offshootBuffer: 0, stores: { nitrate: 1, phosphate: 0.1, potassium: 1, iron: 0.01 } }, condition: 85, ...founder('plant-2') },
         {
           id: 'plant-3',
           species: 'java_fern',
-          size: 10,
+          budget: { structure: 1, reserve: 0.2, offshootBuffer: 0, stores: { nitrate: 1, phosphate: 0.1, potassium: 1, iron: 0.01 } },
           condition: 100,
-          surplus: 0,
           parentId: 'plant-1',
           familyId: 'plant-1',
           age: 0,
@@ -373,7 +383,7 @@ describe('PersistedSimulationSchema', () => {
   it('rejects a vigour past its span', () => {
     const vigorous = {
       ...validSimulation,
-      plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0, ...founder('p1'), vigour: VIGOUR_SPAN + 0.01 }],
+      plants: [{ id: 'p1', species: 'java_fern', budget: { structure: 1, reserve: 0.2, offshootBuffer: 0, stores: { nitrate: 1, phosphate: 0.1, potassium: 1, iron: 0.01 } }, condition: 100, ...founder('p1'), vigour: VIGOUR_SPAN + 0.01 }],
     };
     expect(PersistedSimulationSchema.safeParse(vigorous).success).toBe(false);
   });
@@ -381,7 +391,7 @@ describe('PersistedSimulationSchema', () => {
   it('rejects a plant without its lineage', () => {
     const orphan = {
       ...validSimulation,
-      plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
+      plants: [{ id: 'p1', species: 'java_fern', budget: { structure: 1, reserve: 0.2, offshootBuffer: 0, stores: { nitrate: 1, phosphate: 0.1, potassium: 1, iron: 0.01 } }, condition: 100 }],
     };
     expect(PersistedSimulationSchema.safeParse(orphan).success).toBe(false);
   });
@@ -402,18 +412,18 @@ describe('PersistedSimulationSchema', () => {
     expect(PersistedSimulationSchema.safeParse(withHardscape).success).toBe(true);
   });
 
-  it('rejects a plant past a full unit', () => {
-    const overgrown = {
+  it('rejects a plant whose budget holds less than nothing', () => {
+    const overdrawn = {
       ...validSimulation,
-      plants: [{ id: 'p1', species: 'java_fern', size: 100.1, condition: 100, surplus: 0, ...founder('p1') }],
+      plants: [{ id: 'p1', species: 'java_fern', budget: { structure: 1, reserve: -0.1, offshootBuffer: 0, stores: { nitrate: 1, phosphate: 0.1, potassium: 1, iron: 0.01 } }, condition: 100, ...founder('p1') }],
     };
-    expect(PersistedSimulationSchema.safeParse(overgrown).success).toBe(false);
+    expect(PersistedSimulationSchema.safeParse(overdrawn).success).toBe(false);
   });
 
   it('rejects invalid plant species', () => {
     const invalidPlant = {
       ...validSimulation,
-      plants: [{ id: 'p1', species: 'invalid_species', size: 50, condition: 100, surplus: 0, ...founder('p1') }],
+      plants: [{ id: 'p1', species: 'invalid_species', budget: { structure: 1, reserve: 0.2, offshootBuffer: 0, stores: { nitrate: 1, phosphate: 0.1, potassium: 1, iron: 0.01 } }, condition: 100, ...founder('p1') }],
     };
     expect(PersistedSimulationSchema.safeParse(invalidPlant).success).toBe(false);
   });
@@ -489,7 +499,7 @@ describe('PersistedSimulationSchema', () => {
   it('rejects a fish missing hardinessOffset or its budget (strict mode)', () => {
     const without = (key: string): object => Object.fromEntries(Object.entries(fishRecord()).filter(([k]) => k !== key));
     expect(PersistedSimulationSchema.safeParse(withFish(without('hardinessOffset'))).success).toBe(false);
-    expect(PersistedSimulationSchema.safeParse(withFish(without('deb'))).success).toBe(false);
+    expect(PersistedSimulationSchema.safeParse(withFish(without('budget'))).success).toBe(false);
   });
 
   it('refuses a survival or threshold outside 0–1', () => {
@@ -511,7 +521,7 @@ describe('PersistedStateSchema', () => {
       lightByHour: new Array(24).fill(0),
       aeration: false,
       food: 0,
-      waste: 0,
+      waste: { grams: 0, nutrients: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 } },
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
@@ -539,7 +549,7 @@ describe('PersistedStateSchema', () => {
       powerhead: { enabled: false, flowRateGPH: 240 },
       substrate: {
         type: 'gravel',
-        organicReserve: 0.5,
+        organicReserve: { grams: 0.5, nutrients: { nitrate: 110, phosphate: 10, potassium: 4, iron: 0.1 } },
         khReserve: 0,
         nutrients: { nitrate: 400, phosphate: 60, potassium: 200, iron: 10 },
       },
@@ -553,7 +563,7 @@ describe('PersistedStateSchema', () => {
     plants: [],
     fish: [],
     clutches: [],
-    algae: { greenWater: { mass: 0, condition: 100, surplus: 0 }, film: { mass: 0, condition: 100, surplus: 0 } },
+    algae: emptyBlooms(),
     rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,
@@ -708,7 +718,7 @@ describe('every fixture the UI offers survives a save', () => {
     expect(
       refused(species, (s) => ({
         ...built({}),
-        plants: [{ id: 'p1', species: s, size: 50, condition: 100, surplus: 0, ...founder('p1') }],
+        plants: [{ id: 'p1', species: s, budget: { structure: 1, reserve: 0.2, offshootBuffer: 0, stores: { nitrate: 1, phosphate: 0.1, potassium: 1, iron: 0.01 } }, condition: 100, ...founder('p1') }],
       }))
     ).toEqual([]);
   });

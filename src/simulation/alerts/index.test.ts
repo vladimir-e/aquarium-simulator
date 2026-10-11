@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { bloomAt } from '../tests/blooms.js';
 import { produce, type Draft } from 'immer';
 import {
   alerts,
@@ -23,7 +24,7 @@ import { DEFAULT_CONFIG, configRange, type TunableConfig } from '../config/index
 import { computeFishVitality } from '../systems/fish-health.js';
 import { fishRecord } from '../tests/fish.js';
 import { liveHour } from '../systems/metabolism.js';
-import { NO_STRESS } from '../systems/deb.js';
+import { NO_STRESS } from '../systems/reserve.js';
 import { plantLightTaken } from '../plants/canopy.js';
 import { plantRecord } from '../tests/plant.js';
 import { FREE_AMMONIA_EDGE, NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../livestock/tolerance.js';
@@ -73,7 +74,7 @@ const CASES: Case[] = [
       flag: kind,
       source: 'algae',
       set: (draft, mass): void => {
-        draft.algae[kind].mass = mass;
+        draft.algae[kind] = bloomAt(draft, kind, mass);
       },
       firing: BLOOM_COVERAGE_LINE + 5,
       quiet: BLOOM_COVERAGE_LINE / 2,
@@ -231,13 +232,20 @@ describe('bloomAlert', () => {
   const planted = (kind: AlgaeKind, mass: number): SimulationState =>
     produce(createSimulation({ tankCapacity: CAPACITY }), (draft) => {
       draft.plants = [
-        plantRecord({ id: 'carpet', species: 'monte_carlo', size: 80, condition: 100, surplus: 0 }),
-        plantRecord({ id: 'sword', species: 'amazon_sword', size: 80, condition: 100, surplus: 0 }),
+        plantRecord({ id: 'carpet', species: 'monte_carlo', size: 80 }),
+        plantRecord({ id: 'sword', species: 'amazon_sword', size: 80 }),
       ];
-      draft.algae[kind].mass = mass;
+      draft.algae[kind] = bloomAt(draft, kind, mass);
     });
   const unplanted = (kind: AlgaeKind, mass: number): SimulationState => ({ ...planted(kind, mass), plants: [] });
-  const attenuated = (perGram: number): TunableConfig => ({ ...config, optics: { ...config.optics, algaeAttenuationPerGram: perGram } });
+  const attenuated = (end: 'min' | 'max'): TunableConfig => ({
+    ...config,
+    optics: {
+      ...config.optics,
+      algaeAttenuationPerCm: configRange('optics.algaeAttenuationPerCm')![end],
+      algaeCoatOpticalDepth: configRange('optics.algaeCoatOpticalDepth')![end],
+    },
+  });
   const fires = (kind: AlgaeKind, state: SimulationState, at = config): boolean => bloomAlert(kind).check(state, at).log !== null;
 
   it.each(ALGAE_KINDS)('fires for %s exactly where its level passes 1: coverage past its line, or the plants’ light it takes past its own', (kind) => {
@@ -250,18 +258,18 @@ describe('bloomAlert', () => {
   });
 
   it.each(ALGAE_KINDS)('fires for %s at its coverage line on the light it takes alone, once that passes its line', (kind) => {
-    const dense = attenuated(configRange('optics.algaeAttenuationPerGram')!.max);
+    const dense = attenuated('max');
     const state = planted(kind, BLOOM_COVERAGE_LINE);
 
     expect(plantLightTaken(state, dense.optics)[kind] * 100).toBeGreaterThan(PLANT_LIGHT_LINE);
     expect(fires(kind, state, dense)).toBe(true);
-    expect(fires(kind, state, attenuated(0))).toBe(false);
+    expect(fires(kind, state, attenuated('min'))).toBe(false);
     expect(fires(kind, unplanted(kind, BLOOM_COVERAGE_LINE), dense)).toBe(false);
   });
 
   it('is each kind’s own: one kind’s bloom raises its flag alone', () => {
     const state = produce(createSimulation({ tankCapacity: CAPACITY }), (draft) => {
-      draft.algae.film.mass = BLOOM_COVERAGE_LINE + 10;
+      draft.algae.film = bloomAt(draft, 'film', BLOOM_COVERAGE_LINE + 10);
     });
     const { alertState } = checkAlerts(state, config);
     expect(alertState.film).toBe(true);
@@ -270,7 +278,7 @@ describe('bloomAlert', () => {
 
   it.each(ALGAE_KINDS)('names for %s the figure that leads its level', (kind) => {
     const message = (state: SimulationState, at: TunableConfig): string => bloomAlert(kind).check(state, at).log!.message;
-    const dense = attenuated(configRange('optics.algaeAttenuationPerGram')!.max);
+    const dense = attenuated('max');
     const byLight = planted(kind, BLOOM_COVERAGE_LINE);
     const byCoverage = unplanted(kind, 2 * BLOOM_COVERAGE_LINE);
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { scaleFlora } from '../../simulation/systems/flora-budget.js';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { LifeSection } from './LifeSection';
@@ -71,7 +72,7 @@ describe('LifeSection', () => {
     expect(plants.getByRole('img', { name: /Anubias by family/ }).children).toHaveLength(2);
   });
 
-  it.each(['Green water', 'Film'])('opens the %s ledger on the organism: its condition, coverage, light and bank', (name) => {
+  it.each(['Green water', 'Film'])('opens the %s ledger on the organism: its condition, coverage and light, and no store row', (name) => {
     renderLife();
     fireEvent.click(within(group('Plants')).getByRole('button', { name: new RegExp(`^${name} — `) }));
 
@@ -79,7 +80,7 @@ describe('LifeSection', () => {
     expect(drawer.getByText('% condition')).toBeTruthy();
     expect(drawer.getByText('Coverage')).toBeTruthy();
     expect(drawer.getByText('% of need')).toBeTruthy();
-    expect(drawer.getByText('Bank')).toBeTruthy();
+    expect(drawer.queryByText('Buffer')).toBeNull();
     expect(drawer.queryByRole('button', { name: 'Remove' })).toBeNull();
   });
 
@@ -90,7 +91,7 @@ describe('LifeSection', () => {
       const [first] = run.state.plants;
       const state: SimulationState = {
         ...run.state,
-        plants: [...run.state.plants, { ...first, id: 'plant_bud', parentId: first.id, size: 20 }],
+        plants: [...run.state.plants, { ...first, id: 'plant_bud', parentId: first.id, budget: scaleFlora(first.budget, 0.4) }],
       };
       return { run: { ...run, state }, founder: first.id, label: 'Anubias family 1' };
     }
@@ -136,7 +137,8 @@ describe('LifeSection', () => {
       const drawer = within(screen.getByRole('dialog'));
       expect(drawer.getByText(`the worst of 2 in ${label}`)).toBeTruthy();
       expect(drawer.getByText('% of need')).toBeTruthy();
-      expect(drawer.getByText('% to offshoot')).toBeTruthy();
+      expect(drawer.getByText('% built')).toBeTruthy();
+      expect(drawer.getByText('Stores')).toBeTruthy();
     });
   });
 
@@ -236,7 +238,7 @@ describe('LifeSection', () => {
       ...run.state.fish[0],
       id,
       species,
-      deb: hatchling(debParams(species)),
+      budget: hatchling(debParams(species)),
     });
     const state: SimulationState = {
       ...run.state,

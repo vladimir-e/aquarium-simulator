@@ -3,16 +3,21 @@ import { produce } from 'immer';
 import { onTheGlass, scrubAlgae } from './scrub-algae.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { calculateFloorArea, calculateTankGlassSurface } from '../core/geometry.js';
-import { habitatSize, placeShare } from '../algae/index.js';
-import { bloomsTissue } from '../tests/blooms.js';
+import { bloomCoverage, habitatSize, placeShare } from '../algae/index.js';
+import { bloomAt, bloomsTissue } from '../tests/blooms.js';
 import { createHardscapeItem } from '../equipment/hardscape.js';
 import { placeHardscape } from '../equipment/index.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
+import { NUTRIENTS } from '../config/nutrients.js';
+import { bloomParams } from '../flora/params.js';
+
+const config = DEFAULT_CONFIG.plants;
 
 /** A tank with this much film on its surfaces, and green water at `greenWater`. */
 function withAlgae(film: number, greenWater = 0): SimulationState {
   return produce(createSimulation({ tankCapacity: 100 }), (draft) => {
-    draft.algae.film.mass = film;
-    draft.algae.greenWater.mass = greenWater;
+    draft.algae.film = bloomAt(draft, 'film', film);
+    draft.algae.greenWater = bloomAt(draft, 'greenWater', greenWater);
   });
 }
 
@@ -30,53 +35,61 @@ describe('onTheGlass', () => {
     const bare = withAlgae(80);
     const rocked = placeHardscape(bare, createHardscapeItem('rock', 'neutral_rock'));
     expect(placeShare('surfaces', 'walls', rocked)).toBeLessThan(placeShare('surfaces', 'walls', bare));
-    expect(onTheGlass(rocked).film / rocked.algae.film.mass).toBeCloseTo(placeShare('surfaces', 'walls', rocked), 12);
+    expect(onTheGlass(rocked).film / bloomCoverage(rocked, 'film')).toBeCloseTo(placeShare('surfaces', 'walls', rocked), 12);
   });
 });
 
 describe('scrubAlgae', () => {
   it('takes the film on the glass and leaves what the rest of its habitat holds', () => {
     const state = withAlgae(80, 40);
-    const scrubbed = scrubAlgae(state).state;
+    const scrubbed = scrubAlgae(state, config).state;
 
-    expect(scrubbed.algae.film.mass).toBeCloseTo(80 * (1 - placeShare('surfaces', 'walls', state)), 12);
+    expect(bloomCoverage(scrubbed, 'film')).toBeCloseTo(80 * (1 - placeShare('surfaces', 'walls', state)), 12);
     expect(scrubbed.algae.film.condition).toBe(state.algae.film.condition);
-    expect(scrubbed.algae.film.surplus).toBe(state.algae.film.surplus);
   });
 
   it('leaves green water in the column, however thick', () => {
-    expect(scrubAlgae(withAlgae(30, 90)).state.algae.greenWater).toEqual(withAlgae(30, 90).algae.greenWater);
+    expect(scrubAlgae(withAlgae(30, 90), config).state.algae.greenWater).toEqual(withAlgae(30, 90).algae.greenWater);
   });
 
-  it('leaves what it takes in the water as waste, so the tissue is kept', () => {
+  it('leaves what it takes in the water: its tissue and reserve as waste at Q_min, its stores leached', () => {
     const state = withAlgae(80, 40);
-    const scrubbed = scrubAlgae(state).state;
-    const tissue = (s: SimulationState): number => bloomsTissue(s) + s.resources.waste;
+    const scrubbed = scrubAlgae(state, config).state;
+    const film = (s: SimulationState): number => s.algae.film.budget.structure + s.algae.film.budget.reserve;
+    const p = bloomParams('film', config);
+    const scraped = state.algae.film.budget.structure - scrubbed.algae.film.budget.structure;
 
-    expect(scrubbed.resources.waste).toBeGreaterThan(state.resources.waste);
-    expect(tissue(scrubbed)).toBeCloseTo(tissue(state), 12);
+    expect(scrubbed.resources.waste.grams).toBeCloseTo(state.resources.waste.grams + film(state) - film(scrubbed), 12);
+    for (const n of NUTRIENTS) {
+      expect(scrubbed.resources.waste.nutrients[n]).toBeCloseTo(state.resources.waste.nutrients[n] + p.qMin[n] * scraped, 12);
+      expect(scrubbed.resources[n] - state.resources[n]).toBeCloseTo(
+        state.algae.film.budget.stores[n] - scrubbed.algae.film.budget.stores[n],
+        12
+      );
+    }
+    expect(bloomsTissue(scrubbed)).toBeLessThan(bloomsTissue(state));
   });
 
   it('takes the same share again from what is left: a second scrub clears the glass of what the first left there', () => {
-    const once = scrubAlgae(withAlgae(80)).state;
-    const twice = scrubAlgae(once).state;
+    const once = scrubAlgae(withAlgae(80), config).state;
+    const twice = scrubAlgae(once, config).state;
     const kept = 1 - placeShare('surfaces', 'walls', once);
-    expect(twice.algae.film.mass).toBeCloseTo(80 * kept * kept, 12);
+    expect(bloomCoverage(twice, 'film')).toBeCloseTo(80 * kept * kept, 12);
   });
 
   it('reports and logs what it removed and what is left', () => {
     const state = withAlgae(80);
-    const result = scrubAlgae(state);
+    const result = scrubAlgae(state, config);
     const log = result.state.logs.at(-1)!;
 
     expect(result.message).toContain(onTheGlass(state).film.toFixed(1));
     expect(result.state.logs).toHaveLength(state.logs.length + 1);
     expect(log).toMatchObject({ source: 'scrub', severity: 'info' });
-    expect(log.message).toContain(result.state.algae.film.mass.toFixed(1));
+    expect(log.message).toContain(bloomCoverage(result.state, 'film').toFixed(1));
   });
 
   it('names where what is left lies: the places of the habitat off the glass', () => {
-    const logged = (state: SimulationState): string => scrubAlgae(state).state.logs.at(-1)!.message;
+    const logged = (state: SimulationState): string => scrubAlgae(state, config).state.logs.at(-1)!.message;
     const bare = withAlgae(80);
     const rocked = placeHardscape(bare, createHardscapeItem('rock', 'neutral_rock'));
 
@@ -86,19 +99,19 @@ describe('scrubAlgae', () => {
 
   it('draws nothing from the tank’s stream', () => {
     const state = withAlgae(80);
-    expect(scrubAlgae(state).state.rng).toEqual(state.rng);
+    expect(scrubAlgae(state, config).state.rng).toEqual(state.rng);
   });
 
   it('refuses a tank with nothing on the glass, and leaves it as it was', () => {
     const clean = withAlgae(0, 50);
-    const result = scrubAlgae(clean);
+    const result = scrubAlgae(clean, config);
     expect(result.state).toBe(clean);
     expect(result.message).toBe('Nothing on the glass to scrub');
   });
 
   it('does not modify the state it was given', () => {
     const state = withAlgae(100);
-    scrubAlgae(state);
-    expect(state.algae.film.mass).toBe(100);
+    scrubAlgae(state, config);
+    expect(bloomCoverage(state, 'film')).toBeCloseTo(100, 12);
   });
 });

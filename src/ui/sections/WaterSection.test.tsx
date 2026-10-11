@@ -91,15 +91,15 @@ describe('WaterSection', () => {
     const nitrate = nutrientReadings(run.state, DEFAULT_CONFIG).find((reading) => reading.key === 'nitrate')!;
     renderWater(run);
 
-    expect(nitrate.asked && nitrate.needed === 0).toBe(true);
+    expect(nitrate.asked).toBe(true);
     fireEvent.click(row('Nitrogen', 'NO₃'));
     const toxin = screen.getByRole('dialog', { name: 'NO₃' });
-    expect(within(toxin).getByText(/^The plants take their nitrogen as ammonia for now; the engine alerts over/)).toBeTruthy();
+    expect(within(toxin).getByText(/^The plants' nitrogen, beside the ammonia they take first; the engine alerts over/)).toBeTruthy();
     fireEvent.click(within(toxin).getByRole('button', { name: 'Close NO₃' }));
 
     fireEvent.click(row('Nutrients', 'NO₃'));
     expect(
-      within(screen.getByRole('dialog', { name: 'NO₃' })).getByText(/^Ammonia, which plants take first, meets all the nitrogen they ask for/)
+      within(screen.getByRole('dialog', { name: 'NO₃' })).getByText(/^The plants store it, the store running lowest \d+ % full/)
     ).toBeTruthy();
   });
 

@@ -12,13 +12,16 @@ import {
   calculateMaxBacteria,
   calculateNitriteToNitrate,
   calculateSeeding,
-  calculateWasteToAmmonia,
+  ammoniaIn,
   colonyRates,
   nobCapacity,
+  wasteMineralised,
 } from '../../simulation/systems/index.js';
 import {
   ALGAE_KINDS,
+  addOrganics,
   calculateSubstrateLeach,
+  scaleOrganics,
   wasteSettlingShare,
   type Resources,
   type SimulationState,
@@ -29,7 +32,7 @@ import { getPpm } from '../../simulation/resources/index.js';
 import { monodFactor } from '../../simulation/core/kinetics.js';
 import { NH3_TO_NO2_MASS_RATIO } from '../../simulation/core/chemistry.js';
 import type { HourAhead } from './ahead.js';
-import { mineralisationBase, wasteInflow } from './waste.js';
+import { inflowFrom, mineralisationBase, wasteInflow } from './waste.js';
 
 /**
  * The share of its own ceiling at which a colony counts as having filled it.
@@ -117,9 +120,9 @@ export interface ConversionRates {
   gillsToAmmonia: number;
   /** NH₃ ppm the oxidised share of decaying food releases this hour. */
   foodToAmmonia: number;
-  /** NH₃ ppm the plants' new tissue takes up from the water this hour. */
+  /** NH₃ ppm the plants' stores take up from the water this hour. */
   plantAmmoniaUptake: number;
-  /** NH₃ ppm the blooms' new tissue takes up from the water this hour. */
+  /** NH₃ ppm the blooms' stores and spores take up from the water this hour. */
   algaeAmmoniaUptake: number;
   /** NH₃ ppm the AOB colony takes out of the water this hour. */
   ammoniaOxidised: number;
@@ -214,9 +217,8 @@ export function bacteriaReadout(
   const food = ahead.foodAmmonia;
   const algae = ALGAE_KINDS.reduce((sum, kind) => sum + ahead.algae[kind].waterUptake.ammonia, 0);
   const flora = ahead.waterUptake.ammonia + algae;
-  const { ammoniaProduced } = calculateWasteToAmmonia(
-    mineralisationBase(state, config, wasteInflow(state, config, ahead)),
-    config
+  const ammoniaProduced = ammoniaIn(
+    wasteMineralised(mineralisationBase(state, config, wasteInflow(state, config, ahead)), nc)
   );
   const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
     r.ammonia - flora + gills + ammoniaProduced,
@@ -279,12 +281,12 @@ export interface CycleProjection {
   feeders: ('plants' | 'algae')[];
 }
 
-/** Plants, and blooms the lamp can light or whose bank can grow them in the dark. */
+/** Plants, and blooms the lamp can light or whose reserve can grow them in the dark. */
 function ammoniaFeeders(state: SimulationState): CycleProjection['feeders'] {
   const { light } = state.equipment;
   const feeders: CycleProjection['feeders'] = [];
   if (state.plants.length > 0) feeders.push('plants');
-  if ((light.enabled && light.par > 0) || ALGAE_KINDS.some((kind) => state.algae[kind].surplus > 0)) feeders.push('algae');
+  if ((light.enabled && light.par > 0) || ALGAE_KINDS.some((kind) => state.algae[kind].budget.reserve > 0)) feeders.push('algae');
   return feeders;
 }
 
@@ -333,10 +335,7 @@ export function projectNitritePeak(
   const aobRates = colonyRates('aob', r.temperature, r.oxygen, nc);
   const nobRates = colonyRates('nob', r.temperature, r.oxygen, nc);
 
-  const sources = wasteInflow(state, config, ahead).sources;
-  const steadyInflow = sources
-    .filter((source) => source.key !== 'substrate')
-    .reduce((total, source) => total + source.gramsPerHour, 0);
+  const steadyInflow = inflowFrom(wasteInflow(state, config, ahead), ['food', 'fish', 'plants', 'algae']);
   const gills = ahead.gillAmmonia;
   const food = ahead.foodAmmonia;
 
@@ -356,14 +355,13 @@ export function projectNitritePeak(
     water = nextVolume(water, state, config);
 
     const leached = calculateSubstrateLeach(reserve, config.decay);
-    const settled =
-      waste * wasteSettlingShare({ ...state, resources: { ...r, water } }, config.decay);
-    reserve += settled - leached;
-    waste += steadyInflow + leached - settled;
+    const settled = scaleOrganics(waste, wasteSettlingShare({ ...state, resources: { ...r, water } }, config.decay));
+    reserve = addOrganics(reserve, settled, scaleOrganics(leached, -1));
+    waste = addOrganics(waste, steadyInflow, leached, scaleOrganics(settled, -1));
 
-    const mineralised = calculateWasteToAmmonia(waste, config);
-    waste -= mineralised.wasteConsumed;
-    ammonia += mineralised.ammoniaProduced + gills;
+    const mineralised = wasteMineralised(waste, nc);
+    waste = addOrganics(waste, scaleOrganics(mineralised, -1));
+    ammonia += ammoniaIn(mineralised) + gills;
 
     const oxidised = calculateAmmoniaToNitrite(ammonia, water, aob, r.temperature, r.oxygen, nc);
     ammonia += food - oxidised.ammoniaConsumed;

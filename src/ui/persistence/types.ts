@@ -25,6 +25,21 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v36: Organic pools carry their content, and the flora run on energy budgets.
+ *      `Resources.waste` and `Substrate.organicReserve` become
+ *      `{ grams, nutrients }` — the grams and the mg of each nutrient inside
+ *      them. `Plant` trades `size` and `surplus`, and `AlgaeState` `mass` and
+ *      `surplus`, for `budget` — structure, reserve, offshoot buffer and stores
+ *      — and `Fish.deb` becomes `Fish.budget`. `PlantsConfig` drops the bank's
+ *      `growthDrawRate`, `healingDrawRate`, `sizePerSurplus` and `surplusCap`,
+ *      and `tissuePerSize`; gains `somaShare`, `growthEfficiency`,
+ *      `reserveCapacity`, `storeFillDays`, `quotaMin`, `quotaMax`,
+ *      `healingRate` and `healingCost`; and `lightStarvationSeverity`,
+ *      `sufficiencyEdge`, `respirationOxygenHalfSaturation`, `respirationQ10`
+ *      and `respirationReferenceTemp` become `starvationSeverity`, `droopEdge`,
+ *      `oxygenHalfSaturation`, `paceQ10` and `paceReferenceTemp`. The blooms
+ *      shade by their coverage: `OpticsConfig` trades `algaeAttenuationPerGram`
+ *      for `algaeAttenuationPerCm` and `algaeCoatOpticalDepth`.
  * v35: A fish runs on its energy budget. `Fish` trades `mass`, `surplus` and
  *      `ovary` for `deb` — structure, reserve, maturity, brood buffer, wear
  *      and hazard — `survival` and `survivalDraw`. `LivestockConfig` drops the
@@ -275,7 +290,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 35;
+export const PERSISTENCE_VERSION = 36;
 
 /**
  * Storage key for the unified persisted state.

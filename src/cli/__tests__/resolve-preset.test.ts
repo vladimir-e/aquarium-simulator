@@ -16,7 +16,7 @@ describe('resolvePreset', () => {
     expect(fresh.resources.aob).toBe(0);
     expect(freshHardware).toEqual(cycledHardware);
     expect(freshBed.type).toBe(cycledBed.type);
-    expect(freshBed.organicReserve).toBeGreaterThan(cycledBed.organicReserve);
+    expect(freshBed.organicReserve.grams).toBeGreaterThan(cycledBed.organicReserve.grams);
     expect(freshBed.khReserve).toBeGreaterThan(cycledBed.khReserve);
   });
 

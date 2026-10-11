@@ -1,13 +1,13 @@
 import type { SimulationState } from '../../simulation/state.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { floorCover, floorLight, floorShade } from '../../simulation/plants/canopy.js';
+import { floorCover, floorLight, floorShade, sizeOf } from '../../simulation/plants/canopy.js';
 import { freeAmmoniaPpm } from '../../simulation/systems/nitrogen-cycle.js';
 import { FREE_AMMONIA_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
 import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
 import { BLOOM_COVERAGE_LINE } from '../../simulation/alerts/bloom.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/helpers.js';
 import { getPh } from '../../simulation/core/carbonate.js';
-import { ALGAE, ALGAE_KINDS, type AlgaeKind } from '../../simulation/algae/index.js';
+import { ALGAE, ALGAE_KINDS, bloomCoverage, type AlgaeKind } from '../../simulation/algae/index.js';
 import { toFahrenheit } from '../units.js';
 import { snakeCase, type SnakeCase } from '../names.js';
 
@@ -160,7 +160,7 @@ const DEFINITIONS = [
     label: 'plant size Σ',
     unit: '%',
     digits: 0,
-    read: (s): number => s.plants.reduce((sum, p) => sum + p.size, 0),
+    read: (s): number => s.plants.reduce((sum, p) => sum + sizeOf(p), 0),
     band: { green: [0.8, ANY], amber: [0.4, ANY], why: 'plants hold or grow under care; melting back by half is a problem' },
     ofStart: true,
   },
@@ -224,7 +224,7 @@ const DEFINITIONS = [
       label: ALGAE[kind].name.toLowerCase(),
       unit: '/100',
       digits: 0,
-      read: (s) => s.algae[kind].mass,
+      read: (s) => bloomCoverage(s, kind),
       band: { green: [0, BLOOM_COVERAGE_LINE], amber: [0, 2 * BLOOM_COVERAGE_LINE], why: BLOOM_WHY[kind] },
     })
   ),

@@ -22,17 +22,24 @@
  * leaf never shades it.
  */
 
-import type { Blooms, Plant, Resources, SimulationState } from '../state.js';
+import type { Plant, Resources, SimulationState } from '../state.js';
 import { calculateFloorArea, calculateTankHeight } from '../core/geometry.js';
 import type { OpticsConfig } from '../config/optics.js';
 import { calculateParAtDepth, dailyLightIntegral } from '../equipment/light.js';
 import { growthFormOf, plantTraits, type PlantSpecies } from './species.js';
-import { dailyLightEdge } from '../systems/flora.js';
+import { dailyLightEdge, TISSUE_PER_RATE_UNIT } from '../systems/flora.js';
 import type { AlgaeKind } from '../algae/traits.js';
 import { mapKinds } from '../algae/blooms.js';
-import { bloomPass, lightLoss, waterExtinction, type LightLoss } from '../algae/light-loss.js';
+import { bloomPass, lightLoss, waterExtinction, type BloomTank, type LightLoss } from '../algae/light-loss.js';
 
-type Unit = Pick<Plant, 'species' | 'size'>;
+/** A unit of a species at a size. */
+export interface Unit {
+  species: PlantSpecies;
+  size: number;
+}
+
+/** A plant as the canopy reads it: its species and the structure its budget holds. */
+export type Planted = Pick<Plant, 'species' | 'budget'>;
 
 /**
  * cm² of leaf a rate unit is: the unit photosynthesis, respiration, plant power
@@ -56,6 +63,20 @@ export function rateUnits(plant: Unit): number {
   return leafArea(plant) / LEAF_AREA_PER_RATE_UNIT;
 }
 
+/** Grams of organic matter in this much size of a species, by its leaf. */
+export function tissueMass(species: PlantSpecies, size: number): number {
+  return rateUnits({ species, size }) * TISSUE_PER_RATE_UNIT;
+}
+
+/** Its size: the structure it holds over a grown unit's. */
+export function sizeOf(plant: Planted): number {
+  return (100 * plant.budget.structure) / tissueMass(plant.species, 100);
+}
+
+export function unitOf(plant: Planted): Unit {
+  return { species: plant.species, size: sizeOf(plant) };
+}
+
 /**
  * The share of the lamp's light each taker lets through to a plant's mean leaf;
  * their product is the leaf's share of the lamp.
@@ -69,7 +90,7 @@ export interface LightPath {
 
 /** Light at a plant's height over the PAR at the substrate. */
 export interface CanopyLight {
-  /** At its mean leaf: what it earns and starves on. */
+  /** At its mean leaf: what it fixes carbon on. */
   leaf: number;
   /** At the top of its crown: what burns it. */
   top: number;
@@ -117,14 +138,15 @@ function overLeaf(plant: Unit, depth: number, optics: OpticsConfig, loss: LightL
  * the relief back.
  */
 export function canopyLight(
-  plants: readonly Unit[],
-  capacity: number,
-  optics: OpticsConfig,
-  blooms: Blooms
+  planted: readonly Planted[],
+  tank: BloomTank,
+  optics: OpticsConfig
 ): CanopyLight[] {
+  const plants = planted.map(unitOf);
+  const capacity = tank.tank.capacity;
   const depth = calculateTankHeight(capacity);
   const k = optics.leafAttenuationPerLai;
-  const loss = lightLoss(blooms, optics);
+  const loss = lightLoss(tank, optics);
   const { extinction, leafPass } = loss;
   const crowns = plants.map((plant) => crownOf(plant, depth, capacity));
 
@@ -155,7 +177,7 @@ export interface PlantLight {
   crownPar: number;
   /** The day's light at its mean leaf, mol/m²/d. */
   dailyLight: number;
-  /** That day's light over the daily light the species starves under. */
+  /** That day's light over the day its species is rated to live on. */
   needShare: number;
   /** The day's light at the substrate that leaves its leaf on the species edge. */
   substrateEdge: number;
@@ -194,10 +216,10 @@ export function floorCover(plants: readonly Pick<Plant, 'species'>[], capacity: 
 }
 
 /** Share of the substrate light the canopy takes before it reaches the floor. */
-export function floorShade(plants: readonly Unit[], capacity: number, optics: OpticsConfig): number {
+export function floorShade(plants: readonly Planted[], capacity: number, optics: OpticsConfig): number {
   const depth = calculateTankHeight(capacity);
   const taken = plants.reduce(
-    (sum, plant) => sum + shadeAt(crownOf(plant, depth, capacity), 0, optics.leafAttenuationPerLai),
+    (sum, plant) => sum + shadeAt(crownOf(unitOf(plant), depth, capacity), 0, optics.leafAttenuationPerLai),
     0
   );
   return 1 - Math.exp(-taken);
@@ -213,7 +235,7 @@ export function floorLight(
 ): number {
   const { light } = state.equipment;
   const depth = calculateTankHeight(state.tank.capacity);
-  const landed = calculateParAtDepth(light.enabled ? light.par : 0, depth, waterExtinction(state.algae, optics));
+  const landed = calculateParAtDepth(light.enabled ? light.par : 0, depth, waterExtinction(state, optics));
   return landed * (1 - floorShade(state.plants, state.tank.capacity, optics));
 }
 
@@ -223,15 +245,16 @@ export function floorLight(
  * planted it takes none.
  */
 export function plantLightTaken(
-  state: Pick<SimulationState, 'plants' | 'tank' | 'algae'>,
+  state: Pick<SimulationState, 'plants' | 'tank' | 'equipment' | 'algae'>,
   optics: OpticsConfig
 ): Record<AlgaeKind, number> {
   const depth = calculateTankHeight(state.tank.capacity);
-  const loss = lightLoss(state.algae, optics);
-  const passed = state.plants.map((plant) => overLeaf(plant, depth, optics, loss).blooms);
-  const leaf = state.plants.reduce((sum, plant) => sum + leafArea(plant), 0);
+  const loss = lightLoss(state, optics);
+  const units = state.plants.map(unitOf);
+  const passed = units.map((plant) => overLeaf(plant, depth, optics, loss).blooms);
+  const leaf = units.reduce((sum, plant) => sum + leafArea(plant), 0);
   return mapKinds((kind) =>
-    leaf > 0 ? state.plants.reduce((sum, plant, i) => sum + leafArea(plant) * (1 - passed[i][kind]), 0) / leaf : 0
+    leaf > 0 ? units.reduce((sum, plant, i) => sum + leafArea(plant) * (1 - passed[i][kind]), 0) / leaf : 0
   );
 }
 

@@ -150,8 +150,3 @@ export function groupMember(members: readonly Member[]): Member {
   const { worst, reason } = tally(members);
   return { condition: worst.condition, reading: { status: worst.reading.status, word: reason } };
 }
-
-/** A bank as a share of its cap — what the next brood or offshoot costs. Nothing fills a cap of 0. */
-export function bankShare(bank: number, cap: number): number {
-  return cap > 0 ? Math.min(1, bank / cap) : 0;
-}

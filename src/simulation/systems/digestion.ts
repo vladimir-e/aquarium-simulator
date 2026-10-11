@@ -18,12 +18,12 @@ import { fishParams } from './fish-body.js';
 /** The pace a fish's budget runs at this hour: τ, ω and the water's stress on it. */
 export type Pace = Pick<DebHour, 'tau' | 'omega' | 'stress'>;
 
-type Body = Pick<Fish, 'species' | 'deb'>;
+type Body = Pick<Fish, 'species' | 'budget'>;
 
 /** Grams of food an hour its budget can take up. */
 export function appetite(fish: Body, pace: Pace): number {
   const p = fishParams(fish);
-  return assimilationCeiling(fish.deb, p, pace) / p.kappaX;
+  return assimilationCeiling(fish.budget, p, pace) / p.kappaX;
 }
 
 /** Grams of food an hour whose assimilation pays `owed` grams of its upkeep. */

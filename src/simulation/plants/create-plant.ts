@@ -1,13 +1,17 @@
 /**
  * Plant construction — the mirror of `livestock/create-fish.ts`, and the single
- * factory for every plant record: planted, seeded, or bought by a parent's full
- * bank. Every record draws its own vigour; a planted one founds a family, an
- * offshoot joins its parent's.
+ * factory for every plant record: planted, seeded, or bought out of a parent's
+ * offshoot buffer. Every record draws its own vigour; a planted one founds a
+ * family, an offshoot joins its parent's.
  */
 
 import type { Plant } from '../state.js';
+import type { PlantsConfig } from '../config/plants.js';
 import { draw, drawId, type RngState } from '../core/rng.js';
-import type { PlantSpecies } from './species.js';
+import { stocked, type FloraState } from '../systems/flora-budget.js';
+import { plantParams } from '../flora/params.js';
+import { tissueMass } from './canopy.js';
+import { growthFormOf, type PlantSpecies } from './species.js';
 
 /** Size a plant goes in at when the caller doesn't say — a young specimen. */
 export const DEFAULT_PLANT_SIZE = 50;
@@ -19,7 +23,21 @@ export function isPlantableSize(size: number): boolean {
   return size >= MIN_PLANTABLE_SIZE && size <= 100;
 }
 
-/** Vigour span either side of 0: clonal ramets differ in growth by 10–20 %. */
+/** The structure an offshoot is born with: its growth form's offshoot size. */
+export function offshootStructure(species: PlantSpecies): number {
+  return tissueMass(species, growthFormOf(species).offshootSize);
+}
+
+/** Its offshoot buffer as a share of its next offshoot. */
+export function offshootShare(plant: Pick<Plant, 'species' | 'budget'>): number {
+  return Math.min(1, plant.budget.offshootBuffer / offshootStructure(plant.species));
+}
+
+/**
+ * Spread of a unit's assimilation ceiling either side of its species': clonal
+ * ramets differ in growth by 10–20 %, and a unit's growth follows its ceiling
+ * about one for one.
+ */
 export const VIGOUR_SPAN = 0.15;
 
 function drawVigour(rng: RngState): number {
@@ -28,26 +46,26 @@ function drawVigour(rng: RngState): number {
 
 export interface CreatePlantParams {
   species: PlantSpecies;
-  /** Size %, same scale as `Plant.size`. */
+  /** % of one full unit, as `sizeOf` reads it. */
   size?: number;
   /** Ticks it has already stood in the tank — a seeded, established plant. Defaults to 0. */
   age?: number;
   /** The tank's draw stream — the vigour and the id come off it. */
   rng: RngState;
+  plantsConfig: PlantsConfig;
 }
 
-/** A planted or seeded plant: the founder of its own family. */
+/** A planted or seeded plant, fed and stocked as a shop sells it: the founder of its own family. */
 export function createPlant(params: CreatePlantParams): Plant {
-  const { species, size = DEFAULT_PLANT_SIZE, age = 0, rng } = params;
+  const { species, size = DEFAULT_PLANT_SIZE, age = 0, rng, plantsConfig } = params;
   const vigour = drawVigour(rng);
   const id = drawId(rng, 'plant');
 
   return {
     id,
     species,
-    size,
+    budget: stocked(tissueMass(species, size), plantParams(species, plantsConfig)),
     condition: 100,
-    surplus: 0,
     parentId: null,
     familyId: id,
     age,
@@ -55,20 +73,15 @@ export function createPlant(params: CreatePlantParams): Plant {
   };
 }
 
-/**
- * What a parent's full bank bought (see `propagate`): a new unit of its species
- * and family at the size the bank paid for, full on an empty bank — only a full
- * plant holds a full bank.
- */
-export function createOffshoot(parent: Plant, size: number, rng: RngState): Plant {
+/** What a parent's offshoot buffer bought (see `buyOffshoot`): a new unit of its species and family, at full condition. */
+export function createOffshoot(parent: Plant, budget: FloraState, rng: RngState): Plant {
   const vigour = drawVigour(rng);
 
   return {
     id: drawId(rng, 'plant'),
     species: parent.species,
-    size,
+    budget,
     condition: 100,
-    surplus: 0,
     parentId: parent.id,
     familyId: parent.familyId,
     age: 0,

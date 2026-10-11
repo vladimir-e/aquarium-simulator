@@ -6,7 +6,13 @@ import {
   MW_NO3,
   MW_O2,
   MW_CO2,
+  MW_CH2O,
+  MW_P,
+  MW_PO4,
   N_TO_NH3_MASS_RATIO,
+  N_TO_NO3_MASS_RATIO,
+  P_TO_PO4_MASS_RATIO,
+  CO2_TO_CH2O_MASS_RATIO,
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
   CO2_TO_O2_MASS_RATIO,
@@ -24,6 +30,9 @@ describe('a mass ratio is one mole of the named compound to one mole of the othe
     expect(NH3_TO_NO2_MASS_RATIO).toBeCloseTo(MW_NO2 / MW_NH3, 12);
     expect(NO2_TO_NO3_MASS_RATIO).toBeCloseTo(MW_NO3 / MW_NO2, 12);
     expect(CO2_TO_O2_MASS_RATIO).toBeCloseTo(MW_O2 / MW_CO2, 12);
+    expect(N_TO_NO3_MASS_RATIO).toBeCloseTo(MW_NO3 / MW_N, 12);
+    expect(P_TO_PO4_MASS_RATIO).toBeCloseTo(MW_PO4 / MW_P, 12);
+    expect(CO2_TO_CH2O_MASS_RATIO).toBeCloseTo(MW_CH2O / MW_CO2, 12);
   });
 
   it('reads the same reaction backwards as the reciprocal', () => {

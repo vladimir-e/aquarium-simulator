@@ -1,12 +1,12 @@
 /**
- * Plant vitality — runs each plant through the unified vitality engine.
+ * Plant vitality — runs each plant through the one vitality step.
  *
- * The channels a bloom has too — light starvation, temperature, pH, nutrient
+ * The channels a bloom has too — starvation, temperature, pH, nutrient
  * deficiency and the three income channels — are the flora law's (`flora.ts`),
- * read at the plant's own height (see `plants/canopy.ts`) and earned at its
- * vigour. Beside them sit the ones only a plant has: the burn at its crown top
- * while the lamps are on, GH out of band, and nitrate on log dose past an edge
- * its hardiness carries out.
+ * read off the plant's budget as the hour found it and the hour it ran. Beside
+ * them sit the ones only a plant has: the burn at its crown top while the
+ * lamps are on, GH out of band, and nitrate on log dose past an edge its
+ * hardiness carries out.
  */
 
 import type { Plant, Resources } from '../state.js';
@@ -15,7 +15,9 @@ import { PLANT_SPECIES_DATA, getCo2HalfSaturation, plantTraits, type PlantSpecie
 import { toleranceFactor } from '../livestock/tolerance.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { getDgh, getPpm } from '../resources/index.js';
-import { floraBenefits, floraHealingRate, floraStressors, type FloraHour } from './flora.js';
+import type { FloraFluxes, FloraParams } from './flora-budget.js';
+import { pointsHealed } from './reserve.js';
+import { floraBenefits, floraStressors, floraVitalityInput, type FloraVitalityInput } from './flora.js';
 import {
   computeVitality,
   eFoldsPast,
@@ -26,27 +28,25 @@ import {
 } from './vitality.js';
 
 export interface PlantVitalityContext {
+  /** The plant as the hour found it. */
   plant: Plant;
+  params: FloraParams;
+  /** What its budget did over the hour. */
+  fluxes: FloraFluxes;
   resources: Resources;
   waterVolume: number;
   plantsConfig: PlantsConfig;
-  /** Liebig sufficiency for this plant (0–1), computed once a tick by the flora pass. */
-  nutrientSufficiency: number;
   /** The light at this plant's height, from the tick's one canopy pass. */
   light: PlantLight;
 }
 
-function floraHour({ plant, resources, plantsConfig, nutrientSufficiency, light }: PlantVitalityContext): FloraHour {
-  return {
+const vitalityInput = ({ plant, params, fluxes, resources, plantsConfig }: PlantVitalityContext): FloraVitalityInput =>
+  floraVitalityInput(plant.budget, params, fluxes, {
     traits: plantTraits(plant.species),
     resources,
     plantsConfig,
-    light,
-    nutrientSufficiency,
     co2HalfSaturation: getCo2HalfSaturation(plant.species, plantsConfig),
-    vigour: plant.vigour,
-  };
-}
+  });
 
 /** Nitrate ppm a species takes harm past: the plant edge, carried out by its hardiness. */
 export function plantNitrateEdge(species: PlantSpecies, plantsConfig: PlantsConfig): number {
@@ -65,7 +65,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   return [
     ...hardened(
       [
-        ...floraStressors(floraHour(ctx)),
+        ...floraStressors(vitalityInput(ctx)),
         {
           key: 'light',
           label: 'Light high',
@@ -90,20 +90,15 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
 }
 
 export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] {
-  return floraBenefits(floraHour(ctx));
+  return floraBenefits(vitalityInput(ctx));
 }
 
-/**
- * Compute one tick of vitality for a plant — useful for UI rendering
- * (trend arrows, breakdown lists) and for tests. Stateless.
- */
+/** A plant's condition over the hour its budget ran, its reserve paying for the repair. Stateless. */
 export function computePlantVitality(ctx: PlantVitalityContext): VitalityResult {
   return computeVitality({
     stressors: buildPlantStressors(ctx),
     benefits: buildPlantBenefits(ctx),
     condition: ctx.plant.condition,
-    surplus: ctx.plant.surplus,
-    surplusCap: ctx.plantsConfig.surplusCap,
-    healingRate: floraHealingRate(plantTraits(ctx.plant.species), ctx.plantsConfig),
+    healed: pointsHealed(ctx.fluxes.burned.healing, ctx.plant.budget, ctx.params, ctx.plantsConfig),
   });
 }

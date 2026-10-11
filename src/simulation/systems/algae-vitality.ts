@@ -1,64 +1,36 @@
 /**
  * Algae vitality — a bloom through the flora law (`flora.ts`), on the plants'
- * constants and its kind's own traits, read at the mean PAR over its habitat,
- * plus the one harm only a bloom takes: what thriving plants do to it.
+ * constants and its kind's own traits, read off its budget.
  */
 
-import type { AlgaeState, Plant, Resources } from '../state.js';
-import type { AlgaeConfig } from '../config/algae.js';
+import type { AlgaeState, Resources } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import type { AlgaeTraits } from '../algae/traits.js';
-import type { BloomLight } from '../algae/habitat.js';
-import { floraBenefits, floraHealingRate, floraStressors, type FloraHour } from './flora.js';
-import { getPlantPower } from './plant-power.js';
+import type { FloraFluxes, FloraParams } from './flora-budget.js';
+import { pointsHealed } from './reserve.js';
+import { floraBenefits, floraStressors, floraVitalityInput, type FloraVitalityInput } from './flora.js';
 import { computeVitality, hardened, type VitalityFactor, type VitalityResult } from './vitality.js';
 
 export interface AlgaeVitalityContext {
+  /** The bloom as the hour found it. */
   bloom: AlgaeState;
+  /** What its budget did over the hour. */
+  fluxes: FloraFluxes;
   traits: AlgaeTraits;
+  params: FloraParams;
   resources: Resources;
-  /** The planting as the hour starts: its thriving leaf is what harms the bloom. */
-  plants: readonly Plant[];
   plantsConfig: PlantsConfig;
-  algaeConfig: AlgaeConfig;
-  /** Liebig sufficiency on the water column, 0–1. */
-  nutrientSufficiency: number;
-  light: BloomLight;
 }
 
-function floraHour({ traits, resources, plantsConfig, nutrientSufficiency, light }: AlgaeVitalityContext): FloraHour {
-  return {
-    traits,
-    resources,
-    plantsConfig,
-    light,
-    nutrientSufficiency,
-    co2HalfSaturation: traits.co2HalfSaturation,
-    vigour: 0,
-  };
-}
-
-/** Rate units of thriving plant per litre of water. */
-export function thrivingPlantDensity(plants: readonly Plant[], litres: number): number {
-  return litres > 0 ? getPlantPower(plants) / litres : 0;
-}
+const vitalityInput = ({ bloom, fluxes, traits, params, resources, plantsConfig }: AlgaeVitalityContext): FloraVitalityInput =>
+  floraVitalityInput(bloom.budget, params, fluxes, { traits, resources, plantsConfig, co2HalfSaturation: traits.co2HalfSaturation });
 
 export function buildAlgaeStressors(ctx: AlgaeVitalityContext): VitalityFactor[] {
-  return hardened(
-    [
-      ...floraStressors(floraHour(ctx)),
-      {
-        key: 'allelopathy',
-        label: 'Plants',
-        amount: ctx.algaeConfig.allelopathySeverity * thrivingPlantDensity(ctx.plants, ctx.resources.water),
-      },
-    ],
-    ctx.traits.hardiness
-  );
+  return hardened(floraStressors(vitalityInput(ctx)), ctx.traits.hardiness);
 }
 
 export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] {
-  return floraBenefits(floraHour(ctx));
+  return floraBenefits(vitalityInput(ctx));
 }
 
 export function computeAlgaeVitality(ctx: AlgaeVitalityContext): VitalityResult {
@@ -66,8 +38,6 @@ export function computeAlgaeVitality(ctx: AlgaeVitalityContext): VitalityResult 
     stressors: buildAlgaeStressors(ctx),
     benefits: buildAlgaeBenefits(ctx),
     condition: ctx.bloom.condition,
-    surplus: ctx.bloom.surplus,
-    surplusCap: ctx.plantsConfig.surplusCap,
-    healingRate: floraHealingRate(ctx.traits, ctx.plantsConfig),
+    healed: pointsHealed(ctx.fluxes.burned.healing, ctx.bloom.budget, ctx.params, ctx.plantsConfig),
   });
 }

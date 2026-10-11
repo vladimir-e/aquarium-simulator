@@ -4,6 +4,7 @@
 
 import { celsius, createLog, liters, measured, type LogEntry } from './core/logging.js';
 import { createRng, type RngState } from './core/rng.js';
+import { NO_ORGANICS, type Organics } from './core/organics.js';
 import type { DailySchedule } from './core/schedule.js';
 import type { Filter } from './equipment/filter.js';
 import { DEFAULT_FILTER } from './equipment/filter.js';
@@ -16,6 +17,7 @@ import { DEFAULT_HARDSCAPE, createHardscapeItem } from './equipment/hardscape.js
 import type { Light } from './equipment/light.js';
 import { DEFAULT_LIGHT, MAX_LIGHT_PAR } from './equipment/light.js';
 import { opticsDefaults, type OpticsConfig } from './config/optics.js';
+import { plantsDefaults, type PlantsConfig } from './config/plants.js';
 import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
@@ -32,10 +34,11 @@ import { getGhMass, getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
 import type { FishSpecies, FishSex } from './livestock/species.js';
 import type { DebState } from './systems/deb.js';
+import type { FloraState } from './systems/flora-budget.js';
 
 /**
  * Individual fish in the tank. Its body is its energy budget: mass, size and
- * whether it is grown are read off `deb` against its species' parameters.
+ * whether it is grown are read off `budget` against its species' parameters.
  */
 export interface Fish {
   id: string;
@@ -54,7 +57,7 @@ export interface Fish {
    * synchronized mass die-offs. Range: ±15 % of species baseline.
    */
   hardinessOffset: number;
-  deb: DebState;
+  budget: DebState;
   /** exp(−∫h dt): the share of its cohort its hazard so far would leave alive. */
   survival: number;
   /** 0–1, drawn once at creation: the fish dies of old age when its survival falls below it. */
@@ -62,18 +65,16 @@ export interface Fish {
 }
 
 /**
- * One kind of bloom: a population run on the plants' vitality model, without
- * a position. `mass` is how full its habitat is, 0–100 — the share of what its
- * habitat holds at a full bloom — so its tissue scales with the habitat.
- * Condition and bank are the bloom's as a whole: the bank buys mass in
- * proportion to the mass already there.
+ * One kind of bloom: a population run on the plants' model, without a
+ * position. Its budget is the bloom's as a whole, and how full its habitat is
+ * — its coverage, 0–100 — is its structure over what a full habitat holds
+ * (`bloomCoverage`), so a habitat that changes size moves its coverage, not its
+ * tissue.
  */
 export interface AlgaeState {
-  mass: number;
+  budget: FloraState;
   /** 0–100; the bloom dies back at 0. */
   condition: number;
-  /** Vitality bank, in condition points, up to `PlantsConfig.surplusCap`. */
-  surplus: number;
 }
 
 /** Every kind's bloom, by kind: the kinds are a fixed set every tank holds, so each is read by name and none goes missing. */
@@ -102,28 +103,20 @@ export interface Plant {
   /** Plant species type */
   species: PlantSpecies;
   /**
-   * How full its unit is, % of one grown unit of its growth form — a patch, a
-   * specimen, a clump. Growth tapers to nothing at 100, so it never grows past it.
+   * Its energy budget. How full its unit is — its size, % of one grown unit of
+   * its growth form: a patch, a specimen, a clump — is its structure over a
+   * grown unit's (`sizeOf`), and growth tapers to nothing at 100.
    */
-  size: number;
+  budget: FloraState;
   /** Condition/health percentage (0-100, plant dies at 0) */
   condition: number;
-  /**
-   * Vitality bank, in condition points. Fills with income at full condition,
-   * up to `PlantsConfig.surplusCap`; heals condition below 100, buys size, and
-   * a full bank buys an offshoot.
-   */
-  surplus: number;
   /** The plant whose offshoot this is; null for anything planted or seeded. */
   parentId: string | null;
   /** The founder's id, inherited by every offshoot, so a family outlives its founder. */
   familyId: string;
   /** Age in ticks (hours) in this tank. */
   age: number;
-  /**
-   * Per-individual offset on everything the plant earns, drawn once at birth
-   * within ±`VIGOUR_SPAN`, so clones bud apart instead of in lockstep.
-   */
+  /** Its offset on its species' assimilation ceiling, drawn once at birth within ±`VIGOUR_SPAN`. */
   vigour: number;
 }
 
@@ -160,8 +153,8 @@ export interface Resources {
   // Biological resources
   /** Food available for consumption (grams, 2 decimal precision) */
   food: number;
-  /** Organic waste accumulation (grams) */
-  waste: number;
+  /** Organic waste standing in the water */
+  waste: Organics;
 
   // Chemical resources (nitrogen cycle) - stored as mass (mg)
   // Concentration (ppm) derived as mass/water for display and threshold checks
@@ -244,7 +237,6 @@ export interface Co2Generator {
   /** CO2 injection schedule (start hour + duration) */
   schedule: DailySchedule;
 }
-
 
 export interface Equipment {
   /** Heater is always present, `enabled` property controls if active */
@@ -374,6 +366,8 @@ export interface SimulationConfig {
   autoFeeder?: Partial<AutoFeeder>;
   /** Optics the tank will run on, which its first day of light is read through (defaults to the shipped optics) */
   optics?: OpticsConfig;
+  /** Plants config the tank will run on, which its seeded plants are stocked on (defaults to the shipped config) */
+  plants?: PlantsConfig;
 }
 
 const DEFAULT_TEMPERATURE = 25;
@@ -497,6 +491,7 @@ export function createSimulation(
     autoDoser,
     autoFeeder,
     optics,
+    plants,
   } = config;
 
   const heaterConfig: Heater = {
@@ -603,7 +598,7 @@ export function createSimulation(
       aeration: false,
       // Biological
       food: 0.0,
-      waste: 0.0,
+      waste: NO_ORGANICS,
       // Chemical (nitrogen cycle)
       ammonia: 0,
       nitrite: 0,
@@ -639,6 +634,6 @@ export function createSimulation(
   };
 
   writePassiveResources(state, optics ?? opticsDefaults);
-  if (seed !== undefined) applySeed(state, seed);
+  if (seed !== undefined) applySeed(state, seed, plants ?? plantsDefaults);
   return state;
 }

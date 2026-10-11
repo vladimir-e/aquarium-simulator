@@ -227,14 +227,14 @@ describe('useSimulation', () => {
 
     const started = result.current.state.equipment.substrate.organicReserve;
     const full = getSubstrateOrganicReserve('aqua_soil', result.current.state.tank.capacity);
-    expect(started).toBeGreaterThan(0);
-    expect(started).toBeLessThan(full);
+    expect(started.grams).toBeGreaterThan(0);
+    expect(started.grams).toBeLessThan(full.grams);
 
     act(() => {
       result.current.step();
     });
     const spent = result.current.state.equipment.substrate.organicReserve;
-    expect(spent).toBeLessThan(started);
+    expect(spent.grams).toBeLessThan(started.grams);
 
     act(() => {
       result.current.updateSubstrateType('aqua_soil');
@@ -245,7 +245,7 @@ describe('useSimulation', () => {
       result.current.updateSubstrateType('gravel');
       result.current.updateSubstrateType('aqua_soil');
     });
-    expect(result.current.state.equipment.substrate.organicReserve).toBe(full);
+    expect(result.current.state.equipment.substrate.organicReserve).toEqual(full);
   });
 
   it('heater controls update simulation state', () => {
@@ -575,7 +575,7 @@ describe('useSimulation', () => {
       });
 
       const after = result.current.state;
-      const fresh = createPresetSimulation(getPresetById('community')!, after.rng.seed);
+      const fresh = createPresetSimulation(getPresetById('community')!, DEFAULT_CONFIG, after.rng.seed);
       expect({ ...after, logs: [] }).toEqual({ ...fresh, logs: [] });
       expect(after.rng.seed).not.toBe(before.rng.seed);
       expect(result.current.currentPreset).toBe('community');
@@ -709,7 +709,7 @@ describe('useSimulation', () => {
 
       const { state } = result.current.sim;
       const depth = calculateTankHeight(state.tank.capacity);
-      expect(state.resources.light).toBeCloseTo(calculateParAtDepth(par, depth, waterExtinction(state.algae, optics)), 10);
+      expect(state.resources.light).toBeCloseTo(calculateParAtDepth(par, depth, waterExtinction(state, optics)), 10);
       expect(state.resources.light).toBeLessThan(before);
       expect(state.tick).toBe(tickBefore);
     });

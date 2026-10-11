@@ -37,10 +37,10 @@ const STARVING_SHORTFALL = 0.5;
 const HUNGRY_SHORTFALL = 0.05;
 const HUNGRY_RESERVE = 0.5;
 
-export function gutBand(fish: Pick<Fish, 'species' | 'deb'>, hour: Pick<FishHour, 'fluxes'>): GutBand {
+export function gutBand(fish: Pick<Fish, 'species' | 'budget'>, hour: Pick<FishHour, 'fluxes'>): GutBand {
   const unpaid = starvation(hour);
   if (unpaid >= STARVING_SHORTFALL) return 'starving';
-  return unpaid > HUNGRY_SHORTFALL || wellFed(fish.deb, debParams(fish.species)) < HUNGRY_RESERVE ? 'hungry' : 'fed';
+  return unpaid > HUNGRY_SHORTFALL || wellFed(fish.budget, debParams(fish.species)) < HUNGRY_RESERVE ? 'hungry' : 'fed';
 }
 
 /** A starving fish still holding its health reads no worse than a hungry one. */
@@ -89,7 +89,7 @@ export function fishReading(vital: Reading, gut: Gut): Reading {
   return worstReading(vital, { status: gut.status, word: gut.word });
 }
 
-type Kin = Pick<Fish, 'id' | 'species' | 'deb'>;
+type Kin = Pick<Fish, 'id' | 'species' | 'budget'>;
 
 /**
  * Every fish's number in the row it sits in — its species' fry, or the fish of

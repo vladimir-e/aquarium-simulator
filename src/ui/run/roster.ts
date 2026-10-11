@@ -34,7 +34,7 @@ export const CONDITION_BAND: ReadingBand = { from: 0.6, to: 1 };
 
 export type SpeciesId = FishSpecies | PlantSpecies;
 
-/** A plant's day of light at its own height, as a share of what its species starves under. */
+/** A plant's day of light at its own height, as a share of the day its species is rated to live on. */
 export interface LightFigure {
   text: string;
   status: Status;
@@ -113,8 +113,8 @@ export interface IndividualRosterRow extends Vital {
   age: string;
   gut: Gut | null;
   light: LightFigure | null;
-  /** How far a plant's bank is toward its next offshoot. */
-  bank: string | null;
+  /** How much of its next offshoot a plant has built. */
+  offshoot: string | null;
 }
 
 /**
@@ -216,7 +216,7 @@ function fishRows(groups: SpeciesGroup[], expanded: ReadonlySet<string>): Roster
         age: days(fish.age),
         gut,
         light: null,
-        bank: null,
+        offshoot: null,
         at: condition / 100,
         ...reading,
       })
@@ -253,7 +253,7 @@ function plantUnit(plant: PlantRow): IndividualRosterRow {
     age: days(plant.age),
     gut: null,
     light: lightFigure(plant.light, plant.lightStatus),
-    bank: `${sharePercent(plant.bank)} %`,
+    offshoot: `${sharePercent(plant.offshoot)} %`,
     at: plant.condition / 100,
     ...plant.reading,
   };

@@ -10,7 +10,7 @@
  *   the threshold it drew at creation.
  */
 
-import { MW_N, MW_NO3, N_TO_NH3_MASS_RATIO } from '../core/chemistry.js';
+import { N_TO_NH3_MASS_RATIO, N_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
 
 export interface LivestockConfig {
   // Feeding
@@ -186,14 +186,14 @@ export const livestockDefaults: LivestockConfig = {
   preyVulnerabilityExponent: 4,
 };
 
-/** mg of NH₃ a gram of food, or of the waste it becomes, yields once mineralized. */
+/** mg of NH₃ a gram of food yields once mineralized. */
 export function ammoniaPerGramOfFood(config: LivestockConfig): number {
   return config.foodNitrogenFraction * N_TO_NH3_MASS_RATIO * 1000;
 }
 
 /** mg of NO₃ the same gram's nitrogen makes once it is nitrate. */
 export function nitratePerGramOfFood(config: LivestockConfig): number {
-  return (config.foodNitrogenFraction * MW_NO3 * 1000) / MW_N;
+  return config.foodNitrogenFraction * N_TO_NO3_MASS_RATIO * 1000;
 }
 
 export interface LivestockConfigMeta {

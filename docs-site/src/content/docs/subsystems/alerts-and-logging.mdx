@@ -109,7 +109,9 @@ Eight typed events exist: `eggs-laid`, `eggs-hatched`, `fry-born`,
 Four of them carry a count — a laying, a hatch, a live birth and a fry sale —
 because the number is the point. Deaths, offshoots and a bloom's die-back are one entry per
 organism, so they need none; a die-back states the coverage it took instead, so
-a reader can weigh a crash against spores dying back as dust.
+a reader can weigh a crash against a thin bloom fading. Only a bloom there was
+any of to see logs one: spores starving in a dark tank die back as dust,
+unlogged.
 
 The discriminator is the contract. A caller that parses the free text is
 reading a field that exists to be rewritten.
@@ -154,7 +156,7 @@ fish tolerance edges, defined with [Livestock](/subsystems/livestock/#water-qual
 | [Algae](/subsystems/algae/) | Every kind's mass directly — algae is an organism, not a resource | — |
 | [Plants](/subsystems/plants/) · [Light](/subsystems/light/) | The share of the planting's light each kind takes | — |
 | [Plants](/subsystems/plants/) | — | Receives a `plant-died` entry per plant lost and a `plant-propagated` entry per offshoot |
-| [Algae](/subsystems/algae/) | — | Receives an `algae-died` entry per die-back, naming the kind and stating the coverage it took |
+| [Algae](/subsystems/algae/) | — | Receives an `algae-died` entry per die-back of a bloom that showed, naming the kind and stating the coverage it took |
 | [Livestock](/subsystems/livestock/) | — | Receives death entries and one per brood laid, hatch or birth |
 | [Actions](/subsystems/actions/) | — | Receives one entry per applied action |
 | [State & persistence](/subsystems/state-and-persistence/) | — | `alertState` is persisted; `logs` are not |

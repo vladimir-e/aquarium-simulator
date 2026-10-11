@@ -49,13 +49,13 @@ function dispatch(state: SimulationState, action: Action, config: TunableConfig)
     case 'feed':
       return feed(state, action);
     case 'scrubAlgae':
-      return scrubAlgae(state);
+      return scrubAlgae(state, config.plants);
     case 'waterChange':
       return waterChange(state, action);
     case 'trimPlants':
       return trimPlants(state, action);
     case 'addPlant':
-      return addPlant(state, action);
+      return addPlant(state, action, config.plants);
     case 'removePlant':
       return removePlant(state, action);
     case 'dose':

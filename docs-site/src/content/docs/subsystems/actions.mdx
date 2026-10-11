@@ -20,7 +20,7 @@ unchanged, with the message explaining why.
 | Refusal discipline | <Badge text="settled" variant="success" /> | Every action taking a number refuses a non-finite one *before* its own bounds. A comparison against `NaN` is false, so an unguarded bound would write it into a resource nothing downstream ever clears. |
 | Water change | <Badge text="settled" variant="success" /> | Removes proportional dissolved mass, then blends temperature and both gases by volume against the tap and brings in the tap's KH and GH. The one verb with real physics in it. |
 | Feed · dose · root tab · stocking | <Badge text="settled" variant="success" /> | Bounded writes to a single stock, with the consequences left to the tick. |
-| Scrub | <Badge text="scaffolding" variant="caution" /> | Clears the glass: every bloom loses the walls' share of its habitat, read off the tank's geometry and hardscape. Coverage is one figure over the whole habitat, so what the floor and the hardscape held spreads back over the glass at once, and a second scrub takes the walls' share again out of it. |
+| Scrub | <Badge text="scaffolding" variant="caution" /> | Clears the walls' share of every bloom's habitat, read off the tank's geometry and hardscape. Coverage is one figure over the habitat, so what the floor and hardscape held spreads back over the glass at once, and a second scrub takes the walls' share of it again. |
 | Top-off | <Badge text="scaffolding" variant="caution" /> | Fills to capacity and adds the tap's KH and GH, nothing else. The tap water it adds carries no temperature, no oxygen and no CO₂ — while the auto top-off doing the same job blends all three. |
 | Trim | <Badge text="settled" variant="success" /> | An absolute size inside a unit's own range — one plant, one family or the whole planting — and the cut leaves the tank. |
 | Planting by floor | <Badge text="settled" variant="success" /> | A unit goes in when its form's full footprint, whatever its size, fits the floor the planting leaves free. |
@@ -57,18 +57,19 @@ diverge the moment their keepers act differently.
 | Water change | a fraction in `(0, 1]`, optionally a vacuum share in `[0, 1]` | see below | either non-finite or outside its range, or the tank is empty |
 | Dose | millilitres | the four nutrient pools, by the fertilizer ratio | non-finite, below the minimum or above the maximum |
 | Root tab | a whole number of tabs | the bed's nutrient store, by `rootTab` per tab | not a whole number from 1 to `MAX_ROOT_TABS`, or no bed |
-| Scrub algae | — | the film on the glass walls, its tissue into `waste`: the film's mass down by the walls' share of its habitat, what is left spread back over the glass; green water floats free of it | nothing on the glass |
+| Scrub algae | — | the film on the glass walls, into `waste`: the film's coverage down by the walls' share of its habitat, what is left spread back over the glass; green water floats free of it | nothing on the glass |
 | Trim plants | a target size, optionally one plant id or one family id | every plant above the target down to it — of that family, or just the named plant | target outside `[MIN_PLANTABLE_SIZE, 100]`, nothing above the target, plant not found |
-| Add plant | species, optional size | a unit founding its own family, at condition 100 with an empty bank | unknown species, size outside `[MIN_PLANTABLE_SIZE, 100]`, not enough floor for its footprint |
+| Add plant | species, optional size | a unit founding its own family, fed and stocked, at condition 100 | unknown species, size outside `[MIN_PLANTABLE_SIZE, 100]`, not enough floor for its footprint |
 | Remove plant | plant id | the plant leaves the array; a rooted one disturbs its footprint's share of the bed | not found |
 | Add fish | species, optional size in % of grown length | a fish the shop raised to that size (see [Livestock](/subsystems/livestock/#individual-variation)), with sampled sex, hardiness offset, health jitter and survival threshold | unknown species, size outside its hatchling's to `MAX_STOCKED_SIZE`, or the physical mass ceiling reached |
 | Remove fish | fish id | the fish leaves the array | not found |
 | Sell fry | — | every fish that reads as fry: short of puberty and under half its grown length. A juvenile — past half but short of puberty — and an adult stay | no fry in the tank |
 
-Trimmed tissue leaves the system outright — the convention is that the keeper
-carried it out of the room. Scrubbed film does not: it comes off the glass
-into the water as waste and rots there, and a gravel vac takes what has settled
-into the bed. Green water a water change takes leaves with the water.
+Trimmed tissue leaves the system outright, its reserve and stores with it —
+the keeper carried it out of the room. Scrubbed film rots in the water as
+waste, a gravel vac taking what has settled into the bed, and its stores leach
+at once — nitrate up, KH down a proton per nitrogen. Green water a water change
+takes leaves with the water.
 
 A refused planting names the floor it lacks — "Not enough floor: 180 cm² free,
 Amazon Sword needs 700" — against the
@@ -80,7 +81,7 @@ what a trim does to a plant.
 | Step | Effect |
 |---|---|
 | Dissolved mass | `ammonia`, `nitrite`, `nitrate`, `phosphate`, `potassium`, `iron`, `kh` and `gh` each scaled by `1 − amount` |
-| Green water | its mass scaled by `1 − amount`, the tissue leaving with the water; its condition and bank are the population's and stay |
+| Green water | its budget scaled by `1 − amount`, leaving with the water; its condition is the population's and stays |
 | Temperature | blended against tap by volume |
 | Oxygen | blended against tap water at saturation for the tap's temperature |
 | CO₂ | blended against atmospheric |
@@ -100,7 +101,7 @@ leaving every gram of the material still feeding it.
 |---|---|
 | Nutrients | milligrams, from a dose in millilitres or a count of root tabs |
 | Water | whole tank — top-off and water change both end at capacity, never in between |
-| A bloom's mass | a share of the standing mass — a scrub's the walls' share of its habitat, a water change's the share changed — never an absolute figure |
+| A bloom's coverage | a share of the standing coverage — a scrub's the walls' share of its habitat, a water change's the share changed — never an absolute figure |
 | Plant `size` | an absolute target, not a delta |
 | Organisms | one at a time, except selling fry, which is the whole cohort |
 
@@ -152,12 +153,12 @@ the ceiling and simply lock further stocking out.
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Water & gases](/subsystems/water-and-gases/) | `oxygen`, `co2`, `kh` and `gh` for the blend | All four on a water change; `kh` and `gh` alone on a top-off |
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen`, `co2`, `kh` and `gh` for the blend | All four on a water change; `kh` and `gh` alone on a top-off; `kh` on a scrub |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | `ammonia`, `nitrite` and `nitrate` diluted proportionally; `nitrate` raised by a dose |
 | [Environment](/subsystems/environment/) | `tapWaterTemperature` and `tapKh` as the thing being blended toward; `water` and `tank.capacity` for every refill | `water` and `temperature` |
-| [Plants](/subsystems/plants/) | `plants` for the floor budget, and the trim target and family | The array, and `size` directly |
+| [Plants](/subsystems/plants/) | `plants` for the floor budget, and the trim target and family | The array, and each budget directly |
 | [Livestock](/subsystems/livestock/) | `fish` for the mass ceiling and the fry count | The array; `food` for the fish to eat next tick |
-| [Algae](/subsystems/algae/) | Each bloom's mass, and the share of its habitat on the glass and in the column | The film's mass, down by the walls' share, its tissue into `waste`; green water's, down by the share of water changed |
+| [Algae](/subsystems/algae/) | Each bloom's coverage, and the share of its habitat on the glass and in the column | The film's budget, down by the walls' share into `waste` and the water; green water's, by the share of water changed |
 | [Equipment](/subsystems/equipment/) | `substrate.type` — whether there is a bed to tab | `substrate.nutrients`, raised by a root tab; settings are written by the host |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Every applied action appends a `user` entry; a scrub files itself under `scrub`. A refusal logs nothing |
 | [State & persistence](/subsystems/state-and-persistence/) | The draw stream, for every new organism's id | The advanced stream position |

@@ -15,6 +15,7 @@ import { debParams, FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import type { TunableConfig } from '../config/index.js';
 import { createLog } from '../core/logging.js';
+import { atRecipe, NO_ORGANICS, type Organics } from '../core/organics.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { drawId } from '../core/rng.js';
 import { sum } from '../core/sum.js';
@@ -32,13 +33,13 @@ export interface BodiesProcessingResult {
   effects: Effect[];
   /** Grams of organics the hour's eggs and broods burned. */
   burned: number;
-  /** Grams of egg the hour left as waste. */
-  waste: number;
+  /** The egg the hour left as waste. */
+  waste: Organics;
 }
 
 /** One hour of clutches, broods and the males' buffers. */
 export function processBodies(state: SimulationState, config: TunableConfig): BodiesProcessingResult {
-  if (state.fish.length === 0 && state.clutches.length === 0) return { state, effects: [], burned: 0, waste: 0 };
+  if (state.fish.length === 0 && state.clutches.length === 0) return { state, effects: [], burned: 0, waste: NO_ORGANICS };
 
   const livestock = config.livestock;
   let waste = 0;
@@ -57,8 +58,9 @@ export function processBodies(state: SimulationState, config: TunableConfig): Bo
     config.nutrients.foodMineralContent,
     'fish-broods'
   );
-  if (waste > 0) effects.push({ tier: 'active', resource: 'waste', delta: waste, source: 'dead-eggs' });
-  return { state: newState, effects, burned, waste };
+  const eggs = atRecipe(waste, config);
+  if (waste > 0) effects.push({ tier: 'active', resource: 'waste', delta: eggs, source: 'dead-eggs' });
+  return { state: newState, effects, burned, waste: eggs };
 }
 
 /** One hour of every clutch, hatching those developed: the grams of egg left as waste, and burned hatching. */
@@ -147,10 +149,10 @@ function layBroods(draft: SimulationState): number {
     const result = brood(females, males);
 
     females.forEach((female, i) => {
-      female.deb = result.females[i];
+      female.budget = result.females[i];
     });
     males.forEach((male, i) => {
-      male.deb = result.males[i];
+      male.budget = result.males[i];
     });
     burned += result.burned;
 
@@ -171,8 +173,8 @@ function turnOverMaleBuffers(fish: Fish[], paces: readonly Pace[], config: Lives
   paces.forEach((pace, i) => {
     const male = fish[i];
     if (male.sex !== 'male') return;
-    const turned = male.deb.broodBuffer * hourlyDraw(config.maleBufferTurnover * pace.tau);
-    male.deb.broodBuffer -= turned;
+    const turned = male.budget.broodBuffer * hourlyDraw(config.maleBufferTurnover * pace.tau);
+    male.budget.broodBuffer -= turned;
     burned += turned;
   });
   return burned;

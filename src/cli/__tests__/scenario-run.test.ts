@@ -91,7 +91,7 @@ describe('the keeper’s gravel vac', () => {
     const nano = findSetup('nano');
     const reserve = (vacuum: number): number =>
       keepTank({ ...nano, vacuum }, { config: DEFAULT_CONFIG, untilTick: 8 * 24 }).equipment.substrate
-        .organicReserve;
+        .organicReserve.grams;
     expect(reserve(0.5)).toBeLessThan(reserve(0));
   });
 });

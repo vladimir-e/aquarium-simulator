@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { plantsDefaults } from '../config/plants.js';
+import { sizeOf } from '../plants/canopy.js';
 import {
   addPlant,
   removePlant,
@@ -13,6 +15,8 @@ import type { ActionResult } from './types.js';
 import { DEFAULT_PLANT_SIZE, MIN_PLANTABLE_SIZE } from '../plants/create-plant.js';
 import { produce } from 'immer';
 import { plantRecord } from '../tests/plant.js';
+import { LEAN, organicsCloseTo } from '../tests/organics.js';
+import { addOrganics, ofComposition, scaleOrganics } from '../core/organics.js';
 
 const SMALL = 19;
 const FERN_FOOTPRINT = GROWTH_FORMS.attached.footprintCm2;
@@ -20,7 +24,7 @@ const FERN_FOOTPRINT = GROWTH_FORMS.attached.footprintCm2;
 const FERNS_TO_LAST_GAP = Math.floor(calculateFloorArea(SMALL) / FERN_FOOTPRINT) - 1;
 
 function plant(id: string, size = 50): Plant {
-  return plantRecord({ id, species: 'java_fern', size, condition: 100, surplus: 0 });
+  return plantRecord({ id, species: 'java_fern', size });
 }
 
 function planted(count: number, size = 50): SimulationState {
@@ -40,7 +44,7 @@ const add = (
   species: PlantSpecies,
   initialSize?: number
 ): ActionResult =>
-  addPlant(state, { type: 'addPlant', species, initialSize });
+  addPlant(state, { type: 'addPlant', species, initialSize }, plantsDefaults);
 
 describe('canAddPlant / checkPlantFootprint', () => {
   it('fits a unit while its footprint fits the floor left free', () => {
@@ -85,7 +89,7 @@ describe('addPlant', () => {
 
     expect(result.state.plants).toHaveLength(2);
     expect(second.species).toBe('java_fern');
-    expect(second.size).toBe(DEFAULT_PLANT_SIZE);
+    expect(sizeOf(second)).toBeCloseTo(DEFAULT_PLANT_SIZE, 9);
     expect(second.id).not.toBe(first.id);
     expect(result.message).toBe('Added Java Fern');
     expect(result.state.logs).toHaveLength(state.logs.length + 1);
@@ -96,7 +100,7 @@ describe('addPlant', () => {
 
   it.each([MIN_PLANTABLE_SIZE, 10, 100])('takes an initial size of %d%%', (initialSize) => {
     const result = add(onSubstrate('none'), 'java_fern', initialSize);
-    expect(result.state.plants[0].size).toBe(initialSize);
+    expect(sizeOf(result.state.plants[0])).toBeCloseTo(initialSize, 9);
     expect(result.state.logs.at(-1)!.message).toContain(`${initialSize}%`);
   });
 
@@ -131,19 +135,21 @@ describe('removePlant', () => {
     expect(state.plants).toHaveLength(2);
   });
 
-  it('stirs its footprint share of the bed when it uproots a rooted plant', () => {
-    const soil = produce(
-      createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } }),
-      (draft) => void (draft.resources.aob = 1000)
-    );
+  it('stirs its footprint share of the bed when it uproots a rooted plant, the content pro rata', () => {
+    const soil = produce(createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } }), (draft) => {
+      draft.resources.aob = 1000;
+      draft.equipment.substrate.organicReserve = ofComposition(2, LEAN);
+    });
     const sword = add(soil, 'amazon_sword').state;
     const result = removePlant(sword, { type: 'removePlant', plantId: sword.plants[0].id });
     const share = GROWTH_FORMS.rosette.footprintCm2 / calculateFloorArea(sword.tank.capacity);
     const reserve = sword.equipment.substrate.organicReserve;
 
-    expect(reserve).toBeGreaterThan(0);
-    expect(result.state.equipment.substrate.organicReserve).toBeCloseTo(reserve * (1 - share), 12);
-    expect(result.state.resources.waste).toBeCloseTo(sword.resources.waste + reserve * share, 12);
+    expect(reserve.grams).toBeGreaterThan(0);
+    expect(result.state.equipment.substrate.organicReserve).toEqual(organicsCloseTo(scaleOrganics(reserve, 1 - share)));
+    expect(result.state.resources.waste).toEqual(
+      organicsCloseTo(addOrganics(sword.resources.waste, scaleOrganics(reserve, share)))
+    );
     expect(result.state.resources.aob).toBeLessThan(1000);
   });
 

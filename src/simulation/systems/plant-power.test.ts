@@ -2,18 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { getPlantPower } from './plant-power.js';
 import type { Plant } from '../state.js';
 import { GROWTH_FORMS } from '../plants/species.js';
-import { LEAF_AREA_PER_RATE_UNIT, rateUnits } from '../plants/canopy.js';
+import { LEAF_AREA_PER_RATE_UNIT, rateUnits, unitOf } from '../plants/canopy.js';
 import { plantRecord } from '../tests/plant.js';
 
-function makePlant(overrides: Partial<Plant> = {}): Plant {
-  return plantRecord({
-    id: 'p1',
-    species: 'java_fern',
-    size: 100,
-    condition: 100,
-    surplus: 0,
-    ...overrides,
-  });
+function makePlant(overrides: Partial<Omit<Plant, 'budget'>> & { size?: number } = {}): Plant {
+  return plantRecord({ id: 'p1', species: 'java_fern', size: 100, ...overrides });
 }
 
 describe('getPlantPower', () => {
@@ -47,6 +40,6 @@ describe('getPlantPower', () => {
       plants.reduce((sum, p) => sum + getPlantPower([p]), 0),
       12
     );
-    expect(getPlantPower([plants[2]])).toBeCloseTo(rateUnits(plants[2]) / 2, 12);
+    expect(getPlantPower([plants[2]])).toBeCloseTo(rateUnits(unitOf(plants[2])) / 2, 12);
   });
 });

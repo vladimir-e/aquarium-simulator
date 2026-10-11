@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { burn, fishPace, gillAmmonia, liveHour, oxygenPace, processMetabolism } from './metabolism.js';
+import { burn, fishPace, gillAmmonia, liveHour, processMetabolism } from './metabolism.js';
+import { NO_STRESS, oxygenPace, totalBurned } from './reserve.js';
 import { gutCapacity, gutRoom, type Pace } from './digestion.js';
 import { livestockDefaults as config } from '../config/livestock.js';
 import { speciesTau } from '../livestock/species.js';
 import { WASTE_NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
 import { sum } from '../core/sum.js';
-import { NO_STRESS, totalBurned } from './deb.js';
 import { fishOrganics } from './fish-body.js';
 import { fishRecord } from '../tests/fish.js';
 
@@ -71,7 +71,7 @@ describe('liveHour', () => {
   });
 
   it('ages an hour and keeps exp(−h) of its survival', () => {
-    const old = { ...fed, deb: { ...fed.deb, hazard: 1e-3 }, survival: 0.8 };
+    const old = { ...fed, budget: { ...fed.budget, hazard: 1e-3 }, survival: 0.8 };
     const hour = liveHour(old, REFERENCE, 0, config);
     expect(hour.fish.age).toBe(101);
     expect(hour.fish.survival).toBeCloseTo(0.8 * Math.exp(-1e-3), 15);

@@ -66,7 +66,7 @@ const HEADINGS: Record<TableLayout, Heading[]> = {
     { label: 'size', from: WIDE },
     { label: 'age', from: WIDE },
     { label: 'light', from: WIDEST },
-    { label: 'bank', from: WIDEST },
+    { label: 'plantlet', from: WIDEST },
     { label: 'condition' },
     { label: 'status' },
     { label: '' },
@@ -106,7 +106,7 @@ function LightCell({ light }: { light: LightFigure | null }): React.JSX.Element 
 /**
  * The wide figures between the count and the condition: what each one weighs or
  * measures and how old it is from a tablet up, then from a laptop up what the
- * table reads beside that — a fish's gut, a plant's light and bank. The
+ * table reads beside that — a fish's gut, a plant's light and plantlet. The
  * widget has room for none.
  */
 function Figures({
@@ -115,14 +115,14 @@ function Figures({
   age,
   gut = null,
   light = null,
-  bank = null,
+  offshoot = null,
 }: {
   layout: RosterLayout;
   figure: string;
   age: string;
   gut?: Gut | null;
   light?: LightFigure | null;
-  bank?: string | null;
+  offshoot?: string | null;
 }): React.JSX.Element | null {
   if (layout === 'widget') return null;
   return (
@@ -134,7 +134,7 @@ function Figures({
       ) : (
         <>
           <LightCell light={light} />
-          <span className={`${FIGURE} ${WIDEST}`}>{bank}</span>
+          <span className={`${FIGURE} ${WIDEST}`}>{offshoot}</span>
         </>
       )}
     </>
@@ -347,7 +347,7 @@ function IndividualLine({
         age={row.age}
         gut={row.gut}
         light={row.light}
-        bank={row.bank}
+        offshoot={row.offshoot}
       />
       <ConditionCell at={row.at} status={row.status} label={`${row.name} condition`} />
       <Word status={row.status} word={row.word} />

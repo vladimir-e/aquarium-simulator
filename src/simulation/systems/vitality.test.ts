@@ -18,87 +18,26 @@ function benefit(key: string, amount: number, label = key): VitalityFactor {
   return { key, label, amount };
 }
 
-const CAP = 50;
-
 function input(partial: Partial<VitalityInput> & Pick<VitalityInput, 'condition'>): VitalityInput {
-  return {
-    stressors: [],
-    benefits: [],
-    surplus: 0,
-    surplusCap: CAP,
-    healingRate: 0.05,
-    ...partial,
-  };
+  return { stressors: [], benefits: [], healed: 0, ...partial };
 }
 
 describe('computeVitality', () => {
-  it('adds benefits and subtracts stressors from condition', () => {
+  it('adds benefits and the repair healed, and subtracts stressors, from condition', () => {
     const result = computeVitality(
-      input({ stressors: [stressor('temp', 1.0)], benefits: [benefit('food', 0.4)], condition: 80 })
+      input({ stressors: [stressor('temp', 1.0)], benefits: [benefit('food', 0.4)], condition: 80, healed: 0.3 })
     );
+    expect(result.newCondition).toBeCloseTo(79.7, 12);
     expect(result.breakdown.net).toBeCloseTo(-0.6, 12);
-    expect(result.newCondition).toBeCloseTo(79.4, 12);
+    expect(result.breakdown.healed).toBe(0.3);
   });
 
-  it('never lets damage reach the bank: only the heal draws it, however hard the hit', () => {
-    for (const damage of [0.5, 5, 500]) {
-      const result = computeVitality(
-        input({ stressors: [stressor('ph', damage)], condition: 100, surplus: 20, healingRate: 0.1 })
-      );
-      expect(result.surplus).toBeCloseTo(20 - result.breakdown.healed, 12);
-      expect(result.breakdown.healed).toBeLessThanOrEqual(-Math.expm1(-0.1) * 20 + 1e-12);
-    }
-  });
-
-  it('heals min(deficit, (1 − e^−rate) × bank) below 100: the first-order drain over the hour', () => {
-    const shallow = computeVitality(
-      input({ stressors: [stressor('a', 0.5)], condition: 100, surplus: 20, healingRate: 0.1 })
-    );
-    expect(shallow.breakdown.healed).toBeCloseTo(0.5, 12);
-    expect(shallow.newCondition).toBeCloseTo(100, 12);
-
-    const deep = computeVitality(input({ condition: 60, surplus: 20, healingRate: 0.1 }));
-    const drained = 20 * (1 - Math.exp(-0.1));
-    expect(deep.breakdown.healed).toBeCloseTo(drained, 12);
-    expect(deep.newCondition).toBeCloseTo(60 + drained, 12);
-    expect(deep.surplus).toBeCloseTo(20 * Math.exp(-0.1), 12);
-  });
-
-  it('heals in proportion to the bank', () => {
-    const heal = (surplus: number): number =>
-      computeVitality(input({ condition: 50, surplus, healingRate: 0.05 })).breakdown.healed;
-    expect(heal(20)).toBeCloseTo(2 * heal(10), 12);
-  });
-
-  it('banks only the income that overflows 100, up to the cap', () => {
-    const recovering = computeVitality(input({ benefits: [benefit('b', 3)], condition: 99, surplus: 10 }));
-    expect(recovering.newCondition).toBe(100);
-    expect(recovering.breakdown.banked).toBeCloseTo(2, 12);
-    expect(recovering.surplus).toBeCloseTo(12, 12);
-
-    const nearlyFull = computeVitality(input({ benefits: [benefit('b', 5)], condition: 100, surplus: 48 }));
-    expect(nearlyFull.surplus).toBe(CAP);
-    expect(nearlyFull.breakdown.banked).toBe(2);
-  });
-
-  it('clamps the bank into [0, cap] on entry, reading a negative cap as 0', () => {
-    expect(computeVitality(input({ condition: 100, surplus: 80 })).surplus).toBe(CAP);
-    expect(computeVitality(input({ condition: 100, surplus: -5 })).surplus).toBe(0);
-    expect(computeVitality(input({ benefits: [benefit('b', 5)], condition: 100, surplus: 8, surplusCap: -10 })).surplus).toBe(0);
+  it('loses condition past 100', () => {
+    expect(computeVitality(input({ benefits: [benefit('b', 5)], condition: 99 })).newCondition).toBe(100);
   });
 
   it('floors condition at 0', () => {
-    const result = computeVitality(input({ stressors: [stressor('lethal', 50)], condition: 5, surplus: 10 }));
-    expect(result.newCondition).toBe(0);
-  });
-
-  it('drains a bank under deep damage as an exponential, however fast the rate: two hours at k are an hour at 2k', () => {
-    const drained = (surplus: number, healingRate: number): number =>
-      computeVitality(input({ condition: 0, surplus, healingRate })).surplus;
-    for (const rate of [0.05, 1.5, 30]) {
-      expect(drained(drained(20, rate), rate)).toBeCloseTo(drained(20, 2 * rate), 12);
-      expect(drained(20, rate)).toBeGreaterThan(0);
-    }
+    expect(computeVitality(input({ stressors: [stressor('s', 50)], condition: 10 })).newCondition).toBe(0);
   });
 
   it('keeps every factor in the breakdown, zero amounts included', () => {

@@ -25,11 +25,16 @@ This project follows documentation-driven development:
 - When removing code, clean it up completely as if it never existed
 - No deprecated functions, no compatibility shims, no "kept for backward compatibility" comments
 
+**One word per idea** (the split is deliberate — don't unify it):
+- `offshoot` in identifiers; "plantlet" only as the reader's word in labels and prose
+- `allelopathy` in code; "exudates" in prose
+- a bloom has `coverage`; every organism has a `budget`
+
 ## One abstraction
 
-Every organism runs one vitality model. Condition is the buffer between dying and thriving, normal at 100: benefit rates raise it, damage rates lower it, so nothing dies or heals instantly. Plants and blooms keep a bank: income banks only at 100, and the bank heals condition at a species rate and buys what the organism makes — a plant's growth and offshoots, a bloom's mass. A fish banks nothing: its reserve buys its growth and broods and pays its repair. Any organism dies at 0; a plant or a bloom below 100 sheds tissue. An organism is sick while its damage outruns its healing.
+Every organism runs one vitality model. Condition is the buffer between dying and thriving, normal at 100: benefit rates raise it, damage rates lower it, so nothing dies or heals instantly. Every organism's reserve buys what it makes — a fish's growth and broods, a plant's growth and offshoots, a bloom's growth — and pays its repair. Any organism dies at 0; a plant or a bloom below 100 sheds tissue. An organism is sick while its damage outruns its healing.
 
-Designing a mechanic is choosing rates of benefit and harm. A new stock, clock or special path for one organism leaves the model — stop and raise it instead of building it. A threshold that switches a mechanism on or off, or a clamp standing in for kinetics, is a defect; a rate that starts at a tolerance edge is not. Algae is a plant without a position: the plants' rates and constants on its own traits, a habitat it fills in place of a size, and a bank that buys mass in proportion to the mass standing. A second kind of bloom is a second entry of that model, not a second path.
+Designing a mechanic is choosing rates of benefit and harm. A new stock, clock or special path for one organism leaves the model — stop and raise it instead of building it. A threshold that switches a mechanism on or off, or a clamp standing in for kinetics, is a defect; a rate that starts at a tolerance edge is not. Algae is a plant without a position: the plants' rates and constants on its own traits, and a habitat it fills in place of a size, its crowding the room its growth has. A second kind of bloom is a second entry of that model, not a second path.
 
 ## Build first, tune last
 
@@ -72,11 +77,11 @@ Task briefs are provided by the maintainer or orchestrator per task — there's 
 
 ## Gotchas
 
-- **A plant's offshoot runs before its growth** — `purchase` lets a full bank buy the offshoot before the hour's growth draw; drawn first, the bank sits a hair under the cap and a growing plant never buds.
 - **The canopy is one O(N²) pass a tick** — `processFlora` builds `canopyLight` once through `readPlantLight`, off the start-of-tick planting; photosynthesis, vitality and the light it returns all read it, so `readHourAhead` takes them from the pass. Never build it per plant.
-- **Light runs through the water as it stands** — `calculateParAtDepth`, `scheduledLightByHour` and `columnGain` take an extinction; pass `waterExtinction(state.algae, optics)`, never the bare `optics.waterAttenuationPerCm`, or green water stops shading.
-- **Plants and the blooms share one pass** — `processFlora` runs them all because they draw their tissue in one `drawTissue` call and fix carbon from one CO₂ stock; split them and whichever runs second gets second pick of the water.
-- **Spores land in every test of the flora pass** — they are a trait and land every hour for every kind, so no config keeps a bloom empty: a test that counts tissue or waste counts every kind's spores too.
+- **Light runs through the water as it stands** — `calculateParAtDepth`, `scheduledLightByHour` and `columnGain` take an extinction; pass `waterExtinction(state, optics)`, never the bare `optics.waterAttenuationPerCm`, or green water stops shading.
+- **Plants and the blooms share one pass** — `processFlora` runs them all because they fill their stores in one `drawNutrients` call and fix carbon from one CO₂ stock; split them and whichever runs second gets second pick of the water.
+- **Spores land in every test of the flora pass** — they are a trait and land every hour for every kind, built from the water, so no config keeps a bloom empty: a test that counts tissue, uptake or waste counts every kind's spores too.
+- **`npx tsc --noEmit` alone skips `src/ui`** — the root `tsconfig.json` excludes it; `npm run typecheck` checks the engine and the UI projects both.
 - **Ids are tank-unique, not process-unique** — two tanks emit the same id sequence, so UI state keyed by organism id must reset when the tank is replaced (`useExpandedRows` is the pattern). A tank's UI identity is `tankId`; seeds are nameable and two tanks can share one.
 - **Config bounds live in the `*ConfigMeta`, not the save schema** — CLI `applyConfigSet` and the tunables drawer both validate against `configRange(path)`; the persistence schema bounds only a handful of leaves, each equal to or looser than meta, so there is no second set to keep in step.
 - **A range is enforced only where it's declared** — every tunable declares a min/max except the nitrogen cycle's, where only the four half-saturation constants do; the rest come off doubling times and were never bounded, so `config set` and the drawer have nothing to hold them to. A test walks every leaf and pins exactly that split — deriving a bound turns it red on purpose.

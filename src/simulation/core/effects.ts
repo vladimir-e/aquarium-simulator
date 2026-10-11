@@ -9,22 +9,26 @@ import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import { ResourceRegistry, type ResourceKey } from '../resources/index.js';
 import type { TunableConfig } from '../config/index.js';
+import { addOrganics, type Organics } from './organics.js';
 
 // Re-export ResourceKey for convenience
 export type { ResourceKey };
 
 export type EffectTier = 'immediate' | 'active' | 'passive';
 
-export interface Effect {
+interface EffectOn<R extends ResourceKey, D> {
   /** Processing tier determines when this effect is applied */
   tier: EffectTier;
   /** Which resource to modify */
-  resource: ResourceKey;
+  resource: R;
   /** Change amount (positive = increase, negative = decrease) */
-  delta: number;
+  delta: D;
   /** What produced this effect (for debugging/logging) */
   source: string;
 }
+
+/** The waste pool moves by organics, so its grams never move without their content. */
+export type Effect = EffectOn<Exclude<ResourceKey, 'waste'>, number> | EffectOn<'waste', Organics>;
 
 /**
  * Clamps a value between min and max (inclusive).
@@ -79,11 +83,7 @@ export function applyEffects(
           );
           break;
         case 'waste':
-          draft.resources.waste = clamp(
-            draft.resources.waste + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
+          draft.resources.waste = addOrganics(draft.resources.waste, effect.delta);
           break;
         case 'ammonia':
           draft.resources.ammonia = clamp(

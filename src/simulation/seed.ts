@@ -15,7 +15,7 @@ import {
   type SubstrateType,
 } from './equipment/substrate.js';
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
-import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
+import { ammoniaIn, calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
 import { gillAmmonia } from './systems/metabolism.js';
 import { stepDeb } from './systems/deb.js';
 import { ration } from './systems/digestion.js';
@@ -24,8 +24,9 @@ import { speciesTau } from './livestock/species.js';
 import { sum } from './core/sum.js';
 import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
-import { mapNutrients, nutrientsDefaults, type NutrientVector } from './config/nutrients.js';
-import { organicNutrients } from './systems/nutrients.js';
+import type { PlantsConfig } from './config/plants.js';
+import { mapNutrients, type NutrientVector } from './config/nutrients.js';
+import { scaleOrganics, type Organics } from './core/organics.js';
 import { alkalinityMoved, MW_NO3, NH3_TO_NO2_MASS_RATIO, PROTONS_PER_N } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import { KhResource } from './resources/kh.js';
@@ -86,7 +87,7 @@ export interface SeedPlantGroup {
   species: PlantSpecies;
   /** Defaults to 1. */
   count?: number;
-  /** % of one full unit, as `Plant.size`: `MIN_PLANTABLE_SIZE` to 100 (`isPlantableSize`). */
+  /** % of one full unit, as `sizeOf` reads it: `MIN_PLANTABLE_SIZE` to 100 (`isPlantableSize`). */
   size?: number;
   /** Ticks it has already stood in the tank, as `Plant.age`. Defaults to 0. */
   age?: number;
@@ -142,13 +143,13 @@ function restingAmmoniaSupply(state: StockedTank): number {
   const { temperature } = state.resources;
   const resting = state.fish.map((fish) => {
     const pace = { tau: speciesTau(fish.species, temperature), omega: 1 };
-    const { owed } = stepDeb(fish.deb, fishParams(fish), { fromGut: 0, ...pace }).fluxes;
+    const { owed } = stepDeb(fish.budget, fishParams(fish), { fromGut: 0, ...pace }).fluxes;
     return { owed, feces: ration(fish, owed) - owed };
   });
   const gills = gillAmmonia(sum(resting.map((fish) => fish.owed)), livestockDefaults);
   const feces = sum(resting.map((fish) => fish.feces));
   const leached = calculateSubstrateLeach(state.equipment.substrate.organicReserve, decayDefaults);
-  return gills + (feces + leached) * ammoniaPerGramOfFood(livestockDefaults);
+  return gills + feces * ammoniaPerGramOfFood(livestockDefaults) + ammoniaIn(leached);
 }
 
 /**
@@ -168,9 +169,9 @@ export function cycledColony(state: StockedTank): { aob: number; nob: number } {
   };
 }
 
-/** Grams a bed of this type and capacity still holds once cycled. */
-export function cycledReserve(type: SubstrateType, capacity: number): number {
-  return getSubstrateOrganicReserve(type, capacity) * CYCLED_RESERVE_FRACTION;
+/** The organics a bed of this type and capacity still holds once cycled. */
+export function cycledReserve(type: SubstrateType, capacity: number): Organics {
+  return scaleOrganics(getSubstrateOrganicReserve(type, capacity), CYCLED_RESERVE_FRACTION);
 }
 
 /**
@@ -210,11 +211,10 @@ export function cycledKhReserve(type: SubstrateType, capacity: number): number {
  */
 const CYCLED_WATER_RETAINED = 0.25;
 
-/** mg of each nutrient the organics a cycled bed leached left in the water, rotted at the recipe. */
+/** mg of each nutrient the organics a cycled bed leached left in the water, rotted. */
 function cycledRot(type: SubstrateType, capacity: number): NutrientVector {
-  const leached = getSubstrateOrganicReserve(type, capacity) - cycledReserve(type, capacity);
-  const recipe = organicNutrients(livestockDefaults, nutrientsDefaults);
-  return mapNutrients((n) => leached * recipe[n] * CYCLED_WATER_RETAINED);
+  const leached = scaleOrganics(getSubstrateOrganicReserve(type, capacity), 1 - CYCLED_RESERVE_FRACTION);
+  return scaleOrganics(leached, CYCLED_WATER_RETAINED).nutrients;
 }
 
 /**
@@ -311,7 +311,7 @@ function seedTank(state: SimulationState, seed: TankSeed): void {
   );
 }
 
-export function applySeed(state: SimulationState, seed: PresetSeed): void {
+export function applySeed(state: SimulationState, seed: PresetSeed, plantsConfig: PlantsConfig): void {
   const { fish, plants, ...tank } = seed;
 
   for (const group of fish ?? []) {
@@ -335,6 +335,7 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
           size: group.size,
           age: group.age,
           rng: state.rng,
+          plantsConfig,
         })
       );
     }

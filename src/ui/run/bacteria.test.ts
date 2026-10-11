@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { bloomAt } from '../../simulation/tests/blooms.js';
+import { bloomParams } from '../../simulation/flora/params.js';
 import { produce } from 'immer';
 import {
   bacteriaReadout,
@@ -20,7 +22,6 @@ import {
   applyAction,
   mapKinds,
   createSimulation,
-  organicNutrients,
   tick,
   type Resources,
   type SimulationState,
@@ -28,7 +29,6 @@ import {
 import { getMassFromPpm, getPpm } from '../../simulation/resources/index.js';
 import { aobCapacity } from '../../simulation/systems/index.js';
 import { monodFactor } from '../../simulation/core/kinetics.js';
-import { bloomsTissue } from '../../simulation/tests/blooms.js';
 import { readHourAhead } from './ahead.js';
 
 const config = DEFAULT_CONFIG;
@@ -268,7 +268,7 @@ describe('bacteriaReadout', () => {
 
   it('nets ammonia and reads the blooms’ uptake the way the next tick moves them while they feed', () => {
     const blooming = produce(tank(), (draft) => {
-      for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 40, condition: 100, surplus: 20 };
+      for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 40);
       draft.resources.ammonia = getMassFromPpm(0.3, draft.resources.water);
       draft.resources.nitrate = 0;
       draft.resources.phosphate = getMassFromPpm(1, draft.resources.water);
@@ -278,10 +278,12 @@ describe('bacteriaReadout', () => {
     const { rates } = readBiofilter(blooming);
     const next = tick(blooming, config);
     const water = blooming.resources.water;
-    const ammoniaTaken =
-      (bloomsTissue(next) - bloomsTissue(blooming)) *
-      organicNutrients(config.livestock, config.nutrients).nitrate *
-      NO3_TO_NH3_MASS_RATIO;
+    const bloomNitrogen = (state: SimulationState): number =>
+      ALGAE_KINDS.reduce((sum, kind) => {
+        const { budget } = state.algae[kind];
+        return sum + bloomParams(kind, config.plants).qMin.nitrate * budget.structure + budget.stores.nitrate;
+      }, 0);
+    const ammoniaTaken = (bloomNitrogen(next) - bloomNitrogen(blooming)) * NO3_TO_NH3_MASS_RATIO;
     const moved = (next.resources.ammonia - blooming.resources.ammonia) / water;
 
     expect(rates.algaeAmmoniaUptake).toBeGreaterThan(0);
@@ -309,14 +311,16 @@ describe('bacteriaReadout', () => {
 });
 
 describe('projectNitritePeak', () => {
-  it('finds the peak the engine reaches on a fishless, unlit soil tank, where the chain runs alone, to within a percent', () => {
+  it('finds the peak the engine reaches on a fishless, unlit soil tank, where only spores feed beside the chain: a little sooner and higher, by what they draw', () => {
     const state = soilTank({ lit: false });
     const projection = projectPeak(state)!;
     const engine = enginePeak(state);
 
     expect(projection.feeders).toEqual([]);
-    expect(Math.abs(projection.hours - engine.hours)).toBeLessThanOrEqual(2);
-    expect(Math.abs(projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.01);
+    expect(projection.hours).toBeLessThanOrEqual(engine.hours);
+    expect((engine.hours - projection.hours) / engine.hours).toBeLessThan(0.02);
+    expect(projection.ppm).toBeGreaterThan(engine.ppm);
+    expect((projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.06);
     expect(bacteriaSummary(readBiofilter(state), projection)).toContain(
       `The cycle alone peaks nitrite at ${projection.ppm.toFixed(2)} ppm in ${Math.round(projection.hours / 24)} d.`
     );
@@ -339,14 +343,14 @@ describe('projectNitritePeak', () => {
     );
   });
 
-  it('counts a bloom in the dark as a feeder while its bank buys tissue', () => {
+  it('counts a bloom in the dark as a feeder while its reserve can grow it', () => {
     for (const kind of ALGAE_KINDS) {
       const banked = produce(soilTank({ lit: false }), (draft) => {
-        draft.algae[kind] = { mass: 40, condition: 100, surplus: 20 };
+        draft.algae[kind] = bloomAt(draft, kind, 40);
         draft.resources.ammonia = getMassFromPpm(0.5, draft.resources.water);
       });
       const spent = produce(banked, (draft) => {
-        draft.algae[kind].surplus = 0;
+        draft.algae[kind].budget.reserve = 0;
       });
 
       expect(readHourAhead(banked, config).algae[kind].waterUptake.ammonia).toBeGreaterThan(0);

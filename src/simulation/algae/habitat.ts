@@ -1,16 +1,14 @@
 import type { Resources, SimulationState } from '../state.js';
-import { calculateFloorArea, calculateTankGlassSurface, calculateTankHeight } from '../core/geometry.js';
-import type { OpticsConfig } from '../config/optics.js';
+import { calculateFloorArea, calculateTankGlassSurface } from '../core/geometry.js';
+import { meanOfExp } from '../core/kinetics.js';
 import type { ActionType } from '../actions/types.js';
 import { calculateHardscapeTotalSurface } from '../equipment/hardscape.js';
 import { dailyLightIntegral } from '../equipment/light.js';
-import { floorShade } from '../plants/canopy.js';
 import { dailyLightEdge } from '../systems/flora.js';
-import type { AlgaeHabitat, AlgaeTraits } from './traits.js';
-import { waterExtinction } from './light-loss.js';
+import { ALGAE, type AlgaeHabitat, type AlgaeKind, type AlgaeTraits } from './traits.js';
 
-/** What a habitat is read off: the tank's geometry, its hardscape, the canopy over its floor and the water over both. */
-export type HabitatTank = Pick<SimulationState, 'tank' | 'equipment' | 'plants' | 'algae'>;
+/** What a habitat is read off: the tank's geometry and its hardscape. */
+export type HabitatTank = Pick<SimulationState, 'tank' | 'equipment'>;
 
 /**
  * The mean PAR over a water column of this depth and extinction, as a multiple
@@ -18,8 +16,7 @@ export type HabitatTank = Pick<SimulationState, 'tank' | 'equipment' | 'plants' 
  * `(e^{kD} − 1) / kD`.
  */
 export function columnGain(depthCm: number, extinction: number): number {
-  const attenuation = extinction * depthCm;
-  return attenuation > 0 ? Math.expm1(attenuation) / attenuation : 1;
+  return meanOfExp(extinction * depthCm);
 }
 
 export type HabitatPlace = 'column' | 'walls' | 'floor' | 'hardscape';
@@ -84,30 +81,32 @@ export function habitatSize(habitat: AlgaeHabitat, tank: HabitatTank): number {
   return pieces(habitat, tank).reduce((sum, [, size]) => sum + size, 0);
 }
 
+/** Grams of organic matter in this much bloom, in a habitat of this size. */
+export function bloomTissue(coverage: number, habitat: number, traits: AlgaeTraits): number {
+  return (coverage / 100) * traits.tissueDensity * habitat;
+}
+
+/** Coverage this much tissue makes of a bloom in a habitat of this size: `bloomTissue` read backwards. */
+export function coverageOf(structure: number, habitat: number, traits: AlgaeTraits): number {
+  return habitat > 0 ? (100 * structure) / (traits.tissueDensity * habitat) : 0;
+}
+
+/** How full its habitat a kind's bloom stands, 0–100: its structure over what the full habitat holds. */
+export function bloomCoverage(tank: HabitatTank & Pick<SimulationState, 'algae'>, kind: AlgaeKind): number {
+  const traits = ALGAE[kind];
+  return coverageOf(tank.algae[kind].budget.structure, habitatSize(traits.habitat, tank), traits);
+}
+
 /** The share of a habitat that lies at this place, 0–1: none where the habitat has no piece there. */
 export function placeShare(habitat: AlgaeHabitat, place: HabitatPlace, tank: HabitatTank): number {
   const size = habitatSize(habitat, tank);
   return size > 0 ? (HABITATS[habitat](tank)[place] ?? 0) / size : 0;
 }
 
-/**
- * The mean PAR over a habitat as a multiple of the PAR at the substrate, each
- * piece weighted by its size: the column's mean through the column and on the
- * walls that span it, what the canopy leaves on the floor and the hardscape.
- * The column's mean is read through the water as it stands, so a bloom in it
- * shades itself and the walls.
- */
-export function habitatGain(habitat: AlgaeHabitat, tank: HabitatTank, optics: OpticsConfig): number {
-  const column = columnGain(calculateTankHeight(tank.tank.capacity), waterExtinction(tank.algae, optics));
-  const underCanopy = 1 - floorShade(tank.plants, tank.tank.capacity, optics);
-  const gain: Record<HabitatPlace, number> = {
-    column,
-    walls: column,
-    floor: underCanopy,
-    hardscape: underCanopy,
-  };
+/** The mean of a value over a habitat, each piece weighted by its size. */
+export function habitatMean(habitat: AlgaeHabitat, tank: HabitatTank, value: Readonly<Record<HabitatPlace, number>>): number {
   const size = habitatSize(habitat, tank);
-  return size > 0 ? pieces(habitat, tank).reduce((sum, [place, piece]) => sum + piece * gain[place], 0) / size : 0;
+  return size > 0 ? pieces(habitat, tank).reduce((sum, [place, piece]) => sum + piece * value[place], 0) / size : 0;
 }
 
 /** The light a bloom lives in: the mean over its habitat. */
@@ -116,7 +115,7 @@ export interface BloomLight {
   par: number;
   /** mol/m²/d. */
   dailyLight: number;
-  /** That day's light over the daily light the bloom starves under. */
+  /** That day's light over the day its kind is rated to live on. */
   needShare: number;
 }
 

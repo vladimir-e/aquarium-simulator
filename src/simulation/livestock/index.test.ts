@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { deltaOf } from '../tests/effects.js';
 import { burnEffects, processLivestock, tankPaces } from './index.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
@@ -7,6 +8,7 @@ import type { Fish } from '../state.js';
 import { burn, fishPace } from '../systems/metabolism.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { getPpm } from '../resources/index.js';
+import { atRecipe } from '../core/organics.js';
 import { fishRecord } from '../tests/fish.js';
 
 function makeFish(overrides: Partial<Fish> & { size?: number } = {}): Fish {
@@ -25,7 +27,7 @@ function makeState(fish: Fish[] = []): SimulationState {
 const effectOf = (result: ReturnType<typeof processLivestock>, resource: string, source?: string): number =>
   result.effects
     .filter((e) => e.resource === resource && (source === undefined || e.source === source))
-    .reduce((sum, e) => sum + e.delta, 0);
+    .reduce((sum, e) => sum + deltaOf(e), 0);
 
 describe('processLivestock', () => {
   it('returns unchanged state when no fish', () => {
@@ -48,8 +50,9 @@ describe('processLivestock', () => {
     const result = processLivestock(makeState([makeFish({ id: 'a' }), makeFish({ id: 'b', size: 40 })]), DEFAULT_CONFIG);
 
     expect(effectOf(result, 'food')).toBeLessThan(0);
-    expect(effectOf(result, 'waste', 'fish-metabolism')).toBeCloseTo(result.feces, 15);
-    expect(result.feces).toBeGreaterThan(0);
+    expect(effectOf(result, 'waste', 'fish-metabolism')).toBeCloseTo(result.feces.grams, 15);
+    expect(result.feces.grams).toBeGreaterThan(0);
+    expect(result.feces).toEqual(atRecipe(result.feces.grams, DEFAULT_CONFIG));
     const { water } = makeState().resources;
     const burnt = burn(result.burned, DEFAULT_CONFIG.livestock, DEFAULT_CONFIG.nutrients.foodMineralContent);
     expect(effectOf(result, 'oxygen')).toBeCloseTo(-getPpm(burnt.oxygen, water), 15);
@@ -83,7 +86,7 @@ describe('processLivestock', () => {
 
     expect(result.state.fish[0].age).toBe(101);
     expect(result.state.fish[0].gut).toBeGreaterThan(fish.gut);
-    expect(result.state.fish[0].deb).not.toEqual(fish.deb);
+    expect(result.state.fish[0].budget).not.toEqual(fish.budget);
   });
 
   it('removes dead fish, logs the death and leaves their remains as waste', () => {

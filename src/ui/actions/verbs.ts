@@ -12,6 +12,8 @@ import {
   ALGAE,
   ALGAE_KINDS,
   applyAction,
+  bloomCoverage,
+  bloomShows,
   canDose,
   canRootTab,
   coverage,
@@ -20,6 +22,7 @@ import {
   MAX_ROOT_TABS,
   placeShare,
   PLANT_SPECIES_DATA,
+  sizeOf,
   WATER_CHANGE_AMOUNTS,
   type Action,
   type AlgaeKind,
@@ -34,11 +37,11 @@ import {
   doseToCover,
   nutrientReadings,
   plantLabels,
-  printsAsZero,
+  sharePercent,
   TRIM_TARGETS,
   type HourAhead,
 } from '../run';
-import { COVERAGE_DECIMALS, formatVolume, logQuantityIn, type UnitSystem } from '../utils/units.js';
+import { formatVolume, logQuantityIn, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
 
 export type VerbId =
@@ -219,7 +222,7 @@ function blockedReason(
         ? null
         : `nothing above ${settings.trimPlants} %`;
     case 'scrubAlgae':
-      return glassKinds(state).some((kind) => !printsAsZero(state.algae[kind].mass, COVERAGE_DECIMALS))
+      return glassKinds(state).some((kind) => bloomShows(bloomCoverage(state, kind)))
         ? null
         : 'the glass is clean';
   }
@@ -233,7 +236,7 @@ function glassKinds(state: SimulationState): AlgaeKind[] {
 /** Each kind a scrub reaches, named, with its coverage. */
 function onSurfaces(state: SimulationState, units: UnitSystem): string {
   return glassKinds(state)
-    .map((kind) => `${ALGAE[kind].name.toLowerCase()} ${logQuantityIn(units)(coverage(state.algae[kind].mass))}`)
+    .map((kind) => `${ALGAE[kind].name.toLowerCase()} ${logQuantityIn(units)(coverage(bloomCoverage(state, kind)))}`)
     .join(' · ');
 }
 
@@ -259,7 +262,7 @@ function rowValue(
       return `to ${settings.trimPlants} %`;
     case 'scrubAlgae':
       return glassKinds(state)
-        .map((kind) => logQuantityIn(units)(coverage(state.algae[kind].mass)))
+        .map((kind) => logQuantityIn(units)(coverage(bloomCoverage(state, kind))))
         .join(' · ');
   }
 }
@@ -482,12 +485,12 @@ function meta(
       const bed = bedReading(state, config);
       if (bed.bare) return 'bare bottom';
       const holds = `bed holds ${bed.text} tabs`;
-      return bed.needed > 0 ? `${holds} · roots need ${bed.neededText} tabs` : holds;
+      return bed.asked ? `${holds} · roots' stores ${sharePercent(bed.stores.fill)} %` : holds;
     }
     case 'trimPlants': {
       const reach = reached(state, scope);
       const { plants } = reach;
-      const largest = plants.reduce((most, plant) => Math.max(most, plant.size), 0);
+      const largest = plants.reduce((most, plant) => Math.max(most, sizeOf(plant)), 0);
       const line = `${getPlantsToTrimCount(reach, settings.trimPlants)} of ${plural(plants.length, 'plant')} · largest ${Math.floor(largest)} %`;
       return scope && plants.length > 0
         ? `${PLANT_SPECIES_DATA[plants[0].species].name} · ${line}`
@@ -515,7 +518,7 @@ const BARE_NOTE: Partial<Record<VerbId, (state: SimulationState) => string>> = {
           ? `${name} on the glass comes off; what coats ${namePlaces(placesKept(habitat, 'walls', state))} stays, and spreads back over the glass at once.`
           : `${name} is not on the glass — a ${VERB[bloomVerb(kind)].name.toLowerCase()} takes it.`;
       }),
-      'What comes off is loose in the water as waste: it rots there, and a gravel vac takes it once it settles.',
+      'What comes off is loose in the water: its tissue rots there as waste, which a gravel vac takes once it settles, and its stores leach straight out — the nitrate in them takes back the KH its uptake gave, so KH and pH dip with it.',
     ].join(' ');
   },
 };

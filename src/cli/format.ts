@@ -5,13 +5,16 @@
 import {
   ALGAE,
   ALGAE_KINDS,
+  bloomCoverage,
   getDgh,
   getDkh,
   getPh,
+  unitParams,
+  wellFed,
   type AlgaeKind,
-  type AlgaeState,
   type SimulationState,
 } from '../simulation/index.js';
+import { NUTRIENTS, type TunableConfig } from '../simulation/config/index.js';
 import { ammoniaAlertLine } from '../simulation/alerts/index.js';
 import {
   bacteriaReadout,
@@ -20,15 +23,20 @@ import {
   colonyCount,
   cycleWord,
   dailyLightReading,
+  bedReading,
+  nutrientAlert,
+  nutrientReadings,
+  plantingStores,
   plantRows,
   readFish,
   readHourAhead,
+  sharePercent,
   DAILY_LIGHT_UNIT,
   type Colony,
   type Status,
 } from '../ui/run/index.js';
 import type { Session } from './session.js';
-import type { HistorySnapshot } from './history.js';
+import type { BloomTrace, HistorySnapshot } from './history.js';
 import { snakeCase } from './names.js';
 
 /** Convert a mass (mg) to concentration (ppm) given water volume (L). */
@@ -49,6 +57,25 @@ function marker(...statuses: Status[]): string {
 function sick(readings: { sick: boolean }[]): string {
   const count = readings.filter((reading) => reading.sick).length;
   return count > 0 ? ` · ${count} sick` : '';
+}
+
+/** The planting's mean reserve. */
+function meanReserve(state: SimulationState, config: TunableConfig): number {
+  const reserve = state.plants.reduce((sum, plant) => sum + wellFed(plant.budget, unitParams(plant, config.plants)), 0);
+  return reserve / state.plants.length;
+}
+
+/** The plants' store that runs its Droop limit lowest over both pools, and what the tank's nutrients say, where anything is planted. */
+function storesLine(state: SimulationState, config: TunableConfig): string {
+  if (state.plants.length === 0) return '';
+  const pools = plantingStores(state, config);
+  const [lowest] = [pools.water, pools.bed]
+    .filter((pool) => pool.asked)
+    .flatMap((pool) => NUTRIENTS.map((n) => ({ limit: pool.limit[n], fill: pool.stores[n].fill })))
+    .sort((a, b) => a.limit - b.limit);
+  const alert = nutrientAlert(nutrientReadings(state, config, pools), bedReading(state, config, pools));
+  const stores = lowest ? ` · stores ${sharePercent(lowest.fill)}%` : '';
+  return alert ? `${stores} · ${alert.text}${marker(alert.status)}` : stores;
 }
 
 /** Render a compact markdown snapshot of the current session. */
@@ -105,18 +132,20 @@ export function renderObserve(session: Session): string {
     `**Nutrients** PO4 ${po4} · K ${round(toPpm(r.potassium, r.water), 2)} · Fe ${round(
       toPpm(r.iron, r.water),
       3
-    )} ppm`,
-    `**Other** waste ${round(r.waste, 2)}g · ${ALGAE_KINDS.map(
+    )} ppm${storesLine(state, session.config)}`,
+    `**Other** waste ${round(r.waste.grams, 2)}g · ${ALGAE_KINDS.map(
       (kind) =>
-        `${ALGAE[kind].name.toLowerCase()} ${round(state.algae[kind].mass, 1)} (condition ${round(state.algae[kind].condition, 0)}%)`
+        `${ALGAE[kind].name.toLowerCase()} ${round(bloomCoverage(state, kind), 1)} (condition ${round(state.algae[kind].condition, 0)}%)`
     ).join(' · ')} · food ${round(r.food, 2)}g`,
     '',
     `**Fish (${state.fish.length})** ${
       state.fish.length ? `avg health ${avgFishHealth}%` : '—'
     }${sick(readFish(state, session.config, ahead))}`,
     `**Plants (${state.plants.length})** ${
-      state.plants.length ? `avg condition ${avgPlantCondition}%` : '—'
-    }${sick(plantRows(state, session.config, ahead))}`,
+      state.plants.length
+        ? `avg condition ${avgPlantCondition}% · reserve ${sharePercent(meanReserve(state, session.config))}%`
+        : '—'
+    }${sick(plantRows(state, ahead))}`,
   ];
 
   return lines.join('\n');
@@ -164,12 +193,12 @@ const DERIVED_FIELDS = [
   'dgh',
 ] as const;
 
-const BLOOM_KEYS = ['mass', 'condition', 'surplus'] as const satisfies readonly (keyof AlgaeState)[];
+const BLOOM_KEYS = ['coverage', 'condition', 'reserve'] as const satisfies readonly (keyof BloomTrace)[];
 
-/** Each kind's bloom, a column per figure: `green_water_mass`, `film_condition`… */
-const BLOOM_FIELDS = new Map<string, [AlgaeKind, keyof AlgaeState]>(
+/** Each kind's bloom, a column per figure: `green_water_coverage`, `film_condition`… */
+const BLOOM_FIELDS = new Map<string, [AlgaeKind, keyof BloomTrace]>(
   ALGAE_KINDS.flatMap((kind) =>
-    BLOOM_KEYS.map((key): [string, [AlgaeKind, keyof AlgaeState]] => [
+    BLOOM_KEYS.map((key): [string, [AlgaeKind, keyof BloomTrace]] => [
       `${snakeCase(kind)}_${key}`,
       [kind, key],
     ])

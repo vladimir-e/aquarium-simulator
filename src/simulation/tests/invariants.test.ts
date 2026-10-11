@@ -5,21 +5,23 @@ import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
 import { DEFAULT_CONFIG, configRange, withTunable, type TunableConfig } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
-import { NUTRIENTS, WASTE_NUTRIENTS, type WasteNutrient } from '../config/nutrients.js';
+import { mapNutrients, NUTRIENTS, WASTE_NUTRIENTS, type NutrientVector, type WasteNutrient } from '../config/nutrients.js';
 import { CACO3_PER_EQUIVALENT, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
-import { tissueMass } from '../systems/plant-lifecycle.js';
-import { ALGAE, ALGAE_KINDS } from '../algae/index.js';
-import { purchase } from '../systems/plant-growth.js';
+import { ALGAE_KINDS, bloomCoverage } from '../algae/index.js';
+import { bloomParams, plantParams } from '../flora/params.js';
+import { floraNutrients, type FloraState } from '../systems/flora-budget.js';
+import { offshootStructure } from '../plants/create-plant.js';
+import { sizeOf } from '../plants/canopy.js';
 import { fishOrganics, fishParams, fishSize, frySize } from '../systems/fish-body.js';
 import { stockedBody } from '../livestock/create-fish.js';
 import { mature } from '../systems/deb.js';
 import { spawnsAt } from '../systems/brood.js';
 import { clutchOrganics } from '../systems/clutch.js';
-import { nutrientShare, organicNutrients } from '../systems/nutrients.js';
+import { addOrganics, atRecipe, ofComposition } from '../core/organics.js';
+import { LEAN } from './organics.js';
 import { freshSubstrate } from '../equipment/substrate.js';
-import { getPpm } from '../resources/index.js';
 import { plantRecord } from './plant.js';
-import { bloomsTissue, kindTissue } from './blooms.js';
+import { bloomAt, bloomsTissue } from './blooms.js';
 import { BREEDING_TANK_MS } from './breeding-tank.js';
 import { leaves, nonFinitePaths } from './leaves.js';
 // The scenario setups are the shared definition of a real tank, so the engine invariants run over them.
@@ -39,18 +41,23 @@ function livestockOrganics({ fish, clutches }: Pick<SimulationState, 'fish' | 'c
   return bodies + clutches.reduce((sum, clutch) => sum + clutchOrganics(clutch), 0);
 }
 
-/** Grams of organic matter in the tank: food, waste, the bed's reserve, plant tissue, the blooms' and the livestock's. */
+/** Grams of organic matter at food's recipe: food and the livestock's. */
 function organics(state: SimulationState): number {
-  const { resources, equipment, plants } = state;
-  const tissue = plants.reduce((sum, plant) => sum + tissueMass(plant.species, plant.size), 0);
-  return (
-    resources.food +
-    resources.waste +
-    equipment.substrate.organicReserve +
-    tissue +
-    bloomsTissue(state) +
-    livestockOrganics(state)
-  );
+  return state.resources.food + livestockOrganics(state);
+}
+
+/** mg of each nutrient the plants and the blooms hold. */
+function floraContent({ plants, algae }: SimulationState): NutrientVector {
+  const held = [
+    ...plants.map((plant) => floraNutrients(plant.budget, plantParams(plant.species, DEFAULT_CONFIG.plants))),
+    ...ALGAE_KINDS.map((kind) => floraNutrients(algae[kind].budget, bloomParams(kind, DEFAULT_CONFIG.plants))),
+  ];
+  return mapNutrients((n) => held.reduce((sum, content) => sum + content[n], 0));
+}
+
+/** mg of each nutrient the organic pools hold, whatever they were made of: the standing waste and the bed's mulm. */
+function pooled({ resources, equipment }: SimulationState): NutrientVector {
+  return addOrganics(resources.waste, equipment.substrate.organicReserve).nutrients;
 }
 
 /** Nitrogen in the water column, dissolved, mg as N. */
@@ -59,20 +66,22 @@ function dissolvedNitrogen({ resources }: SimulationState): number {
   return (ammonia / MW_NH3 + nitrite / MW_NO2 + nitrate / MW_NO3) * MW_N;
 }
 
-const SEEDED = { mass: 5, condition: 100, surplus: 0 };
-
 function nitrogenInPools(state: SimulationState): number {
   const { ammonia, nitrite, nitrate } = state.resources;
   const bed = state.equipment.substrate.nutrients.nitrate;
   return (
     organics(state) * DEFAULT_CONFIG.livestock.foodNitrogenFraction +
-    ((ammonia / MW_NH3 + nitrite / MW_NO2 + (nitrate + bed) / MW_NO3) * MW_N) / 1000
+    ((ammonia / MW_NH3 + nitrite / MW_NO2 + (nitrate + bed + pooled(state).nitrate + floraContent(state).nitrate) / MW_NO3) *
+      MW_N) /
+      1000
   );
 }
 
 function mineralsInPools(state: SimulationState, n: WasteNutrient): number {
   return (
     organics(state) * DEFAULT_CONFIG.nutrients.foodMineralContent[n] +
+    pooled(state)[n] +
+    floraContent(state)[n] +
     state.resources[n] +
     state.equipment.substrate.nutrients[n]
   );
@@ -113,11 +122,11 @@ describe('nitrogen mass', () => {
 
   it('is conserved through waste mineralization and the chain', () => {
     const start = produce(cycledBareTank(), (draft) => {
-      draft.resources.waste = 10;
+      draft.resources.waste = atRecipe(10, DEFAULT_CONFIG);
     });
     const end = run(start, 2000);
 
-    expect(end.resources.waste).toBeLessThan(0.05);
+    expect(end.resources.waste.grams).toBeLessThan(0.05);
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 2);
   });
 
@@ -127,21 +136,38 @@ describe('nitrogen mass', () => {
     });
     const end = run(start, 2000);
 
-    expect(end.resources.food + end.resources.waste).toBeLessThan(0.05);
+    expect(end.resources.food + end.resources.waste.grams).toBeLessThan(0.05);
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 10);
   });
 
   it('is conserved through the bed, as waste settles in and leaches back out', () => {
     const start = produce(cycledBareTank(), (draft) => {
       draft.equipment.substrate.type = 'gravel';
-      draft.resources.waste = 10;
+      draft.resources.waste = atRecipe(10, DEFAULT_CONFIG);
     });
     const mid = run(start, 24);
     const end = run(mid, 2000);
 
-    expect(mid.equipment.substrate.organicReserve).toBeGreaterThan(0);
+    expect(mid.equipment.substrate.organicReserve.grams).toBeGreaterThan(0);
     expect(nitrogenInPools(mid) / nitrogenInPools(start)).toBeCloseTo(1, 2);
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 2);
+  });
+
+  it('is conserved through the bed and the chain for waste of a composition far from food’s, most of it ending as dissolved nitrate in the dark', () => {
+    const start = produce(cycledBareTank(), (draft) => {
+      draft.equipment.substrate.type = 'gravel';
+      draft.equipment.light.enabled = false;
+      draft.resources.waste = ofComposition(10, LEAN);
+    });
+    const mid = run(start, 24);
+    const end = run(mid, 2000);
+
+    expect(mid.equipment.substrate.organicReserve.grams).toBeGreaterThan(0);
+    expect(end.resources.nitrate / (end.resources.nitrate + pooled(end).nitrate)).toBeGreaterThan(0.5);
+    for (const state of [mid, end]) {
+      expect(nitrogenInPools(state) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+      for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(state, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
+    }
   });
 
   it('is conserved through the fish that eat and digest the food', () => {
@@ -242,9 +268,9 @@ describe('a lone female fasting to her death', () => {
     });
     fasted = start;
     for (let hour = 0; hour < 25 * 24; hour++) {
-      const before = fasted.fish[0].deb.broodBuffer;
+      const before = fasted.fish[0].budget.broodBuffer;
       fasted = tick(fasted);
-      if (hour === 0) resorbed = before - fasted.fish[0].deb.broodBuffer;
+      if (hour === 0) resorbed = before - fasted.fish[0].budget.broodBuffer;
     }
     end = tick(
       produce(fasted, (draft) => {
@@ -259,7 +285,7 @@ describe('a lone female fasting to her death', () => {
     expect(start.clutches).toHaveLength(0);
     expect(fasted.clutches).toHaveLength(0);
     expect(fasted.fish).toHaveLength(1);
-    expect(fasted.fish[0].deb.structure).toBeLessThan(start.fish[0].deb.structure);
+    expect(fasted.fish[0].budget.structure).toBeLessThan(start.fish[0].budget.structure);
     expect(end.fish).toHaveLength(0);
     expect(end.logs.filter((log) => log.event === 'fish-died').map((log) => log.message)).toEqual(['Neon Tetra (old age) died']);
   });
@@ -293,7 +319,7 @@ describe('the fish as ledger entries', () => {
     expect(stocked.fish).toHaveLength(tank.fish.length + 1);
     expect(nitrogenInPools(stocked) - nitrogenInPools(tank)).toBeCloseTo(nitrogenOf({ fish: [arrived], clutches: [] }), 15);
     const body = stockedBody('angelfish', 40);
-    expect(nitrogenOf({ fish: [arrived], clutches: [] })).toBeCloseTo(fishOrganics({ species: 'angelfish', deb: body.deb }) * n, 15);
+    expect(nitrogenOf({ fish: [arrived], clutches: [] })).toBeCloseTo(fishOrganics({ species: 'angelfish', budget: body.budget }) * n, 15);
   });
 
   it('take a removed fish’s body, brood buffer, gut and carried brood out as an output, exactly', () => {
@@ -323,19 +349,19 @@ describe('mineral mass', () => {
     });
     const end = run(start, 2000);
 
-    expect(end.resources.food + end.resources.waste).toBeLessThan(0.05);
+    expect(end.resources.food + end.resources.waste.grams).toBeLessThan(0.05);
     expectConserved(start, end);
   });
 
   it('is conserved through the bed, as waste settles in and leaches back out', () => {
     const start = produce(cycledBareTank(), (draft) => {
       draft.equipment.substrate.type = 'gravel';
-      draft.resources.waste = 10;
+      draft.resources.waste = atRecipe(10, DEFAULT_CONFIG);
     });
     const mid = run(start, 24);
     const end = run(mid, 2000);
 
-    expect(mid.equipment.substrate.organicReserve).toBeGreaterThan(0);
+    expect(mid.equipment.substrate.organicReserve.grams).toBeGreaterThan(0);
     expectConserved(start, mid);
     expectConserved(start, end);
   });
@@ -364,7 +390,7 @@ describe('a planting over a charged bed', () => {
     start = produce(cycledBareTank(), (draft) => {
       draft.equipment.substrate = freshSubstrate('aqua_soil', draft.tank.capacity);
       draft.plants = (['java_fern', 'amazon_sword', 'monte_carlo', 'anubias'] as const).map((species) =>
-        plantRecord({ id: species, species, size: 40, condition: 100, surplus: 0 })
+        plantRecord({ id: species, species, size: 40 })
       );
       draft.resources.nitrate = 10 * draft.resources.water;
       draft.resources.phosphate = 1 * draft.resources.water;
@@ -381,8 +407,7 @@ describe('a planting over a charged bed', () => {
     );
   });
 
-  const tissue = (state: SimulationState): number =>
-    state.plants.reduce((sum, plant) => sum + tissueMass(plant.species, plant.size), 0);
+  const tissue = (state: SimulationState): number => state.plants.reduce((sum, plant) => sum + plant.budget.structure, 0);
 
   it('grows under the lamp, the sword drawing the bed down past its leak', () => {
     const leakedOnly =
@@ -416,14 +441,15 @@ describe('a planting over a charged bed', () => {
 
 describe('blooms and their crash', () => {
   const LIT_DAYS = 10;
-  const BLACKOUT_DAYS = 5;
+  const BLACKOUT_DAYS = 20;
   let start: SimulationState;
   let bloomed: SimulationState;
   let crashed: SimulationState;
   let peakAmmonia = 0;
+  let dieBacks = 0;
   beforeAll(() => {
     start = produce(cycledBareTank(), (draft) => {
-      for (const kind of ALGAE_KINDS) draft.algae[kind] = { ...SEEDED };
+      for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 1);
       draft.resources.nitrate = 10 * draft.resources.water;
       draft.resources.phosphate = 1 * draft.resources.water;
       draft.resources.potassium = 10 * draft.resources.water;
@@ -434,25 +460,28 @@ describe('blooms and their crash', () => {
       draft.equipment.light.enabled = false;
     });
     for (let hour = 0; hour < BLACKOUT_DAYS * 24; hour++) {
+      const before = crashed;
       crashed = tick(crashed);
       peakAmmonia = Math.max(peakAmmonia, crashed.resources.ammonia);
+      dieBacks += ALGAE_KINDS.filter((kind) => before.algae[kind].condition < 100 && crashed.algae[kind].condition === 100).length;
     }
   });
 
-  it('grow on the water and die back in the dark, every kind, their tissue fouling the water', () => {
-    const dieBacks = crashed.logs.slice(bloomed.logs.length).filter((log) => log.event === 'algae-died');
+  it('grow on the water and fade in the dark, every kind, until one dies back, their tissue fouling the water', () => {
     expect(bloomsTissue(bloomed)).toBeGreaterThan(bloomsTissue(start));
     expect(bloomed.resources.nitrate).toBeLessThan(start.resources.nitrate);
     for (const kind of ALGAE_KINDS) {
-      expect(dieBacks.some((log) => log.message.startsWith(ALGAE[kind].name))).toBe(true);
+      expect(crashed.algae[kind].budget.structure).toBeLessThan(bloomed.algae[kind].budget.structure / 2);
     }
+    expect(dieBacks).toBeGreaterThan(0);
     expect(peakAmmonia).toBeGreaterThan(bloomed.resources.ammonia);
   });
 
-  it('conserves nitrogen and every mineral through the blooms and the crash', () => {
+  it('conserves nitrogen, every mineral and KH net of nitrogen through the blooms, the crash and the die-back’s leach', () => {
     for (const state of [bloomed, crashed]) {
       expect(nitrogenInPools(state) / nitrogenInPools(start)).toBeCloseTo(1, 10);
       for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(state, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
+      expect(alkalinityNetOfNitrogen(state) / alkalinityNetOfNitrogen(start)).toBeCloseTo(1, 10);
     }
   });
 });
@@ -462,7 +491,7 @@ describe('a bloom fed on ammonia', () => {
   let fed: SimulationState;
   beforeAll(() => {
     start = produce(createSimulation({ tankCapacity: 150 }), (draft) => {
-      draft.algae.greenWater = { mass: 5, condition: 100, surplus: 20 };
+      draft.algae.greenWater = bloomAt(draft, 'greenWater', 1);
       draft.resources.ammonia = 2 * draft.resources.water;
       draft.resources.phosphate = 1 * draft.resources.water;
       draft.resources.potassium = 10 * draft.resources.water;
@@ -472,9 +501,8 @@ describe('a bloom fed on ammonia', () => {
   });
 
   it('builds the ammonia the water loses into its tissue, with no nitrate to take', () => {
-    const tissueNitrogen = (state: SimulationState): number =>
-      bloomsTissue(state) * DEFAULT_CONFIG.livestock.foodNitrogenFraction;
-    const ammoniaNitrogen = (state: SimulationState): number => (state.resources.ammonia / MW_NH3) * MW_N / 1000;
+    const tissueNitrogen = (state: SimulationState): number => (floraContent(state).nitrate / MW_NO3) * MW_N;
+    const ammoniaNitrogen = (state: SimulationState): number => (state.resources.ammonia / MW_NH3) * MW_N;
 
     const gained = tissueNitrogen(fed) - tissueNitrogen(start);
     const lost = ammoniaNitrogen(start) - ammoniaNitrogen(fed);
@@ -503,9 +531,9 @@ describe('alkalinity around the nitrogen loop', () => {
       draft.fish = [tetra('a'), tetra('b'), tetra('c')];
       draft.resources.food = 2;
       draft.plants = (['java_fern', 'amazon_sword', 'monte_carlo'] as const).map((species) =>
-        plantRecord({ id: species, species, size: 40, condition: 100, surplus: 0 })
+        plantRecord({ id: species, species, size: 40 })
       );
-      for (const kind of ALGAE_KINDS) draft.algae[kind] = { ...SEEDED };
+      for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 1);
       draft.resources.nitrate = 10 * draft.resources.water;
       draft.resources.phosphate = 1 * draft.resources.water;
       draft.resources.potassium = 10 * draft.resources.water;
@@ -539,77 +567,129 @@ describe('blooms at every tunable’s maximum', () => {
     return range === undefined ? [] : [[path, withTunable(DEFAULT_CONFIG, path, range.max)]];
   });
   const crowded = produce(cycledBareTank(), (draft) => {
-    for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 95, condition: 100, surplus: 100 };
+    for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 95);
     for (const n of NUTRIENTS) draft.resources[n] = 1000 * DEFAULT_CONFIG.nutrients.halfSaturation[n] * draft.resources.water;
   });
   const planted = produce(crowded, (draft) => {
-    draft.plants = (['java_fern', 'amazon_sword', 'monte_carlo'] as const).map((species) =>
-      plantRecord({ id: species, species, size: 60, condition: 100, surplus: 50 })
-    );
+    draft.plants = (
+      [
+        ['java_fern', 60],
+        ['amazon_sword', 99],
+        ['monte_carlo', 60],
+      ] as const
+    ).map(([species, size]) => plantRecord({ id: species, species, size }));
   });
+
+  const expectBounded = (fill: number, { budget, condition }: { budget: FloraState; condition: number }): void => {
+    expect(fill).toBeGreaterThanOrEqual(0);
+    expect(fill).toBeLessThanOrEqual(100);
+    expect(condition).toBeGreaterThanOrEqual(0);
+    expect(condition).toBeLessThanOrEqual(100);
+    for (const held of [budget.structure, budget.reserve, budget.offshootBuffer, ...Object.values(budget.stores)]) {
+      expect(held).toBeGreaterThanOrEqual(0);
+    }
+  };
 
   const keepBounded = (start: SimulationState, config: TunableConfig): SimulationState => {
     let state = start;
     for (let hour = 0; hour < 48; hour++) {
       state = tick(state, config);
-      for (const kind of ALGAE_KINDS) {
-        const { mass, condition, surplus } = state.algae[kind];
-        expect(mass).toBeGreaterThanOrEqual(0);
-        expect(mass).toBeLessThanOrEqual(100);
-        expect(condition).toBeGreaterThanOrEqual(0);
-        expect(condition).toBeLessThanOrEqual(100);
-        expect(surplus).toBeGreaterThanOrEqual(0);
-      }
+      for (const kind of ALGAE_KINDS) expectBounded(bloomCoverage(state, kind), state.algae[kind]);
+      for (const plant of state.plants) expectBounded(sizeOf(plant), plant);
     }
     return state;
   };
 
-  it.each(maxed)('keep mass within [0, 100], condition within [0, 100] and the bank ≥ 0 with %s at its max', (_path, config) => {
+  it.each(maxed)('keep coverage within [0, 100], condition within [0, 100] and every pool of the budget ≥ 0 with %s at its max', (_path, config) => {
     keepBounded(crowded, config);
   });
 
-  it.each(maxed)('keep those bounds over a planting, every figure finite, with %s at its max', (_path, config) => {
+  it.each(maxed)('keep those bounds over a planting, every plant within a full unit, every figure finite, with %s at its max', (_path, config) => {
     expect(nonFinitePaths(keepBounded(planted, config))).toEqual([]);
   });
 });
 
 describe('the keeper’s hands on the blooms', () => {
   const coated = produce(cycledBareTank(), (draft) => {
-    for (const kind of ALGAE_KINDS) draft.algae[kind] = { mass: 50, condition: 100, surplus: 5 };
+    for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 50);
     draft.resources.ammonia = 0.5 * draft.resources.water;
     draft.resources.nitrate = 20 * draft.resources.water;
   });
-  const tissueNitrogen = (state: SimulationState): number =>
-    bloomsTissue(state) * DEFAULT_CONFIG.livestock.foodNitrogenFraction * 1000;
+  const tissueNitrogen = (state: SimulationState): number => (floraContent(state).nitrate / MW_NO3) * MW_N;
 
   it('export with a water change exactly the nitrogen the water and the green water in it carry out', () => {
     const share = 0.3;
     const changed = applyAction(coated, { type: 'waterChange', amount: share }).state;
-    const greenWater = (state: SimulationState): number =>
-      kindTissue(state, 'greenWater') * DEFAULT_CONFIG.livestock.foodNitrogenFraction * 1000;
-    const exported = share * (dissolvedNitrogen(coated) + greenWater(coated));
+    const greenWater =
+      (floraNutrients(coated.algae.greenWater.budget, bloomParams('greenWater', DEFAULT_CONFIG.plants)).nitrate / MW_NO3) *
+      MW_N;
+    const exported = share * (dissolvedNitrogen(coated) + greenWater);
 
     expect(changed.algae.film).toEqual(coated.algae.film);
     expect((nitrogenInPools(coated) - nitrogenInPools(changed)) * 1000).toBeCloseTo(exported, 9);
-    expect(tissueNitrogen(coated) - tissueNitrogen(changed)).toBeCloseTo(share * greenWater(coated), 9);
+    expect(tissueNitrogen(coated) - tissueNitrogen(changed)).toBeCloseTo(share * greenWater, 9);
   });
 
-  it('keep every gram of a scrub in the tank, as waste', () => {
+  it('keep every gram of a scrub in the tank, as waste and leachate, KH moving back by the charge the leachate’s uptake moved', () => {
     const scrubbed = applyAction(coated, { type: 'scrubAlgae' }).state;
-    expect(scrubbed.algae.film.mass).toBeLessThan(coated.algae.film.mass);
+    expect(bloomCoverage(scrubbed, 'film')).toBeLessThan(bloomCoverage(coated, 'film'));
     expect(scrubbed.algae.greenWater).toEqual(coated.algae.greenWater);
+    expect(scrubbed.resources.kh).toBeLessThan(coated.resources.kh);
     expect(nitrogenInPools(scrubbed) / nitrogenInPools(coated)).toBeCloseTo(1, 12);
+    expect(alkalinityNetOfNitrogen(scrubbed) / alkalinityNetOfNitrogen(coated)).toBeCloseTo(1, 12);
+    for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(scrubbed, n) / mineralsInPools(coated, n)).toBeCloseTo(1, 12);
   });
 });
 
-describe('an offshoot bought on thin water', () => {
+describe('a plant dying in the dark', () => {
+  const start = produce(cycledBareTank(), (draft) => {
+    const doomed = plantRecord({ id: 'sword', species: 'amazon_sword', size: 50, condition: 0.01 });
+    doomed.budget.reserve = 0;
+    draft.plants = [doomed];
+    draft.equipment.light.enabled = false;
+    draft.resources.nitrate = 20 * draft.resources.water;
+  });
+  const end = tick(start);
+
+  it('leaches its stores back, KH moving back by the charge their uptake moved', () => {
+    expect(end.plants).toHaveLength(0);
+    expect(end.logs.some((log) => log.event === 'plant-died')).toBe(true);
+    expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 12);
+    expect(alkalinityNetOfNitrogen(end) / alkalinityNetOfNitrogen(start)).toBeCloseTo(1, 12);
+  });
+});
+
+describe('a fresh tank with no iron', () => {
+  let state: SimulationState;
+  beforeAll(() => {
+    state = run(
+      produce(createSimulation({ tankCapacity: 100 }), (draft) => {
+        draft.resources.ammonia = 2 * draft.resources.water;
+        draft.resources.nitrate = 10 * draft.resources.water;
+        draft.resources.phosphate = 1 * draft.resources.water;
+        draft.resources.potassium = 5 * draft.resources.water;
+      }),
+      60 * 24
+    );
+  });
+
+  it('builds no spore in sixty days, and so holds nothing for one', () => {
+    expect(state.resources.iron).toBe(0);
+    for (const kind of ALGAE_KINDS) {
+      expect(state.algae[kind].budget.structure).toBe(0);
+      for (const n of NUTRIENTS) expect(state.algae[kind].budget.stores[n]).toBe(0);
+    }
+  });
+});
+
+describe('an offshoot bought out of the buffer and the stores', () => {
   let start: SimulationState;
   let budded: SimulationState;
   beforeAll(() => {
     start = produce(cycledBareTank(20), (draft) => {
-      draft.plants = [
-        plantRecord({ id: 'fern', species: 'java_fern', size: 99, condition: 100, surplus: DEFAULT_CONFIG.plants.surplusCap }),
-      ];
+      const fern = plantRecord({ id: 'fern', species: 'java_fern', size: 99 });
+      fern.budget.offshootBuffer = offshootStructure('java_fern');
+      draft.plants = [fern];
       draft.resources.nitrate = 10 * draft.resources.water;
       draft.resources.phosphate = 0.04 * draft.resources.water;
       draft.resources.potassium = 10 * draft.resources.water;
@@ -618,20 +698,13 @@ describe('an offshoot bought on thin water', () => {
     budded = tick(start);
   });
 
-  it('is a lump a draw read at the start of the tick would overdraw, and the pool meets it in part without going below zero', () => {
-    const { plants, livestock, nutrients } = DEFAULT_CONFIG;
-    const { offshootSize } = purchase(start.plants[0], plants);
-    const share = nutrientShare(getPpm(start.resources.phosphate, start.resources.water), 'java_fern', 'phosphate');
-    expect(tissueMass('java_fern', offshootSize) * organicNutrients(livestock, nutrients).phosphate * share).toBeGreaterThan(
-      start.resources.phosphate
-    );
-
+  it('is born at its growth form’s offshoot size, full condition, beside its parent', () => {
     expect(budded.plants).toHaveLength(2);
-    expect(budded.plants[1].size).toBeLessThan(offshootSize);
-    expect(budded.resources.phosphate).toBeGreaterThan(0);
+    expect(budded.plants[1].budget.structure).toBeCloseTo(offshootStructure('java_fern'), 12);
+    expect(budded.plants[1].parentId).toBe('fern');
   });
 
-  it('conserves nitrogen and every mineral through the lump', () => {
+  it('conserves nitrogen and every mineral through the purchase', () => {
     expect(nitrogenInPools(budded) / nitrogenInPools(start)).toBeCloseTo(1, 10);
     for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(budded, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
   });
@@ -665,7 +738,7 @@ describe('a guppy stocked as a fry, among the fish that hunt her', () => {
         const she = state.fish.find((f) => f.id === id);
         if (she) {
           sizes.push(fishSize(she));
-          grown.push(mature(she.deb, fishParams(she)));
+          grown.push(mature(she.budget, fishParams(she)));
         }
         const laid = state.logs.slice(logsRead).some((log) => log.event === 'eggs-laid');
         if (firstBrood < 0 && laid) firstBrood = sizes.length - 1;

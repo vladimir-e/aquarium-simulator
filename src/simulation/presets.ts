@@ -6,6 +6,7 @@ import type { SimulationConfig, SimulationState } from './state.js';
 import type { HardscapeItemSpec, HardscapeType } from './equipment/hardscape.js';
 import { createSimulation } from './state.js';
 import type { PresetSeed } from './seed.js';
+import { DEFAULT_CONFIG, type TunableConfig } from './config/index.js';
 
 export type PresetId = 'bare' | 'betta' | 'planted' | 'community' | 'angelfish';
 
@@ -195,14 +196,17 @@ export function getPresetById(id: PresetId): PresetDefinition | undefined {
 }
 
 /**
- * The tank a preset builds: its configuration and the state it starts at.
- * The one place both halves of a preset are read together.
+ * The tank a preset builds: its configuration and the state it starts at,
+ * its first day of light read through the optics it will run on and its
+ * seeded plants stocked on the plants config it will run on. The one place
+ * both halves of a preset are read together.
  */
 export function createPresetSimulation(
   preset: PresetDefinition,
+  tunables: Pick<TunableConfig, 'optics' | 'plants'> = DEFAULT_CONFIG,
   rngSeed?: number
 ): SimulationState {
-  return createSimulation(preset.config, preset.seed, rngSeed);
+  return createSimulation({ ...preset.config, optics: tunables.optics, plants: tunables.plants }, preset.seed, rngSeed);
 }
 
 /** The one place a preset id becomes the words every surface shows for it. */

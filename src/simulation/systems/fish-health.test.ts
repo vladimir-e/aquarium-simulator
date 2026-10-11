@@ -1,21 +1,21 @@
 import { describe, it, expect } from 'vitest';
+import { NO_ORGANICS } from '../core/organics.js';
 import {
   computeFishVitality,
-  healingAsked,
-  healingPrice,
   preyVulnerability,
   predationStress,
   predatorMasses,
   predatorWeight,
   processHealth,
   speciesHardiness,
-  starvation,
-  type FishVitality,
 } from './fish-health.js';
+import { NO_STRESS, repairAsked, repairPrice, starvation } from './reserve.js';
+import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
+import type { VitalityResult } from './vitality.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { configRange, DEFAULT_CONFIG } from '../config/index.js';
-import { debParams, FISH_SPECIES_DATA } from '../livestock/species.js';
+import { debParams, FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { createSimulation, type Fish, type Plant, type Resources, type SimulationState } from '../state.js';
 import {
   highAmmoniaAlert,
@@ -26,7 +26,6 @@ import {
 } from '../alerts/index.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
 import { getGhMass } from '../resources/helpers.js';
-import type { FishSpecies } from '../livestock/species.js';
 import {
   FREE_AMMONIA_EDGE,
   HARDY_TOLERANCE,
@@ -41,8 +40,6 @@ import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { plantRecord } from '../tests/plant.js';
 import { gutCapacity, type Pace } from './digestion.js';
 import { liveHour, type FishHour } from './metabolism.js';
-import { NO_STRESS } from './deb.js';
-import { fishMass, fishOrganics, fishSize } from './fish-body.js';
 import { fishRecord } from '../tests/fish.js';
 
 const STRESSORS = [
@@ -60,13 +57,13 @@ const STRESSORS = [
   'age',
 ];
 
-const stressorAmount = (v: FishVitality, key: string): number =>
+const stressorAmount = (v: VitalityResult, key: string): number =>
   v.breakdown.stressors.find((s) => s.key === key)?.amount ?? 0;
 
-const benefitAmount = (v: FishVitality, key: string): number =>
+const benefitAmount = (v: VitalityResult, key: string): number =>
   v.breakdown.benefits.find((b) => b.key === key)?.amount ?? 0;
 
-const totalStress = (v: FishVitality): number =>
+const totalStress = (v: VitalityResult): number =>
   v.breakdown.stressors.reduce((sum, s) => sum + s.amount, 0);
 
 function makeResources(overrides: ResourceOverrides = {}): Resources {
@@ -79,7 +76,7 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
     lightByHour: new Array(24).fill(0),
     aeration: true,
     food: 1,
-    waste: 0,
+    waste: NO_ORGANICS,
     ammonia: 0,
     nitrite: 0,
     nitrate: 0,
@@ -95,15 +92,8 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
   }, { ph: 7.0, ...overrides });
 }
 
-function makePlant(overrides: Partial<Plant> = {}): Plant {
-  return plantRecord({
-    id: 'plant_1',
-    species: 'java_fern',
-    size: 100,
-    condition: 100,
-    surplus: 0,
-    ...overrides,
-  });
+function makePlant(overrides: Partial<Omit<Plant, 'budget'>> & { size?: number } = {}): Plant {
+  return plantRecord({ id: 'plant_1', species: 'java_fern', size: 100, ...overrides });
 }
 
 /** The defaults with no age damage and no paid repair: a young fish in clean water takes no damage, a sick one stays sick. */
@@ -112,9 +102,13 @@ const HEALING = { ...AGELESS, healingRate: livestockDefaults.healingRate };
 
 const REFERENCE: Pace = { tau: 1, omega: 1, stress: NO_STRESS };
 
+/** Grams of reserve a fish asks to repair at this pace. */
+const asked = (fish: Fish, pace: Pace, config = livestockDefaults): number =>
+  repairAsked(fish.budget, fishParams(fish), fish.health, pace.tau, config);
+
 /** A fish's hour of budget on a full reserve and an empty gut, repairing what it asks. */
 const hourOf = (fish: Fish, config = AGELESS): FishHour =>
-  liveHour(fish, REFERENCE, healingAsked(fish, REFERENCE, config), config);
+  liveHour(fish, REFERENCE, asked(fish, REFERENCE, config), config);
 
 function vitality(
   fish: Partial<Fish> = {},
@@ -132,7 +126,7 @@ function vitality(
     config?: typeof livestockDefaults;
     predatorMass?: number;
   }
-): FishVitality {
+): VitalityResult {
   const record = fishRecord(fish);
   return computeFishVitality(
     record,
@@ -198,7 +192,7 @@ describe('stressors', () => {
   });
 
   it('isolates starvation stress to its own key', () => {
-    const v = vitality({ deb: { ...fishRecord().deb, reserve: 0 } });
+    const v = vitality({ budget: { ...fishRecord().budget, reserve: 0 } });
     expect(stressorAmount(v, 'starvation')).toBeGreaterThan(0);
     expect(totalStress(v)).toBeCloseTo(stressorAmount(v, 'starvation'), 10);
   });
@@ -231,7 +225,7 @@ describe('stressors', () => {
   it('sums every active stressor into the total', () => {
     const small = fishRecord({ size: 20 });
     const v = vitality(
-      { ...small, deb: { ...small.deb, reserve: 0, hazard: 1e-4 } },
+      { ...small, budget: { ...small.budget, reserve: 0, hazard: 1e-4 } },
       {
         temperature: 18,
         ph: 8.5,
@@ -264,7 +258,7 @@ describe('water quality', () => {
     const ph = (lo + hi) / 2;
     return { ph, ...at[key](reading, ph) };
   };
-  const atBandCentre = (key: string, reading: number, fish: Partial<Fish> = {}): FishVitality =>
+  const atBandCentre = (key: string, reading: number, fish: Partial<Fish> = {}): VitalityResult =>
     vitality(fish, bandCentre(key, reading, fish.species));
 
   it.each<[string, number]>([
@@ -462,7 +456,7 @@ describe('plant-presence benefit', () => {
   const net = (plants: Plant[]): number => vitality({}, {}, { plants }).breakdown.net;
   const baseline = net([]);
   const lift = (plants: Plant[]): number => net(plants) - baseline;
-  const plants = (count: number, overrides: Partial<Plant> = {}): Plant[] =>
+  const plants = (count: number, overrides: Partial<Omit<Plant, 'budget'>> & { size?: number } = {}): Plant[] =>
     Array.from({ length: count }, (_, i) => makePlant({ id: `p_${i}`, ...overrides }));
   const peak = lift(plants(10));
 
@@ -505,7 +499,7 @@ describe('processHealth', () => {
   });
 
   it('kills a fish of old age when its survival falls below its draw, at any health', () => {
-    const fish = fishRecord({ survival: 0.5, survivalDraw: 0.5, deb: { ...fishRecord().deb, hazard: 1e-3 } });
+    const fish = fishRecord({ survival: 0.5, survivalDraw: 0.5, budget: { ...fishRecord().budget, hazard: 1e-3 } });
     const result = health([fish]);
     expect(result.survivingFish).toHaveLength(0);
     expect(result.vitalities[0].newCondition).toBeGreaterThan(0);
@@ -514,12 +508,12 @@ describe('processHealth', () => {
   });
 
   it('labels a death mostly of age damage as old age too', () => {
-    const frail = fishRecord({ health: 0.01, deb: { ...fishRecord().deb, hazard: 1e-3 } });
+    const frail = fishRecord({ health: 0.01, budget: { ...fishRecord().budget, hazard: 1e-3 } });
     expect(health([frail], {}, [], [0], livestockDefaults).deadFishNames).toEqual(['Neon Tetra (old age)']);
   });
 
   it('labels a death mostly of starvation as starved', () => {
-    const starving = fishRecord({ health: 0.01, deb: { ...fishRecord().deb, reserve: 0 } });
+    const starving = fishRecord({ health: 0.01, budget: { ...fishRecord().budget, reserve: 0 } });
     expect(health([starving]).deadFishNames).toEqual(['Neon Tetra (starved)']);
   });
 
@@ -540,7 +534,7 @@ describe('processHealth', () => {
 
   it('returns the whole of every dead body, its buffer, its gut and its brood', () => {
     const grown = fishRecord({ id: 'dying', health: 0.001, gut: 0.001, sex: 'female' });
-    const dying = { ...grown, deb: { ...grown.deb, broodBuffer: 0.002 } };
+    const dying = { ...grown, budget: { ...grown.budget, broodBuffer: 0.002 } };
     const result = health([dying], { oxygen: 0 }, [], [0.003]);
     expect(result.deathWaste).toBeCloseTo(remainsOf(dying) + 0.003, 15);
     expect(remainsOf(dying)).toBeGreaterThan(remainsOf(grown) + 0.0019);
@@ -665,20 +659,20 @@ describe('predation', () => {
 
 describe('starvation', () => {
   it('is the share of its upkeep the hour left unpaid', () => {
-    const empty = fishRecord({ deb: { ...fishRecord().deb, reserve: 0 } });
+    const empty = fishRecord({ budget: { ...fishRecord().budget, reserve: 0 } });
     expect(starvation(hourOf(empty))).toBeCloseTo(1, 12);
     expect(starvation(hourOf(fishRecord()))).toBe(0);
   });
 
   it('charges starvationSeverity at a wholly unpaid upkeep, before hardiness', () => {
-    const empty = { ...fishRecord(), deb: { ...fishRecord().deb, reserve: 0 } };
+    const empty = { ...fishRecord(), budget: { ...fishRecord().budget, reserve: 0 } };
     const charged = stressorAmount(vitality(empty), 'starvation');
     expect(charged).toBeCloseTo(livestockDefaults.starvationSeverity * (1 - speciesHardiness('neon_tetra')), 12);
   });
 
   it('earns its benefits on its reserve density: in full on a full reserve, none on an empty one', () => {
     const full = fishRecord();
-    const empty = { ...full, deb: { ...full.deb, reserve: 0 } };
+    const empty = { ...full, budget: { ...full.budget, reserve: 0 } };
     expect(vitality(full).breakdown.benefitRate).toBeGreaterThan(0);
     expect(vitality(empty).breakdown.benefitRate).toBe(0);
   });
@@ -687,13 +681,13 @@ describe('starvation', () => {
 describe('repair', () => {
   it('asks its deficit closing first order at healingRate × τ, at healingCost hours of its upkeep a point', () => {
     const fish = fishRecord({ health: 60 });
-    const price = healingPrice(fish, livestockDefaults);
-    expect(price).toBeCloseTo(livestockDefaults.healingCost * debParams('neon_tetra').pM * fish.deb.structure, 15);
-    expect(healingAsked(fish, { ...REFERENCE, tau: 1.5 }, livestockDefaults)).toBeCloseTo(
+    const price = repairPrice(fish.budget, fishParams(fish), livestockDefaults);
+    expect(price).toBeCloseTo(livestockDefaults.healingCost * debParams('neon_tetra').pM * fish.budget.structure, 15);
+    expect(asked(fish, { ...REFERENCE, tau: 1.5 }, livestockDefaults)).toBeCloseTo(
       price * hourlyDraw(livestockDefaults.healingRate * 1.5) * 40,
       15
     );
-    expect(healingAsked(fishRecord(), REFERENCE, livestockDefaults)).toBe(0);
+    expect(asked(fishRecord(), REFERENCE, livestockDefaults)).toBe(0);
   });
 
   it('heals the points its reserve paid for, on top of what it earns', () => {
@@ -714,9 +708,9 @@ describe('repair', () => {
 
   it('heals nothing from an empty reserve, nor at no oxygen', () => {
     const fish = fishRecord({ health: 60 });
-    expect(vitality({ ...fish, deb: { ...fish.deb, reserve: 0 } }, {}, { config: HEALING }).breakdown.healed).toBe(0);
+    expect(vitality({ ...fish, budget: { ...fish.budget, reserve: 0 } }, {}, { config: HEALING }).breakdown.healed).toBe(0);
     const record = fishRecord(fish);
-    const breathless = liveHour(record, { ...REFERENCE, omega: 0 }, healingAsked(record, REFERENCE, HEALING), HEALING);
+    const breathless = liveHour(record, { ...REFERENCE, omega: 0 }, asked(record, REFERENCE, HEALING), HEALING);
     const v = computeFishVitality(record, breathless, makeResources(), [], 100, 100, HEALING, 0);
     expect(v.breakdown.healed).toBe(0);
   });
@@ -724,7 +718,7 @@ describe('repair', () => {
 
 describe('age', () => {
   it('damages health at hazardSeverity times the hazard, shielded by no hardiness', () => {
-    const fish = fishRecord({ deb: { ...fishRecord().deb, hazard: 2e-5 } });
+    const fish = fishRecord({ budget: { ...fishRecord().budget, hazard: 2e-5 } });
     const v = vitality(fish, {}, { config: livestockDefaults });
     expect(stressorAmount(v, 'age')).toBeCloseTo(livestockDefaults.hazardSeverity * 2e-5, 15);
     const hardy = vitality({ ...fish, hardinessOffset: 0.3 }, {}, { config: livestockDefaults });

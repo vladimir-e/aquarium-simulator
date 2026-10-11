@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { plantRecord, withBudget } from '../../simulation/tests/plant.js';
+import { sizeOf } from '../../simulation/plants/canopy.js';
+import { offshootStructure } from '../../simulation/plants/create-plant.js';
 import type { Clutch, Fish, Plant, SimulationState } from '../../simulation/index.js';
 import { applyAction, createSimulation, fishMass, readPlantLight } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
@@ -40,7 +43,7 @@ function input(state: SimulationState, config: TunableConfig): RosterInput {
   const fish = readFish(state, config, readHourAhead(state, config));
   return {
     fish: groupBySpecies(fish),
-    plants: groupPlantsBySpecies(plantRows(state, config, readHourAhead(state, config))),
+    plants: groupPlantsBySpecies(plantRows(state, readHourAhead(state, config))),
     fry: groupFry(fish),
     clutches: state.clutches,
   };
@@ -280,6 +283,7 @@ describe('rosterTables', () => {
 
   describe('for plants', () => {
     /** Three java fern families: `a` down two generations, `b` with one offshoot, `c` alone. */
+
     function families(tweak: (plant: Plant) => Partial<Plant> = () => ({})): SimulationState {
       const base = ['java_fern', 'java_fern', 'java_fern'].reduce(
         (state) => applyAction(state, { type: 'addPlant', species: 'java_fern' }).state,
@@ -290,7 +294,7 @@ describe('rosterTables', () => {
         ...parent,
         id,
         parentId: parent.id,
-        size: 20,
+        budget: plantRecord({ id, species: parent.species, size: 20 }).budget,
         age: 24,
       });
       const a1 = bud(a, 'plant_a1');
@@ -346,7 +350,7 @@ describe('rosterTables', () => {
       ]);
       expect([a, b, c].map((family) => family.label)).toEqual(['family 1', 'family 2', 'family 3']);
       expect(a.title).toBe('Java Fern family 1');
-      expect(a.figure).toBe(`Σ ${Math.floor(state.plants[0].size + 40)} %`);
+      expect(a.figure).toBe(`Σ ${Math.floor(sizeOf(state.plants[0]) + 40)} %`);
     });
 
     it('agrees its dots with its word at every level, however the tank reads', () => {
@@ -385,9 +389,8 @@ describe('rosterTables', () => {
       });
     });
 
-    it('names a unit by the one it budded from, beside its light and its bank toward the next offshoot', () => {
-      const cap = DEFAULT_CONFIG.plants.surplusCap;
-      const state = families((plant) => (plant.id === 'plant_a2' ? { surplus: cap * 0.625 } : {}));
+    it('names a unit by the one it budded from, beside its light and its buffer toward the next offshoot', () => {
+      const state = families((plant) => (plant.id === 'plant_a2' ? withBudget(plant, { offshootBuffer: 0.625 * offshootStructure(plant.species) }) : {}));
       const [a] = state.plants;
       const rows = tables(state, ['species-java_fern', `family-${a.id}`]).plants;
       const unit = rows.find((row) => row.key === 'plant_a2') as IndividualRosterRow;
@@ -400,15 +403,16 @@ describe('rosterTables', () => {
         parent: '#2',
         figure: '20 %',
         age: '1 d',
-        bank: '62 %',
+        offshoot: '62 %',
       });
       expect(unit.light!.text).toBe(`${Math.floor(share * 100)} %`);
       expect(founder.parent).toBeNull();
     });
 
-    it('gives a unit the light and the bank its ledger gives it', () => {
-      const cap = DEFAULT_CONFIG.plants.surplusCap;
-      const state = families((plant) => ({ surplus: plant.parentId ? cap / 3 : cap }));
+    it('gives a unit the light and the plantlet its ledger gives it', () => {
+      const state = families((plant) =>
+        withBudget(plant, { offshootBuffer: (plant.parentId ? 1 / 3 : 1) * offshootStructure(plant.species) })
+      );
       const ahead = readHourAhead(state, DEFAULT_CONFIG);
       const open = ['species-java_fern', ...state.plants.map((p) => `family-${p.familyId}`)];
       const units = tables(state, open).plants.filter(
@@ -420,8 +424,9 @@ describe('rosterTables', () => {
         const ledger = readLedger(state, DEFAULT_CONFIG, ahead, { kind: 'plant', id: row.id })!;
         expect(`${ledger.light!.text} %`).toBe(row.light!.text);
         expect(ledger.light!.status).toBe(row.light!.status);
-        expect(`${ledger.bank!.text} %`).toBe(row.bank);
-        expect(ledger.bank!.unit).toBe('% to offshoot');
+        const offshoot = ledger.budget.find((line) => line.key === 'offshoot')!;
+        expect(`${offshoot.text} %`).toBe(row.offshoot);
+        expect(offshoot.unit).toBe('% built');
       }
     });
   });

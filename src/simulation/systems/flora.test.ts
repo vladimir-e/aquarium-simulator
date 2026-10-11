@@ -1,19 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import {
   CARE_SHEET_PHOTOPERIOD,
-  bankConversion,
-  bankDraw,
   dailyLightEdge,
   floraBenefits,
-  floraHealingRate,
+  floraPace,
   floraStressors,
   growthTaper,
+  loseFlora,
   metabolicRateUnits,
   saturationIrradiance,
-  type FloraHour,
+  shedShare,
+  type FloraVitalityInput,
 } from './flora.js';
-import { getRespirationTemperatureFactor } from './respiration.js';
-import { lightSaturationFactor, monodFactor } from '../core/kinetics.js';
+import { monodFactor } from '../core/kinetics.js';
+import { stocked } from './flora-budget.js';
+import { plantParams } from '../flora/params.js';
+import { addOrganics } from '../core/organics.js';
 import { parHoursToDli } from '../equipment/light.js';
 import { plantsDefaults } from '../config/plants.js';
 import { PLANT_SPECIES_DATA, plantTraits, type PlantSpecies } from '../plants/species.js';
@@ -53,44 +55,29 @@ describe('dailyLightEdge', () => {
   });
 });
 
-describe('floraHealingRate', () => {
-  it('heals at the rate it grows', () => {
-    for (const traits of [...ROSTER.map(plantTraits), ...Object.values(ALGAE)]) {
-      expect(floraHealingRate(traits, config)).toBe(traits.growthRate * config.healingDrawRate);
-    }
+describe('floraPace', () => {
+  const { paceQ10: q10, paceReferenceTemp: ref } = config;
+
+  it('is 1 at the reference temperature and q10 per 10 °C either way', () => {
+    expect(floraPace(ref, config)).toBeCloseTo(1, 10);
+    expect(floraPace(ref + 10, config)).toBeCloseTo(q10, 10);
+    expect(floraPace(ref - 30, config)).toBeCloseTo(q10 ** -3, 10);
+  });
+
+  it('reads the reference and q10 off the config', () => {
+    const custom = { ...config, paceReferenceTemp: 20, paceQ10: 3 };
+    expect(floraPace(20, custom)).toBeCloseTo(1, 10);
+    expect(floraPace(30, custom)).toBeCloseTo(3, 10);
   });
 });
 
 describe('growthTaper', () => {
-  it('is whole when empty, closed when full, and linear in between', () => {
+  it('is whole when empty, closed when full or past it, and linear in between', () => {
     expect(growthTaper(0)).toBe(1);
     expect(growthTaper(100)).toBe(0);
+    expect(growthTaper(130)).toBe(0);
     expect(growthTaper(25)).toBe(0.75);
     expect(growthTaper(75)).toBe(0.25);
-  });
-});
-
-describe('bankDraw', () => {
-  it('draws 1 − e^−growthDrawRate of the bank through the taper, and nothing from an empty or negative one', () => {
-    expect(bankDraw(10, 40, config)).toBeCloseTo(10 * (1 - Math.exp(-config.growthDrawRate)) * 0.6, 12);
-    expect(bankDraw(20, 40, config)).toBeCloseTo(2 * bankDraw(10, 40, config), 12);
-    expect(bankDraw(0, 40, config)).toBe(0);
-    expect(bankDraw(-1, 40, config)).toBe(0);
-  });
-
-  it('never draws more than the bank, at any rate', () => {
-    for (const growthDrawRate of [1, 50, 1e6]) {
-      expect(bankDraw(10, 0, { ...config, growthDrawRate })).toBeLessThanOrEqual(10);
-    }
-  });
-});
-
-describe('bankConversion', () => {
-  it('is the growth rate on the plants’ size per bank point', () => {
-    for (const traits of Object.values(ALGAE)) {
-      expect(bankConversion(traits, config)).toBe(traits.growthRate * config.sizePerSurplus);
-    }
-    expect(bankConversion(plantTraits('monte_carlo'), config)).toBe(PLANT_SPECIES_DATA.monte_carlo.growthRate * config.sizePerSurplus);
   });
 });
 
@@ -103,35 +90,91 @@ describe('metabolicRateUnits', () => {
   });
 });
 
+describe('shedShare', () => {
+  it('is nothing at full condition and maxSheddingRate at 0', () => {
+    expect(shedShare(100, config)).toBe(0);
+    expect(shedShare(0, config)).toBe(config.maxSheddingRate);
+  });
+
+  it('follows the square of the condition deficit', () => {
+    expect(shedShare(50, config)).toBeCloseTo(shedShare(0, config) / 4, 12);
+    expect(shedShare(90, config)).toBeCloseTo(shedShare(0, config) / 100, 12);
+  });
+
+  it('is smooth in condition: no step anywhere, and flat as it leaves 100', () => {
+    const top = config.maxSheddingRate;
+    let previous = shedShare(100, config);
+    for (let condition = 99.9; condition > 0; condition -= 0.1) {
+      const now = shedShare(condition, config);
+      expect(now).toBeGreaterThan(previous);
+      expect(now - previous).toBeLessThan(top * 0.0021);
+      previous = now;
+    }
+    expect(shedShare(99.9, config) / top).toBeLessThan(1e-5);
+  });
+});
+
+describe('loseFlora', () => {
+  const p = plantParams('java_fern', config);
+  const budget = stocked(2, p);
+
+  it('sheds nothing at full condition and its shedShare of the structure below it', () => {
+    expect(loseFlora(budget, p, 100, config).shed.grams).toBe(0);
+    const loss = loseFlora(budget, p, 50, config);
+    expect(loss.survivor!.structure).toBeCloseTo(2 * (1 - shedShare(50, config)), 15);
+  });
+
+  it('kills at condition 0, leaving every gram as waste and the stores in the water', () => {
+    const loss = loseFlora(budget, p, 0, config);
+    const lost = addOrganics(loss.shed, loss.died);
+    expect(loss.survivor).toBeNull();
+    expect(lost.grams).toBeCloseTo(budget.structure + budget.reserve + budget.offshootBuffer, 12);
+    for (const n of ['nitrate', 'phosphate', 'potassium', 'iron'] as const) {
+      expect(lost.nutrients[n] + loss.leachate[n]).toBeCloseTo(p.qMin[n] * budget.structure + budget.stores[n], 9);
+    }
+  });
+});
+
 describe('the channels a plant and a bloom share', () => {
   const resources = { ...createSimulation({ tankCapacity: 100 }).resources, temperature: 25, co2: 4 };
-  const hour = (overrides: Partial<FloraHour> = {}): FloraHour => ({
+  const input = (overrides: Partial<FloraVitalityInput> = {}): FloraVitalityInput => ({
     traits: plantTraits('amazon_sword'),
     resources,
     plantsConfig: config,
-    light: { par: 50, dailyLight: 0 },
-    nutrientSufficiency: 1,
+    wellFed: 1,
+    droop: 1,
+    fullDroop: 1,
+    starvation: 0,
     co2HalfSaturation: 3,
-    vigour: 0,
     ...overrides,
   });
   const amount = (factors: { key: string; amount: number }[], key: string): number =>
     factors.find((f) => f.key === key)!.amount;
 
-  it('charges starvation at respiration’s cost, in proportion to the feeder’s growth rate', () => {
-    for (const traits of [...ROSTER.map(plantTraits), ...Object.values(ALGAE)]) {
-      expect(amount(floraStressors(hour({ traits })), 'lightStarvation')).toBeCloseTo(
-        config.lightStarvationSeverity * traits.growthRate * getRespirationTemperatureFactor(25, config),
-        12
-      );
-    }
+  it('charges starvation in proportion to the share of upkeep unpaid', () => {
+    expect(amount(floraStressors(input()), 'starvation')).toBe(0);
+    expect(amount(floraStressors(input({ starvation: 0.4 })), 'starvation')).toBeCloseTo(0.4 * config.starvationSeverity, 15);
   });
 
-  it('earns on the light curve, the sufficiency and vigour, and CO₂ on the feeder’s own half-saturation', () => {
-    const earned = (overrides: Partial<FloraHour>): number => amount(floraBenefits(hour(overrides)), 'co2');
-    const drive = lightSaturationFactor(50, saturationIrradiance(plantTraits('amazon_sword'), config));
-    expect(earned({})).toBeCloseTo(drive * config.co2BenefitPeak * monodFactor(4, 3), 12);
-    expect(earned({ nutrientSufficiency: 0.5, vigour: 0.2 })).toBeCloseTo(earned({}) * 0.5 * 1.2, 12);
+  it('charges nutrient deficiency on the Droop limit under its edge’s share of full stores’, linear to full at an empty store', () => {
+    const full = 0.8;
+    const edge = config.droopEdge * full;
+    const charged = (droop: number): number => amount(floraStressors(input({ droop, fullDroop: full })), 'nutrients');
+    expect(charged(full)).toBe(0);
+    expect(charged(edge)).toBe(0);
+    expect(charged(edge / 2)).toBeCloseTo(config.nutrientDeficiencySeverity / 2, 15);
+    expect(charged(0)).toBeCloseTo(config.nutrientDeficiencySeverity, 15);
+  });
+
+  it('earns on reserve density and the share of its full stores’ Droop limit, and CO₂ on the feeder’s own half-saturation', () => {
+    const earned = (overrides: Partial<FloraVitalityInput>): number => amount(floraBenefits(input(overrides)), 'co2');
+    expect(earned({})).toBeCloseTo(config.co2BenefitPeak * monodFactor(4, 3), 12);
+    expect(earned({ wellFed: 0.5, droop: 0.6 })).toBeCloseTo(earned({}) * 0.5 * 0.6, 12);
+    for (const full of [0.57, 0.73]) {
+      expect(earned({ droop: full, fullDroop: full })).toBeCloseTo(earned({}), 12);
+      expect(earned({ droop: full / 2, fullDroop: full })).toBeCloseTo(earned({}) / 2, 12);
+    }
     expect(earned({ co2HalfSaturation: 0.3 })).toBeCloseTo((earned({}) * monodFactor(4, 0.3)) / monodFactor(4, 3), 12);
+    expect(earned({ wellFed: 0 })).toBe(0);
   });
 });
