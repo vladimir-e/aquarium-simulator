@@ -377,14 +377,14 @@ describe('readLedger', () => {
       NUTRIENTS.map((n) => String(Math.floor(Math.min(1, storeFill(bare.algae[kind].budget, p)[n]) * 100)))
     );
     expect(line(alone, 'offshoot')).toBeUndefined();
-    expect(readHourAhead(bare, DEFAULT_CONFIG).algae[kind].exudates).toBe(1);
-    expect(line(alone, 'exudates')).toBeUndefined();
+    expect(readHourAhead(bare, DEFAULT_CONFIG).algae[kind].allelopathy).toBe(1);
+    expect(line(alone, 'allelopathy')).toBeUndefined();
 
-    const { exudates } = readHourAhead(planted, DEFAULT_CONFIG).algae[kind];
-    expect(exudates).toBeLessThan(0.99);
-    expect(line(ledgerOf(planted, { kind: 'algae', bloom: kind })!, 'exudates')).toMatchObject({
+    const { allelopathy } = readHourAhead(planted, DEFAULT_CONFIG).algae[kind];
+    expect(allelopathy).toBeLessThan(0.99);
+    expect(line(ledgerOf(planted, { kind: 'algae', bloom: kind })!, 'allelopathy')).toMatchObject({
       label: 'Held back by exudates',
-      text: String(100 - Math.floor(exudates * 100)),
+      text: String(100 - Math.floor(allelopathy * 100)),
       unit: '%',
     });
   });

@@ -106,7 +106,7 @@ export interface BloomHour {
   /** g of structure its spores landed. */
   spores: number;
   /** Share of its assimilation ceiling the planting's exudates left it, 0–1. */
-  exudates: number;
+  allelopathy: number;
 }
 
 export interface FloraProcessingResult {
@@ -148,7 +148,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const saturation = calculateO2Saturation(resources.temperature, config.gasExchange);
   const omega = oxygenPace(resources.oxygen, saturation, plantsConfig.oxygenHalfSaturation);
   const pools = tankPools(state);
-  const exudates = allelopathy(state.plants, waterVolume, config.algae);
+  const bloomStress = allelopathy(state.plants, waterVolume, config.algae);
   const plants = state.plants.map((plant, i) => ({
     budget: plant.budget,
     condition: plant.condition,
@@ -175,8 +175,8 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
       draws: poolDraws(pools, bloomFeeder(traits, nutrientsConfig)),
       room,
       spores: bloomTissue(traits.sporeRate * room, habitat, traits),
-      fixer: bloomFixer(state.algae[kind], lit, omega, exudates, traits, plantsConfig),
-      stress: exudates,
+      fixer: bloomFixer(state.algae[kind], lit, omega, bloomStress, traits, plantsConfig),
+      stress: bloomStress,
     };
   });
   const flora = [...plants, ...blooms];
@@ -334,7 +334,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
       shedding: bloomLosses[k].shed,
       waterUptake: bloomUptakes[k],
       spores: spores[k].structure,
-      exudates: exudates.assimilation,
+      allelopathy: bloomStress.assimilation,
     })),
   };
 }

@@ -482,13 +482,13 @@ export function bloomVerb(kind: AlgaeKind): BloomRemoval {
 }
 
 /** What the planting's exudates held back of a bloom's photosynthesis this hour, while they hold it back. */
-function exudatesRow(exudates: number): BudgetRow[] {
-  if (exudates >= UNHELD) return [];
+function allelopathyRow(allelopathy: number): BudgetRow[] {
+  if (allelopathy >= UNHELD) return [];
   return [
     {
-      key: 'exudates',
+      key: 'allelopathy',
       label: 'Held back by exudates',
-      text: String(100 - sharePercent(exudates)),
+      text: String(100 - sharePercent(allelopathy)),
       unit: '%',
       at: null,
       band: null,
@@ -552,7 +552,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     helps: total(breakdown.benefits),
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
-    budget: [...floraBudget(budget, p, next.fluxes, breakdown, sick), ...exudatesRow(next.exudates)],
+    budget: [...floraBudget(budget, p, next.fluxes, breakdown, sick), ...allelopathyRow(next.allelopathy)],
     stores: storeRows(budget, p, next.fluxes, config.plants.droopEdge),
     demand: `half-fed at ${traits.ammoniaHalfSaturation} ppm NH₃, ${traits.nitrateHalfSaturation} NO₃, ${traits.phosphateHalfSaturation} PO₄ · light from ${traits.lowLight} PAR`,
     verb: bloomVerb(kind),

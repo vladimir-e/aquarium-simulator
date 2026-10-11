@@ -406,7 +406,7 @@ describe.each(ALGAE_KINDS)('processFlora — %s', (kind) => {
     expect(ceiling(0)).toBe(1);
     expect(ceiling(1)).toBeCloseTo(allelopathy(planting(1), floraTank().resources.water, config.algae).assimilation, 5);
     expect(ceiling(2)).toBeLessThan(ceiling(1));
-    for (const count of [0, 1, 2]) expect(hour(count).exudates).toBeCloseTo(ceiling(count), 5);
+    for (const count of [0, 1, 2]) expect(hour(count).allelopathy).toBeCloseTo(ceiling(count), 5);
   });
 });
 
