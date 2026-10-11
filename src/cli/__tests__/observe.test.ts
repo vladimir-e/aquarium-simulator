@@ -68,13 +68,15 @@ describe('renderObserve', () => {
     expect(line(healthy, '**Plants')).not.toContain(' sick');
   });
 
-  it('prints the planting’s reserve and its emptiest store, and what the nutrients say where the console flags them', () => {
+  it('prints the planting’s reserve and the store running its Droop limit lowest, and what the nutrients say where the console flags them', () => {
     const planted = applyAction(createSimulation({ tankCapacity: 100 }), { type: 'addPlant', species: 'java_fern' }).state;
     const drained = { ...planted, plants: planted.plants.map((plant) => withStores(plant, { iron: 0.05 })) };
 
     expect(line(observe(planted), '**Plants')).toBe('**Plants (1)** avg condition 100% · reserve 100%');
     expect(line(observe(planted), '**Nutrients**')).toMatch(/ppm · stores 100% · nothing dosed !$/);
     expect(line(observe(drained), '**Nutrients**')).toMatch(/ppm · stores 5% · nothing dosed !$/);
+    const skewed = { ...planted, plants: planted.plants.map((plant) => withStores(plant, { nitrate: 0.3, phosphate: 0.2 })) };
+    expect(line(observe(skewed), '**Nutrients**')).toMatch(/ppm · stores 30% · /);
     expect(line(observe(createSimulation({ tankCapacity: 100 })), '**Nutrients**')).toMatch(/ ppm$/);
   });
 

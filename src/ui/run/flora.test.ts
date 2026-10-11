@@ -657,7 +657,7 @@ describe('dose arithmetic', () => {
     const after = dosed(state, advice.ml);
     const fed = nutrientReadings(after, DEFAULT_CONFIG);
     expect(fed.some((r) => r.short)).toBe(false);
-    expect(alertOn(after)?.text).not.toMatch(/short/);
+    expect(alertOn(after)?.text ?? '').not.toMatch(/short/);
     expect(doseToCover(fed, after, DEFAULT_CONFIG)).toBeNull();
     expect(nutrientReadings(dosed(state, advice.ml - 1), DEFAULT_CONFIG).some((r) => r.short)).toBe(true);
   });

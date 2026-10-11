@@ -83,7 +83,7 @@ export interface FloraFluxes {
   owed: number;
   /** Maintenance its κ share could not pay. */
   shortfall: number;
-  /** The share of a full reserve's growth its room and stores left it, 0–1, over the hour's slices. */
+  /** Droop's growth limit, the least store ruling, mean over the hour's slices. */
   growthLimit: number;
 }
 
@@ -238,7 +238,7 @@ export function stepFlora(state: FloraState, p: FloraParams, hour: FloraBudgetHo
     { inflow: offered, healing: omega * healing, tau, omega },
     {
       growthLimit,
-      slice: (at, released, slice) => sliceFlora(at, stressed, room, released, slice, share * growthLimit(at)),
+      slice: (at, released, slice) => sliceFlora(at, stressed, room, released, slice, share * droopFactor(at, stressed)),
       add: addFluxes,
     }
   );

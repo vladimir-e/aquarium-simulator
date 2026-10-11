@@ -12,6 +12,7 @@ import {
   bloomMass,
   bloomParams,
   debParams,
+  droopLimits,
   fillAtDroop,
   fullDroopFactor,
   offshootShare,
@@ -50,6 +51,7 @@ import {
   lightTakenStatus,
   NUTRIENT_LABEL,
   plantLabels,
+  rulingNutrient,
   sharePercent,
   storesFigure,
   unitTitle,
@@ -209,40 +211,17 @@ function reserveFills({ assimilated, mobilised, burned }: FloraFluxes): boolean 
   return assimilated - mobilised - burned.healing >= 0;
 }
 
-const GROWTH_UNHELD = 0.99;
+const UNHELD = 0.99;
 
 /**
- * The growth limit the hour ran at, against its value on full stores and full
- * room — a Droop limit never reaches 1 — while something holds it back.
- */
-function growthRow(fluxes: FloraFluxes, p: FloraParams): BudgetRow[] {
-  const growth = fluxes.growthLimit / fullDroopFactor(p);
-  if (growth >= GROWTH_UNHELD) return [];
-  return [
-    {
-      key: 'growth',
-      label: 'Growth',
-      text: String(sharePercent(growth)),
-      unit: '% of full pace',
-      at: null,
-      band: null,
-      status: 'neutral',
-      note: '',
-    },
-  ];
-}
-
-/**
- * A plant's or a bloom's reserve and the growth it ran at, then what draws on
- * the reserve past the hour's upkeep: the share of upkeep it could not pay,
- * and the repair it buys.
+ * A plant's or a bloom's reserve, then what draws on it past the hour's
+ * upkeep: the share of upkeep it could not pay, and the repair it buys.
  */
 function floraBudget(budget: FloraState, p: FloraParams, fluxes: FloraFluxes, breakdown: VitalityBreakdown, sick: boolean): BudgetRow[] {
   const unpaid = starvation({ fluxes });
   const healing = breakdown.healed * TICKS_PER_DAY;
   return [
     reserveRow(wellFed(budget, p), reserveFills(fluxes) ? 'filling' : 'drawing down'),
-    ...growthRow(fluxes, p),
     ...(unpaid > 0
       ? [
           {
@@ -274,10 +253,17 @@ function floraBudget(budget: FloraState, p: FloraParams, fluxes: FloraFluxes, br
   ];
 }
 
-/** Each store's fill, full at 100, banded from the fill its Droop edge sits at and coral under it. */
-function storeRows(budget: FloraState, p: FloraParams, droopEdge: number): BudgetRow[] {
+/**
+ * Each store's fill, full at 100, banded from the fill its Droop edge sits at
+ * and coral under it. The store that rules carries the pace the hour's Droop
+ * limit held growth to against full stores — a Droop limit never reaches 1 —
+ * while it holds growth back.
+ */
+function storeRows(budget: FloraState, p: FloraParams, fluxes: FloraFluxes, droopEdge: number): BudgetRow[] {
   const fill = storeFill(budget, p);
   const edge = fillAtDroop(p, droopEdge);
+  const ruling = rulingNutrient(droopLimits(budget, p));
+  const growth = fluxes.growthLimit / fullDroopFactor(p);
   return NUTRIENTS.map((n) => {
     const store = storesFigure(fill[n], edge[n]);
     return {
@@ -288,7 +274,7 @@ function storeRows(budget: FloraState, p: FloraParams, droopEdge: number): Budge
       at: store.fill,
       band: { from: store.edge, to: 1 },
       status: store.status,
-      note: '',
+      note: n === ruling && growth < UNHELD ? `holds growth to ${sharePercent(growth)} %` : '',
     };
   });
 }
@@ -303,14 +289,16 @@ const PLANTLET_HORIZON = 365 * TICKS_PER_DAY;
 /**
  * What the offshoot buffer does over the hour, read off the budget the tick
  * leaves: cuts a plantlet loose, pays upkeep out of what it holds, builds
- * toward the next at the hour's pace, or waits on stores that let it fill no
- * further, too slowly to name a day, or cannot pay a plantlet's Q_min.
+ * toward the next at the hour's pace, waits on the reserve while upkeep goes
+ * unpaid, or waits on stores that let it fill no further, too slowly to name a
+ * day, or cannot pay a plantlet's Q_min.
  */
 function plantletNote(budget: FloraState, next: FloraState | null, unit: number, buds: boolean, starving: boolean): string {
   if (buds) return 'cuts loose this hour';
   const before = budget.offshootBuffer;
   const after = next?.offshootBuffer ?? before;
   if (before > 0 && (after < before || (after === before && starving))) return 'paying upkeep';
+  if (starving) return 'waiting on reserve';
   const hours = after > before && after < unit ? (unit - after) / (after - before) : Infinity;
   return hours <= PLANTLET_HORIZON ? `cuts loose ${inDays(hours)}` : 'waiting on stores';
 }
@@ -471,7 +459,7 @@ function plantLedger(
         note: plantletNote(plant.budget, next, offshootStructure(plant.species), buds, starvation({ fluxes }) > 0),
       },
     ],
-    stores: storeRows(plant.budget, p, config.plants.droopEdge),
+    stores: storeRows(plant.budget, p, fluxes, config.plants.droopEdge),
     demand:
       `${data.nutrientDemand} demand · light ${lightLow}–${lightHigh} PAR · ${data.co2Requirement} CO₂`,
     verb: 'trimPlants',
@@ -493,15 +481,15 @@ export function bloomVerb(kind: AlgaeKind): BloomRemoval {
   return REMOVED_BY[ALGAE[kind].habitat];
 }
 
-/** What the planting's exudates left of a bloom's photosynthesis this hour, while they hold it back. */
+/** What the planting's exudates held back of a bloom's photosynthesis this hour, while they hold it back. */
 function exudatesRow(exudates: number): BudgetRow[] {
-  if (exudates >= 1) return [];
+  if (exudates >= UNHELD) return [];
   return [
     {
       key: 'exudates',
-      label: 'Exudates',
-      text: String(sharePercent(exudates)),
-      unit: '% of its photosynthesis',
+      label: 'Held back by exudates',
+      text: String(100 - sharePercent(exudates)),
+      unit: '%',
       at: null,
       band: null,
       status: 'neutral',
@@ -565,7 +553,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
     budget: [...floraBudget(budget, p, next.fluxes, breakdown, sick), ...exudatesRow(next.exudates)],
-    stores: storeRows(budget, p, config.plants.droopEdge),
+    stores: storeRows(budget, p, next.fluxes, config.plants.droopEdge),
     demand: `half-fed at ${traits.ammoniaHalfSaturation} ppm NH₃, ${traits.nitrateHalfSaturation} NO₃, ${traits.phosphateHalfSaturation} PO₄ · light from ${traits.lowLight} PAR`,
     verb: bloomVerb(kind),
     scope: null,

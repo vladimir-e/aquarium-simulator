@@ -10,22 +10,20 @@ import {
   getPresetById,
   plantLightTaken,
   plantParams,
-  processFlora,
   starvation,
   storeFill,
   tick,
   wellFed,
   type Fish,
-  type FloraProcessingResult,
   type SimulationState,
 } from '../../simulation/index.js';
-import { settleEnvironment } from '../../simulation/tick.js';
 import { mapNutrients, NUTRIENTS } from '../../simulation/config/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
 import { bloomMass } from '../../simulation/algae/index.js';
 import { offshootStructure } from '../../simulation/plants/create-plant.js';
+import { atSize } from '../../simulation/tests/plant.js';
 import { LEDGER_DECIMALS, readLedger, type BudgetRow, type Ledger, type LedgerTarget } from './ledger.js';
 import { FED, atReserve, starving } from '../test/gut';
 import { projectedTrend } from './status.js';
@@ -53,11 +51,6 @@ function ledgerOf(
 
 function fishLedger(state: SimulationState, id = 'fish_a_1', config = DEFAULT_CONFIG): Ledger {
   return ledgerOf(state, { kind: 'fish', id }, config)!;
-}
-
-/** The flora pass the next tick runs, as the engine returns it. */
-function floraHour(state: SimulationState): FloraProcessingResult {
-  return processFlora(settleEnvironment(state, DEFAULT_CONFIG), DEFAULT_CONFIG);
 }
 
 function line(ledger: Ledger, key: string): BudgetRow | undefined {
@@ -159,7 +152,7 @@ describe('readLedger', () => {
 
     it('reads its reserve as the fish’s is read, filling or drawing down by the hour’s fluxes', () => {
       for (const state of [planted(10), planted(0), withBudget(planted(10), { reserve: 0 })]) {
-        const [fluxes] = floraHour(state).fluxes;
+        const { fluxes } = readHourAhead(state, DEFAULT_CONFIG).plants[0];
         const reserve = reserveOf(plantLedger(state));
         const fills = fluxes.assimilated - fluxes.mobilised - fluxes.burned.healing >= 0;
         expect(reserve.at).toBeCloseTo(wellFed(state.plants[0].budget, fern), 12);
@@ -171,7 +164,7 @@ describe('readLedger', () => {
 
     it('reads a Starving line only while upkeep goes unpaid, as the share unpaid', () => {
       const dark = unfedInTheDark(planted(0));
-      const [fluxes] = floraHour(dark).fluxes;
+      const { fluxes } = readHourAhead(dark, DEFAULT_CONFIG).plants[0];
       expect(line(plantLedger(dark), 'starving')).toMatchObject({
         text: String(Math.ceil(starvation({ fluxes }) * 100)),
         unit: '% of upkeep unpaid',
@@ -181,7 +174,7 @@ describe('readLedger', () => {
 
     it('reads Healing as the points its reserve pays for a day, only while it repairs', () => {
       const hurt = { ...planted(10), plants: planted(10).plants.map((plant) => ({ ...plant, condition: 70 })) };
-      const [vitality] = floraHour(hurt).vitalities;
+      const { vitality } = readHourAhead(hurt, DEFAULT_CONFIG).plants[0];
       expect(line(plantLedger(hurt), 'healing')).toMatchObject({
         text: `+${(vitality.breakdown.healed * 24).toFixed(LEDGER_DECIMALS)}`,
         note: 'paid from reserve',
@@ -226,7 +219,7 @@ describe('readLedger', () => {
       expect(plantlet(held).note).toBe('waiting on stores');
     });
 
-    it('waits on stores rather than name a day past a year off, and pays no upkeep out of an empty buffer', () => {
+    it('waits on stores rather than name a day past a year off, and on the reserve while it starves with nothing in the buffer', () => {
       const unit = offshootStructure('java_fern');
       const lean = (state: SimulationState): SimulationState => ({
         ...withBudget(state, { stores: { nitrate: 1e-9, phosphate: 1e-9, potassium: 1e-9, iron: 1e-9 } }),
@@ -239,8 +232,8 @@ describe('readLedger', () => {
       expect(plantlet(crawling).note).toBe('waiting on stores');
 
       const empty = unfedInTheDark(planted(0));
-      expect(starvation({ fluxes: floraHour(empty).fluxes[0] })).toBeGreaterThan(0);
-      expect(plantlet(empty).note).toBe('waiting on stores');
+      expect(starvation(readHourAhead(empty, DEFAULT_CONFIG).plants[0])).toBeGreaterThan(0);
+      expect(plantlet(empty).note).toBe('waiting on reserve');
     });
 
     it('reads each store’s fill, full at 100, banded from the fill its Droop edge sits at and coral under it', () => {
@@ -267,17 +260,24 @@ describe('readLedger', () => {
       expect(plantLedger(overfull).stores.map((row) => [row.text, row.at])).toEqual(NUTRIENTS.map(() => ['100', 1]));
     });
 
-    it('reads the growth the hour ran at against full stores and room, off the limit the pass used, only while something holds it back', () => {
+    it('notes on the store that rules the pace its Droop limit held growth to against full stores, only while it holds growth back', () => {
+      const growth = (state: SimulationState): number =>
+        readHourAhead(state, DEFAULT_CONFIG).plants[0].fluxes.growthLimit / fullDroopFactor(fern);
+      const noted = (state: SimulationState): BudgetRow[] => plantLedger(state).stores.filter((row) => row.note !== '');
+      const grown = { ...planted(10), plants: planted(10).plants.map((plant) => atSize(plant, 100)) };
+
+      for (const state of [planted(10), grown]) {
+        expect(growth(state)).toBeGreaterThanOrEqual(0.99);
+        expect(noted(state)).toEqual([]);
+      }
+
       const lean = withBudget(planted(10), {
         stores: { ...planted(10).plants[0].budget.stores, phosphate: 0.05 * fern.qMin.phosphate * planted(10).plants[0].budget.structure },
       });
-      for (const state of [planted(10), lean]) {
-        const { growthLimit } = floraHour(state).fluxes[0];
-        const growth = growthLimit / fullDroopFactor(fern);
-        expect(growth).toBeLessThan(0.99);
-        expect(line(plantLedger(state), 'growth')).toMatchObject({ text: String(Math.floor(growth * 100)), unit: '% of full pace' });
-      }
-      expect(Number(line(plantLedger(lean), 'growth')!.text)).toBeLessThan(Number(line(plantLedger(planted(10)), 'growth')!.text));
+      expect(growth(lean)).toBeLessThan(0.99);
+      expect(noted(lean)).toEqual([
+        expect.objectContaining({ key: 'phosphate', note: `holds growth to ${Math.floor(growth(lean) * 100)} %` }),
+      ]);
     });
 
     it('tones its light warn exactly while the light-high stressor charges it, whatever its need', () => {
@@ -377,30 +377,37 @@ describe('readLedger', () => {
       NUTRIENTS.map((n) => String(Math.floor(Math.min(1, storeFill(bare.algae[kind].budget, p)[n]) * 100)))
     );
     expect(line(alone, 'plantlet')).toBeUndefined();
-    expect(floraHour(bare).algae[kind].exudates).toBe(1);
+    expect(readHourAhead(bare, DEFAULT_CONFIG).algae[kind].exudates).toBe(1);
     expect(line(alone, 'exudates')).toBeUndefined();
 
-    const { exudates } = floraHour(planted).algae[kind];
-    expect(exudates).toBeLessThan(1);
+    const { exudates } = readHourAhead(planted, DEFAULT_CONFIG).algae[kind];
+    expect(exudates).toBeLessThan(0.99);
     expect(line(ledgerOf(planted, { kind: 'algae', bloom: kind })!, 'exudates')).toMatchObject({
-      label: 'Exudates',
-      text: String(Math.floor(exudates * 100)),
-      unit: '% of its photosynthesis',
+      label: 'Held back by exudates',
+      text: String(100 - Math.floor(exudates * 100)),
+      unit: '%',
     });
   });
 
-  it.each(ALGAE_KINDS)('reads %s’s growth off the limit the pass used, and none while nothing holds it back', (kind) => {
+  it.each(ALGAE_KINDS)('notes on %s’s ruling store the pace its Droop limit held growth to, and nothing of how crowded it is', (kind) => {
     const crowded = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
       draft.algae[kind] = bloomAt(draft, kind, 20);
     });
     const p = bloomParams(kind, DEFAULT_CONFIG.plants);
-    const growth = floraHour(crowded).algae[kind].fluxes.growthLimit / fullDroopFactor(p);
-    expect(line(ledgerOf(crowded, { kind: 'algae', bloom: kind })!, 'growth')).toMatchObject({ text: String(Math.floor(growth * 100)) });
+    const growth = (state: SimulationState): number =>
+      readHourAhead(state, DEFAULT_CONFIG).algae[kind].fluxes.growthLimit / fullDroopFactor(p);
+    const noted = (state: SimulationState): BudgetRow[] =>
+      ledgerOf(state, { kind: 'algae', bloom: kind })!.stores.filter((row) => row.note !== '');
 
-    const sparse = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
-      draft.algae[kind] = bloomAt(draft, kind, 1e-4);
+    expect(growth(crowded)).toBeGreaterThanOrEqual(0.99);
+    expect(noted(crowded)).toEqual([]);
+
+    const lean = produce(crowded, (draft) => {
+      draft.algae[kind].budget.stores.iron *= 0.02;
     });
-    expect(floraHour(sparse).algae[kind].fluxes.growthLimit / fullDroopFactor(p)).toBeGreaterThanOrEqual(0.99);
-    expect(line(ledgerOf(sparse, { kind: 'algae', bloom: kind })!, 'growth')).toBeUndefined();
+    expect(growth(lean)).toBeLessThan(0.99);
+    expect(noted(lean)).toEqual([
+      expect.objectContaining({ key: 'iron', note: `holds growth to ${Math.floor(growth(lean) * 100)} %` }),
+    ]);
   });
 });

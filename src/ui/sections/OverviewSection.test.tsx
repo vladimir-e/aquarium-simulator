@@ -267,7 +267,8 @@ describe('OverviewSection', () => {
     const nutrients = within(widget('Nutrients'));
 
     expect(asked.length).toBeGreaterThan(0);
-    expect(nutrients.getAllByText(/^stores \d+ %$/)).toHaveLength(asked.length);
+    expect(nutrients.getAllByText('stores')).toHaveLength(asked.length);
+    expect(nutrients.getAllByText(/^\d+ %$/)).toHaveLength(asked.length);
     expect(nutrients.getByText(/1 ml moves/)).toBeTruthy();
   });
 
@@ -278,8 +279,26 @@ describe('OverviewSection', () => {
     expect(within(widget('Nutrients')).getByText('stores refilling')).toBeTruthy();
     cleanup();
 
-    renderOverview(bare(starving));
+    renderOverview(bare(applyAction(starving, { type: 'dose', amountMl: 1 }).state));
+    expect(within(widget('Nutrients')).getByText('2 nutrients short')).toBeTruthy();
     expect(within(widget('Nutrients')).queryByText('stores refilling')).toBeNull();
+  });
+
+  it('names the dose that covers what the stores lack, and lights it only while the plants go short', () => {
+    const fern = applyAction(createSimulation({ tankCapacity: 200 }), { type: 'addPlant', species: 'java_fern' }).state;
+    const at = (fill: number): SimulationState =>
+      applyAction({ ...fern, plants: fern.plants.map((plant) => withStores(plant, fill)) }, { type: 'dose', amountMl: 1 }).state;
+    const dose = (state: SimulationState): HTMLElement => {
+      const { ml } = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
+      renderOverview(bare(state));
+      return within(widget('Nutrients')).getByRole('button', { name: `Dose · ${ml} ml` });
+    };
+
+    expect(dose(at(0.5)).className).not.toContain('bg-accent-tint');
+    expect(within(widget('Nutrients')).getByText('plants have what they need')).toBeTruthy();
+    cleanup();
+
+    expect(dose(at(0.02)).className).toContain('bg-accent-tint');
   });
 
   it('says nothing is asking for the nutrients when nothing is planted', () => {
@@ -312,6 +331,21 @@ describe('OverviewSection', () => {
 
       fireEvent.click(within(widget('Nutrients')).getByRole('button', { name: `Root tab · ${MAX_ROOT_TABS} tabs` }));
       expect(onAct).toHaveBeenCalledWith('rootTab', MAX_ROOT_TABS);
+    });
+
+    it('names the tabs that cover what the roots’ stores lack, and lights them only while the bed runs short', () => {
+      const bedded = (fill: number): SimulationState => {
+        const state = sword({ tankCapacity: 200, substrate: { type: 'gravel' } });
+        return { ...state, plants: state.plants.map((plant) => withStores(plant, fill)) };
+      };
+      const tabs = (state: SimulationState): HTMLElement => {
+        renderOverview(bare(state));
+        return within(widget('Nutrients')).getByRole('button', { name: /^Root tab · \d+ tabs?$/ });
+      };
+
+      expect(tabs(bedded(0.5)).className).not.toContain('bg-accent-tint');
+      cleanup();
+      expect(tabs(bedded(0.02)).className).toContain('bg-accent-tint');
     });
 
     it('reads roots starving over a bare bottom, and offers no tab to push', () => {

@@ -99,7 +99,7 @@ describe('WaterSection', () => {
 
     fireEvent.click(row('Nutrients', 'NO₃'));
     expect(
-      within(screen.getByRole('dialog', { name: 'NO₃' })).getByText(/^The plants store it, the emptiest store \d+ % full/)
+      within(screen.getByRole('dialog', { name: 'NO₃' })).getByText(/^The plants store it, the store running lowest \d+ % full/)
     ).toBeTruthy();
   });
 
