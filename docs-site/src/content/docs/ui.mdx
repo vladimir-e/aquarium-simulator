@@ -24,15 +24,15 @@ month-long run becomes something you can watch, scrub back through, and explain.
 | Module | Route | What it shows |
 |---|---|---|
 | Overview | `/` | The tank as widgets, each a window onto its module: the nitrogen cycle as a chain of stocks, life, water, gear and nutrients. A phone stacks them; a tablet runs the chain, the life roster and the rack full width with water and nutrients side by side; a desk-wide stage gives life and nutrients a column of their own beside the chain, water and gear. Whatever needs the keeper is named above them, one line each, with the verb that answers it |
-| Water | `/water` | The tank as a lab sheet, two columns of headed reading rows. Left: water (temperature, pH, KH, GH, level), the dissolved gases, and the four nutrients and the bed against what the plants ask for. Right: the nitrogen compounds on their alert lines, then the biofilter — each guild against its ceiling, what it converts an hour, whether the tank reads as cycled and where the nitrite peak falls — and the waste pool feeding it. Any row opens its reading in the drawer |
-| Life | `/life` | Two tables on one row shape: the fish, and the plants with the two blooms — green water and film — riding along at their top as population rows — the roster, below. Bioload sits under the fish against the stocking guideline, and the plants' header reads how much of the floor the planting claims, saying so once it has outgrown it. Under the fish rows sit the clutches, each with its eggs and how far it has developed, and one row for every fry in the tank, which is the unit the sell-all-fry verb takes. Any row opens the vitality ledger in the drawer, addressed by the URL (`/life?inspect=…`) so the Overview opens one too — helping against hurting, each factor at its rate per day, and the bank between them, named by which way the next tick moves it: banking, healing, or buying growth or an offshoot; a fish's place holds its reserve, read as filling, drawing down, healing from reserve, spawning or short of upkeep — and the module's "+" stocks a species through the same drawer, a fish at the size the keeper names, from its hatchling's rounded up to a whole percent to the 90 % a shop sells |
-| Gear | `/gear` | A rack of nine device rows: a power switch, a silhouette, the name, and what it is set to — or, for the four that keep a clock, that day as a 24 h ribbon against the hour the tank is on. A row opens the device's inspector in the drawer, addressed by the URL, so each inspector is a link and back walks between devices; closing one lands on the rack. Under the rack the scape — the substrate, and each piece of hardscape with the surface it adds — and under that what the fittings add up to, which is what the tick reads. The day's light sits among them against what the worst-lit plant starves under at its own height, and opens its reading |
+| Water | `/water` | The tank as a lab sheet, two columns of headed reading rows. Left: water (temperature, pH, KH, GH, level), the dissolved gases, and the four nutrients and the bed beside the plants' stores of them. Right: the nitrogen compounds on their alert lines, then the biofilter — each guild against its ceiling, what it converts an hour, whether the tank reads as cycled and where the nitrite peak falls — and the waste pool feeding it. Any row opens its reading in the drawer |
+| Life | `/life` | Two tables on one row shape: the fish, and the plants with the two blooms — green water and film — riding along at their top as population rows — the roster, below. Bioload sits under the fish against the stocking guideline, and the plants' header reads how much of the floor the planting claims, saying so once it has outgrown it. Under the fish rows sit the clutches, each with its eggs and how far it has developed, and one row for every fry in the tank, which is the unit the sell-all-fry verb takes. Any row opens the vitality ledger in the drawer, addressed by the URL (`/life?inspect=…`) so the Overview opens one too — helping against hurting, each factor at its rate per day, and the budget between them — a fish's reserve read as filling, drawing down, healing, spawning or short of upkeep — and the module's "+" stocks a species through the same drawer, a fish at the size the keeper names, from its hatchling's rounded up to a whole percent to the 90 % a shop sells |
+| Gear | `/gear` | A rack of nine device rows: a power switch, a silhouette, the name, and what it is set to — or, for the four that keep a clock, that day as a 24 h ribbon against the hour the tank is on. A row opens the device's inspector in the drawer, addressed by the URL, so each inspector is a link and back walks between devices; closing one lands on the rack. Under the rack the scape — the substrate, and each piece of hardscape with the surface it adds — and under that what the fittings add up to, which is what the tick reads. The day's light sits among them against the worst-lit plant's rated day at its own height, and opens its reading |
 | History | `/history` | The spine at full height: the four tracks stacked over one axis on the left, and on the right what the run cost — deaths, births, alerts, water changed — over the event log. A window switch scopes both. Dragging a track or the axis, or tapping a log line, parks the same playhead the spine writes |
 | Setup | `/setup` | What the tank *is*, rather than how it is doing: the preset it came from and whether the tank still matches it, the capacity, the lid, the room and the tap water, each row carrying what it does to the tank. Beside them the display choices — units and theme — what the run has cost so far and the reset that ends it, and what this simulation claims to be. Capacity is read-only — resizing is a separate row, because a new size builds a new tank at hour zero; past a month's run both it and the reset confirm first |
 
 ### The Life roster
 
-A plant spreads by budding offshoots into its family — the founder and every
+A plant spreads by budding plantlets into its family — the founder and every
 unit down its line — so the plants table opens in three levels where the fish
 open in two, and every level starts collapsed.
 
@@ -41,10 +41,10 @@ open in two, and every level starts collapsed.
 | Fish species | fish | fish | mass each, mean age, how full the guts are | its fish |
 | Plant species | units, beside how many families | family | the sizes summed, oldest unit, worst-lit unit's light | its families |
 | Family | units | unit | the sizes summed, oldest unit, worst-lit unit's light | its units |
-| Unit or fish | — | — | size or mass, age; a fish also its gut — fed, hungry or starving off its reserve and the upkeep it leaves unpaid; a unit also the unit it budded from, its light and its bank | its ledger |
+| Unit or fish | — | — | size or mass, age; a fish also its gut — fed, hungry or starving off its reserve and the upkeep it leaves unpaid; a unit also the unit it budded from, its light and its plantlet | its ledger |
 
-A unit is one plant. A group's summed size — `Σ 180 %` — is its units' sizes
-added up, each a % of one full unit of its growth form.
+A unit is one plant. A group's summed size — `Σ 180 %` — adds its units'
+sizes, each a % of one full unit.
 
 A group row's word names the most urgent of what its dots stand for, counting
 every one at that tone — `2 sick`, or `3 unwell` where their reasons differ. Past two lines the dots
@@ -63,19 +63,21 @@ order they were born; a unit names the one it budded from the same way —
 `family 2`, `#3 · from #1`. A family keeps its number when its founder dies. The
 engine's ids never reach the page.
 
-A tablet-wide table shows the mass or size and the age; the gut, light
-and bank columns wait for a laptop-wide stage. On a phone a unit's size, or a
+A tablet-wide table shows the mass or size and the age; the gut, light and
+plantlet columns wait for a laptop-wide stage. On a phone a unit's size, or a
 fish's mass, takes the count cell its row has no count for, and at any width a
 name wraps to a second line before it truncates.
 
-A unit's light is the day's light at its own height as a % of what its species
-starves under — amber below 100 or while its crown takes more PAR than the
-species tolerates, red at none; a group reads its worst-lit unit's figure at
-its worst unit's tone. Its bank is the share of an offshoot's price it holds —
-at 100 % the next tick buys one. The unit's ledger reads the same two, and
-under its light the path the lamp's light takes to its leaf: how many of the
-lamp's PAR arrive while it is on, and what each taker — the water, the canopy,
-green water, film — took on the way, or what a sparse crown gave back.
+A unit's light is the day's light at its own height as a % of its species' rated
+day — amber below 100 or while its crown takes more PAR than the species
+tolerates, red at none; a group reads its worst-lit unit's figure at its worst
+unit's tone. Its plantlet reads how far the next is built. The ledger reads both
+— the plantlet with when it cuts loose, or what it waits on — and the lamp's
+path to its leaf: how many of the lamp's PAR arrive while it is on, and what
+each taker — the water, the canopy, green water, film — took, or a sparse crown
+gave back. Under them sit the reserve, any upkeep unpaid and repair bought, and
+each store % full on its Droop band, the ruling one naming what it holds growth
+to.
 
 Each bloom row reads its kind's coverage and where the next tick takes it,
 under a word off its coverage, in the kind's own terms. Green water reads as
@@ -85,11 +87,11 @@ dusted, filmed, coated and smothered. Its tone follows its level
 ([Alerts & logging](/subsystems/alerts-and-logging/#the-alerts)) — amber
 exactly where the bloom alerts, so a thin bloom over a deep carpet can read
 amber — and every surface, the preview among them, wears that one tone. Its
-ledger reads the bloom as the organism it is — its condition, what feeds it
-and what harms it, its bank buying growth — beside its coverage, the share of
-the plants' light it takes, and its day of light over its habitat, under the
-coverage word the row wears, with the verb that takes it out: a water change
-for green water, a scrub for film.
+ledger reads the bloom as the organism it is — its condition, what feeds and
+harms it, its reserve and stores, what exudates hold back — beside its
+coverage, the plants' light it takes and its day of light, under the row's
+word, with the verb that takes it out: a water change for green water, a scrub
+for film.
 
 A family row carries its own trim, which opens the Trim sheet held to that
 family — the same rungs, counted over the family alone; the preview reads what
@@ -126,22 +128,23 @@ they take the engine's severity. Fullness never carries meaning, and a reading
 with no band shows an unlit track and stays quiet.
 
 Where the engine has no threshold of its own, the band is the tank's: the
-temperature and pH spans every stocked species tolerates, and the daily light
-the worst-lit plant starves under at its own height. An unstocked tank has
-neither, and those readings go quiet.
+temperature and pH spans every stocked species tolerates, and the worst-lit
+plant's rated day at its own height. An unstocked tank has neither, and those
+readings go quiet.
 
 The plant foods read what each pool holds — ppm in the water, and the bed in
 root tabs' worth of the carried nutrient it holds fewest of, on a scale a fresh
-bag of aqua soil in this tank fills — and beside each, on a strip of its own,
-the feeders' stores: the store running its Droop limit lowest, banded from the
-fill the engine charges deficiency under. The stores take the tone; what the
-pool holds has no line of its own and stays ink. A pool is short where a
-feeder's store has fallen under that edge and the pool holds less than its
-feeders' stores lack of full at their weight on it — so a sword starving on an
-empty bed reads short on the bed, never on well-dosed water. The advised dose
-or tabs are that lack, offered whenever the pool holds less than it — tabs
-withheld over a bare bottom, or while the bed lacks a nutrient the tab carries
-none of.
+bag of aqua soil in this tank fills — and beside each, on its own strip, the
+feeders' stores: the one running its Droop limit lowest, banded from its
+edge to full, coral under it. The stores take the tone; the ppm stays ink,
+nitrate aside. A narrow row gives up the stores' word, then their strip. A pool
+is short where a feeder's store has fallen under that edge and the pool holds
+less than its feeders' stores lack of full at their weight on it — so a sword
+starving on an empty bed reads short on the bed, never on well-dosed water. The
+advised dose or tabs are that lack, offered whenever the pool holds less than it
+— tabs withheld over a bare bottom, or while the bed lacks a nutrient the tab
+carries none of. With a store under its edge and no pool short, the Nutrients
+widget reads "stores refilling".
 
 Nitrate is one reading with two readers, the fish and the plants, so it carries
 one band and one tone wherever it shows — in the cycle and among the plant
@@ -272,9 +275,9 @@ band or a different word depending on which surface is showing it.
 | Surface | Derived from |
 |---|---|
 | Reading values and status | Current resources, against the thresholds the engine alerts on |
-| Reading bands | An engine threshold where there is one, the stocked species' tolerance or the plants' demand where there is not |
+| Reading bands | An engine threshold where there is one, the stocked species' tolerance or the plants' Droop edge where there is not |
 | The cycle chain | The engine's own mineralisation, oxidation and clearance rates and the ammonia plants and the blooms take, read for the hour ahead |
-| The nitrite peak | The engine's own chain run forward from the hour ahead, without the flora, so it reads as the cycle's alone. Where plants stand, the lamp lights a bloom or a bloom's bank grows it in the dark, it names them as what will shift it — either way, since they draw ammonia and shed tissue that rots back into it |
+| The nitrite peak | The engine's own chain run forward from the hour ahead, without the flora, so it reads as the cycle's alone. Where plants stand, the lamp lights a bloom or a bloom's reserve can grow it in the dark, it names them as what will shift it — either way, since they draw ammonia and shed tissue that rots back into it |
 | Vitality breakdowns | The engine's own per-factor stressor and benefit lists, per organism, read on the hour the next tick settles — plants and the blooms in their one pass, then fish — so a trend is the change that tick makes, a bloom's coverage alike on its row, its reading and its ledger. An organism reads sick while that change shows as a fall at the trend's precision |
 | Tracks | The snapshot buffer, each series normalised to its own extent |
 | Trends | The snapshot buffer's last whole day since the keeper last acted; a bloom's and a vitality trend off the hour ahead |
