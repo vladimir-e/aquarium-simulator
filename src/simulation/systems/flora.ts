@@ -103,8 +103,6 @@ export interface FloraHour {
   starvation: number;
   /** Dissolved CO₂ (mg/L) it fixes at half rate on. */
   co2HalfSaturation: number;
-  /** Scales everything it earns by `1 + vigour`. */
-  vigour: number;
 }
 
 /** The harms both have, unhardened. */
@@ -130,10 +128,10 @@ export function floraStressors(hour: FloraHour): VitalityFactor[] {
   ];
 }
 
-/** Income, every channel earned on its reserve density and its stores' Droop limit, times vigour. */
+/** Income, every channel earned on its reserve density and its stores' Droop limit. */
 export function floraBenefits(hour: FloraHour): VitalityFactor[] {
-  const { traits, resources, plantsConfig, wellFed, droop, co2HalfSaturation, vigour } = hour;
-  const earning = wellFed * droop * (1 + vigour);
+  const { traits, resources, plantsConfig, wellFed, droop, co2HalfSaturation } = hour;
+  const earning = wellFed * droop;
   return [
     {
       key: 'co2',

@@ -116,10 +116,7 @@ export interface Plant {
   familyId: string;
   /** Age in ticks (hours) in this tank. */
   age: number;
-  /**
-   * Per-individual offset on everything the plant earns, drawn once at birth
-   * within ±`VIGOUR_SPAN`, so clones bud apart instead of in lockstep.
-   */
+  /** Its offset on its species' assimilation ceiling, drawn once at birth within ±`VIGOUR_SPAN`. */
   vigour: number;
 }
 

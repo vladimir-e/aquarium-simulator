@@ -19,7 +19,6 @@ import { getGhMass } from '../resources/helpers.js';
 import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
 import { monodFactor } from '../core/kinetics.js';
 import { plantRecord } from '../tests/plant.js';
-import { VIGOUR_SPAN } from '../plants/create-plant.js';
 import { mapKinds } from '../algae/blooms.js';
 import { plantParams } from '../flora/params.js';
 import { droopFactor, type FloraFluxes } from './flora-budget.js';
@@ -206,12 +205,6 @@ describe('buildPlantBenefits', () => {
 
   it('earns the same in the dark as in the light: the reserve carries the day', () => {
     expect(total(makePlant('anubias'), makeResources({ light: 0 }))).toBeCloseTo(total(makePlant('anubias')), 12);
-  });
-
-  it('scales every channel by 1 + vigour', () => {
-    const plain = buildPlantBenefits(ctx(makePlant('java_fern'), makeResources()));
-    const vigorous = buildPlantBenefits(ctx(makePlant('java_fern', { vigour: VIGOUR_SPAN }), makeResources()));
-    plain.forEach((f, i) => expect(vigorous[i].amount).toBeCloseTo(f.amount * (1 + VIGOUR_SPAN), 12));
   });
 
   it('earns the CO2 channel on the species carbon Monod, so a carpet earns less of it', () => {

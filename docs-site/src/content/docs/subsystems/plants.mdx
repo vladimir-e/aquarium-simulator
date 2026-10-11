@@ -32,7 +32,7 @@ cut loose at its form's size. Low condition sheds tissue.
 | Plantlet | <Badge text="settled" variant="success" /> | The reserve's other share builds the next unit on the parent and cuts it loose at its form's size — a runner, not a lump purchase, with no timer. |
 | Size of a unit | <Badge text="settled" variant="success" /> | Size is the tissue a unit holds against a grown one. Growth tapers to nothing at 100, so no ceiling clamps it. |
 | Self-shading | <Badge text="settled" variant="success" /> | A unit's own crown shades its leaves, so a plant too big for its light sheds to a size its light holds, with no switch. |
-| Vigour | <Badge text="scaffolding" variant="caution" /> | Each unit draws its own offset on income at birth, but its budget carries none, so clones in like light grow and bud in step. |
+| Vigour | <Badge text="settled" variant="success" /> | Each unit draws its own offset on its assimilation ceiling at birth, so clones in like light grow and bud apart. |
 | Shedding | <Badge text="settled" variant="success" /> | A rate reading a stock — the square of the condition deficit, zero at full condition, with no threshold in it. The store a shed leaf held stays with the plant. |
 | Death | <Badge text="settled" variant="success" /> | Condition reaching 0, as for a fish. A unit shed to a speck lives while it has condition: it repairs and regrows, or keeps losing condition and dies. |
 | Epiphyte footprint | <Badge text="scaffolding" variant="caution" /> | A java fern or anubias on the rock claims floor like a rooted plant; there is no hardscape budget. |
@@ -263,8 +263,7 @@ Every benefit channel is earned on the plant's reserve density times its Droop
 limit: good water is worth nothing to a plant that has burned its reserve or
 run its stores dry. Three peaks of `0.125` %/h make a budget of `0.375` %/h on a
 full reserve, a Droop limit of 1 and band centre. Light reaches income through
-the reserve it fills, so a fed plant earns through the night. A plant's vigour
-multiplies all three: hardiness scales what harms a plant, vigour what it earns.
+the reserve it fills, so a fed plant earns through the night.
 
 | Channel | Earns when | At its best |
 |---|---|---|
@@ -363,10 +362,10 @@ entry uses — "Amazon Sword threw a plantlet". Every form builds it the same wa
 | `parentId` | The unit whose plantlet this is; null for anything planted or seeded |
 | `familyId` | The founder's id, inherited down the line, so a family outlives its founder |
 | `age` | Hours in this tank. A seeded plant can start older. No rate reads it |
-| `vigour` | An offset on income, drawn once at birth within ±`VIGOUR_SPAN` (`0.15`) |
+| `vigour` | An offset on its assimilation ceiling, drawn once at birth within ±`VIGOUR_SPAN` (`0.15`) |
 
-Vigour multiplies the three benefit channels, so a vigorous unit also recovers
-faster; its budget carries none.
+Vigour scales the most a unit's leaves fix at any light, so clones side by side
+grow and bud apart, by about as much as their vigour differs.
 
 ### The floor budget and trim
 

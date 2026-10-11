@@ -147,7 +147,7 @@ const SECTIONS: readonly SectionSpec[] = [
       { path: 'demand.low', label: 'Low-demand species', meta: demandMeta },
       { path: 'demand.medium', label: 'Medium-demand species', meta: demandMeta },
       { path: 'demand.high', label: 'High-demand species', meta: demandMeta },
-      { path: 'foodMineralContent', label: 'Minerals per gram of food and tissue', meta: foodMineralContentMeta },
+      { path: 'foodMineralContent', label: 'Minerals per gram of food', meta: foodMineralContentMeta },
     ],
   },
   { key: 'livestock', label: 'Livestock', meta: livestockConfigMeta },

@@ -43,16 +43,17 @@ export interface CarbonFixer {
   co2HalfSaturation: number;
 }
 
-/** A plant as photosynthesis reads it, at the PAR on its mean leaf. */
+/** A plant as photosynthesis reads it, at the PAR on its mean leaf: its vigour lifts the ceiling it fixes to. */
 export function plantFixer(
-  plant: Pick<Plant, 'species' | 'budget'>,
+  plant: Pick<Plant, 'species' | 'budget' | 'vigour'>,
   par: number,
   omega: number,
   config: PlantsConfig = plantsDefaults
 ): CarbonFixer {
   const traits = plantTraits(plant.species);
   return {
-    metabolicRateUnits: metabolicRateUnits(rateUnits({ species: plant.species, size: sizeOf(plant) }), traits),
+    metabolicRateUnits:
+      (1 + plant.vigour) * metabolicRateUnits(rateUnits({ species: plant.species, size: sizeOf(plant) }), traits),
     lightResponse: lightSaturationFactor(par, saturationIrradiance(traits, config)),
     omega,
     co2HalfSaturation: getCo2HalfSaturation(plant.species, config),

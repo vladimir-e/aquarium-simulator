@@ -3,10 +3,10 @@
  *
  * The channels a bloom has too — starvation, temperature, pH, nutrient
  * deficiency and the three income channels — are the flora law's (`flora.ts`),
- * read off the plant's budget as the hour found it and the hour it ran, and
- * earned at its vigour. Beside them sit the ones only a plant has: the burn at
- * its crown top while the lamps are on, GH out of band, and nitrate on log
- * dose past an edge its hardiness carries out.
+ * read off the plant's budget as the hour found it and the hour it ran. Beside
+ * them sit the ones only a plant has: the burn at its crown top while the
+ * lamps are on, GH out of band, and nitrate on log dose past an edge its
+ * hardiness carries out.
  */
 
 import type { Plant, Resources } from '../state.js';
@@ -49,7 +49,6 @@ function floraHour({ plant, params, fluxes, resources, plantsConfig }: PlantVita
     droop: droopFactor(plant.budget, params),
     starvation: starvation({ fluxes }),
     co2HalfSaturation: getCo2HalfSaturation(plant.species, plantsConfig),
-    vigour: plant.vigour,
   };
 }
 

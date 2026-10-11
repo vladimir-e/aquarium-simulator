@@ -76,8 +76,8 @@ export interface NutrientsConfig {
    */
   demand: Record<NutrientDemand, NutrientVector>;
   /**
-   * mg of each mineral in a gram of food, and in the fish and plant tissue
-   * made at its recipe. Its nitrogen is `livestock.foodNitrogenFraction`.
+   * mg of each mineral in a gram of food, and in the fish made of it. Its
+   * nitrogen is `livestock.foodNitrogenFraction`.
    */
   foodMineralContent: MineralVector;
 }
@@ -126,8 +126,7 @@ export const nutrientsDefaults: NutrientsConfig = {
   },
 
   // Against its 5 % N, fish food carries N:P ≈ 7 by mass (~20 mg PO₄/g) —
-  // Redfield, so the same recipe serves plant tissue — about 1 % K and a few
-  // hundred ppm Fe.
+  // Redfield — about 1 % K and a few hundred ppm Fe.
   foodMineralContent: {
     phosphate: 20,
     potassium: 8,
@@ -187,7 +186,7 @@ export const demandMeta: NutrientVectorMeta[] = [
 ];
 
 export const foodMineralContentMeta: NutrientVectorMeta[] = [
-  { key: 'phosphate', label: 'Phosphate in food and tissue', unit: 'mg/g', min: 0, max: 100, step: 1 },
-  { key: 'potassium', label: 'Potassium in food and tissue', unit: 'mg/g', min: 0, max: 50, step: 0.5 },
-  { key: 'iron', label: 'Iron in food and tissue', unit: 'mg/g', min: 0, max: 2, step: 0.01 },
+  { key: 'phosphate', label: 'Phosphate in food', unit: 'mg/g', min: 0, max: 100, step: 1 },
+  { key: 'potassium', label: 'Potassium in food', unit: 'mg/g', min: 0, max: 50, step: 0.5 },
+  { key: 'iron', label: 'Iron in food', unit: 'mg/g', min: 0, max: 2, step: 0.01 },
 ];

@@ -32,7 +32,6 @@ function floraHour({ bloom, fluxes, traits, params, resources, plantsConfig }: A
     droop: droopFactor(bloom.budget, params),
     starvation: starvation({ fluxes }),
     co2HalfSaturation: traits.co2HalfSaturation,
-    vigour: 0,
   };
 }
 

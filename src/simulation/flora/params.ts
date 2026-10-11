@@ -31,11 +31,12 @@ function floraParams(
   { growthRate }: Pick<FloraTraits, 'growthRate'>,
   kappa: number,
   { quotaMin, quotaMax, storeFillDays }: Composition,
-  config: PlantsConfig
+  config: PlantsConfig,
+  vigour = 0
 ): FloraParams {
   const photosynthatePerGram =
     (growthRate * config.co2PerRateUnit * CO2_TO_CH2O_MASS_RATIO) / (MG_PER_G * TISSUE_PER_RATE_UNIT);
-  const pAm = config.basePhotosynthesisRate * photosynthatePerGram;
+  const pAm = (1 + vigour) * config.basePhotosynthesisRate * photosynthatePerGram;
   return {
     pAm,
     v: pAm / config.reserveCapacity,
@@ -49,8 +50,9 @@ function floraParams(
   };
 }
 
-export const plantParams = (species: PlantSpecies, config: PlantsConfig): FloraParams =>
-  floraParams(plantTraits(species), config.somaShare, config, config);
+/** A species' params, or a unit's at its vigour: its assimilation ceiling lifted by `1 + vigour`. */
+export const plantParams = (species: PlantSpecies, config: PlantsConfig, vigour = 0): FloraParams =>
+  floraParams(plantTraits(species), config.somaShare, config, config, vigour);
 
 /** A bloom's growth is its reproduction: it keeps no offshoot buffer, so its whole mobilisation goes to the soma. */
 export const bloomParams = (kind: AlgaeKind, config: PlantsConfig): FloraParams =>

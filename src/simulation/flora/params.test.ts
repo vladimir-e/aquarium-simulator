@@ -4,11 +4,12 @@ import { MAX_DROOP_EDGE, plantsDefaults, quotaMaxMeta, quotaMinMeta, type Plants
 import { NUTRIENTS } from '../config/nutrients.js';
 import { CO2_TO_CH2O_MASS_RATIO } from '../core/chemistry.js';
 import { maxReserveDensity, structureOrganics } from '../systems/reserve.js';
-import { offerCarbon, photosynthateOf } from '../systems/photosynthesis.js';
+import { offerCarbon, photosynthateOf, plantFixer } from '../systems/photosynthesis.js';
 import { metabolicRateUnits } from '../systems/flora.js';
 import { rateUnits, tissueMass } from '../plants/canopy.js';
 import { PLANT_SPECIES_DATA, plantTraits, type PlantSpecies } from '../plants/species.js';
 import { ALGAE, ALGAE_KINDS, bloomRateUnits, bloomTissue } from '../algae/index.js';
+import { plantRecord } from '../tests/plant.js';
 import { fullDroopFactor, type FloraParams } from '../systems/flora-budget.js';
 
 const config = plantsDefaults;
@@ -84,6 +85,24 @@ describe('pace', () => {
       everyKind(c).every((p) => close(maxReserveDensity(p), c.reserveCapacity));
     expect(fills(config)).toBe(true);
     expect(fills({ ...config, reserveCapacity: 2 * config.reserveCapacity })).toBe(true);
+  });
+});
+
+describe('vigour', () => {
+  const vigour = 0.1;
+  const own = plantParams('amazon_sword', config, vigour);
+  const species = plantParams('amazon_sword', config);
+
+  it('lifts a unit’s assimilation ceiling by 1 + vigour, its reserve filling to the same E_m on the same upkeep', () => {
+    expect(close(own.pAm, (1 + vigour) * species.pAm)).toBe(true);
+    expect(close(maxReserveDensity(own), maxReserveDensity(species))).toBe(true);
+    expect(own.pM).toBe(species.pM);
+  });
+
+  it('is offered at saturation the photosynthate its own ceiling holds', () => {
+    const unit = plantRecord({ id: 'sword', species: 'amazon_sword', size: 60, vigour });
+    const [offered] = offerCarbon([{ ...plantFixer(unit, 1e9, 1, config), co2HalfSaturation: 0 }], 1e9, 100, config);
+    expect(close(own.pAm * unit.budget.structure, photosynthateOf(offered))).toBe(true);
   });
 });
 

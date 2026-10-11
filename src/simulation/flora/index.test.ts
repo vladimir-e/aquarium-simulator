@@ -32,6 +32,8 @@ import { getSubstrateNutrients } from '../equipment/substrate.js';
 import { plantRecord } from '../tests/plant.js';
 import { bloomAt } from '../tests/blooms.js';
 import { nonFinitePaths } from '../tests/leaves.js';
+import { floraTank, hoursUntil, litDay, runFlora } from '../tests/flora.js';
+import { HOURS_PER_DAY } from '../core/clock.js';
 import type { Effect } from '../core/effects.js';
 
 const config = DEFAULT_CONFIG;
@@ -286,6 +288,14 @@ describe('processFlora — plants', () => {
     const state = tank({ plants: crammed, ...LIT });
     expect(floorCover(state.plants, state.tank.capacity)).toBeGreaterThan(1);
     expect(processFlora(state, config).state.plants).toHaveLength(24);
+  });
+
+  it('buds a vigorous clone sooner than its twin beside it', () => {
+    const twins = [0.1, -0.1].map((vigour, i) => plantRecord({ id: `twin${i}`, species: 'monte_carlo', size: 80, vigour }));
+    const run = runFlora(floraTank({ plants: twins }), 10 * HOURS_PER_DAY, litDay(LIT.light));
+    const firstBud = (id: string): number => hoursUntil(run.hours, ({ state }) => state.plants.some((p) => p.parentId === id));
+    expect(firstBud('twin0')).toBeLessThan(firstBud('twin1'));
+    expect(firstBud('twin1')).toBeLessThan(Infinity);
   });
 
   it('draws ids and vigours in plant order, so one seed gives one lineage', () => {

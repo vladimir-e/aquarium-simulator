@@ -33,7 +33,11 @@ export function offshootShare(plant: Pick<Plant, 'species' | 'budget'>): number 
   return Math.min(1, plant.budget.offshootBuffer / offshootStructure(plant.species));
 }
 
-/** Vigour span either side of 0: clonal ramets differ in growth by 10–20 %. */
+/**
+ * Spread of a unit's assimilation ceiling either side of its species': clonal
+ * ramets differ in growth by 10–20 %, and a unit's growth follows its ceiling
+ * about one for one.
+ */
 export const VIGOUR_SPAN = 0.15;
 
 function drawVigour(rng: RngState): number {

@@ -128,7 +128,6 @@ describe('the channels a plant and a bloom share', () => {
     droop: 1,
     starvation: 0,
     co2HalfSaturation: 3,
-    vigour: 0,
     ...overrides,
   });
   const amount = (factors: { key: string; amount: number }[], key: string): number =>
@@ -144,10 +143,10 @@ describe('the channels a plant and a bloom share', () => {
     expect(amount(floraStressors(hour({ droop: 0 })), 'nutrients')).toBeCloseTo(config.nutrientDeficiencySeverity, 15);
   });
 
-  it('earns on reserve density, the Droop limit and vigour, and CO₂ on the feeder’s own half-saturation', () => {
+  it('earns on reserve density and the Droop limit, and CO₂ on the feeder’s own half-saturation', () => {
     const earned = (overrides: Partial<FloraHour>): number => amount(floraBenefits(hour(overrides)), 'co2');
     expect(earned({})).toBeCloseTo(config.co2BenefitPeak * monodFactor(4, 3), 12);
-    expect(earned({ wellFed: 0.5, droop: 0.6, vigour: 0.2 })).toBeCloseTo(earned({}) * 0.5 * 0.6 * 1.2, 12);
+    expect(earned({ wellFed: 0.5, droop: 0.6 })).toBeCloseTo(earned({}) * 0.5 * 0.6, 12);
     expect(earned({ co2HalfSaturation: 0.3 })).toBeCloseTo((earned({}) * monodFactor(4, 0.3)) / monodFactor(4, 3), 12);
     expect(earned({ wellFed: 0 })).toBe(0);
   });

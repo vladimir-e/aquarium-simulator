@@ -150,7 +150,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const plants = state.plants.map((plant, i) => ({
     budget: plant.budget,
     condition: plant.condition,
-    p: plantParams(plant.species, plantsConfig),
+    p: plantParams(plant.species, plantsConfig, plant.vigour),
     draws: poolDraws(pools, plantFeeder(plant.species, nutrientsConfig)),
     room: growthTaper(sizeOf(plant)),
     fixer: plantFixer(plant, light[i].par, omega, plantsConfig),
