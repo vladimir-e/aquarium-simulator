@@ -21,9 +21,10 @@ import {
   ration,
   readyToBrood,
   type AlgaeKind,
-  type BloomLight,
+  type BloomHour,
   type FishHour,
   type FloraFluxes,
+  type FloraState,
   type Organics,
   type PlantLight,
   type SimulationState,
@@ -35,17 +36,15 @@ import { ammoniaPerGramOfFood } from '../../simulation/config/livestock.js';
 import { sum } from '../../simulation/core/sum.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 
-/** One flora on the hour ahead. */
-export interface OrganismAhead {
+export interface PlantAhead {
   vitality: VitalityResult;
   /** What its budget does over the hour. */
   fluxes: FloraFluxes;
-}
-
-export interface PlantAhead extends OrganismAhead {
   light: PlantLight;
   /** Whether its buffer buys an offshoot over the hour. */
   buds: boolean;
+  /** Its budget as the tick leaves it, any offshoot cut loose; null if it dies. */
+  next: FloraState | null;
 }
 
 export interface FishAhead {
@@ -56,16 +55,11 @@ export interface FishAhead {
   broods: boolean;
 }
 
-export interface BloomAhead extends OrganismAhead {
-  light: BloomLight;
+export interface BloomAhead extends Omit<BloomHour, 'spores'> {
   /** Condition as the tick leaves the bloom, its spores landed. */
   condition: number;
   /** Coverage as the tick leaves the bloom. */
   mass: number;
-  /** Waste it sheds — its steady rate, apart from a die-back's lump. */
-  shedding: Organics;
-  /** mg of each form its stores and spores take up from the water. */
-  waterUptake: FormVector;
 }
 
 export interface HourAhead {
@@ -118,17 +112,25 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
       fluxes: flora.fluxes[i],
       light: flora.light[i],
       buds: budded.has(plant.id),
+      next: planted.plants.find((after) => after.id === plant.id)?.budget ?? null,
     })),
     fish: state.fish.map((fish, i) => ({
       vitality: livestock.vitalities[i],
       hour: livestock.hours[i],
       broods: broods.has(fish.id),
     })),
-    algae: mapKinds((kind) => ({
-      ...flora.algae[kind],
-      condition: planted.algae[kind].condition,
-      mass: bloomMass(planted, kind),
-    })),
+    algae: mapKinds((kind) => {
+      const { vitality, light, fluxes, shedding, waterUptake } = flora.algae[kind];
+      return {
+        vitality,
+        light,
+        fluxes,
+        shedding,
+        waterUptake,
+        condition: planted.algae[kind].condition,
+        mass: bloomMass(planted, kind),
+      };
+    }),
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),
     shedding: flora.shedding,
     fishWaste: addOrganics(livestock.feces, bodies.waste),

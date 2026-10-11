@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buyOffshoot,
   droopFactor,
+  droopLimits,
+  fillAtDroop,
   floraNutrients,
   floraOrganics,
   offshootReady,
@@ -11,6 +13,7 @@ import {
   stepFlora,
   stocked,
   storeFill,
+  storeGap,
   storeRequest,
   takeUp,
   type FloraBudgetHour,
@@ -619,6 +622,22 @@ describe('readings', () => {
     const fill = { nitrate: 0.1, phosphate: 0.5, potassium: 1, iron: 0 };
     const read = storeFill(flora(film, 0.02, 0.5, fill), film);
     expect(NUTRIENTS.every((n) => near(read[n], fill[n], 1))).toBe(true);
+  });
+
+  it('reads each store’s gap as what it lacks of full, and none past full', () => {
+    const s = flora(sword, 2, 0.5, { nitrate: 0.25, phosphate: 1, potassium: 0, iron: 0.5 });
+    const gap = storeGap(s, sword);
+    expect(NUTRIENTS.every((n) => near(gap[n], (1 - storeFill(s, sword)[n]) * storeMax(sword, n) * s.structure, 1))).toBe(true);
+    expect(Object.values(storeGap(shed(flora(sword, 2, 0.5), sword, 1).state, sword)).every((mg) => mg === 0)).toBe(true);
+  });
+
+  it.each(KINDS)('reads $name’s Droop factor as the least store’s limit, and the fill at a limit as its inverse', ({ p }) => {
+    const s = flora(p, 1, 1, { nitrate: 0.4, phosphate: 0.2, potassium: 0.9, iron: 0.6 });
+    const limits = droopLimits(s, p);
+    expect(droopFactor(s, p)).toBe(Math.min(...NUTRIENTS.map((n) => limits[n])));
+
+    const edge = fillAtDroop(p, 0.3);
+    expect(NUTRIENTS.every((n) => near(droopLimits(flora(p, 1, 1, edge), p)[n], 0.3, 1))).toBe(true);
   });
 });
 

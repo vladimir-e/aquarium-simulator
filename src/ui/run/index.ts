@@ -34,7 +34,6 @@ export {
 export {
   type BloomAhead,
   type HourAhead,
-  type OrganismAhead,
   type PlantAhead,
   readHourAhead,
 } from './ahead.js';
@@ -114,7 +113,7 @@ export {
   type LedgerFactor,
   type LightPathView,
   type LightStep,
-  type LedgerBank,
+  type BudgetRow,
   type LedgerRow,
   type LedgerTarget,
   bloomVerb,

@@ -359,7 +359,10 @@ export {
 export type { FloraTraits, FloraLoss } from './systems/flora.js';
 export {
   droopFactor,
+  droopLimits,
+  fillAtDroop,
   storeFill,
+  storeGap,
   floraOrganics,
   offshootReady,
   stocked,

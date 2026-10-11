@@ -1,7 +1,14 @@
 import React from 'react';
 import type { VerbId, VerbScope } from '../../actions';
 import { toneOf } from '../../readings';
-import { LEDGER_DECIMALS, printsAsZero, type Ledger, type LedgerFactor, type LightPathView } from '../../run';
+import {
+  LEDGER_DECIMALS,
+  printsAsZero,
+  type BudgetRow,
+  type Ledger,
+  type LedgerFactor,
+  type LightPathView,
+} from '../../run';
 import { Drawer } from '../ui/Drawer';
 import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
 import { ReadingRow } from '../ui/ReadingRow';
@@ -77,11 +84,25 @@ function LightPath({ path }: { path: LightPathView }): React.JSX.Element {
   );
 }
 
+function BudgetLine({ row }: { row: BudgetRow }): React.JSX.Element {
+  return (
+    <ReadingRow
+      name={row.label}
+      value={row.text}
+      unit={row.unit}
+      at={row.at ?? undefined}
+      band={row.band}
+      tone={toneOf(row.status)}
+      note={row.note}
+    />
+  );
+}
+
 /**
  * Why one organism is where it is: the condition it holds, what is buying that
- * and what is spending it, and the bank between the two. Every line is a
- * factor the tick charged — the drawer states the engine's ledger, it does not
- * compose one.
+ * and what is spending it, and the budget that pays for it. Every line is
+ * something the tick charged or moved — the drawer states the engine's
+ * ledger, it does not compose one.
  */
 export function LedgerDrawer({
   ledger,
@@ -202,18 +223,19 @@ export function LedgerDrawer({
           </div>
         </div>
 
-        {ledger.bank && (
-          <div className="border-t border-hairline pt-1">
-            <ReadingRow
-              name={ledger.bank.label}
-              value={ledger.bank.text}
-              unit={ledger.bank.unit}
-              at={ledger.bank.at}
-              band={{ from: 0, to: 1 }}
-              note={ledger.bank.note}
-            />
-          </div>
-        )}
+        <div className="flex flex-col border-t border-hairline pt-1">
+          {ledger.budget.map((row) => (
+            <BudgetLine key={row.key} row={row} />
+          ))}
+          {ledger.stores.length > 0 && (
+            <>
+              <h3 className="pt-2 text-[11px] text-ink-3">Stores</h3>
+              {ledger.stores.map((row) => (
+                <BudgetLine key={row.key} row={row} />
+              ))}
+            </>
+          )}
+        </div>
 
         {ledger.demand && (
           <p className="border-t border-hairline pt-3 text-[13px] text-ink-2">{ledger.demand}</p>

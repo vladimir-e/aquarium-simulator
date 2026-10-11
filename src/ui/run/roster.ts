@@ -113,8 +113,8 @@ export interface IndividualRosterRow extends Vital {
   age: string;
   gut: Gut | null;
   light: LightFigure | null;
-  /** How far a plant's offshoot buffer is toward its next offshoot. */
-  bank: string | null;
+  /** How much of its next plantlet a plant has built. */
+  plantlet: string | null;
 }
 
 /**
@@ -216,7 +216,7 @@ function fishRows(groups: SpeciesGroup[], expanded: ReadonlySet<string>): Roster
         age: days(fish.age),
         gut,
         light: null,
-        bank: null,
+        plantlet: null,
         at: condition / 100,
         ...reading,
       })
@@ -253,7 +253,7 @@ function plantUnit(plant: PlantRow): IndividualRosterRow {
     age: days(plant.age),
     gut: null,
     light: lightFigure(plant.light, plant.lightStatus),
-    bank: `${sharePercent(plant.bank)} %`,
+    plantlet: `${sharePercent(plant.plantlet)} %`,
     at: plant.condition / 100,
     ...plant.reading,
   };

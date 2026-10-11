@@ -174,7 +174,7 @@ function unit(id: string, familyId: string, overrides: Partial<Unit> = {}): Unit
     reading: THRIVING,
     light: 1,
     lightStatus: 'ok',
-    bank: 0,
+    plantlet: 0,
     ...overrides,
   };
 }
@@ -290,7 +290,7 @@ describe('plantRows', () => {
     });
   });
 
-  it('reads an offshoot buffer as its share of the next offshoot, full once it holds it', () => {
+  it('reads an offshoot buffer as its share of the next plantlet, full once it holds it', () => {
     const base = planted(['java_fern', 'java_fern', 'java_fern']);
     const unit = offshootStructure('java_fern');
     const state = produce(base, (draft) => {
@@ -298,7 +298,7 @@ describe('plantRows', () => {
       draft.plants[1].budget.offshootBuffer = unit / 4;
       draft.plants[2].budget.offshootBuffer = 2 * unit;
     });
-    expect(rows(state).map((row) => row.bank)).toEqual([0, expect.closeTo(0.25, 12), 1]);
+    expect(rows(state).map((row) => row.plantlet)).toEqual([0, expect.closeTo(0.25, 12), 1]);
   });
 
   it('carries each unit’s lineage and age', () => {

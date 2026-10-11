@@ -403,13 +403,13 @@ describe('rosterTables', () => {
         parent: '#2',
         figure: '20 %',
         age: '1 d',
-        bank: '62 %',
+        plantlet: '62 %',
       });
       expect(unit.light!.text).toBe(`${Math.floor(share * 100)} %`);
       expect(founder.parent).toBeNull();
     });
 
-    it('gives a unit the light and the bank its ledger gives it', () => {
+    it('gives a unit the light and the plantlet its ledger gives it', () => {
       const state = families((plant) => ({
         budget: { ...plant.budget, offshootBuffer: (plant.parentId ? 1 / 3 : 1) * offshootStructure(plant.species) },
       }));
@@ -424,8 +424,9 @@ describe('rosterTables', () => {
         const ledger = readLedger(state, DEFAULT_CONFIG, ahead, { kind: 'plant', id: row.id })!;
         expect(`${ledger.light!.text} %`).toBe(row.light!.text);
         expect(ledger.light!.status).toBe(row.light!.status);
-        expect(`${ledger.bank!.text} %`).toBe(row.bank);
-        expect(ledger.bank!.unit).toBe('% to offshoot');
+        const plantlet = ledger.budget.find((line) => line.key === 'plantlet')!;
+        expect(`${plantlet.text} %`).toBe(row.plantlet);
+        expect(plantlet.unit).toBe('% built');
       }
     });
   });

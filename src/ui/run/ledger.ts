@@ -1,33 +1,45 @@
 /**
  * Why one organism is where it is: the engine's own factor lists, split into
- * what helps and what hurts, with its store standing between the two — a
- * fish's reserve, a plant's offshoot buffer — and the condition they add up
- * to. Nothing is named here that the vitality pass did not already charge — a
- * factor the reader sees is a factor the tick applied.
+ * what helps and what hurts, the condition they add up to, and beneath them
+ * the budget that pays for it — its reserve, and a plant's or a bloom's
+ * nutrient stores. Nothing is named here that the tick did not already charge
+ * or move — a line the reader sees is a line the tick applied.
  */
 
 import {
   ALGAE,
   ALGAE_KINDS,
+  allelopathy,
   bloomMass,
+  bloomParams,
   debParams,
+  droopFactor,
+  droopLimits,
+  fillAtDroop,
   offshootShare,
+  offshootStructure,
   PLANT_SPECIES_DATA,
   plantLightTaken,
+  plantParams,
   REMOVED_BY,
   starvation,
+  storeFill,
   wellFed,
   type Fish,
   type FishHour,
   type FloraFluxes,
+  type FloraParams,
+  type FloraState,
   type AlgaeHabitat,
   type AlgaeKind,
   type BloomRemoval,
   type Light,
   type LightPath,
   type SimulationState,
+  type VitalityBreakdown,
   type VitalityFactor,
 } from '../../simulation/index.js';
+import { NUTRIENTS } from '../../simulation/config/index.js';
 import { habitatPlaces, namePlaces } from '../../simulation/algae/index.js';
 import { BLOOM_COVERAGE_LINE, PLANT_LIGHT_LINE } from '../../simulation/alerts/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
@@ -35,7 +47,7 @@ import type { VerbId, VerbScope } from '../actions/verbs.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 import { COVERAGE_DECIMALS } from '../utils/units.js';
 import type { HourAhead } from './ahead.js';
-import { algaeReading, lightTakenStatus, plantLabels, sharePercent, unitTitle } from './flora.js';
+import { algaeReading, lightTakenStatus, NUTRIENT_LABEL, plantLabels, sharePercent, unitTitle } from './flora.js';
 import { crownBurns, lightStatus, plantLightStatus } from './light.js';
 import { fishGut, fishNumbers, fishReading, fishTitle, type Gut } from './livestock.js';
 import { CONDITION_BAND, type SpeciesId } from './roster.js';
@@ -62,14 +74,17 @@ export interface LedgerFactor {
   perDay: number;
 }
 
-/** The organism's store, standing between what helps and what hurts: a fish's reserve, a plant's offshoot buffer. */
-export interface LedgerBank {
+/** One line of the budget beneath the condition it pays for. */
+export interface BudgetRow {
+  key: string;
   label: string;
   text: string;
   unit: string;
-  /** Its share of the cap. */
-  at: number;
-  /** What the bank is doing this hour. */
+  /** Its place on a 0–1 track; null where the line has no track. */
+  at: number | null;
+  band: ReadingBand | null;
+  status: Status;
+  /** What it is doing this hour, or what it does to the organism. */
   note: string;
 }
 
@@ -131,7 +146,10 @@ export interface Ledger {
   helps: number;
   hurts: number;
   net: number;
-  bank: LedgerBank | null;
+  /** Its reserve, and what the hour draws on it or builds with it. */
+  budget: BudgetRow[];
+  /** A plant's or a bloom's nutrient stores, one row each. */
+  stores: BudgetRow[];
   /** What the species asks of the tank; plants and blooms. */
   demand: string | null;
   /** The verb that moves this organism — an id the stage opens the sheet on. */
@@ -165,10 +183,105 @@ function total(list: VitalityFactor[]): number {
   return list.reduce((sum, factor) => sum + factor.amount, 0) * TICKS_PER_DAY;
 }
 
-/** What the offshoot buffer does over the hour: buys a unit, pays the upkeep the budget left unpaid, or fills. */
-function bufferNote(fluxes: FloraFluxes, buds: boolean): string {
-  if (buds) return 'buying an offshoot';
-  return starvation({ fluxes }) > 0 ? 'short of upkeep' : 'filling';
+const FULL_TRACK: ReadingBand = { from: 0, to: 1 };
+
+function reserveRow(share: number, note: string): BudgetRow {
+  return {
+    key: 'reserve',
+    label: 'Reserve',
+    text: String(sharePercent(share)),
+    unit: '% full',
+    at: share,
+    band: FULL_TRACK,
+    status: 'neutral',
+    note,
+  };
+}
+
+/** Whether the hour's fluxes leave a flora's reserve where it stood or above. */
+function reserveFills({ assimilated, mobilised, burned }: FloraFluxes): boolean {
+  return assimilated - mobilised - burned.healing >= 0;
+}
+
+/**
+ * A plant's or a bloom's reserve, then what draws on it past the hour's
+ * upkeep: the share of upkeep it could not pay, and the repair it buys.
+ */
+function floraBudget(budget: FloraState, p: FloraParams, fluxes: FloraFluxes, breakdown: VitalityBreakdown, sick: boolean): BudgetRow[] {
+  const unpaid = starvation({ fluxes });
+  const healing = breakdown.healed * TICKS_PER_DAY;
+  return [
+    reserveRow(wellFed(budget, p), reserveFills(fluxes) ? 'filling' : 'drawing down'),
+    ...(unpaid > 0
+      ? [
+          {
+            key: 'starving',
+            label: 'Starving',
+            text: String(Math.ceil(unpaid * 100)),
+            unit: '% of upkeep unpaid',
+            at: null,
+            band: null,
+            status: sick ? 'alert' : 'warn',
+            note: fluxes.fromStructure > 0 ? 'burning tissue' : '',
+          } satisfies BudgetRow,
+        ]
+      : []),
+    ...(shows(healing, LEDGER_DECIMALS)
+      ? [
+          {
+            key: 'healing',
+            label: 'Healing',
+            text: `+${healing.toFixed(LEDGER_DECIMALS)}`,
+            unit: 'per day',
+            at: null,
+            band: null,
+            status: 'neutral',
+            note: 'paid from reserve',
+          } satisfies BudgetRow,
+        ]
+      : []),
+  ];
+}
+
+/**
+ * Each store's fill, banded from where its Droop limit meets the edge harm
+ * starts at, and the least of them named with the share of growth it allows.
+ */
+function storeRows(budget: FloraState, p: FloraParams, droopEdge: number): BudgetRow[] {
+  const fill = storeFill(budget, p);
+  const limits = droopLimits(budget, p);
+  const edge = fillAtDroop(p, droopEdge);
+  const factor = droopFactor(budget, p);
+  const least = NUTRIENTS.find((n) => limits[n] === factor);
+  return NUTRIENTS.map((n) => ({
+    key: n,
+    label: NUTRIENT_LABEL[n],
+    text: String(sharePercent(fill[n])),
+    unit: '% full',
+    at: Math.min(1, fill[n]),
+    band: { from: edge[n], to: 1 },
+    status: limits[n] < droopEdge ? 'alert' : 'neutral',
+    note: n === least ? `holds growth to ${sharePercent(factor)} %` : '',
+  }));
+}
+
+/** Days at the hour's pace, as a reader counts them: whole, and never "in 0". */
+function inDays(hours: number): string {
+  return hours < TICKS_PER_DAY ? 'within a day' : `in ${Math.round(hours / TICKS_PER_DAY)} d`;
+}
+
+/**
+ * What the offshoot buffer does over the hour, read off the budget the tick
+ * leaves: cuts a plantlet loose, pays upkeep, builds toward the next at the
+ * hour's pace, or waits on stores that let it fill no further or cannot pay a
+ * plantlet's Q_min.
+ */
+function plantletNote(budget: FloraState, next: FloraState | null, unit: number, buds: boolean, starving: boolean): string {
+  if (buds) return 'cuts loose this hour';
+  const before = budget.offshootBuffer;
+  const after = next?.offshootBuffer ?? before;
+  if (after < before || (after === before && starving)) return 'paying upkeep';
+  return after > before && after < unit ? `cuts loose ${inDays((unit - after) / (after - before))}` : 'waiting on stores';
 }
 
 /**
@@ -247,13 +360,8 @@ function fishLedger(
     helps: total(breakdown.benefits),
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
-    bank: {
-      label: 'Reserve',
-      text: String(sharePercent(reserve)),
-      unit: '% full',
-      at: reserve,
-      note: reserveNote(fish, hour, breakdown.healed, broods),
-    },
+    budget: [reserveRow(reserve, reserveNote(fish, hour, breakdown.healed, broods))],
+    stores: [],
     demand: null,
     verb: 'feed',
     scope: null,
@@ -270,6 +378,7 @@ function reserveNote(fish: Fish, hour: FishHour, healed: number, broods: boolean
 
 function plantLedger(
   state: SimulationState,
+  config: TunableConfig,
   ahead: HourAhead,
   id: string,
   subtitle: string
@@ -278,14 +387,15 @@ function plantLedger(
   if (index < 0) return null;
 
   const plant = state.plants[index];
-  const { vitality, fluxes, buds, light } = ahead.plants[index];
+  const { vitality, fluxes, buds, light, next } = ahead.plants[index];
   const { breakdown } = vitality;
   const label = plantLabels(state.plants).get(id)!;
-  const buffer = offshootShare(plant);
+  const p = plantParams(plant.species, config.plants);
+  const plantlet = offshootShare(plant);
   const data = PLANT_SPECIES_DATA[plant.species];
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
-  const { reading, value, trend } = vitalReading(plant.condition, vitality.newCondition);
+  const { reading, value, trend, sick } = vitalReading(plant.condition, vitality.newCondition);
   const [lightLow, lightHigh] = data.tolerableLight;
 
   return {
@@ -317,13 +427,20 @@ function plantLedger(
     helps: total(breakdown.benefits),
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
-    bank: {
-      label: 'Buffer',
-      text: String(sharePercent(buffer)),
-      unit: '% to offshoot',
-      at: buffer,
-      note: bufferNote(fluxes, buds),
-    },
+    budget: [
+      ...floraBudget(plant.budget, p, fluxes, breakdown, sick),
+      {
+        key: 'plantlet',
+        label: 'Plantlet',
+        text: String(sharePercent(plantlet)),
+        unit: '% built',
+        at: plantlet,
+        band: FULL_TRACK,
+        status: 'neutral',
+        note: plantletNote(plant.budget, next, offshootStructure(plant.species), buds, starvation({ fluxes }) > 0),
+      },
+    ],
+    stores: storeRows(plant.budget, p, config.plants.droopEdge),
     demand:
       `${data.nutrientDemand} demand · light ${lightLow}–${lightHigh} PAR · ${data.co2Requirement} CO₂`,
     verb: 'trimPlants',
@@ -346,20 +463,42 @@ export function bloomVerb(kind: AlgaeKind): BloomRemoval {
 }
 
 /**
+ * What the planting's exudates leave of a bloom's assimilation, while anything
+ * is planted.
+ */
+function heldRow(state: SimulationState, config: TunableConfig): BudgetRow[] {
+  if (state.plants.length === 0) return [];
+  const held = allelopathy(state.plants, state.resources.water, config.algae).assimilation;
+  return [
+    {
+      key: 'held',
+      label: 'Held to',
+      text: String(sharePercent(held)),
+      unit: '%',
+      at: null,
+      band: null,
+      status: 'neutral',
+      note: 'by the planting',
+    },
+  ];
+}
+
+/**
  * A bloom as the organism it is — condition, what feeds it and what harms it,
- * its reserve growing it — headed by its kind's word for how much of it there
- * is.
+ * its reserve and stores growing it, the planting holding it — headed by its
+ * kind's word for how much of it there is.
  */
 function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourAhead, kind: AlgaeKind): Ledger {
-  const { condition } = state.algae[kind];
+  const { condition, budget } = state.algae[kind];
   const mass = bloomMass(state, kind);
   const next = ahead.algae[kind];
   const { breakdown } = next.vitality;
   const traits = ALGAE[kind];
+  const p = bloomParams(kind, config.plants);
   const place = HABITAT[traits.habitat];
   const taken = plantLightTaken(state, config.optics)[kind] * 100;
   const coverage = algaeReading(kind, mass, taken);
-  const { value, trend } = vitalReading(condition, next.condition);
+  const { value, trend, sick } = vitalReading(condition, next.condition);
 
   return {
     target: { kind: 'algae', bloom: kind },
@@ -398,7 +537,8 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     helps: total(breakdown.benefits),
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
-    bank: null,
+    budget: [...floraBudget(budget, p, next.fluxes, breakdown, sick), ...heldRow(state, config)],
+    stores: storeRows(budget, p, config.plants.droopEdge),
     demand: `half-fed at ${traits.ammoniaHalfSaturation} ppm NH₃, ${traits.nitrateHalfSaturation} NO₃, ${traits.phosphateHalfSaturation} PO₄ · light from ${traits.lowLight} PAR`,
     verb: bloomVerb(kind),
     scope: null,
@@ -421,7 +561,7 @@ export function readLedger(
     case 'fish':
       return fishLedger(state, config, ahead, target.id, subtitle);
     case 'plant':
-      return plantLedger(state, ahead, target.id, subtitle);
+      return plantLedger(state, config, ahead, target.id, subtitle);
     case 'algae':
       return algaeLedger(state, config, ahead, target.bloom);
   }

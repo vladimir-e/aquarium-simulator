@@ -207,8 +207,8 @@ export interface PlantRow {
   /** The day's light at its own height over the day its species is rated to live on. */
   light: number;
   lightStatus: Status;
-  /** Its offshoot buffer as a share of its next offshoot. */
-  bank: number;
+  /** Its offshoot buffer as a share of its next plantlet. */
+  plantlet: number;
 }
 
 export function plantRows(state: SimulationState, ahead: HourAhead): PlantRow[] {
@@ -229,7 +229,7 @@ export function plantRows(state: SimulationState, ahead: HourAhead): PlantRow[] 
       reading,
       light: light.needShare,
       lightStatus: plantLightStatus(light, plant.species),
-      bank: offshootShare(plant),
+      plantlet: offshootShare(plant),
     };
   });
 }
@@ -323,7 +323,7 @@ export function floorPlanted(state: SimulationState): string {
     : `floor ${sharePercent(cover)} % planted`;
 }
 
-const NUTRIENT_LABEL: Record<Nutrient, string> = {
+export const NUTRIENT_LABEL: Record<Nutrient, string> = {
   nitrate: 'NO₃',
   phosphate: 'PO₄',
   potassium: 'K',

@@ -97,9 +97,23 @@ const storeDensity = (state: FloraState, n: Nutrient): number =>
 export const storeFill = (state: FloraState, p: FloraParams): NutrientVector =>
   mapNutrients((n) => storeDensity(state, n) / storeMax(p, n));
 
-/** Droop's growth limit, the least nutrient ruling: each store's density as a Monod against Q_min. */
-export const droopFactor = (state: FloraState, p: FloraParams): number =>
-  Math.min(...NUTRIENTS.map((n) => monodFactor(storeDensity(state, n), p.qMin[n])));
+/** The fill at which each store's Droop limit stands at `limit`. */
+export const fillAtDroop = (p: FloraParams, limit: number): NutrientVector =>
+  mapNutrients((n) => (p.qMin[n] * limit) / ((1 - limit) * storeMax(p, n)));
+
+/** mg each store lacks of full. */
+export const storeGap = (state: FloraState, p: FloraParams): NutrientVector =>
+  mapNutrients((n) => Math.max(0, storeMax(p, n) * state.structure - state.stores[n]));
+
+/** Each store's own Droop limit: its density as a Monod against Q_min. */
+export const droopLimits = (state: FloraState, p: FloraParams): NutrientVector =>
+  mapNutrients((n) => monodFactor(storeDensity(state, n), p.qMin[n]));
+
+/** Droop's growth limit, the least nutrient ruling. */
+export const droopFactor = (state: FloraState, p: FloraParams): number => {
+  const limits = droopLimits(state, p);
+  return Math.min(...NUTRIENTS.map((n) => limits[n]));
+};
 
 export const floraOrganics = (state: FloraState): number =>
   state.reserve + state.offshootBuffer + state.structure;
@@ -225,9 +239,8 @@ export function stepFlora(state: FloraState, p: FloraParams, hour: FloraBudgetHo
  * at their own Michaelis–Menten share.
  */
 export function storeRequest(state: FloraState, p: FloraParams, tau: number): NutrientVector {
-  return mapNutrients(
-    (n) => Math.max(0, storeMax(p, n) * state.structure - state.stores[n]) * hourlyDraw(tau * p.storeFillRate[n])
-  );
+  const gap = storeGap(state, p);
+  return mapNutrients((n) => gap[n] * hourlyDraw(tau * p.storeFillRate[n]));
 }
 
 export function takeUp(state: FloraState, delivered: Readonly<NutrientVector>): FloraState {

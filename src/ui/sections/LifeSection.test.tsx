@@ -137,7 +137,8 @@ describe('LifeSection', () => {
       const drawer = within(screen.getByRole('dialog'));
       expect(drawer.getByText(`the worst of 2 in ${label}`)).toBeTruthy();
       expect(drawer.getByText('% of need')).toBeTruthy();
-      expect(drawer.getByText('% to offshoot')).toBeTruthy();
+      expect(drawer.getByText('% built')).toBeTruthy();
+      expect(drawer.getByText('Stores')).toBeTruthy();
     });
   });
 
