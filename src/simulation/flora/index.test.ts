@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { produce } from 'immer';
 import { processFlora, type BloomHour } from './index.js';
 import { bloomParams, plantParams } from './params.js';
@@ -25,7 +25,7 @@ import {
 } from '../algae/index.js';
 import { createRng } from '../core/rng.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { mapNutrients, NUTRIENTS, type NutrientVector } from '../config/nutrients.js';
+import { mapNutrients, NUTRIENTS, type FormVector, type NutrientVector } from '../config/nutrients.js';
 import { PLANT_SPECIES_DATA, growthFormOf, type PlantSpecies } from '../plants/species.js';
 import { getSubstrateNutrients } from '../equipment/substrate.js';
 import { plantRecord, withBudget } from '../tests/plant.js';
@@ -417,5 +417,22 @@ describe('processFlora — one pool', () => {
     const alone = processFlora(lean({}), config).state.plants[0].budget.stores.phosphate;
     const beside = processFlora(lean({ greenWater: 3 }), config).state.plants[0].budget.stores.phosphate;
     expect(beside).toBeLessThan(alone);
+  });
+
+  it('feeds the plants of water with no iron as if no spores landed: spores that could build nothing ask for nothing', () => {
+    const fern = withBudget(plantRecord({ id: 'fern', species: 'java_fern', size: 50 }), { stores: mapNutrients(() => 0) });
+    const lean = produce(floraTank({ plants: [fern], ...LIT }), (draft) => {
+      draft.resources.nitrate = 0.5 * LITRES;
+      draft.resources.phosphate = 0.05 * LITRES;
+      draft.resources.iron = 0;
+    });
+    const plantsFed = (): FormVector => processFlora(lean, config).waterUptake;
+    for (const kind of ALGAE_KINDS) {
+      const withSpores = plantsFed();
+      const sporeRate = vi.spyOn(ALGAE[kind], 'sporeRate', 'get').mockReturnValue(0);
+      const sporeless = plantsFed();
+      sporeRate.mockRestore();
+      expect(withSpores).toEqual(sporeless);
+    }
   });
 });

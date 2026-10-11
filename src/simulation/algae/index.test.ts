@@ -11,15 +11,16 @@ import {
   EMPTY_BLOOM,
   landSpores,
   coverageOf,
+  sporesAsked,
   sporesBuilt,
   sporesUptake,
   thrivingPlantDensity,
 } from './index.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { mapNutrients, NUTRIENTS, ZERO_FORMS } from '../config/nutrients.js';
+import { mapNutrients, NUTRIENTS, ZERO_FORMS, type FormVector } from '../config/nutrients.js';
 import { dailyLightIntegral } from '../equipment/light.js';
 import { dailyLightEdge, TISSUE_PER_RATE_UNIT } from '../systems/flora.js';
-import { formHalfSaturations, poolDraws } from '../systems/nutrients.js';
+import { formHalfSaturations, poolDraws, type NutrientPool } from '../systems/nutrients.js';
 import { floraNutrients, stocked, type FloraState } from '../systems/flora-budget.js';
 import type { CarbonFixer } from '../systems/photosynthesis.js';
 import { bloomParams } from '../flora/params.js';
@@ -93,6 +94,25 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
         nitrate: traits.nitrateHalfSaturation,
         phosphate: traits.phosphateHalfSaturation,
       });
+    });
+  });
+
+  describe('sporesAsked', () => {
+    const pool = (stock: Partial<FormVector>): NutrientPool => ({ stock: { ...ZERO_FORMS, ...stock }, volume: 100 });
+    const ample = pool({ nitrate: 1000, phosphate: 100, potassium: 1000, iron: 10 });
+    const asked = (water: NutrientPool, bed = water): number =>
+      sporesAsked(0.01, [water, bed], poolDraws([water, bed], bloomFeeder(traits, config.nutrients)), p);
+
+    it('asks every gram it lands of water that holds plenty of every nutrient', () => {
+      expect(asked(ample)).toBe(0.01);
+    });
+
+    it('asks what all the water holds of its scarcest nutrient would build', () => {
+      expect(asked(pool({ ...ample.stock, iron: p.qMin.iron * 0.0025 }))).toBeCloseTo(0.0025, 15);
+    });
+
+    it('asks nothing of any nutrient with one absent from the water, however much the bed holds', () => {
+      expect(asked(pool({ ...ample.stock, iron: 0 }), ample)).toBe(0);
     });
   });
 

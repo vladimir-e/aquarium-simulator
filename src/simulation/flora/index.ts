@@ -39,6 +39,7 @@ import {
   landSpores,
   mapKinds,
   coverageOf,
+  sporesAsked,
   sporesBuilt,
   sporesUptake,
   type AlgaeKind,
@@ -138,6 +139,8 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     const habitat = habitatSize(traits.habitat, state);
     const lit = bloomLight(resources, habitatGain(traits.habitat, state, config.optics), traits);
     const room = growthTaper(coverageOf(budget.structure, habitat, traits));
+    const p = bloomParams(kind, plantsConfig);
+    const draws = poolDraws(pools, bloomFeeder(traits, nutrientsConfig));
     return {
       kind,
       traits,
@@ -145,10 +148,10 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
       condition,
       habitat,
       light: lit,
-      p: bloomParams(kind, plantsConfig),
-      draws: poolDraws(pools, bloomFeeder(traits, nutrientsConfig)),
+      p,
+      draws,
       room,
-      spores: bloomTissue(traits.sporeRate * room, habitat, traits),
+      spores: sporesAsked(bloomTissue(traits.sporeRate * room, habitat, traits), pools, draws, p),
       fixer: bloomFixer(state.algae[kind], lit, omega, bloomStress, traits, plantsConfig),
       stress: bloomStress,
     };
