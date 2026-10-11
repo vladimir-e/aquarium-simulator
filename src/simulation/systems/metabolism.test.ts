@@ -1,14 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { burn, fishPace, gillAmmonia, liveHour, processMetabolism } from './metabolism.js';
-import { oxygenPace } from './reserve.js';
+import { NO_STRESS, oxygenPace, totalBurned } from './reserve.js';
 import { gutCapacity, gutRoom, type Pace } from './digestion.js';
 import { livestockDefaults as config } from '../config/livestock.js';
 import { speciesTau } from '../livestock/species.js';
 import { WASTE_NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
 import { sum } from '../core/sum.js';
-import { NO_STRESS } from './reserve.js';
-import { totalBurned } from './reserve.js';
 import { fishOrganics } from './fish-body.js';
 import { fishRecord } from '../tests/fish.js';
 

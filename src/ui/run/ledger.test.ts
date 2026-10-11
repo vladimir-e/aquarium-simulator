@@ -15,6 +15,7 @@ import {
   tick,
   wellFed,
   type Fish,
+  type FloraState,
   type SimulationState,
 } from '../../simulation/index.js';
 import { mapNutrients, NUTRIENTS } from '../../simulation/config/index.js';
@@ -23,7 +24,7 @@ import { readHourAhead } from './ahead.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
 import { bloomCoverage } from '../../simulation/algae/index.js';
 import { offshootStructure } from '../../simulation/plants/create-plant.js';
-import { atSize } from '../../simulation/tests/plant.js';
+import { atSize, withBudget } from '../../simulation/tests/plant.js';
 import { LEDGER_DECIMALS, readLedger, type BudgetRow, type Ledger, type LedgerTarget } from './ledger.js';
 import { FED, atReserve, starving } from '../test/gut';
 import { projectedTrend } from './status.js';
@@ -133,25 +134,25 @@ describe('readLedger', () => {
       return {
         ...state,
         tick: hour,
-        plants: state.plants.map((plant) => ({ ...plant, budget: { ...plant.budget, offshootBuffer: buffer } })),
+        plants: state.plants.map((plant) => withBudget(plant, { offshootBuffer: buffer })),
       };
     };
     const plantLedger = (state: SimulationState): Ledger =>
       ledgerOf(state, { kind: 'plant', id: state.plants[0].id })!;
     const offshoot = (state: SimulationState): BudgetRow => line(plantLedger(state), 'offshoot')!;
-    const withBudget = (state: SimulationState, budget: Partial<SimulationState['plants'][number]['budget']>): SimulationState => ({
+    const withBudgets = (state: SimulationState, budget: Partial<FloraState>): SimulationState => ({
       ...state,
-      plants: state.plants.map((plant) => ({ ...plant, budget: { ...plant.budget, ...budget } })),
+      plants: state.plants.map((plant) => withBudget(plant, budget)),
     });
     const unfedInTheDark = (state: SimulationState): SimulationState => ({
-      ...withBudget(state, { reserve: 0 }),
+      ...withBudgets(state, { reserve: 0 }),
       equipment: { ...state.equipment, light: { ...state.equipment.light, enabled: false } },
       resources: { ...state.resources, lightByHour: state.resources.lightByHour.map(() => 0) },
     });
     const fern = plantParams('java_fern', DEFAULT_CONFIG.plants);
 
     it('reads its reserve as the fish’s is read, filling or drawing down by the hour’s fluxes', () => {
-      for (const state of [planted(10), planted(0), withBudget(planted(10), { reserve: 0 })]) {
+      for (const state of [planted(10), planted(0), withBudgets(planted(10), { reserve: 0 })]) {
         const { fluxes } = readHourAhead(state, DEFAULT_CONFIG).plants[0];
         const reserve = reserveOf(plantLedger(state));
         const fills = fluxes.assimilated - fluxes.mobilised - fluxes.burned.healing >= 0;
@@ -207,7 +208,7 @@ describe('readLedger', () => {
     it('waits on stores while an empty store lets the buffer fill no further, or a full one cannot pay an offshoot’s Q_min', () => {
       const unit = offshootStructure('java_fern');
       const ironless = (state: SimulationState): SimulationState => ({
-        ...withBudget(state, { stores: { ...state.plants[0].budget.stores, iron: 0 } }),
+        ...withBudgets(state, { stores: { ...state.plants[0].budget.stores, iron: 0 } }),
         resources: { ...state.resources, iron: 0 },
       });
       const dry = ironless(planted(10, unit / 2));
@@ -222,7 +223,7 @@ describe('readLedger', () => {
     it('waits on stores rather than name a day past a year off, and on the reserve while it starves with nothing in the buffer', () => {
       const unit = offshootStructure('java_fern');
       const lean = (state: SimulationState): SimulationState => ({
-        ...withBudget(state, { stores: { nitrate: 1e-9, phosphate: 1e-9, potassium: 1e-9, iron: 1e-9 } }),
+        ...withBudgets(state, { stores: { nitrate: 1e-9, phosphate: 1e-9, potassium: 1e-9, iron: 1e-9 } }),
         resources: { ...state.resources, nitrate: 0, phosphate: 0, potassium: 0, iron: 0, ammonia: 0 },
       });
       const crawling = lean(planted(10, unit / 2));
@@ -237,7 +238,7 @@ describe('readLedger', () => {
     });
 
     it('reads each store’s fill, full at 100, banded from the fill its Droop edge sits at and coral under it', () => {
-      const lean = withBudget(planted(10), {
+      const lean = withBudgets(planted(10), {
         stores: { ...planted(10).plants[0].budget.stores, phosphate: 0.05 * fern.qMin.phosphate * planted(10).plants[0].budget.structure },
       });
       const { budget } = lean.plants[0];
@@ -254,7 +255,7 @@ describe('readLedger', () => {
       }
       expect(stores.filter((row) => row.status === 'alert').map((row) => row.key)).toEqual(['phosphate']);
 
-      const overfull = withBudget(planted(10), {
+      const overfull = withBudgets(planted(10), {
         stores: mapNutrients((n) => 1.5 * (fern.qMax[n] - fern.qMin[n]) * planted(10).plants[0].budget.structure),
       });
       expect(plantLedger(overfull).stores.map((row) => [row.text, row.at])).toEqual(NUTRIENTS.map(() => ['100', 1]));
@@ -271,7 +272,7 @@ describe('readLedger', () => {
         expect(noted(state)).toEqual([]);
       }
 
-      const lean = withBudget(planted(10), {
+      const lean = withBudgets(planted(10), {
         stores: { ...planted(10).plants[0].budget.stores, phosphate: 0.05 * fern.qMin.phosphate * planted(10).plants[0].budget.structure },
       });
       expect(growth(lean)).toBeLessThan(0.99);

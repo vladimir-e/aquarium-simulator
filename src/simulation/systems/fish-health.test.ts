@@ -9,13 +9,13 @@ import {
   processHealth,
   speciesHardiness,
 } from './fish-health.js';
-import { repairAsked, repairPrice, starvation } from './reserve.js';
-import { fishParams } from './fish-body.js';
+import { NO_STRESS, repairAsked, repairPrice, starvation } from './reserve.js';
+import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
 import type { VitalityResult } from './vitality.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { configRange, DEFAULT_CONFIG } from '../config/index.js';
-import { debParams, FISH_SPECIES_DATA } from '../livestock/species.js';
+import { debParams, FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { createSimulation, type Fish, type Plant, type Resources, type SimulationState } from '../state.js';
 import {
   highAmmoniaAlert,
@@ -26,7 +26,6 @@ import {
 } from '../alerts/index.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
 import { getGhMass } from '../resources/helpers.js';
-import type { FishSpecies } from '../livestock/species.js';
 import {
   FREE_AMMONIA_EDGE,
   HARDY_TOLERANCE,
@@ -41,8 +40,6 @@ import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { plantRecord } from '../tests/plant.js';
 import { gutCapacity, type Pace } from './digestion.js';
 import { liveHour, type FishHour } from './metabolism.js';
-import { NO_STRESS } from './reserve.js';
-import { fishMass, fishOrganics, fishSize } from './fish-body.js';
 import { fishRecord } from '../tests/fish.js';
 
 const STRESSORS = [

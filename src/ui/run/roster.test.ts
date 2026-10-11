@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { plantRecord } from '../../simulation/tests/plant.js';
+import { plantRecord, withBudget } from '../../simulation/tests/plant.js';
 import { sizeOf } from '../../simulation/plants/canopy.js';
 import { offshootStructure } from '../../simulation/plants/create-plant.js';
 import type { Clutch, Fish, Plant, SimulationState } from '../../simulation/index.js';
@@ -390,7 +390,7 @@ describe('rosterTables', () => {
     });
 
     it('names a unit by the one it budded from, beside its light and its buffer toward the next offshoot', () => {
-      const state = families((plant) => (plant.id === 'plant_a2' ? { budget: { ...plant.budget, offshootBuffer: 0.625 * offshootStructure(plant.species) } } : {}));
+      const state = families((plant) => (plant.id === 'plant_a2' ? withBudget(plant, { offshootBuffer: 0.625 * offshootStructure(plant.species) }) : {}));
       const [a] = state.plants;
       const rows = tables(state, ['species-java_fern', `family-${a.id}`]).plants;
       const unit = rows.find((row) => row.key === 'plant_a2') as IndividualRosterRow;
@@ -410,9 +410,9 @@ describe('rosterTables', () => {
     });
 
     it('gives a unit the light and the plantlet its ledger gives it', () => {
-      const state = families((plant) => ({
-        budget: { ...plant.budget, offshootBuffer: (plant.parentId ? 1 / 3 : 1) * offshootStructure(plant.species) },
-      }));
+      const state = families((plant) =>
+        withBudget(plant, { offshootBuffer: (plant.parentId ? 1 / 3 : 1) * offshootStructure(plant.species) })
+      );
       const ahead = readHourAhead(state, DEFAULT_CONFIG);
       const open = ['species-java_fern', ...state.plants.map((p) => `family-${p.familyId}`)];
       const units = tables(state, open).plants.filter(

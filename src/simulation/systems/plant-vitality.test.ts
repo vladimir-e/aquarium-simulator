@@ -6,23 +6,20 @@ import {
   computePlantVitality,
   type PlantVitalityContext,
 } from './plant-vitality.js';
-import { repairPrice } from './reserve.js';
+import { maxReserveDensity, repairPrice } from './reserve.js';
 import { toleranceFactor } from '../livestock/tolerance.js';
 import { plantsDefaults } from '../config/plants.js';
-import { mapNutrients } from '../config/nutrients.js';
-import { getMassFromPpm } from '../resources/helpers.js';
+import { getGhMass, getMassFromPpm } from '../resources/helpers.js';
 import type { Plant, Resources } from '../state.js';
 import { lightAtHeight, unitOf, type CanopyLight } from '../plants/canopy.js';
 import type { VitalityFactor } from './vitality.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
-import { getGhMass } from '../resources/helpers.js';
 import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
 import { monodFactor } from '../core/kinetics.js';
-import { plantRecord } from '../tests/plant.js';
+import { plantRecord, withBudget, withStores } from '../tests/plant.js';
 import { mapKinds } from '../algae/blooms.js';
 import { plantParams } from '../flora/params.js';
 import { droopFactor, fullDroopFactor, type FloraFluxes } from './flora-budget.js';
-import { maxReserveDensity } from './reserve.js';
 
 function makePlant(species: PlantSpecies, overrides: Partial<Omit<Plant, 'budget'>> = {}): Plant {
   return plantRecord({ id: `plant_${species}`, species, size: 50, ...overrides });
@@ -93,19 +90,10 @@ function ctx(
 
 const factor = (factors: VitalityFactor[], key: string): number => factors.find((f) => f.key === key)?.amount ?? 0;
 
-/** The plant with its stores at this share of full. */
-function storedAt(plant: Plant, fill: number): Plant {
-  const p = plantParams(plant.species, plantsDefaults);
-  return {
-    ...plant,
-    budget: { ...plant.budget, stores: mapNutrients((n) => fill * (p.qMax[n] - p.qMin[n]) * plant.budget.structure) },
-  };
-}
-
 /** The plant with its reserve at this density. */
 function fedAt(plant: Plant, e: number): Plant {
   const p = plantParams(plant.species, plantsDefaults);
-  return { ...plant, budget: { ...plant.budget, reserve: e * maxReserveDensity(p) * plant.budget.structure } };
+  return withBudget(plant, { reserve: e * maxReserveDensity(p) * plant.budget.structure });
 }
 
 describe('buildPlantStressors', () => {
@@ -142,14 +130,14 @@ describe('buildPlantStressors', () => {
   it('charges deficiency on its stores’ Droop limit under the edge, whatever the water holds', () => {
     const p = plantParams('monte_carlo', plantsDefaults);
     const charged = (fill: number, resources: ResourceOverrides = {}): number =>
-      factor(buildPlantStressors(ctx(storedAt(makePlant('monte_carlo'), fill), makeResources(resources))), 'nutrients');
+      factor(buildPlantStressors(ctx(withStores(makePlant('monte_carlo'), fill), makeResources(resources))), 'nutrients');
     expect(charged(1, { potassium: 0 })).toBe(0);
     const empty = charged(0);
     expect(empty).toBeCloseTo(
       plantsDefaults.nutrientDeficiencySeverity * (1 - PLANT_SPECIES_DATA.monte_carlo.hardiness),
       12
     );
-    const lean = storedAt(makePlant('monte_carlo'), 0.05);
+    const lean = withStores(makePlant('monte_carlo'), 0.05);
     const droop = droopFactor(lean.budget, p);
     const edge = plantsDefaults.droopEdge * fullDroopFactor(p);
     expect(droop).toBeLessThan(edge);
@@ -200,7 +188,7 @@ describe('buildPlantBenefits', () => {
     const p = plantParams('amazon_sword', plantsDefaults);
     expect(total(fedAt(plant, 0.5))).toBeCloseTo(total(plant) / 2, 12);
     expect(total(fedAt(plant, 0))).toBe(0);
-    const lean = storedAt(plant, 0.2);
+    const lean = withStores(plant, 0.2);
     expect(total(lean) / total(plant)).toBeCloseTo(droopFactor(lean.budget, p) / droopFactor(plant.budget, p), 12);
   });
 

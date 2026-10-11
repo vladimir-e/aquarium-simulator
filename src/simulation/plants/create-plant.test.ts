@@ -16,6 +16,7 @@ import { storeFill } from '../systems/flora-budget.js';
 import { wellFed } from '../systems/reserve.js';
 import { sizeOf, tissueMass } from './canopy.js';
 import { growthFormOf, PLANT_SPECIES_DATA, type PlantSpecies } from './species.js';
+import { withBudget } from '../tests/plant.js';
 
 describe('createPlant', () => {
   it('builds a plant at full condition, fed and stocked as a shop sells it', () => {
@@ -111,7 +112,7 @@ describe('offshoots as the buffer buys them', () => {
   it('read the buffer as a share of the next one, full once it holds it', () => {
     const plant = createPlant({ species: 'java_fern', size: 60, rng: createRng(2), plantsConfig });
     const unit = offshootStructure('java_fern');
-    const holding = (buffer: number): number => offshootShare({ ...plant, budget: { ...plant.budget, offshootBuffer: buffer } });
+    const holding = (buffer: number): number => offshootShare(withBudget(plant, { offshootBuffer: buffer }));
     expect(holding(0)).toBe(0);
     expect(holding(unit / 4)).toBeCloseTo(0.25, 12);
     expect(holding(2 * unit)).toBe(1);
