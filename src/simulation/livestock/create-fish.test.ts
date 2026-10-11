@@ -19,6 +19,8 @@ import { ZERO_TOXINS } from '../config/livestock.js';
 const SPECIES = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
 const stock = (o: Partial<Parameters<typeof stockFish>[0]> = {}): ReturnType<typeof stockFish> =>
   stockFish({ species: 'guppy', size: 60, rng: createRng(1), ...o });
+const hatch = (o: Partial<Parameters<typeof hatchFish>[0]> = {}): ReturnType<typeof hatchFish> =>
+  hatchFish({ species: 'corydoras', rng: createRng(2), load: ZERO_TOXINS, ...o });
 
 describe('a fish raised in the shop', () => {
   it.each(SPECIES)('arrives as a %s at the size named, on a full reserve and with no brood', (species) => {
@@ -85,16 +87,17 @@ describe('a fish raised in the shop', () => {
 
 describe('a hatched fish', () => {
   it('is its species’ hatchling, aged 0 with its whole cohort alive and an empty gut', () => {
-    const fry = hatchFish({ species: 'corydoras', rng: createRng(2) });
+    const fry = hatch();
     expect(fry.budget).toEqual(hatchling(debParams('corydoras')));
     expect([fry.age, fry.survival, fry.gut]).toEqual([0, 1, 0]);
   });
 });
 
 describe('every new fish', () => {
-  it('arrives unloaded, stocked or hatched', () => {
+  it('arrives unloaded from the shop, and hatches carrying what its clutch read', () => {
+    const read = { ammonia: 0.05, nitrite: 1, nitrate: 40 };
     expect(stock().load).toEqual(ZERO_TOXINS);
-    expect(hatchFish({ species: 'corydoras', rng: createRng(2) }).load).toEqual(ZERO_TOXINS);
+    expect(hatch({ load: read }).load).toEqual(read);
   });
 });
 
@@ -125,7 +128,7 @@ describe('individual variation', () => {
     const rng = createRng(999);
     const maxAbs = HARDINESS_OFFSET_SPAN * FISH_SPECIES_DATA.neon_tetra.hardiness;
     for (let i = 0; i < 500; i++) {
-      const f = hatchFish({ species: 'neon_tetra', rng });
+      const f = hatch({ species: 'neon_tetra', rng });
       expect(Math.abs(f.hardinessOffset)).toBeLessThanOrEqual(maxAbs + 1e-9);
       expect(f.health).toBeGreaterThanOrEqual(100 - HEALTH_JITTER);
       expect(f.health).toBeLessThanOrEqual(100);
@@ -138,7 +141,7 @@ describe('individual variation', () => {
     const [sexDraw, hardinessDraw, healthDraw, survivalDraw] = [draw(probe), draw(probe), draw(probe), draw(probe)];
     const { hardiness } = FISH_SPECIES_DATA.neon_tetra;
 
-    const fish = hatchFish({ species: 'neon_tetra', rng });
+    const fish = hatch({ species: 'neon_tetra', rng });
 
     expect(fish.sex).toBe(sexDraw < 0.5 ? 'male' : 'female');
     expect(fish.hardinessOffset).toBeCloseTo((hardinessDraw - 0.5) * 2 * HARDINESS_OFFSET_SPAN * hardiness, 12);
@@ -149,7 +152,7 @@ describe('individual variation', () => {
   it('names every fish off the stream, never twice the same', () => {
     const rng = createRng(1);
     const ids = new Set<string>();
-    for (let i = 0; i < 1000; i++) ids.add(hatchFish({ species: 'guppy', rng }).id);
+    for (let i = 0; i < 1000; i++) ids.add(hatch({ species: 'guppy', rng }).id);
     expect(ids.size).toBe(1000);
   });
 

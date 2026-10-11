@@ -63,7 +63,7 @@ export interface Fish {
   survival: number;
   /** 0–1, drawn once at creation: the fish dies of old age when its survival falls below it. */
   survivalDraw: number;
-  /** ppm of each toxin it carries, in the water's units: what its health reads for each. */
+  /** ppm of each toxin it carries, in the water's units: what its health and appetite read for each. */
   load: ToxinVector;
 }
 

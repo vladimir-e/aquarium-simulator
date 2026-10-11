@@ -18,7 +18,7 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
- * v22 loaded the fish with their toxins. `Fish` gains `load` and
+ * v22 gave the fish their toxin loads. `Fish` gains `load` and
  *    `LivestockConfig` gains `loadRate` and `loadAssimilationSeverity`. A v21
  *    session parses and its first tick steps a load no fish carries.
  * v21 gave the organic pools their content and the flora their energy budgets.

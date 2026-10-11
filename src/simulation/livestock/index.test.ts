@@ -9,12 +9,12 @@ import { burn, fishPace } from '../systems/metabolism.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { getPpm } from '../resources/index.js';
 import { atRecipe } from '../core/organics.js';
-import { fishRecord, saturated } from '../tests/fish.js';
+import { carrying, fishRecord, saturated } from '../tests/fish.js';
 import { waterStressors } from '../systems/fish-health.js';
 import { fishHardiness } from './tolerance.js';
 import { speciesTau } from './species.js';
 import { loadFish, waterToxins } from '../systems/toxicokinetics.js';
-import { TOXINS, type Toxin, type ToxinVector } from '../config/livestock.js';
+import { TOXINS, type Toxin } from '../config/livestock.js';
 import type { VitalityResult } from '../systems/vitality.js';
 
 function makeFish(overrides: Partial<Fish> & { size?: number } = {}): Fish {
@@ -114,10 +114,6 @@ describe('toxin loads', () => {
       draft.resources.ammonia = 20 * draft.resources.water;
       draft.resources.nitrite = 20 * draft.resources.water;
       draft.resources.nitrate = 2000 * draft.resources.water;
-    });
-  const carrying = (state: SimulationState, load: ToxinVector): SimulationState =>
-    produce(state, (draft) => {
-      for (const fish of draft.fish) fish.load = { ...load };
     });
   const charge = (vitality: VitalityResult, toxin: Toxin): number =>
     vitality.breakdown.stressors.find((factor) => factor.key === toxin)!.amount;

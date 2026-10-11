@@ -78,6 +78,7 @@ export {
   livestockConfigMeta,
   loadRateMeta,
   TOXINS,
+  TOXIN_LABEL,
   type Toxin,
   type ToxinVector,
   mapToxins,

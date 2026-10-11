@@ -9,7 +9,7 @@ import { readTank, type ReadingBook } from '../readings';
 import { snapshotFromState } from '../run';
 import { ALERT_IDS, activeNeeds, needySections, type Need } from './needs.js';
 import { atReserve } from '../test/gut';
-import { saturated } from '../../simulation/tests/fish.js';
+import { poisoned } from '../../simulation/tests/fish.js';
 import type { Fish } from '../../simulation/index.js';
 
 const base = createSimulation({ tankCapacity: 40 });
@@ -43,9 +43,6 @@ function stocked(e: number, fish: Partial<Fish> = {}): SimulationState {
 
 const HUNGRY = 0.6;
 const LEAN = 0.32;
-
-const poisoned = (state: SimulationState): SimulationState =>
-  saturated({ ...state, resources: { ...state.resources, ammonia: 10 * state.resources.water } });
 
 describe('activeNeeds', () => {
   it('says nothing about a tank with nothing latched', () => {
@@ -105,7 +102,7 @@ describe('activeNeeds', () => {
 
   it('sends a hungry fish sick of ammonia to its ledger, not to the food', () => {
     const fed = stocked(1);
-    const state = poisoned({ ...fed, fish: [atReserve(fed.fish[0], HUNGRY), ...fed.fish.slice(1)] });
+    const state = poisoned({ ...fed, fish: [atReserve(fed.fish[0], HUNGRY), ...fed.fish.slice(1)] }, 10);
     const [sick] = needs(state);
     const [hungry] = book(state).roster.fish[0].members;
 
@@ -117,7 +114,7 @@ describe('activeNeeds', () => {
 
   it('does not let a starving fish hide the others sick of something a feeding will not answer', () => {
     const fed = stocked(1);
-    const state = poisoned({ ...fed, fish: [atReserve(fed.fish[0], 0), ...fed.fish.slice(1)] });
+    const state = poisoned({ ...fed, fish: [atReserve(fed.fish[0], 0), ...fed.fish.slice(1)] }, 10);
 
     expect(needs(state)).toMatchObject([
       { id: 'fishStarving', tone: 'alert', act: 'feed', figure: '1 of 3' },

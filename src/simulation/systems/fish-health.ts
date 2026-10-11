@@ -13,7 +13,8 @@
  *   scaled by `1 − fishHardiness`.
  * - Free NH3, nitrite, nitrate and oxygen instead carry hardiness on the
  *   concentration axis: it moves where harm starts, not how steeply it grows.
- *   The toxins read the fish's load, oxygen the water of this moment.
+ *   The toxins read the load the hour carries the fish to, oxygen the water of
+ *   this moment.
  * - Starvation is the hour's maintenance shortfall as a share of its upkeep.
  * - Age is the DEB hazard at `hazardSeverity`: intrinsic, no hardiness
  *   shields it.
@@ -29,7 +30,7 @@ import type { Fish, Plant, Resources } from '../state.js';
 import { getPh } from '../core/carbonate.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { getDgh } from '../resources/index.js';
-import type { LivestockConfig, ToxinVector } from '../config/livestock.js';
+import { TOXIN_LABEL, type LivestockConfig, type ToxinVector } from '../config/livestock.js';
 import { shareOut, swallow, type Pace } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import { sum } from '../core/sum.js';
@@ -65,7 +66,7 @@ export interface HealthResult {
 }
 
 interface FishFactorContext {
-  /** The fish as the hour found it, its load stepped on the hour's water (`loadFish`). */
+  /** The fish as the hour found it. */
   fish: Fish;
   hour: FishHour;
   resources: Resources;
@@ -130,9 +131,9 @@ export function waterStressors(
       ],
       hardiness
     ),
-    { key: 'ammonia', label: 'Free NH₃', amount: config.ammoniaStressSeverity * folds.ammonia },
-    { key: 'nitrite', label: 'Nitrite', amount: config.nitriteStressSeverity * folds.nitrite },
-    { key: 'nitrate', label: 'Nitrate', amount: config.nitrateStressSeverity * folds.nitrate },
+    { key: 'ammonia', label: TOXIN_LABEL.ammonia, amount: config.ammoniaStressSeverity * folds.ammonia },
+    { key: 'nitrite', label: TOXIN_LABEL.nitrite, amount: config.nitriteStressSeverity * folds.nitrite },
+    { key: 'nitrate', label: TOXIN_LABEL.nitrate, amount: config.nitrateStressSeverity * folds.nitrate },
     { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
   ];
 }
@@ -199,7 +200,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   const huntedStress = predationStress(fishSize(fish), ctx.predatorMass, waterVolume, config);
 
   return [
-    ...waterStressors(fish.species, ctx.hardiness, fish.load, resources, waterVolume, config),
+    ...waterStressors(fish.species, ctx.hardiness, hour.fish.load, resources, waterVolume, config),
     ...hardened(
       [
         { key: 'starvation', label: 'Starvation', amount: config.starvationSeverity * starvation(hour) },
@@ -248,8 +249,7 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
 /**
  * A fish's health over the hour its budget ran, without applying it —
  * `processHealth` applies it. A caller wanting the next tick's numbers reads it
- * on the hour that tick settles, with the fish as the hour found it, its load
- * stepped on the hour's water as `processLivestock`'s hours carry it, the hour
+ * on the hour that tick settles, with the fish as the hour found it, the hour
  * its budget ran, and its predator mass.
  */
 export function computeFishVitality(
@@ -290,12 +290,11 @@ function damageShare(vitality: VitalityResult, key: string): number {
 
 /**
  * One hour of health for every fish its budget ran for: `fish` as the hour
- * found them, their loads stepped on the hour's water (`loadFish`), `hours`
- * their budgets' hours and `fed` them fed after. A fish dies when its health
- * reaches 0 or its survival falls below its draw. What it leaves — its body,
- * its gut and the brood it carried, all in grams of organic matter — its
- * predators eat in the share of its damage they did, by their weight on it and
- * as far as their guts have room; the rest is waste.
+ * found them, `hours` their budgets' hours and `fed` them fed after. A fish
+ * dies when its health reaches 0 or its survival falls below its draw. What it
+ * leaves — its body, its gut and the brood it carried, all in grams of organic
+ * matter — its predators eat in the share of its damage they did, by their
+ * weight on it and as far as their guts have room; the rest is waste.
  */
 export function processHealth(
   fish: readonly Fish[],

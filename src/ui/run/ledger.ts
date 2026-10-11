@@ -43,7 +43,7 @@ import {
   type VitalityFactor,
 } from '../../simulation/index.js';
 import { fishHardiness, toxinEdges } from '../../simulation/livestock/tolerance.js';
-import { NUTRIENTS } from '../../simulation/config/index.js';
+import { NUTRIENTS, TOXIN_LABEL } from '../../simulation/config/index.js';
 import { habitatPlaces, namePlaces } from '../../simulation/algae/index.js';
 import { BLOOM_COVERAGE_LINE, PLANT_LIGHT_LINE } from '../../simulation/alerts/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
@@ -399,14 +399,14 @@ function fishLedger(
       }),
     ],
     stores: [],
-    load: loadRows(fish, waterToxins(state.resources)),
+    load: loadRows(hour.fish, waterToxins(state.resources)),
     demand: null,
     verb: 'feed',
     scope: null,
   };
 }
 
-const TOXIN_LABEL: Record<Toxin, string> = { ammonia: 'Free NH₃', nitrite: 'Nitrite', nitrate: 'Nitrate' };
+const WATER_NOTE: Record<Toxin, string> = { ammonia: 'free in water', nitrite: 'water', nitrate: 'water' };
 
 function loadRows(fish: Fish, water: ToxinVector): BudgetRow[] {
   const edges = toxinEdges(fishHardiness(fish));
@@ -420,7 +420,7 @@ function loadRows(fish: Fish, water: ToxinVector): BudgetRow[] {
     at: Math.min(1, fish.load[t] / (TRACK_PAST_LINE * edges[t])),
     band: { from: 0, to: 1 / TRACK_PAST_LINE },
     status: fish.load[t] > edges[t] ? 'alert' : 'ok',
-    note: `water ${water[t].toFixed(WATER_DECIMALS[t])}`,
+    note: `${WATER_NOTE[t]} ${water[t].toFixed(WATER_DECIMALS[t])}`,
   }));
 }
 

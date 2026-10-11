@@ -27,21 +27,21 @@ import { digest, gutRoom, shareCapped, type Pace } from './digestion.js';
 
 const NH3_MG_PER_G_N = N_TO_NH3_MASS_RATIO * 1000;
 
-type Exposed = Pick<Fish, 'species' | 'hardinessOffset' | 'load'>;
+type Loaded = Pick<Fish, 'species' | 'hardinessOffset' | 'load'>;
 
 /**
  * DEBtox's assimilation mode for a fish carrying its load: every toxin's
  * e-folds past the fish's own edge, summed, lower its assimilation ceiling by
  * hyperbolic inhibition at `loadAssimilationSeverity`.
  */
-export function loadStress(fish: Exposed, config: LivestockConfig): DebStress {
+export function loadStress(fish: Loaded, config: LivestockConfig): DebStress {
   const folds = sum(Object.values(toxinEFolds(fish.load, fishHardiness(fish))));
   return { ...NO_STRESS, assimilation: 1 / (1 + config.loadAssimilationSeverity * folds) };
 }
 
 /** The pace a fish runs at in this water, `saturation` the O2 it holds saturated. */
 export function fishPace(
-  fish: Exposed,
+  fish: Loaded,
   water: Pick<Resources, 'temperature' | 'oxygen'>,
   saturation: number,
   config: LivestockConfig

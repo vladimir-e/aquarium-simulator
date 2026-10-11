@@ -1,7 +1,7 @@
 import type { Fish, SimulationState } from '../state.js';
 import { STOCKED_FISH_SIZE, stockedBody } from '../livestock/create-fish.js';
 import { debParams } from '../livestock/species.js';
-import { ZERO_TOXINS } from '../config/livestock.js';
+import { ZERO_TOXINS, type ToxinVector } from '../config/livestock.js';
 import { waterToxins } from '../systems/toxicokinetics.js';
 
 /**
@@ -30,7 +30,17 @@ export function holdingEggs<F extends Pick<Fish, 'species' | 'budget'>>(fish: F,
   return { ...fish, budget: { ...fish.budget, broodBuffer: (eggs * p.E0) / p.kappaR } };
 }
 
+/** The tank with every fish carrying `load`. */
+export function carrying<S extends Pick<SimulationState, 'fish'>>(state: S, load: ToxinVector): S {
+  return { ...state, fish: state.fish.map((fish) => ({ ...fish, load })) };
+}
+
 /** The tank with every fish's load at the water's levels, as a fish long in that water carries it. */
 export function saturated<S extends Pick<SimulationState, 'resources' | 'fish'>>(state: S): S {
-  return { ...state, fish: state.fish.map((fish) => ({ ...fish, load: waterToxins(state.resources) })) };
+  return carrying(state, waterToxins(state.resources));
+}
+
+/** The tank with `ammoniaPpm` of total ammonia in its water, every fish saturated to it. */
+export function poisoned<S extends Pick<SimulationState, 'resources' | 'fish'>>(state: S, ammoniaPpm: number): S {
+  return saturated({ ...state, resources: { ...state.resources, ammonia: ammoniaPpm * state.resources.water } });
 }

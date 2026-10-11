@@ -31,7 +31,7 @@ young that hatch.
 | Serving | <Badge text="settled" variant="success" /> | Every fish eats at once; short food splits in proportion to the room in each gut. |
 | Toxin loads | <Badge text="settled" variant="success" /> | GUTS-RED: one load per toxin in the water's ppm, following the water at the toxin's dominant rate. |
 | Water quality | <Badge text="settled" variant="success" /> | Log-dose harm from each fish's own edge, the toxins charged on its load. Chloride, which blunts nitrite, is not modelled. |
-| Load on appetite | <Badge text="scaffolding" variant="caution" /> | Tune's: one severity across the toxins, a third less food at one e-fold past the edge. |
+| Load on appetite | <Badge text="scaffolding" variant="caution" /> | First-pass, not fitted: one severity across the toxins. |
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits. |
 | Starvation | <Badge text="settled" variant="success" /> | The hour's unpaid maintenance as a damage rate; the buffer, then structure, pay it. |
 | Repair | <Badge text="settled" variant="success" /> | A first-order share of the deficit, paid from reserve; condition past 100 is lost. |
@@ -144,8 +144,8 @@ A fish carries one load per toxin — free NH₃, nitrite, nitrate — in the wa
 own ppm, GUTS-RED's scaled internal concentration. Each hour it moves toward the
 water's level at the toxin's dominant rate, the slower of what the gills pass
 and what the body repairs, paced by τ and divided by the fish's structural
-length, so a small or warm fish loads and clears faster. A stocked fish and a
-hatchling arrive unloaded.
+length, so a small or warm fish loads and clears faster. A stocked fish arrives
+unloaded; a hatchling carries the load its clutch read.
 
 | Toxin | Half-time at 1 cm, 20 °C |
 |---|---|

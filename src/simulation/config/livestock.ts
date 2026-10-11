@@ -18,6 +18,8 @@ export const TOXINS = ['ammonia', 'nitrite', 'nitrate'] as const;
 
 export type Toxin = (typeof TOXINS)[number];
 
+export const TOXIN_LABEL: Record<Toxin, string> = { ammonia: 'Free NH₃', nitrite: 'Nitrite', nitrate: 'Nitrate' };
+
 export type ToxinVector = Record<Toxin, number>;
 
 export function mapToxins(value: (t: Toxin) => number): ToxinVector {
@@ -82,7 +84,7 @@ export interface LivestockConfig {
   // Toxins
   /** Dominant rate constant, per hour at 20 °C, a fish of 1 cm structural length loads and clears each toxin at. */
   loadRate: ToxinVector;
-  /** How hard a fish's load, in e-folds past its own edges summed, cuts its assimilation ceiling. */
+  /** How hard a fish's load, in e-folds past its own edges summed, lowers its assimilation ceiling. */
   loadAssimilationSeverity: number;
 
   // Vitality benefit peaks (%/h) — each earned in full only on a full
@@ -113,7 +115,10 @@ export interface LivestockConfig {
   maleBufferTurnover: number;
 
   // Clutches
-  /** How many times harder the water harms a laid egg than a fish; an egg's harm is the share of the clutch lost an hour. */
+  /**
+   * How many times harder the water harms a laid egg than a fish loaded to
+   * that water; an egg's harm is the share of the clutch lost an hour.
+   */
   eggSensitivity: number;
   /** Share of a clutch's eggs an hour one gram of fish per litre finds, before the clutch's exposure. */
   eggPredationRate: number;

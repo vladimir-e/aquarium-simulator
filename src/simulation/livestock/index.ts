@@ -89,14 +89,14 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
     if (mother !== undefined) carried.set(mother, (carried.get(mother) ?? 0) + clutchOrganics(clutch));
   }
   const health = processHealth(
-    fish,
+    state.fish,
     metabolism.hours,
     metabolism.updatedFish,
     state.resources,
     state.plants,
     state.tank.capacity,
     livestock,
-    fish.map((f) => carried.get(f.id) ?? 0)
+    state.fish.map((f) => carried.get(f.id) ?? 0)
   );
 
   const feces = atRecipe(metabolism.feces, config);
