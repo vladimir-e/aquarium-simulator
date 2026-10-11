@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { bloomParams, plantParams } from './params.js';
-import { plantsDefaults, quotaMaxMeta, quotaMinMeta, type PlantsConfig } from '../config/plants.js';
+import { MAX_DROOP_EDGE, plantsDefaults, quotaMaxMeta, quotaMinMeta, type PlantsConfig } from '../config/plants.js';
 import { NUTRIENTS } from '../config/nutrients.js';
 import { CO2_TO_CH2O_MASS_RATIO } from '../core/chemistry.js';
 import { maxReserveDensity, structureOrganics } from '../systems/reserve.js';
@@ -9,7 +9,7 @@ import { metabolicRateUnits } from '../systems/flora.js';
 import { rateUnits, tissueMass } from '../plants/canopy.js';
 import { PLANT_SPECIES_DATA, plantTraits, type PlantSpecies } from '../plants/species.js';
 import { ALGAE, ALGAE_KINDS, bloomRateUnits, bloomTissue } from '../algae/index.js';
-import type { FloraParams } from '../systems/flora-budget.js';
+import { fullDroopFactor, type FloraParams } from '../systems/flora-budget.js';
 
 const config = plantsDefaults;
 const SPECIES = Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[];
@@ -55,6 +55,10 @@ describe.each(units)('$name', ({ p, grams, rated }) => {
 
   it('has room in every store above its structure’s own content', () => {
     expect(NUTRIENTS.every((n) => p.qMax[n] > p.qMin[n] && p.qMin[n] > 0 && p.storeFillRate[n] > 0)).toBe(true);
+  });
+
+  it('clears on full stores the highest Droop edge the tunable takes', () => {
+    expect(fullDroopFactor(p)).toBeGreaterThanOrEqual(MAX_DROOP_EDGE);
   });
 });
 

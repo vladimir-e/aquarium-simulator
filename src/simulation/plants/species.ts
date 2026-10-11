@@ -45,14 +45,15 @@ export interface GrowthFormData {
  * roots; a carpet roots a dense mat into the bed but lies spread under the
  * water, so it takes half from each; an epiphyte on wood has no roots in the bed.
  * An offshoot is a plantlet that stands on its own: a sword's runner plantlet
- * or a rhizome's new branch carries a few leaves of a grown unit's dozen or
- * more, about a tenth of it, and a carpet's runner roots a tuft at a node, a
- * twentieth of a patch. The sizes are Tune's.
+ * carries a few leaves of a grown unit's two dozen, about a tenth of it; a
+ * rhizome branch is cut loose on three or four of a clump's dozen-odd fronds,
+ * a quarter of it; and a carpet's runner roots a tuft at a node, a twentieth
+ * of a patch. The sizes are Tune's.
  */
 export const GROWTH_FORMS: Record<GrowthForm, GrowthFormData> = {
   carpet: { heightCm: 5, heightExponent: 0, footprintCm2: 100, leafAreaIndex: 2.5, rootShare: 0.5, offshootSize: 5, offshootVerb: 'sent a runner' },
   rosette: { heightCm: 40, heightExponent: 1 / 3, footprintCm2: 700, leafAreaIndex: 2.0, rootShare: 0.7, offshootSize: 10, offshootVerb: 'threw a plantlet' },
-  attached: { heightCm: 20, heightExponent: 1 / 3, footprintCm2: 200, leafAreaIndex: 2.5, rootShare: 0, offshootSize: 10, offshootVerb: 'branched at the rhizome' },
+  attached: { heightCm: 20, heightExponent: 1 / 3, footprintCm2: 200, leafAreaIndex: 2.5, rootShare: 0, offshootSize: 25, offshootVerb: 'branched at the rhizome' },
 };
 
 /**

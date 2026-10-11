@@ -212,10 +212,11 @@ export const plantsDefaults: PlantsConfig = {
 };
 
 /**
- * A Droop limit reaches 1 only on an infinite store, so the store an edge
- * asks, `Q_min × edge / (1 − edge)`, runs away as the edge nears it.
+ * The highest edge every flora clears on full stores at the shipped quotas:
+ * past its `fullDroopFactor` — film's, on nitrogen, the lowest — an edge harms
+ * a flora however full it is.
  */
-export const MAX_DROOP_EDGE = 0.95;
+export const MAX_DROOP_EDGE = 0.55;
 
 export interface PlantsConfigMeta {
   key: keyof PlantsConfig;
