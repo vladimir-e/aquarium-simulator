@@ -75,7 +75,7 @@ export type TankTerms = {
  * planting, blooms at these coverages, and any resource it names.
  */
 export function floraTank({ plants = [], algae = {}, ...resources }: TankTerms = {}): SimulationState {
-  return produce(createSimulation({ tankCapacity: 100 }), (draft) => {
+  return produce(createSimulation({ tankCapacity: 100 }, undefined, 1), (draft) => {
     const water = resources.water ?? draft.resources.water;
     for (const n of NUTRIENTS) draft.resources[n] = nutrientsDefaults.halfSaturation[n] * RICH * water;
     draft.resources.nitrate = 20 * water;
