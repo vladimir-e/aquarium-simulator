@@ -1,14 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { burn, fishPace, gillAmmonia, liveHour, processMetabolism } from './metabolism.js';
+import { burn, fishPace, gillAmmonia, liveHour, loadStress, processMetabolism } from './metabolism.js';
 import { NO_STRESS, oxygenPace, totalBurned } from './reserve.js';
-import { gutCapacity, gutRoom, type Pace } from './digestion.js';
-import { livestockDefaults as config } from '../config/livestock.js';
-import { speciesTau } from '../livestock/species.js';
+import { appetite, gutCapacity, gutRoom, type Pace } from './digestion.js';
+import { livestockDefaults as config, TOXINS, ZERO_TOXINS, type ToxinVector } from '../config/livestock.js';
+import { debParams, speciesTau } from '../livestock/species.js';
+import { fishHardiness, toxinEdges } from '../livestock/tolerance.js';
+import { waterStressors } from './fish-health.js';
+import { eggsReady, layEggs } from './deb.js';
+import { createSimulation, type Fish } from '../state.js';
 import { WASTE_NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
 import { sum } from '../core/sum.js';
 import { fishOrganics } from './fish-body.js';
-import { fishRecord } from '../tests/fish.js';
+import { fishRecord, holdingEggs } from '../tests/fish.js';
 
 const SATURATED = 8;
 const REFERENCE: Pace = { tau: 1, omega: 1, stress: NO_STRESS };
@@ -26,12 +30,92 @@ describe('oxygenPace', () => {
   });
 });
 
+const guppy = fishRecord({ species: 'guppy' });
+const carrying = (load: Partial<ToxinVector>, fish: Fish = guppy): Fish => ({ ...fish, load: { ...ZERO_TOXINS, ...load } });
+const edges = toxinEdges(fishHardiness(guppy));
+const WATER = { temperature: 26, oxygen: SATURATED };
+
+describe('loadStress', () => {
+  it('is no stress at all on a fish carrying nothing', () => {
+    expect(loadStress(guppy, config)).toEqual(NO_STRESS);
+  });
+
+  it('holds the ceiling whole up to the fish’s own edge, and lowers it hyperbolically on the e-folds past it', () => {
+    expect(loadStress(carrying({ nitrite: edges.nitrite }), config).assimilation).toBe(1);
+    expect(loadStress(carrying({ nitrite: edges.nitrite * Math.E }), config).assimilation).toBeCloseTo(
+      1 / (1 + config.loadAssimilationSeverity),
+      12
+    );
+  });
+
+  it('falls as the load rises past the edge, and stays in (0, 1]', () => {
+    const shares = [1, 2, 10, 1e3, 1e12].map(
+      (times) => loadStress(carrying({ ammonia: edges.ammonia * times }), config).assimilation
+    );
+    shares.slice(1).forEach((share, i) => expect(share).toBeLessThan(shares[i]));
+    for (const share of shares) {
+      expect(share).toBeGreaterThan(0);
+      expect(share).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('sums the toxins as toxic units: an e-fold of one weighs what an e-fold of another does', () => {
+    const one = loadStress(carrying({ ammonia: edges.ammonia * Math.E ** 2 }), config);
+    const both = loadStress(carrying({ ammonia: edges.ammonia * Math.E, nitrate: edges.nitrate * Math.E }), config);
+    expect(both.assimilation).toBeCloseTo(one.assimilation, 12);
+  });
+
+  it('reads the e-folds health charges, past the same edges hardiness moves', () => {
+    const { resources } = createSimulation({ tankCapacity: 100 });
+    const load = { ammonia: 0.1, nitrite: 3, nitrate: 400 };
+    const fishes = [
+      carrying(load),
+      carrying(load, fishRecord({ species: 'neon_tetra' })),
+      carrying(load, fishRecord({ species: 'angelfish', hardinessOffset: 0.1 })),
+    ];
+    for (const fish of fishes) {
+      const charged = waterStressors(fish.species, fishHardiness(fish), fish.load, resources, resources.water, config);
+      const folds = sum(
+        TOXINS.map((t) => charged.find((factor) => factor.key === t)!.amount / config[`${t}StressSeverity`])
+      );
+      expect(1 / loadStress(fish, config).assimilation - 1).toBeCloseTo(config.loadAssimilationSeverity * folds, 12);
+    }
+  });
+
+  it('stresses a softer fish at a load a hardier one carries under its edge', () => {
+    const between = { nitrate: edges.nitrate * 0.99 };
+    expect(loadStress(carrying(between), config).assimilation).toBe(1);
+    expect(loadStress(carrying(between, fishRecord({ species: 'neon_tetra' })), config).assimilation).toBeLessThan(1);
+  });
+
+  it('leaves maintenance, growth cost and egg cost whole, so a brood counts and costs what it would clean', () => {
+    const ripe = holdingEggs(carrying({ ammonia: 1, nitrite: 20, nitrate: 2000 }), 40);
+    const stress = loadStress(ripe, config);
+    const p = debParams(ripe.species);
+    expect({ ...stress, assimilation: 1 }).toEqual(NO_STRESS);
+    expect(eggsReady(ripe.budget, p, stress)).toBe(eggsReady(ripe.budget, p));
+    expect(layEggs(ripe.budget, p, 10, stress)).toEqual(layEggs(ripe.budget, p, 10));
+  });
+});
+
 describe('fishPace', () => {
-  it('runs on its species’ Arrhenius temperature, and on oxygen alone for ω', () => {
-    const pace = fishPace('guppy', { temperature: 26, oxygen: 3 }, SATURATED, config);
+  it('runs on its species’ Arrhenius temperature, on oxygen alone for ω, and on its load for stress', () => {
+    const fish = carrying({ nitrite: 4 });
+    const pace = fishPace(fish, { temperature: 26, oxygen: 3 }, SATURATED, config);
     expect(pace.tau).toBe(speciesTau('guppy', 26));
     expect(pace.omega).toBe(oxygenPace(3, SATURATED, config.oxygenHalfSaturation));
-    expect(pace.stress).toBe(NO_STRESS);
+    expect(pace.stress).toEqual(loadStress(fish, config));
+  });
+
+  it('lowers a loaded fish’s hourly appetite below an unloaded one’s, and a full gut still bites', () => {
+    const loaded = carrying({ nitrite: edges.nitrite * 4 });
+    const cleanPace = fishPace(guppy, WATER, SATURATED, config);
+    const loadedPace = fishPace(loaded, WATER, SATURATED, config);
+    expect(appetite(loaded, loadedPace)).toBeLessThan(appetite(guppy, cleanPace));
+
+    const gut = gutCapacity(guppy, cleanPace);
+    const assimilated = (fish: Fish, pace: Pace): number => liveHour({ ...fish, gut }, pace, 0, config).fluxes.assimilated;
+    expect(assimilated(loaded, loadedPace)).toBeLessThan(assimilated(guppy, cleanPace));
   });
 });
 

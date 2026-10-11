@@ -27,6 +27,7 @@ import { atRecipe, NO_ORGANICS, type Organics } from '../core/organics.js';
 import { clutchOrganics, clutchesWithMothers } from '../systems/clutch.js';
 import { loadFish, waterToxins } from '../systems/toxicokinetics.js';
 import { getPpm } from '../resources/index.js';
+import { speciesTau } from './species.js';
 import type { LivestockConfig } from '../config/livestock.js';
 
 export interface LivestockProcessingResult {
@@ -46,7 +47,7 @@ export interface LivestockProcessingResult {
 /** The pace every fish in the tank runs at this hour, in `fish` order. */
 export function tankPaces(state: Pick<SimulationState, 'fish' | 'resources'>, config: TunableConfig): Pace[] {
   const saturation = calculateO2Saturation(state.resources.temperature, config.gasExchange);
-  return state.fish.map((fish) => fishPace(fish.species, state.resources, saturation, config.livestock));
+  return state.fish.map((fish) => fishPace(fish, state.resources, saturation, config.livestock));
 }
 
 /** What burning `grams` of fish organics does to the water: gill NH3 and minerals in, O2 out, CO2 in. */
@@ -74,9 +75,11 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
 
   const livestock = config.livestock;
   const water = state.resources.water;
-  const paces = tankPaces(state, config);
   const levels = waterToxins(state.resources);
-  const fish = state.fish.map((f, i) => loadFish(f, levels, paces[i].tau, livestock.loadRate));
+  const fish = state.fish.map((f) =>
+    loadFish(f, levels, speciesTau(f.species, state.resources.temperature), livestock.loadRate)
+  );
+  const paces = tankPaces({ ...state, fish }, config);
   const healing = fish.map((f, i) => repairAsked(f.budget, fishParams(f), f.health, paces[i].tau, livestock));
   const metabolism = processMetabolism(fish, paces, healing, state.resources, livestock);
 

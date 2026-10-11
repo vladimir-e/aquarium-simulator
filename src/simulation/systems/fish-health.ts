@@ -37,13 +37,12 @@ import { pointsHealed, starvation, wellFed } from './reserve.js';
 import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
 import type { FishHour } from './metabolism.js';
 import {
-  FREE_AMMONIA_EDGE,
-  NITRATE_EDGE,
-  NITRITE_EDGE,
+  fishHardiness,
   OXYGEN_COMFORT,
   OXYGEN_EDGE,
   OXYGEN_LOG_OFFSET,
   toleranceFactor,
+  toxinEFolds,
 } from '../livestock/tolerance.js';
 import {
   bandComfort,
@@ -63,18 +62,6 @@ export interface HealthResult {
   deathWaste: number;
   /** Each fish's vitality this tick, in the order handed in, the dead included */
   vitalities: VitalityResult[];
-}
-
-/**
- * Hardiness clamped to [0.1, 0.95], so no offset makes an organism
- * invincible or instantly doomed.
- */
-export function speciesHardiness(species: FishSpecies, offset = 0): number {
-  return Math.max(0.1, Math.min(0.95, FISH_SPECIES_DATA[species].hardiness + offset));
-}
-
-export function fishHardiness(fish: Pick<Fish, 'species' | 'hardinessOffset'>): number {
-  return speciesHardiness(fish.species, fish.hardinessOffset);
 }
 
 interface FishFactorContext {
@@ -130,9 +117,7 @@ export function waterStressors(
   const ghStress =
     config.ghStressSeverity * outsideBand(getDgh(resources.gh, waterVolume), speciesData.ghRange);
 
-  const ammoniaStress = config.ammoniaStressSeverity * eFoldsPast(toxins.ammonia, FREE_AMMONIA_EDGE * tolerance);
-  const nitriteStress = config.nitriteStressSeverity * eFoldsPast(toxins.nitrite, NITRITE_EDGE * tolerance);
-  const nitrateStress = config.nitrateStressSeverity * eFoldsPast(toxins.nitrate, NITRATE_EDGE * tolerance);
+  const folds = toxinEFolds(toxins, hardiness);
   const oxygenStress =
     config.oxygenStressSeverity * eFoldsUnder(resources.oxygen, OXYGEN_EDGE / tolerance, OXYGEN_LOG_OFFSET);
 
@@ -145,9 +130,9 @@ export function waterStressors(
       ],
       hardiness
     ),
-    { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
-    { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
-    { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
+    { key: 'ammonia', label: 'Free NH3', amount: config.ammoniaStressSeverity * folds.ammonia },
+    { key: 'nitrite', label: 'Nitrite', amount: config.nitriteStressSeverity * folds.nitrite },
+    { key: 'nitrate', label: 'Nitrate', amount: config.nitrateStressSeverity * folds.nitrate },
     { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
   ];
 }

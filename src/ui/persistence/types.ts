@@ -26,7 +26,8 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * On version mismatch, stored data is discarded.
  *
  * v37: A fish carries its toxin loads. `Fish` gains `load` — free NH₃,
- *      nitrite and nitrate in ppm — and `LivestockConfig` gains `loadRate`.
+ *      nitrite and nitrate in ppm — and `LivestockConfig` gains `loadRate`
+ *      and `loadAssimilationSeverity`.
  * v36: Organic pools carry their content, and the flora run on energy budgets.
  *      `Resources.waste` and `Substrate.organicReserve` become
  *      `{ grams, nutrients }` — the grams and the mg of each nutrient inside

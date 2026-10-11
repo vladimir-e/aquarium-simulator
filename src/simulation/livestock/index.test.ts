@@ -10,7 +10,9 @@ import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { getPpm } from '../resources/index.js';
 import { atRecipe } from '../core/organics.js';
 import { fishRecord, saturated } from '../tests/fish.js';
-import { fishHardiness, waterStressors } from '../systems/fish-health.js';
+import { waterStressors } from '../systems/fish-health.js';
+import { fishHardiness } from './tolerance.js';
+import { speciesTau } from './species.js';
 import { loadFish, waterToxins } from '../systems/toxicokinetics.js';
 import { TOXINS, type Toxin, type ToxinVector } from '../config/livestock.js';
 import type { VitalityResult } from '../systems/vitality.js';
@@ -46,7 +48,7 @@ describe('processLivestock', () => {
     const state = makeState([makeFish({ species: 'guppy' }), makeFish({ species: 'angelfish' })]);
     const saturation = calculateO2Saturation(state.resources.temperature, DEFAULT_CONFIG.gasExchange);
     expect(tankPaces(state, DEFAULT_CONFIG)).toEqual(
-      state.fish.map((f) => fishPace(f.species, state.resources, saturation, DEFAULT_CONFIG.livestock))
+      state.fish.map((f) => fishPace(f, state.resources, saturation, DEFAULT_CONFIG.livestock))
     );
   });
 
@@ -136,6 +138,21 @@ describe('toxin loads', () => {
         expect(charge(result.vitalities[i], toxin)).toBe(read.find((factor) => factor.key === toxin)!.amount);
       }
     });
+  });
+
+  it('paces every fish on the load it carries into the hour, so its budget runs on that stress', () => {
+    const state = carrying(makeState([makeFish({ id: 'a' }), makeFish({ id: 'b', size: 30 })]), {
+      ammonia: 0.5,
+      nitrite: 10,
+      nitrate: 500,
+    });
+    const levels = waterToxins(state.resources);
+    const tau = (fish: Fish): number => speciesTau(fish.species, state.resources.temperature);
+    const loaded = state.fish.map((fish) => loadFish(fish, levels, tau(fish), livestock.loadRate));
+    const paces = processLivestock(state, DEFAULT_CONFIG).hours.map((hour) => hour.pace);
+
+    expect(paces).toEqual(tankPaces({ ...state, fish: loaded }, DEFAULT_CONFIG));
+    for (const pace of paces) expect(pace.stress.assimilation).toBeLessThan(1);
   });
 
   it('harms less in the first hour of a spike than the water read straight would', () => {

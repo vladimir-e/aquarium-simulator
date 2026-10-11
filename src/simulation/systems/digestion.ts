@@ -16,7 +16,7 @@ import { assimilationCeiling, type DebHour } from './deb.js';
 import { fishParams } from './fish-body.js';
 
 /** The pace a fish's budget runs at this hour: τ, ω and the water's stress on it. */
-export type Pace = Pick<DebHour, 'tau' | 'omega' | 'stress'>;
+export type Pace = Required<Pick<DebHour, 'tau' | 'omega' | 'stress'>>;
 
 type Body = Pick<Fish, 'species' | 'budget'>;
 

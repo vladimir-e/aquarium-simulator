@@ -7,7 +7,6 @@ import {
   predatorMasses,
   predatorWeight,
   processHealth,
-  speciesHardiness,
 } from './fish-health.js';
 import { NO_STRESS, repairAsked, repairPrice, starvation } from './reserve.js';
 import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
@@ -34,6 +33,7 @@ import {
   OXYGEN_COMFORT,
   OXYGEN_EDGE,
   OXYGEN_LOG_OFFSET,
+  speciesHardiness,
   toleranceFactor,
 } from '../livestock/tolerance.js';
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';

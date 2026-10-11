@@ -558,6 +558,7 @@ const LivestockConfigSchema = z
     starvationSeverity: z.number().min(0),
     hazardSeverity: z.number().min(0),
     loadRate: numbersFor(TOXINS, z.number().min(0)),
+    loadAssimilationSeverity: z.number().min(0),
     phBenefitPeak: z.number(),
     oxygenBenefitPeak: z.number(),
     plantBenefitPeak: z.number(),

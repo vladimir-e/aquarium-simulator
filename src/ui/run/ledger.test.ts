@@ -30,6 +30,7 @@ import { FED, atReserve, starving } from '../test/gut';
 import { projectedTrend } from './status.js';
 import { fishRecord, holdingEggs } from '../../simulation/tests/fish.js';
 import { spawnsAt } from '../../simulation/systems/brood.js';
+import { fishHardiness, toxinEdges } from '../../simulation/livestock/tolerance.js';
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
   return fishRecord({ age: 24 * 120, gut: FED, ...overrides });
@@ -122,6 +123,46 @@ describe('readLedger', () => {
 
     expect(next.clutches.length).toBeGreaterThan(pair.clutches.length);
     expect(reserveOf(fishLedger(pair)).note).toBe('spawning');
+  });
+
+  it('reads each toxin the fish carries beside its water’s level, on a track to twice its own edge, coral past it', () => {
+    const edge = toxinEdges(fishHardiness(makeFish())).nitrite;
+    const carrying = (nitrite: number): SimulationState => {
+      const state = tank([makeFish({ id: 'fish_a_1', load: { ammonia: 0, nitrite, nitrate: 0 } })]);
+      return { ...state, resources: { ...state.resources, nitrite: 0.2 * state.resources.water } };
+    };
+
+    const past = fishLedger(carrying(1.5 * edge)).load;
+    expect(past).toHaveLength(1);
+    expect(past[0]).toMatchObject({
+      key: 'nitrite',
+      text: (1.5 * edge).toFixed(3),
+      unit: 'ppm',
+      band: { from: 0, to: 0.5 },
+      status: 'alert',
+      note: 'water 0.200',
+    });
+    expect(past[0].at).toBeCloseTo(0.75, 12);
+    expect(fishLedger(carrying(0.5 * edge)).load[0]).toMatchObject({ status: 'ok' });
+    expect(fishLedger(carrying(0)).load[0]).toMatchObject({ text: '0.000', note: 'water 0.200' });
+  });
+
+  it('reads no load where neither the fish nor its water holds any toxin that prints', () => {
+    expect(fishLedger(tank([makeFish({ id: 'fish_a_1' })])).load).toEqual([]);
+  });
+
+  it('reads what the load costs: the share of appetite its stress holds back, only while it holds any back', () => {
+    const loaded = tank([makeFish({ id: 'fish_a_1', load: { ammonia: 0.2, nitrite: 5, nitrate: 0 } })]);
+    const { assimilation } = readHourAhead(loaded, DEFAULT_CONFIG).fish[0].hour.pace.stress;
+
+    expect(assimilation).toBeLessThan(0.99);
+    expect(line(fishLedger(loaded), 'load')).toMatchObject({
+      label: 'Held back by its load',
+      text: String(100 - Math.floor(assimilation * 100)),
+      unit: '% of appetite',
+      status: 'warn',
+    });
+    expect(line(fishLedger(tank([makeFish({ id: 'fish_a_1' })])), 'load')).toBeUndefined();
   });
 
   describe('for a plant', () => {

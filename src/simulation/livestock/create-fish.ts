@@ -17,6 +17,7 @@ import type { FishSex, FishSpecies } from './species.js';
 import { debParams, FISH_SPECIES_DATA, midRangeTemperature, speciesTau } from './species.js';
 import { hatchling, size, stepDeb, type DebState } from '../systems/deb.js';
 import { appetite } from '../systems/digestion.js';
+import { NO_STRESS } from '../systems/reserve.js';
 import { frySize } from '../systems/fish-body.js';
 import { ZERO_TOXINS } from '../config/livestock.js';
 
@@ -49,7 +50,7 @@ export interface Upbringing {
 export function raise(species: FishSpecies, target: number, temperatureC: number): Upbringing {
   if (!isStockableSize(species, target)) throw new RangeError(unstockableSizeMessage(species));
   const p = debParams(species);
-  const pace = { tau: speciesTau(species, temperatureC), omega: 1 };
+  const pace = { tau: speciesTau(species, temperatureC), omega: 1, stress: NO_STRESS };
   let [budget, survival, hours] = [hatchling(p), 1, 0];
   while (size(budget, p) < target) {
     const fromGut = appetite({ species, budget }, pace);

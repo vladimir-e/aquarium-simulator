@@ -5,7 +5,8 @@ import { getMassFromPpm } from '../resources/index.js';
 import { debParams, FISH_SPECIES_DATA, incubation } from '../livestock/species.js';
 import { arrheniusFactor } from '../core/kinetics.js';
 import { developmentRate, eggHarmRate, eggPredationRate, settleClutch } from './clutch.js';
-import { speciesHardiness, waterStressors } from './fish-health.js';
+import { waterStressors } from './fish-health.js';
+import { speciesHardiness } from '../livestock/tolerance.js';
 import { waterToxins } from './toxicokinetics.js';
 
 const config = DEFAULT_CONFIG.livestock;

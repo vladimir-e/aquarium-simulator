@@ -19,8 +19,8 @@ import type { HistorySnapshot } from './history.js';
  * rule is reject, not migrate.
  *
  * v22 loaded the fish with their toxins. `Fish` gains `load` and
- *    `LivestockConfig` gains `loadRate`. A v21 session parses and its first
- *    tick steps a load no fish carries.
+ *    `LivestockConfig` gains `loadRate` and `loadAssimilationSeverity`. A v21
+ *    session parses and its first tick steps a load no fish carries.
  * v21 gave the organic pools their content and the flora their energy budgets.
  *    `Resources.waste` and `Substrate.organicReserve` become
  *    `{ grams, nutrients }`; `Plant` trades `size` and `surplus`, and

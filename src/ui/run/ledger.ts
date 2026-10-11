@@ -23,6 +23,8 @@ import {
   REMOVED_BY,
   starvation,
   storeFill,
+  TOXINS,
+  waterToxins,
   wellFed,
   type Fish,
   type FishHour,
@@ -35,9 +37,12 @@ import {
   type Light,
   type LightPath,
   type SimulationState,
+  type Toxin,
+  type ToxinVector,
   type VitalityBreakdown,
   type VitalityFactor,
 } from '../../simulation/index.js';
+import { fishHardiness, toxinEdges } from '../../simulation/livestock/tolerance.js';
 import { NUTRIENTS } from '../../simulation/config/index.js';
 import { habitatPlaces, namePlaces } from '../../simulation/algae/index.js';
 import { BLOOM_COVERAGE_LINE, PLANT_LIGHT_LINE } from '../../simulation/alerts/index.js';
@@ -66,7 +71,7 @@ import {
   vitalReading,
   type Status,
 } from './status.js';
-import type { ReadingBand } from './water.js';
+import { WATER_DECIMALS, type ReadingBand } from './water.js';
 
 /** What the ledger is open on. A bloom is a population, so it carries its kind rather than an id. */
 export type LedgerTarget =
@@ -120,7 +125,7 @@ export interface LedgerRow {
   note: string;
 }
 
-const LIGHT_SCALE = 2;
+const EDGE_SCALE = 2;
 
 export interface Ledger {
   target: LedgerTarget;
@@ -158,6 +163,7 @@ export interface Ledger {
   budget: BudgetRow[];
   /** A plant's or a bloom's nutrient stores, one row each. */
   stores: BudgetRow[];
+  load: BudgetRow[];
   /** What the species asks of the tank; plants and blooms. */
   demand: string | null;
   /** The verb that moves this organism — an id the stage opens the sheet on. */
@@ -328,8 +334,8 @@ function lightPathView(path: LightPath, lamp: Light): LightPathView {
 function lightRow(needShare: number, status: Status, note: string): LedgerRow {
   return {
     text: String(sharePercent(needShare)),
-    at: Math.min(1, needShare / LIGHT_SCALE),
-    band: { from: 1 / LIGHT_SCALE, to: 1 },
+    at: Math.min(1, needShare / EDGE_SCALE),
+    band: { from: 1 / EDGE_SCALE, to: 1 },
     status,
     note,
   };
@@ -379,12 +385,39 @@ function fishLedger(
     helps: total(breakdown.benefits),
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
-    budget: [reserveRow(reserve, reserveNote(fish, hour, breakdown.healed, broods))],
+    budget: [
+      reserveRow(reserve, reserveNote(fish, hour, breakdown.healed, broods)),
+      ...heldBack(hour.pace.stress.assimilation, {
+        key: 'load',
+        label: 'Held back by its load',
+        unit: '% of appetite',
+        status: 'warn',
+      }),
+    ],
     stores: [],
+    load: loadRows(fish, waterToxins(state.resources)),
     demand: null,
     verb: 'feed',
     scope: null,
   };
+}
+
+const TOXIN_LABEL: Record<Toxin, string> = { ammonia: 'Free NH₃', nitrite: 'NO₂', nitrate: 'NO₃' };
+
+function loadRows(fish: Fish, water: ToxinVector): BudgetRow[] {
+  const edges = toxinEdges(fishHardiness(fish));
+  return TOXINS.filter(
+    (t) => !printsAsZero(fish.load[t], WATER_DECIMALS[t]) || !printsAsZero(water[t], WATER_DECIMALS[t])
+  ).map((t) => ({
+    key: t,
+    label: TOXIN_LABEL[t],
+    text: fish.load[t].toFixed(WATER_DECIMALS[t]),
+    unit: 'ppm',
+    at: Math.min(1, fish.load[t] / (EDGE_SCALE * edges[t])),
+    band: { from: 0, to: 1 / EDGE_SCALE },
+    status: fish.load[t] > edges[t] ? 'alert' : 'ok',
+    note: `water ${water[t].toFixed(WATER_DECIMALS[t])}`,
+  }));
 }
 
 /** What the reserve does over the hour, named by what draws on it or that it fills. */
@@ -460,6 +493,7 @@ function plantLedger(
       },
     ],
     stores: storeRows(plant.budget, p, fluxes, config.plants.droopEdge),
+    load: [],
     demand:
       `${data.nutrientDemand} demand · light ${lightLow}–${lightHigh} PAR · ${data.co2Requirement} CO₂`,
     verb: 'trimPlants',
@@ -481,21 +515,10 @@ export function bloomVerb(kind: AlgaeKind): BloomRemoval {
   return REMOVED_BY[ALGAE[kind].habitat];
 }
 
-/** What the planting's exudates held back of a bloom's photosynthesis this hour, while they hold it back. */
-function allelopathyRow(allelopathy: number): BudgetRow[] {
-  if (allelopathy >= UNHELD) return [];
-  return [
-    {
-      key: 'allelopathy',
-      label: 'Held back by exudates',
-      text: String(100 - sharePercent(allelopathy)),
-      unit: '%',
-      at: null,
-      band: null,
-      status: 'neutral',
-      note: '',
-    },
-  ];
+/** What a stress held back of an organism's assimilation this hour, while it holds it back. */
+function heldBack(assimilation: number, row: Pick<BudgetRow, 'key' | 'label' | 'unit' | 'status'>): BudgetRow[] {
+  if (assimilation >= UNHELD) return [];
+  return [{ ...row, text: String(100 - sharePercent(assimilation)), at: null, band: null, note: '' }];
 }
 
 /**
@@ -552,8 +575,12 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     helps: total(breakdown.benefits),
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
-    budget: [...floraBudget(budget, p, next.fluxes, breakdown, sick), ...allelopathyRow(next.allelopathy)],
+    budget: [
+      ...floraBudget(budget, p, next.fluxes, breakdown, sick),
+      ...heldBack(next.allelopathy, { key: 'allelopathy', label: 'Held back by exudates', unit: '%', status: 'neutral' }),
+    ],
     stores: storeRows(budget, p, next.fluxes, config.plants.droopEdge),
+    load: [],
     demand: `half-fed at ${traits.ammoniaHalfSaturation} ppm NH₃, ${traits.nitrateHalfSaturation} NO₃, ${traits.phosphateHalfSaturation} PO₄ · light from ${traits.lowLight} PAR`,
     verb: bloomVerb(kind),
     scope: null,

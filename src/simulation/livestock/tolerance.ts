@@ -5,6 +5,11 @@
  * nitrate edge moves out from `nitrateEdge` the same way.
  */
 
+import type { Fish } from '../state.js';
+import { mapToxins, type ToxinVector } from '../config/livestock.js';
+import { eFoldsPast } from '../systems/vitality.js';
+import { FISH_SPECIES_DATA, type FishSpecies } from './species.js';
+
 /** Free (unionized) NH₃, ppm. */
 export const FREE_AMMONIA_EDGE = 0.02;
 
@@ -29,4 +34,28 @@ export const HARDY_TOLERANCE = 2;
 /** How far out an organism of this hardiness carries each edge: × for a toxin, ÷ for oxygen. */
 export function toleranceFactor(hardiness: number): number {
   return HARDY_TOLERANCE ** hardiness;
+}
+
+/**
+ * Hardiness clamped to [0.1, 0.95], so no offset makes an organism
+ * invincible or instantly doomed.
+ */
+export function speciesHardiness(species: FishSpecies, offset = 0): number {
+  return Math.max(0.1, Math.min(0.95, FISH_SPECIES_DATA[species].hardiness + offset));
+}
+
+export function fishHardiness(fish: Pick<Fish, 'species' | 'hardinessOffset'>): number {
+  return speciesHardiness(fish.species, fish.hardinessOffset);
+}
+
+const TOXIN_EDGES: Readonly<ToxinVector> = { ammonia: FREE_AMMONIA_EDGE, nitrite: NITRITE_EDGE, nitrate: NITRATE_EDGE };
+
+export function toxinEdges(hardiness: number): ToxinVector {
+  const tolerance = toleranceFactor(hardiness);
+  return mapToxins((t) => TOXIN_EDGES[t] * tolerance);
+}
+
+export function toxinEFolds(levels: ToxinVector, hardiness: number): ToxinVector {
+  const edges = toxinEdges(hardiness);
+  return mapToxins((t) => eFoldsPast(levels[t], edges[t]));
 }
