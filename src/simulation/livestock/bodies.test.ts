@@ -135,29 +135,26 @@ describe('processBodies', () => {
 
   it('thins a carried brood by its mother’s own hardiness, a hardier mother keeping more', () => {
     const left = (hardinessOffset: number): number => {
-      const mother = mkFish({ id: 'mother', hardinessOffset });
+      const mother = mkFish({ id: 'mother', hardinessOffset, load: { ...ZERO_TOXINS, nitrite: 20 } });
       const brood: Clutch = { id: 'c', species: 'guppy', eggs: 100, development: 0, motherId: 'mother' };
-      const state = produce(withTank([mother], [brood]), (draft) => {
-        draft.resources.nitrite = 20 * draft.resources.water;
-      });
-      return breed(state).state.clutches[0].eggs;
+      return breed(withTank([mother], [brood])).state.clutches[0].eggs;
     };
     expect(left(0)).toBeLessThan(100);
     expect(left(0.1)).toBeGreaterThan(left(0));
     expect(left(-0.1)).toBeLessThan(left(0));
   });
 
-  it('thins a carried brood on the water, whatever its mother has loaded', () => {
-    const left = (load: Fish['load']): number => {
+  it('thins a carried brood on its mother’s load, not the water, a loaded mother losing more of it', () => {
+    const left = (load: Fish['load'], nitritePpm: number): number => {
       const mother = mkFish({ id: 'mother', load });
       const brood: Clutch = { id: 'c', species: 'guppy', eggs: 100, development: 0, motherId: 'mother' };
       const state = produce(withTank([mother], [brood]), (draft) => {
-        draft.resources.nitrite = 5 * draft.resources.water;
+        draft.resources.nitrite = nitritePpm * draft.resources.water;
       });
       return breed(state).state.clutches[0].eggs;
     };
-    expect(left(ZERO_TOXINS)).toBeLessThan(100);
-    expect(left({ ammonia: 2, nitrite: 50, nitrate: 3000 })).toBe(left(ZERO_TOXINS));
+    expect(left(ZERO_TOXINS, 5)).toBe(left(ZERO_TOXINS, 0));
+    expect(left({ ...ZERO_TOXINS, nitrite: 5 }, 5)).toBeLessThan(left(ZERO_TOXINS, 5));
   });
 
   it('hatches each whole egg into a hatchling, the reserve its embryo spent burned, the part egg to waste', () => {

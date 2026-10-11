@@ -25,6 +25,7 @@ import { shareOut, swallow, type Pace } from '../systems/digestion.js';
 import { eggMass, eggOrganics, fishMass } from '../systems/fish-body.js';
 import { fishHardiness, predatorWeight, speciesHardiness } from '../systems/fish-health.js';
 import { developmentRate, eggHarmRate, eggPredationRate, settleClutch } from '../systems/clutch.js';
+import { waterToxins } from '../systems/toxicokinetics.js';
 import { hatchFish } from './create-fish.js';
 import { burnEffects, tankPaces } from './index.js';
 
@@ -85,9 +86,10 @@ function tendClutches(
     const weights = clutch.motherId === undefined ? masses.map((mass) => predatorWeight(mass, egg)) : [];
     const mother = clutch.motherId === undefined ? undefined : mothers.get(clutch.motherId);
     const hardiness = mother ? fishHardiness(mother) : speciesHardiness(clutch.species);
+    const toxins = mother ? mother.load : waterToxins(resources);
     const hour = settleClutch(
       clutch,
-      eggHarmRate(clutch, hardiness, resources, resources.water, config),
+      eggHarmRate(clutch, hardiness, toxins, resources, resources.water, config),
       eggPredationRate(clutch, sum(weights), resources.water, config),
       developmentRate(clutch.species, resources.temperature)
     );

@@ -112,7 +112,7 @@ function plantBenefitAmount(plants: Plant[], config: LivestockConfig): number {
  * What the water charges an organism of this species and hardiness, in %/h:
  * the tolerance bands scaled by `1 − hardiness`, the toxins and oxygen with
  * hardiness moving their edge instead. The toxins are read at `toxins` — a
- * fish's load, or a clutch's water.
+ * fish's load, or a laid clutch's water.
  */
 export function waterStressors(
   species: FishSpecies,

@@ -23,7 +23,7 @@ import {
   type RosterRow,
   type SpeciesRosterRow,
 } from './roster.js';
-import { fishRecord } from '../../simulation/tests/fish.js';
+import { fishRecord, steepedInAmmonia } from '../../simulation/tests/fish.js';
 
 function makeFish(overrides: Partial<Fish> & { size?: number } = {}): Fish {
   return fishRecord({ age: 24 * 120, gut: FED, ...overrides });
@@ -210,11 +210,7 @@ describe('rosterTables', () => {
       makeFish({ id: 'fish_a_2' }),
       makeFish({ id: 'fish_a_3', health: 90 }),
     ]);
-    const poisoned: SimulationState = {
-      ...base,
-      resources: { ...base.resources, ammonia: 20 * base.resources.water },
-    };
-    const [group] = tables(poisoned, [], HEALED).fish as SpeciesRosterRow[];
+    const [group] = tables(steepedInAmmonia(base, 20), [], HEALED).fish as SpeciesRosterRow[];
 
     expect(group.status).toBe('warn');
     expect(group.word).toBe('2 sick');
@@ -252,11 +248,7 @@ describe('rosterTables', () => {
 
   it('reads a group of one the way it reads its member', () => {
     const base = tank([makeFish({ id: 'fish_a_1' })]);
-    const poisoned: SimulationState = {
-      ...base,
-      resources: { ...base.resources, ammonia: 20 * base.resources.water },
-    };
-    const [group, member] = tables(poisoned, ['species-neon_tetra']).fish as [
+    const [group, member] = tables(steepedInAmmonia(base, 20), ['species-neon_tetra']).fish as [
       SpeciesRosterRow,
       IndividualRosterRow,
     ];

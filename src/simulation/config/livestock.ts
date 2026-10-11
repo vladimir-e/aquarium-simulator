@@ -79,7 +79,7 @@ export interface LivestockConfig {
   hazardSeverity: number;
 
   // Toxicokinetics
-  /** First-order rate, per hour at 20 °C, a fish of 1 cm structural length loads and clears each toxin at. */
+  /** Dominant rate constant, per hour at 20 °C, a fish of 1 cm structural length loads and clears each toxin at. */
   loadRate: ToxinVector;
 
   // Vitality benefit peaks (%/h) — each earned in full only on a full
@@ -171,9 +171,9 @@ export const livestockDefaults: LivestockConfig = {
   hazardSeverity: 5000,
 
   loadRate: {
-    ammonia: 0.3, // NH₃ crosses the gill as a gas, so blood ammonia follows the water within hours
-    nitrite: 0.04, // methaemoglobin builds over a day of nitrite and clears over one or two
-    nitrate: 0.01, // the gill barely passes nitrate, so it loads and clears over days
+    ammonia: 0.015, // half-time ~2 d at 1 cm: NH₃ crosses the gill in hours, repair sets it; 96 h LC50 well under 24 h
+    nitrite: 0.03, // half-time ~1 d at 1 cm: methaemoglobin's turnover sets it; 96 h LC50 under 24 h
+    nitrate: 0.004, // half-time ~1 wk at 1 cm: the gill barely passes it; acute LC50 thousands of ppm, chronic tens over weeks
   },
 
   // Benefit peaks (%/h), each scaled by reserve density. Sum at all-good in a
@@ -238,9 +238,9 @@ export interface ToxinVectorMeta {
 }
 
 export const loadRateMeta: ToxinVectorMeta[] = [
-  { key: 'ammonia', label: 'Free NH3 load rate', unit: '/hr at 1 cm, 20 °C', min: 0.01, max: 5, step: 0.01 },
-  { key: 'nitrite', label: 'Nitrite load rate', unit: '/hr at 1 cm, 20 °C', min: 0.001, max: 1, step: 0.001 },
-  { key: 'nitrate', label: 'Nitrate load rate', unit: '/hr at 1 cm, 20 °C', min: 0.001, max: 1, step: 0.001 },
+  { key: 'ammonia', label: 'Free NH3 load rate', unit: '/hr at 1 cm, 20 °C', min: 0.0001, max: 5, step: 0.0001 },
+  { key: 'nitrite', label: 'Nitrite load rate', unit: '/hr at 1 cm, 20 °C', min: 0.0001, max: 1, step: 0.0001 },
+  { key: 'nitrate', label: 'Nitrate load rate', unit: '/hr at 1 cm, 20 °C', min: 0.0001, max: 1, step: 0.0001 },
 ];
 
 export const livestockConfigMeta: LivestockConfigMeta[] = [

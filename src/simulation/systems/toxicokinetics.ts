@@ -1,9 +1,10 @@
 /**
  * Toxicokinetics in GUTS-RED form: a fish's load of a toxin is its scaled
  * internal concentration, in the water's own ppm, and it follows the water's
- * level first order. The rate is the toxin's at 1 cm of structural length,
- * paced by τ and divided by the fish's length — exchange runs through its
- * surface and dilutes in its volume, so a small fish loads and clears faster.
+ * level first order. The rate is the toxin's dominant one, the slower of
+ * uptake and repair, at 1 cm of structural length, paced by τ and divided by
+ * the fish's length — exchange runs through its surface and dilutes in its
+ * volume, so a small fish loads and clears faster.
  * A spike barely loads a fish; a held level saturates it.
  */
 

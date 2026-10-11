@@ -6,11 +6,10 @@
 import type { Clutch, Fish, Resources } from '../state.js';
 import type { FishSpecies } from '../livestock/species.js';
 import { FISH_SPECIES_DATA, incubation, speciesTau } from '../livestock/species.js';
-import type { LivestockConfig } from '../config/livestock.js';
+import type { LivestockConfig, ToxinVector } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { sum } from '../core/sum.js';
 import { waterStressors } from './fish-health.js';
-import { waterToxins } from './toxicokinetics.js';
 import { eggMass, eggOrganics } from './fish-body.js';
 
 /** Every laid clutch, and each brood whose mother is among `fish`. */
@@ -35,17 +34,19 @@ export function clutchOrganics(clutch: Pick<Clutch, 'species' | 'eggs'>): number
 /**
  * Share of a clutch the water kills an hour, as a first-order rate: the water
  * harm of a fish of this hardiness, `eggSensitivity` times as hard on laid
- * eggs, and as hard as on its mother on a brood she carries. An egg loads in
- * the fast limit of a fish's law, so its toxins are the water's.
+ * eggs, and as hard as on its mother on a brood she carries. Its toxins are
+ * read at `toxins`: the water's for a laid egg, which loads in the fast limit
+ * of a fish's law, and its mother's load for a carried brood.
  */
 export function eggHarmRate(
   clutch: Pick<Clutch, 'species' | 'motherId'>,
   hardiness: number,
+  toxins: ToxinVector,
   resources: Resources,
   waterVolume: number,
   config: LivestockConfig
 ): number {
-  const stressors = waterStressors(clutch.species, hardiness, waterToxins(resources), resources, waterVolume, config);
+  const stressors = waterStressors(clutch.species, hardiness, toxins, resources, waterVolume, config);
   const damage = sum(stressors.map((f) => f.amount));
   const sensitivity = clutch.motherId === undefined ? config.eggSensitivity : 1;
   return (sensitivity * damage) / 100;

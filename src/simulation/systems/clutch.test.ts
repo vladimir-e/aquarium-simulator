@@ -16,9 +16,12 @@ const withNitrite = (ppm: number): Resources => ({ ...clean, nitrite: getMassFro
 const laid = { species: 'neon_tetra' } as const;
 const neon = speciesHardiness('neon_tetra');
 
+const harmIn = (water: Resources, clutch: Pick<Clutch, 'species' | 'motherId'> = laid, hardiness = neon): number =>
+  eggHarmRate(clutch, hardiness, waterToxins(water), water, volume, config);
+
 describe('eggHarmRate', () => {
   it('is nothing in clean water', () => {
-    expect(eggHarmRate(laid, neon, clean, volume, config)).toBe(0);
+    expect(harmIn(clean)).toBe(0);
   });
 
   it('is the fish water channel at the species hardiness, eggSensitivity times as hard, as a share an hour', () => {
@@ -28,7 +31,7 @@ describe('eggHarmRate', () => {
       0
     );
     expect(damage).toBeGreaterThan(0);
-    expect(eggHarmRate(laid, neon, water, volume, config)).toBeCloseTo((config.eggSensitivity * damage) / 100, 12);
+    expect(harmIn(water)).toBeCloseTo((config.eggSensitivity * damage) / 100, 12);
   });
 
   it('harms a brood its mother carries as hard as her, at her hardiness', () => {
@@ -37,21 +40,17 @@ describe('eggHarmRate', () => {
       (sum, f) => sum + f.amount,
       0
     );
-    expect(eggHarmRate({ species: 'guppy', motherId: 'mother' }, speciesHardiness('guppy'), water, volume, config)).toBeCloseTo(
-      damage / 100,
-      12
-    );
+    expect(harmIn(water, { species: 'guppy', motherId: 'mother' }, speciesHardiness('guppy'))).toBeCloseTo(damage / 100, 12);
   });
 
   it('costs the same for every doubling of a toxin past the edge', () => {
-    const [a, b, c] = [4, 8, 16].map((ppm) => eggHarmRate(laid, neon, withNitrite(ppm), volume, config));
+    const [a, b, c] = [4, 8, 16].map((ppm) => harmIn(withNitrite(ppm)));
     expect(b - a).toBeGreaterThan(0);
     expect(c - b).toBeCloseTo(b - a, 10);
   });
 
   it('rises out of a species temperature band', () => {
-    const cold = { ...clean, temperature: FISH_SPECIES_DATA.neon_tetra.temperatureRange[0] - 3 };
-    expect(eggHarmRate(laid, neon, cold, volume, config)).toBeGreaterThan(0);
+    expect(harmIn({ ...clean, temperature: FISH_SPECIES_DATA.neon_tetra.temperatureRange[0] - 3 })).toBeGreaterThan(0);
   });
 });
 
