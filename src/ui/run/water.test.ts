@@ -131,16 +131,13 @@ describe('waterReadings', () => {
         draft.resources.nitrate = getMassFromPpm(ppm, draft.resources.water);
       });
     const at = (ppm: number): WaterReading => byKey(holding(ppm), 'nitrate');
-    const food = nitrateOf(planted);
 
-    expect(at(0).band).toEqual({
-      from: readingAt('nitrate', food.needed),
-      to: readingAt('nitrate', NITRATE_EDGE),
-    });
-    for (const ppm of [0, food.needed / 2, food.needed * 2, NITRATE_EDGE + 1]) {
+    expect(at(0).band).toEqual({ from: readingAt('nitrate', 0), to: readingAt('nitrate', NITRATE_EDGE) });
+    for (const ppm of [0, 5, NITRATE_EDGE + 1]) {
       expect(at(ppm).status).toBe(nitrateOf(holding(ppm)).status);
     }
-    expect(at(food.needed / 2).status).toBe('warn');
+    expect(at(0).status).toBe('warn');
+    expect(at(5).status).toBe('ok');
     expect(at(NITRATE_EDGE + 1).status).toBe('alert');
     expect(byKey(tank(), 'nitrate').status).not.toBe('warn');
   });

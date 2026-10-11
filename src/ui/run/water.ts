@@ -174,7 +174,7 @@ export function waterReadings(
     water: { unit: '%', band: band(scales.water, levelLimit, 100) },
     ammonia: { unit: 'ppm', band: band(scales.ammonia, 0, ammoniaLine) },
     nitrite: { unit: 'ppm', band: band(scales.nitrite, 0, NITRITE_EDGE) },
-    nitrate: { unit: 'ppm', band: band(scales.nitrate, nitrate.needed, nitrate.ceiling!) },
+    nitrate: { unit: 'ppm', band: band(scales.nitrate, 0, nitrate.ceiling!) },
   };
 
   return WATER_KEYS.map((key): WaterReading => {

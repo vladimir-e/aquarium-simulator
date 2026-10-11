@@ -40,10 +40,7 @@ export type { CanopyLight, LightPath, PlantLight, Planted, Unit } from './canopy
 export { getRespirationTemperatureFactor } from '../systems/respiration.js';
 export { VIGOUR_SPAN, MIN_PLANTABLE_SIZE, isPlantableSize } from './create-plant.js';
 export {
-  calculateNutrientSufficiency,
   speciesDemand,
-  speciesHalfSaturation,
-  nutrientShare,
   formHalfSaturations,
   formShares,
   formsMeet,

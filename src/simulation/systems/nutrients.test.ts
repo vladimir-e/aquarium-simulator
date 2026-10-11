@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { NO_ORGANICS } from '../core/organics.js';
 import {
   bedPool,
-  calculateNutrientSufficiency,
   drawNutrients,
   formShares,
   formsMeet,
@@ -10,13 +9,11 @@ import {
   GH_HALF_SATURATION,
   leach,
   GH_PER_NITRATE_DRAWN,
-  nutrientShare,
   nutrientsIn,
   feederShares,
   plantFeeder,
   poolDraws,
   speciesDemand,
-  speciesHalfSaturation,
   tankPools,
   uptakeAlkalinity,
   type NutrientRequest,
@@ -73,14 +70,22 @@ function resourcesAt(ppm: Partial<FormVector>): Resources {
 const multiplesOfHalfSaturation = (multiple: number): NutrientVector =>
   mapNutrients((n) => nutrientsDefaults.halfSaturation[n] * multiple);
 
-describe('nutrientShare', () => {
+/** ppm at which a species takes a form at half its need for the nutrient the form carries. */
+const halfSaturation = (species: PlantSpecies, form: (typeof NUTRIENT_FORMS)[number]): number =>
+  plantFeeder(species).halfSaturation[form];
+
+/** Share of a species' need for each form's nutrient that this water's forms each meet on their own. */
+const sharesIn = (water: Resources, species: PlantSpecies, config = nutrientsDefaults): FormVector =>
+  formShares({ stock: water, volume: water.water }, plantFeeder(species, config));
+
+describe('a feeder’s half-saturations', () => {
   it('meets half the need at the species half-saturation', () => {
-    const k = speciesHalfSaturation('monte_carlo', 'phosphate');
-    expect(nutrientShare(k, 'monte_carlo', 'phosphate')).toBeCloseTo(0.5, 10);
+    const k = halfSaturation('monte_carlo', 'phosphate');
+    expect(sharesIn(resourcesAt({ phosphate: k }), 'monte_carlo').phosphate).toBeCloseTo(0.5, 10);
   });
 
   it('saturates: each doubling buys less, and it never passes 1', () => {
-    const at = (ppm: number): number => nutrientShare(ppm, 'monte_carlo', 'nitrate');
+    const at = (ppm: number): number => sharesIn(resourcesAt({ nitrate: ppm }), 'monte_carlo').nitrate;
     expect(at(2) - at(1)).toBeGreaterThan(at(4) - at(2));
     expect(at(1000)).toBeLessThan(1);
     expect(at(1000)).toBeGreaterThan(0.99);
@@ -88,7 +93,7 @@ describe('nutrientShare', () => {
 
   it('scales every form’s half-saturation by the species’ demand for the nutrient it carries', () => {
     for (const f of NUTRIENT_FORMS) {
-      expect(speciesHalfSaturation('amazon_sword', f)).toBeCloseTo(
+      expect(halfSaturation('amazon_sword', f)).toBeCloseTo(
         speciesDemand('amazon_sword')[NUTRIENT_OF[f]] * nutrientsDefaults.halfSaturation[f],
         12
       );
@@ -97,10 +102,10 @@ describe('nutrientShare', () => {
 
   it('has no cliff as demand falls to its floor: the same trace meets a smaller need more fully, and none meets none', () => {
     const at = (ppm: number, iron: number): number =>
-      nutrientShare(ppm, 'monte_carlo', 'iron', {
+      sharesIn(resourcesAt({ iron: ppm }), 'monte_carlo', {
         ...nutrientsDefaults,
         demand: { ...nutrientsDefaults.demand, high: { ...nutrientsDefaults.demand.high, iron } },
-      });
+      }).iron;
     const floor = demandMeta.find((m) => m.key === 'iron')!.min;
     const demands = [1, 0.3, 0.1, 0.03, floor];
     const shares = demands.map((demand) => at(0.001, demand));
@@ -116,48 +121,29 @@ const poolsAt = (water: number, bed: number): TankPools => [
   { stock: resourcesAt(multiplesOfHalfSaturation(bed)), volume: WATER },
 ];
 
-describe('calculateNutrientSufficiency', () => {
-  it('is zero for a water feeder with no water', () => {
+describe('the share of a feeder’s need its pools meet', () => {
+  const met = (pools: TankPools, species: PlantSpecies): NutrientVector => feederShares(poolDraws(pools, plantFeeder(species)));
+
+  it('is nothing for a water feeder with no water, nor for a root feeder in a dry tank however charged its bed', () => {
     const dry = { ...resourcesAt(multiplesOfHalfSaturation(10)), water: 0 };
-    expect(calculateNutrientSufficiency(mirroredPools(dry), 'java_fern')).toBe(0);
-  });
-
-  it('is zero for a root feeder in a dry tank, however charged its bed', () => {
+    expect(Object.values(met(mirroredPools(dry), 'java_fern')).every((share) => share === 0)).toBe(true);
     const [water, bed] = poolsAt(10, 10);
-    expect(calculateNutrientSufficiency([{ ...water, volume: 0 }, bed], 'amazon_sword')).toBe(0);
+    expect(Object.values(met([{ ...water, volume: 0 }, bed], 'amazon_sword')).every((share) => share === 0)).toBe(true);
   });
 
-  it('follows Liebig: the scarcest nutrient sets it', () => {
-    const water = resourcesAt({ ...multiplesOfHalfSaturation(20), iron: nutrientsDefaults.halfSaturation.iron });
-    expect(calculateNutrientSufficiency(mirroredPools(water), 'monte_carlo')).toBeCloseTo(
-      nutrientShare(nutrientsDefaults.halfSaturation.iron, 'monte_carlo', 'iron'),
-      10
-    );
-  });
-
-  it('asks less of a low-demand plant than a high-demand one on the same water', () => {
+  it('meets more of a low-demand plant’s need than a high-demand one’s on the same water', () => {
     const lean = mirroredPools(resourcesAt(multiplesOfHalfSaturation(1)));
-    expect(calculateNutrientSufficiency(lean, 'java_fern')).toBeGreaterThan(
-      calculateNutrientSufficiency(lean, 'monte_carlo')
-    );
+    for (const n of NUTRIENTS) expect(met(lean, 'java_fern')[n]).toBeGreaterThan(met(lean, 'monte_carlo')[n]);
   });
 
-  it('reads every species on all four nutrients, and none on pools that hold none of one', () => {
+  it('meets none of a nutrient pools that hold none of it', () => {
     for (const species of ['java_fern', 'amazon_sword', 'monte_carlo'] as const) {
       for (const n of NUTRIENTS) {
         expect(speciesDemand(species)[n]).toBeGreaterThan(0);
         const without = resourcesAt({ ...multiplesOfHalfSaturation(10), [n]: 0 });
-        expect(calculateNutrientSufficiency(mirroredPools(without), species)).toBe(0);
+        expect(met(mirroredPools(without), species)[n]).toBe(0);
       }
     }
-  });
-
-  it('rises smoothly with supply rather than stepping at a threshold', () => {
-    const at = (multiple: number): number =>
-      calculateNutrientSufficiency(mirroredPools(resourcesAt(multiplesOfHalfSaturation(multiple))), 'monte_carlo');
-    const steps = [0.25, 0.5, 1, 2, 4, 8].map(at);
-    for (let i = 1; i < steps.length; i++) expect(steps[i]).toBeGreaterThan(steps[i - 1]);
-    expect(at(1)).toBeCloseTo(0.5, 10);
   });
 });
 
@@ -175,12 +161,13 @@ describe('where a plant feeds', () => {
     expect(growthFormOf('java_fern').rootShare).toBe(0);
   });
 
-  it('holds a sword on a bare bed under the water’s share of its need however rich the water, and a tabbed bed lifts it past', () => {
-    const edge = 0.9;
-    const bare = calculateNutrientSufficiency(poolsAt(1000, 0), 'amazon_sword');
-    expect(bare).toBeCloseTo(1 - growthFormOf('amazon_sword').rootShare, 2);
-    expect(bare).toBeLessThan(edge);
-    expect(calculateNutrientSufficiency(poolsAt(1000, 1000), 'amazon_sword')).toBeGreaterThan(edge);
+  it('holds a sword on a bare bed to the water’s share of its need however rich the water, and a charged bed lifts it past', () => {
+    const met = (pools: TankPools): NutrientVector => feederShares(poolDraws(pools, plantFeeder('amazon_sword')));
+    const water = 1 - growthFormOf('amazon_sword').rootShare;
+    for (const n of NUTRIENTS) {
+      expect(met(poolsAt(1000, 0))[n]).toBeCloseTo(water, 2);
+      expect(met(poolsAt(1000, 1000))[n]).toBeGreaterThan(water);
+    }
   });
 
   it('reads the bed against the tank’s capacity and the water against what is left of it', () => {
@@ -202,7 +189,7 @@ describe('where a plant feeds', () => {
 });
 
 describe('nitrogen in two forms', () => {
-  const K = (form: 'ammonia' | 'nitrate'): number => speciesHalfSaturation('java_fern', form);
+  const K = (form: 'ammonia' | 'nitrate'): number => halfSaturation('java_fern', form);
   /** Water rich in everything but nitrogen, which it holds at these multiples of the fern's own half-saturations. */
   const nitrogenAt = (ammonia: number, nitrate: number): TankPools =>
     mirroredPools(
@@ -312,7 +299,7 @@ describe('drawNutrients', () => {
     const fern = request('java_fern', pools);
     const [delivered] = drawNutrients([fern], pools).delivered;
     for (const n of ['phosphate', 'potassium', 'iron'] as const) {
-      expect(delivered[n]).toBeCloseTo(monodUptake(pools[0].stock[n], ASK[n], speciesHalfSaturation('java_fern', n) * WATER), 12);
+      expect(delivered[n]).toBeCloseTo(monodUptake(pools[0].stock[n], ASK[n], halfSaturation('java_fern', n) * WATER), 12);
     }
   });
 

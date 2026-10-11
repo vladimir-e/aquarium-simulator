@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { sizeOf } from '../../simulation/plants/canopy.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
-import { atSize } from '../../simulation/tests/plant.js';
+import { atSize, plantRecord, withStores } from '../../simulation/tests/plant.js';
 import {
   applyAction,
   calculateSurface,
@@ -14,10 +14,10 @@ import {
   WATER_CHANGE_AMOUNTS,
   type SimulationState,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG, mapNutrients, type Nutrient, type TunableConfig } from '../../simulation/config/index.js';
-import { FoodResource, getMassFromPpm } from '../../simulation/resources/index.js';
+import { DEFAULT_CONFIG, mapNutrients, type TunableConfig } from '../../simulation/config/index.js';
+import { FoodResource } from '../../simulation/resources/index.js';
 import { produce } from 'immer';
-import { bedReading, doseToCover, nutrientProbe, nutrientReadings, readHourAhead, TRIM_TARGETS } from '../run';
+import { bedReading, doseToCover, nutrientReadings, readHourAhead, TRIM_TARGETS } from '../run';
 import {
   DEFAULT_SETTINGS,
   DOSE_PRESETS,
@@ -42,8 +42,14 @@ function tank(): SimulationState {
   return state;
 }
 
-function starved(): SimulationState {
-  return applyAction(tank(), { type: 'addPlant', species: 'monte_carlo' }).state;
+function drained(state: SimulationState, share: number): SimulationState {
+  return { ...state, plants: state.plants.map((plant) => withStores(plant, share)) };
+}
+
+/** A grown planting with every store empty, on an empty bed: more than one dose or push covers. */
+function starved(species: 'java_fern' | 'amazon_sword'): SimulationState {
+  const plants = Array.from({ length: 8 }, (_, i) => plantRecord({ id: `${species}_${i}`, species, size: 100 }));
+  return drained({ ...tank(), plants }, 0);
 }
 
 function planted(sizes: number[]): SimulationState {
@@ -67,7 +73,7 @@ function row(state: SimulationState, id: VerbId, settings: VerbSettings = DEFAUL
 
 describe('the seven verbs', () => {
   it('offers the engine’s own option sets rather than a retyped copy', () => {
-    const state = planted([80, 60]);
+    const state = drained(planted([80, 60]), 0.5);
 
     expect(detail(state, 'waterChange').options.map((o) => o.value)).toEqual([
       ...WATER_CHANGE_AMOUNTS,
@@ -100,21 +106,19 @@ describe('the seven verbs', () => {
   });
 
   it('sets the advised dose among the presets rather than after them', () => {
-    const state = planted([80, 60]);
-    const asking = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
-    const nearly = applyAction(state, { type: 'dose', amountMl: asking.ml - 3 }).state;
-    const advice = doseToCover(nutrientReadings(nearly, DEFAULT_CONFIG), nearly, DEFAULT_CONFIG)!;
+    const state = drained(planted([80, 60]), 0.8);
+    const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
 
     expect(advice.ml).toBeGreaterThan(DOSE_PRESETS[0]);
     expect(advice.ml).toBeLessThan(DOSE_PRESETS[DOSE_PRESETS.length - 1]);
 
-    const values = detail(nearly, 'dose').options.map((o) => o.value);
+    const values = detail(state, 'dose').options.map((o) => o.value);
     expect(values).toEqual([...values].sort((a, b) => a - b));
     expect(values).toContain(advice.ml);
   });
 
   it('offers the engine’s biggest single dose where the ask is bigger still', () => {
-    const state = starved();
+    const state = starved('java_fern');
     const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
     expect(advice.ml).toBeGreaterThan(MAX_DOSE_ML);
 
@@ -125,7 +129,7 @@ describe('the seven verbs', () => {
   });
 
   it('keeps the rung the reader chose on the ladder once the tank stops asking for it', () => {
-    const state = planted([80, 60]);
+    const state = drained(planted([80, 60]), 0.5);
     const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
     const fed = applyAction(state, { type: 'dose', amountMl: advice.ml }).state;
     const chosen = { ...DEFAULT_SETTINGS, dose: advice.ml };
@@ -261,8 +265,8 @@ describe('the seven verbs', () => {
     expect(row(faint, 'scrubAlgae').blocked).toBeNull();
   });
 
-  it('offers the tabs that cover a starving root feeder, and previews the bed they fill', () => {
-    const sword = applyAction(tank(), { type: 'addPlant', species: 'amazon_sword' }).state;
+  it('offers the tabs that cover a root feeder’s stores, and previews the bed they fill', () => {
+    const sword = drained(applyAction(tank(), { type: 'addPlant', species: 'amazon_sword' }).state, 0.5);
     const { advice } = bedReading(sword, DEFAULT_CONFIG)!;
     const sheet = detail(sword, 'rootTab');
 
@@ -274,43 +278,26 @@ describe('the seven verbs', () => {
     expect(sheet.preview[0]).toMatchObject({ before: '0.0', after: '1.0', unit: 'tabs' });
   });
 
-  it('holds the preview and the rung hints on the standing reading’s nutrient when the tabs flip which one binds', () => {
+  it('previews the bed and hints each rung on the standing reading’s nutrient', () => {
     const sword = applyAction(tank(), { type: 'addPlant', species: 'amazon_sword' }).state;
     const count = DEFAULT_SETTINGS.rootTab;
     const tab = DEFAULT_CONFIG.nutrients.rootTab;
-    const need = mapNutrients((n) =>
-      getMassFromPpm(nutrientProbe(sword, DEFAULT_CONFIG).need.bed[n], sword.tank.capacity)
-    );
-    const coverPerTab = (n: Nutrient): number => tab[n] / need[n];
-    const nitrateCoverPhosphateOvertakes = (count * (coverPerTab('phosphate') - coverPerTab('nitrate'))) / 2;
     const state = produce(sword, (draft) => {
-      draft.equipment.substrate.nutrients = {
-        nitrate: nitrateCoverPhosphateOvertakes * need.nitrate,
-        phosphate: 0,
-        potassium: 3 * need.potassium,
-        iron: 3 * need.iron,
-      };
+      draft.equipment.substrate.nutrients = mapNutrients((n) => (n === 'phosphate' ? 0.5 : 3) * tab[n]);
     });
     const after = applyAction(state, { type: 'rootTab', count }).state;
-    expect(bedReading(state, DEFAULT_CONFIG)!.nutrient).toBe('phosphate');
-    expect(bedReading(after, DEFAULT_CONFIG)!.nutrient).toBe('nitrate');
+    const onPhosphate = bedReading(after, DEFAULT_CONFIG, undefined, 'phosphate').text;
 
-    const onPhosphate = bedReading(after, DEFAULT_CONFIG, undefined, 'phosphate')!.text;
-    expect(onPhosphate).not.toBe(bedReading(after, DEFAULT_CONFIG)!.text);
+    expect(bedReading(state, DEFAULT_CONFIG).nutrient).toBe('phosphate');
+    expect(bedReading(after, DEFAULT_CONFIG, undefined, 'nitrate').text).not.toBe(onPhosphate);
     const sheet = detail(state, 'rootTab');
     expect(sheet.preview.find((r) => r.key === 'bed')?.after).toBe(onPhosphate);
     expect(sheet.options.find((o) => o.value === count)?.hint).toBe(`bed ${onPhosphate}`);
   });
 
   it('offers the most tabs the engine takes where a starved bed asks for more, and says it is capped', () => {
-    const big = createSimulation({ tankCapacity: 400 });
-    big.equipment.substrate.type = 'gravel';
-    const swords = ['amazon_sword', 'amazon_sword'] as const;
-    const state = swords.reduce(
-      (current, species) => applyAction(current, { type: 'addPlant', species }).state,
-      big
-    );
-    const { advice } = bedReading(state, DEFAULT_CONFIG)!;
+    const state = starved('amazon_sword');
+    const { advice } = bedReading(state, DEFAULT_CONFIG);
     const options = detail(state, 'rootTab').options;
 
     expect(advice).toBeGreaterThan(MAX_ROOT_TABS);

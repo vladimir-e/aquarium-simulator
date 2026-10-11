@@ -53,12 +53,13 @@ import {
   groupBySpecies,
   groupFry,
   groupPlantsBySpecies,
-  nutrientProbe,
   nutrientReadings,
+  plantingStores,
   plantRows,
   projectedDrift,
   projectNitritePeak,
   readFish,
+  sharePercent,
   readHourAhead,
   stockedBand,
   toleranceStatus,
@@ -145,13 +146,13 @@ export interface ReadingView {
 }
 
 /**
- * The four plant foods, banded on what the plants ask for rather than on an
+ * The four plant foods, read against the plants' stores of them rather than an
  * alert line — which is why NO₃ has two readings: the toxin the engine alerts
  * on, and the plants' nitrogen.
  */
 type DemandId = Extract<ReadingId, 'nitrateDemand' | 'phosphate' | 'potassium' | 'iron'>;
 
-/** Every reading banded on what the plants ask for: the four foods, the bed and the day's light. */
+/** Every reading the plants have a word beside: the four foods and the bed their stores, the day's light their need. */
 type NeedId = DemandId | 'bed' | 'dailyLight';
 
 const DEMAND_ID: Record<Nutrient, DemandId> = {
@@ -161,9 +162,9 @@ const DEMAND_ID: Record<Nutrient, DemandId> = {
   iron: 'iron',
 };
 
-/** A reading with what the plants are asking for beside it. */
+/** A reading with the plants' word on it beside it. */
 export interface NeedView extends ReadingView {
-  need: string;
+  beside: string;
 }
 
 export type ReadingsById = {
@@ -407,10 +408,20 @@ function harmClause(id: ReadingId, ceiling: number | null): string {
     : `the engine alerts over ${said(id, ceiling)}`;
 }
 
-/** A nutrient banded on what the plants ask for, and nitrate on its alert line too. */
+/** What the plants' stores of a nutrient say, and what the water does for them. */
+function storesSentence(reading: NutrientReading, edge: number): string {
+  if (!reading.asked) return 'Nothing planted, so nothing stores it';
+  const held = `The plants store it, the emptiest store ${sharePercent(reading.stores)} % full; under ${Math.round(edge * 100)} % a plant takes harm`;
+  return reading.depleted
+    ? `${held}, and the water holds none to refill them`
+    : `${held}, and the water refills them faster the more it holds`;
+}
+
+/** A nutrient toned by the plants' stores of it, and nitrate banded on its alert line too. */
 function nutrientView(
   id: DemandId,
   reading: NutrientReading,
+  edge: number,
   tape: Tape,
   fills: ReadingFlow[] = []
 ): NeedView {
@@ -422,19 +433,11 @@ function nutrientView(
     value: reading.text,
     unit: 'ppm',
     at: at(reading.ppm),
-    band:
-      reading.needed > 0 || reading.ceiling !== null
-        ? { from: at(reading.needed), to: reading.ceiling === null ? 1 : at(reading.ceiling) }
-        : null,
+    band: reading.ceiling === null ? null : { from: 0, to: at(reading.ceiling) },
     tone: toneOf(reading.status),
     trend: measuredTrend(tape, id),
-    need: reading.needed > 0 ? `need ${reading.neededText}` : '',
-    sentence:
-      reading.needed > 0
-        ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops${harm && `; ${harm}`}.`
-        : reading.key === 'nitrate' && reading.asked
-          ? `Ammonia, which plants take first, meets all the nitrogen they ask for${harm && `; ${harm}`}.`
-          : `Nothing planted, so nothing is asking for it${harm && `; ${harm}`}.`,
+    beside: reading.storesText,
+    sentence: `${storesSentence(reading, edge)}${harm && `; ${harm}`}.`,
     net: null,
     fills,
     drains: [],
@@ -442,25 +445,24 @@ function nutrientView(
   };
 }
 
-/** The bed read in the tabs a keeper pushes into it, banded on what its root feeders ask for. */
+/** The bed read in the tabs a keeper pushes into it, toned by its root feeders' stores. */
 function bedView(bed: BedReading): NeedView {
-  const asked = !bed.bare && bed.needed > 0;
   return {
     id: 'bed',
     name: 'Bed',
     value: bed.bare ? '—' : bed.text,
     unit: 'tabs',
     at: onScale(bed.scale, bed.tabs),
-    band: asked ? { from: onScale(bed.scale, bed.needed), to: 1 } : null,
+    band: null,
     tone: toneOf(bed.status),
     trend: '',
-    need: asked ? `need ${bed.neededText}` : '',
+    beside: bed.storesText,
     sentence: bed.bare
-      ? bed.limiting
-        ? 'A bare bottom holds nothing for roots, and takes no tab — its root feeders go short however well the water is dosed.'
+      ? bed.asked
+        ? 'A bare bottom holds nothing for roots, and takes no tab — its root feeders fill their stores from the water alone.'
         : 'A bare bottom holds nothing for roots, and takes no tab.'
-      : asked
-        ? `Root tabs' worth of the nutrient the bed runs shortest on. Root feeders ask for ${bed.neededText} tabs — below it the engine's own sufficiency drops.`
+      : bed.asked
+        ? `Root tabs' worth of the nutrient the bed holds least of. Root feeders fill their stores from it through their roots, the emptiest store ${sharePercent(bed.stores)} % full.`
         : "Root tabs' worth of the nutrient the bed holds least of. Nothing here feeds through its roots, so it only leaks into the water.",
     net: null,
     fills: [],
@@ -523,9 +525,9 @@ function bloomView(kind: AlgaeKind, state: SimulationState, ahead: HourAhead, ta
 export function readTank({ state, config, history, units }: TankInput): ReadingBook {
   const tape = tapeOf(state, history, units);
   const ahead = readHourAhead(state, config);
-  const probe = nutrientProbe(state, config);
-  const nutrients = nutrientReadings(state, config, probe);
-  const bed = bedReading(state, config, probe);
+  const stores = plantingStores(state, config);
+  const nutrients = nutrientReadings(state, config, stores);
+  const bed = bedReading(state, config, stores);
   const nitrate = nutrients.find((n) => n.key === 'nitrate')!;
   const water = waterReadings(state, config, units, nitrate);
   const gases = gasReadings(state);
@@ -603,12 +605,9 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     }),
     nitrate: fromWater('nitrate', tape, {
       reading: read('nitrate'),
-      sentence:
-        nitrate.needed > 0
-          ? `Plants go short under ${nitrate.neededText} ppm; ${harmClause('nitrate', nitrate.ceiling)}.`
-          : nitrate.asked
-            ? `The plants take their nitrogen as ammonia for now; ${harmClause('nitrate', nitrate.ceiling)}.`
-            : `Nothing planted to feed on it; ${harmClause('nitrate', nitrate.ceiling)}.`,
+      sentence: nitrate.asked
+        ? `The plants' nitrogen, beside the ammonia they take first; ${harmClause('nitrate', nitrate.ceiling)}.`
+        : `Nothing planted to feed on it; ${harmClause('nitrate', nitrate.ceiling)}.`,
       fills: nitrateFills,
       drains: [],
     }),
@@ -689,10 +688,10 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       drains: [],
       series: tape.series.co2 ?? null,
     },
-    nitrateDemand: nutrientView('nitrateDemand', nutrient('nitrate'), tape, nitrateFills),
-    phosphate: nutrientView('phosphate', nutrient('phosphate'), tape),
-    potassium: nutrientView('potassium', nutrient('potassium'), tape),
-    iron: nutrientView('iron', nutrient('iron'), tape),
+    nitrateDemand: nutrientView('nitrateDemand', nutrient('nitrate'), stores.water.edge.nitrate, tape, nitrateFills),
+    phosphate: nutrientView('phosphate', nutrient('phosphate'), stores.water.edge.phosphate, tape),
+    potassium: nutrientView('potassium', nutrient('potassium'), stores.water.edge.potassium, tape),
+    iron: nutrientView('iron', nutrient('iron'), stores.water.edge.iron, tape),
     bed: bedView(bed),
     ...mapKinds((kind) => bloomView(kind, state, ahead, taken[kind], tape)),
     dailyLight: {
@@ -704,10 +703,10 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       band: light.needed > 0 ? { from: lightAt(light.needed), to: 1 } : null,
       tone: toneOf(light.status),
       trend: '',
-      need: light.need,
+      beside: light.need,
       sentence:
         light.needed > 0
-          ? `The substrate's PAR over the day the next hour closes. Under ${said('dailyLight', light.needed)} ${DAILY_LIGHT_UNIT} the worst-lit plant here starves, on the light at its own height.`
+          ? `The substrate's PAR over the day the next hour closes — the light that fills the plants' reserves. Under ${said('dailyLight', light.needed)} ${DAILY_LIGHT_UNIT} the worst-lit plant here falls short of the day its species is rated to live on, at its own height.`
           : 'Nothing planted, so nothing is asking for it.',
       net: null,
       fills: [],

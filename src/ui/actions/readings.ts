@@ -44,8 +44,8 @@ import {
   algaeReading,
   bedReading,
   classifyVital,
-  nutrientProbe,
   nutrientReadings,
+  plantingStores,
   readingAt,
   stockedBand,
   trackAt,
@@ -86,7 +86,7 @@ export interface PreviewRow {
 /**
  * One state, read the way every other surface reads it. The water sheet and the
  * nutrient sheet are taken once per state because a row needs its neighbours'
- * arithmetic — a nutrient's band is what the plants are asking for.
+ * arithmetic — a nutrient's tone is the planting's stores of it.
  */
 interface Sheet {
   state: SimulationState;
@@ -103,16 +103,16 @@ function sheetOf(
   units: UnitSystem,
   bedOn?: Nutrient | null
 ): Sheet {
-  const probe = nutrientProbe(state, config);
+  const stores = plantingStores(state, config);
   const nutrients = {} as Record<Nutrient, NutrientReading>;
-  for (const reading of nutrientReadings(state, config, probe)) nutrients[reading.key] = reading;
+  for (const reading of nutrientReadings(state, config, stores)) nutrients[reading.key] = reading;
 
   const water = {} as Record<WaterKey, WaterReading>;
   for (const reading of waterReadings(state, config, units, nutrients.nitrate)) {
     water[reading.key] = reading;
   }
 
-  return { state, config, units, water, nutrients, bed: bedReading(state, config, probe, bedOn) };
+  return { state, config, units, water, nutrients, bed: bedReading(state, config, stores, bedOn) };
 }
 
 function temperatureNote(value: number, _before: number, { state, units }: Sheet): string | null {
@@ -216,10 +216,7 @@ function nutrient(key: Nutrient, label: string, decimals: number): Reading {
     decimals,
     status: (_value, sheet): Status => sheet.nutrients[key].status,
     at,
-    band: (sheet): StripBand | null => {
-      const { needed } = sheet.nutrients[key];
-      return needed > 0 ? { from: at(needed), to: 1 } : null;
-    },
+    band: none,
     note: none,
   };
 }
@@ -254,18 +251,8 @@ const READINGS: Reading[] = [
     label: 'NO₃',
     unit: PPM,
     display: same,
-    note: (value, before, { nutrients }, standing): string | null => {
-      const { needed, ceiling } = nutrients.nitrate;
-      const over = overLine(
-        value,
-        before,
-        WATER_DECIMALS.nitrate,
-        ceiling!,
-        standing.nutrients.nitrate.ceiling!
-      );
-      if (over) return over;
-      return value < needed ? `below ${needed.toFixed(WATER_DECIMALS.nitrate)} — plants short` : null;
-    },
+    note: (value, before, { nutrients }, standing) =>
+      overLine(value, before, WATER_DECIMALS.nitrate, nutrients.nitrate.ceiling!, standing.nutrients.nitrate.ceiling!),
   }),
   fromWater('temperature', {
     label: 'Temp',
@@ -341,7 +328,7 @@ const READINGS: Reading[] = [
     decimals: TAB_DECIMALS,
     status: (_value, { bed }) => bed.status,
     at: (value, { bed }) => onScale(bed.scale, value),
-    band: ({ bed }) => (bed.needed > 0 ? { from: onScale(bed.scale, bed.needed), to: 1 } : null),
+    band: none,
     note: none,
   },
   {

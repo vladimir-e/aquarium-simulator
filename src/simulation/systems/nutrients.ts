@@ -9,8 +9,7 @@
  * feeder's own half-saturation for it. Nitrogen comes in two — ammonia, taken
  * first, and nitrate for what ammonia leaves unmet — so a nutrient's share in a
  * pool is what its forms meet between them, `1 − Π(1 − share)`. Its share of a
- * nutrient is the two pools' shares weighted by where it feeds, and
- * sufficiency is the scarcest of them (Liebig).
+ * nutrient is the two pools' shares weighted by where it feeds.
  *
  * A feeder's stores ask for what they lack, and what the pools deliver moves
  * into them: a plant or a bloom holds the N, P, K and Fe it took up, in its
@@ -29,7 +28,6 @@ import {
   NUTRIENTS,
   nutrientsDefaults,
   type FormVector,
-  type NutrientForm,
   type NutrientsConfig,
   type NutrientVector,
   ZERO_FORMS,
@@ -78,25 +76,6 @@ export function formHalfSaturations(
   config: NutrientsConfig = nutrientsDefaults
 ): FormVector {
   return mapForms((f) => demand[NUTRIENT_OF[f]] * config.halfSaturation[f]);
-}
-
-/** ppm at which this species takes the form at half its need. */
-export function speciesHalfSaturation(
-  species: PlantSpecies,
-  form: NutrientForm,
-  config: NutrientsConfig = nutrientsDefaults
-): number {
-  return formHalfSaturations(speciesDemand(species, config), config)[form];
-}
-
-/** Share of the species' need for a form's nutrient that this ppm of the form alone meets, 0–1. */
-export function nutrientShare(
-  ppm: number,
-  species: PlantSpecies,
-  form: NutrientForm,
-  config: NutrientsConfig = nutrientsDefaults
-): number {
-  return monodFactor(ppm, speciesHalfSaturation(species, form, config));
 }
 
 /** A stock feeders draw on: mg of each form, and the litres it reads against. */
@@ -169,19 +148,6 @@ export function poolDraws([water, bed]: TankPools, feeder: Feeder): PerPool<Tank
 export function feederShares(draws: readonly PoolDraw[]): NutrientVector {
   const met = draws.map(({ shares }) => formsMeet(shares));
   return mapNutrients((n) => draws.reduce((sum, { weight }, p) => sum + weight * met[p][n], 0));
-}
-
-/** Liebig sufficiency: the scarcest nutrient's share, 0–1. */
-export function liebig(shares: NutrientVector): number {
-  return Math.min(...NUTRIENTS.map((n) => shares[n]));
-}
-
-export function calculateNutrientSufficiency(
-  pools: TankPools,
-  species: PlantSpecies,
-  config: NutrientsConfig = nutrientsDefaults
-): number {
-  return liebig(feederShares(poolDraws(pools, plantFeeder(species, config))));
 }
 
 /** mg of each nutrient, as the recipe counts it, that these masses of its forms carry. */

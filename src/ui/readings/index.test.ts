@@ -86,7 +86,7 @@ describe('readTank', () => {
 
     expect(byId.ph.sentence).toMatch(/^pH \d+\.\d{2}–\d+\.\d{2} — the span/);
     expect(byId.nitrite.sentence).toContain(`${NITRITE_EDGE.toFixed(3)} ppm`);
-    expect(byId.nitrate.sentence).toMatch(/under \d+\.\d ppm; the engine alerts over \d+\.\d\./);
+    expect(byId.nitrate.sentence).toMatch(/; the engine alerts over \d+\.\d\.$/);
   });
 
   it('takes the ammonia band off the free-NH₃ alert line at this pH, and states both', () => {
@@ -107,7 +107,7 @@ describe('readTank', () => {
       expect(asFood.band).toEqual(book.byId.nitrate.band);
       expect(asFood.sentence).not.toBe(book.byId.nitrate.sentence);
     }
-    expect(read(stocked()).byId.nitrateDemand.need).toMatch(/^need /);
+    expect(read(stocked()).byId.nitrateDemand.beside).toMatch(/^stores \d+ %$/);
   });
 
   it('gives the demand reading the same stock to inspect as the toxin', () => {
@@ -120,12 +120,12 @@ describe('readTank', () => {
     expect(asFood.series!(latest)).toBe(book.byId.nitrate.series!(latest));
   });
 
-  it('leaves a nutrient unbanded when there is nothing planted to want it, bar nitrate’s alert line', () => {
-    for (const reading of read(bare()).demand) {
-      expect(reading.band === null).toBe(reading.id !== 'nitrateDemand');
-      expect(reading.need).toBe('');
+  it('bands no plant food but nitrate, on its alert line, and says nothing beside them with nothing planted', () => {
+    for (const run of [stocked(), bare()]) {
+      for (const reading of read(run).demand) expect(reading.band === null).toBe(reading.id !== 'nitrateDemand');
+      expect(read(run).byId.nitrateDemand.band?.from).toBe(0);
     }
-    expect(read(bare()).byId.nitrateDemand.band?.from).toBe(0);
+    for (const reading of read(bare()).demand) expect(reading.beside).toBe('');
   });
 
   it('balances ammonia against what makes it and what clears it', () => {
@@ -169,9 +169,9 @@ describe('readTank', () => {
     const unplanted = read(bare()).byId.dailyLight;
 
     expect(planted.band).not.toBeNull();
-    expect(planted.need).toMatch(/^need /);
+    expect(planted.beside).toMatch(/^need /);
     expect(unplanted.band).toBeNull();
-    expect(unplanted.need).toBe('');
+    expect(unplanted.beside).toBe('');
     expect(unplanted.tone).toBe('ink');
   });
 
@@ -179,8 +179,8 @@ describe('readTank', () => {
     const settled = stocked();
     const dosed = applyAction(settled.state, { type: 'dose', amountMl: 5 }).state;
 
-    const before = read(settled).byId.potassium;
-    const after = read({ state: dosed, history: settled.history }).byId.potassium;
+    const before = read(settled).byId.nitrateDemand;
+    const after = read({ state: dosed, history: settled.history }).byId.nitrateDemand;
 
     expect(after.at).toBeGreaterThan(before.at);
     expect(after.band).toEqual(before.band);

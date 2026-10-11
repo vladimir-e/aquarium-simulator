@@ -422,10 +422,7 @@ export type {
 export {
   offerCarbon,
   plantFixer,
-  calculateNutrientSufficiency,
   speciesDemand,
-  speciesHalfSaturation,
-  nutrientShare,
   formHalfSaturations,
   formShares,
   formsMeet,

@@ -17,6 +17,13 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { bedReading, doseToCover, nutrientReadings } from '../run';
+import { plantRecord, withStores } from '../../simulation/tests/plant.js';
+
+/** Eight grown plants with every store empty: more than one dose or push covers what they lack. */
+function starved(tank: SimulationState, species: 'java_fern' | 'amazon_sword'): SimulationState {
+  const plants = Array.from({ length: 8 }, (_, i) => withStores(plantRecord({ id: `${species}_${i}`, species, size: 100 }), 0));
+  return { ...tank, plants };
+}
 import type { useSimulation } from '../hooks/useSimulation';
 
 afterEach(cleanup);
@@ -253,14 +260,14 @@ describe('OverviewSection', () => {
     expect(screen.getByRole('dialog', { name: 'Daily light' })).toBeTruthy();
   });
 
-  it('reads the plant foods against what the plants ask for', () => {
+  it('reads the plant foods beside the plants’ stores of them', () => {
     const run = stocked();
-    const asked = nutrientReadings(run.state, DEFAULT_CONFIG).filter((reading) => reading.needed > 0);
+    const asked = nutrientReadings(run.state, DEFAULT_CONFIG).filter((reading) => reading.asked);
     renderOverview(run);
     const nutrients = within(widget('Nutrients'));
 
     expect(asked.length).toBeGreaterThan(0);
-    expect(nutrients.getAllByText(/^need /)).toHaveLength(asked.length);
+    expect(nutrients.getAllByText(/^stores \d+ %$/)).toHaveLength(asked.length);
     expect(nutrients.getByText(/1 ml moves/)).toBeTruthy();
   });
 
@@ -269,11 +276,11 @@ describe('OverviewSection', () => {
     const nutrients = within(widget('Nutrients'));
 
     expect(nutrients.getByText('no plants to feed')).toBeTruthy();
-    expect(nutrients.queryByText(/^need /)).toBeNull();
+    expect(nutrients.queryByText(/^stores /)).toBeNull();
   });
 
   it('offers the dose a big tank asks for only as far as one dose goes', () => {
-    const state = applyAction(createSimulation({ tankCapacity: 1000 }), { type: 'addPlant', species: 'monte_carlo' }).state;
+    const state = starved(createSimulation({ tankCapacity: 1000 }), 'java_fern');
     expect(doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!.ml).toBeGreaterThan(MAX_DOSE_ML);
     const onAct = vi.fn();
     renderOverview(bare(state), {}, onAct);
@@ -287,7 +294,7 @@ describe('OverviewSection', () => {
       applyAction(createSimulation(tank), { type: 'addPlant', species: 'amazon_sword' }).state;
 
     it('offers the tabs a big bed asks for only as far as one push goes', () => {
-      const state = sword({ tankCapacity: 1000, substrate: { type: 'gravel' } });
+      const state = starved(createSimulation({ tankCapacity: 1000, substrate: { type: 'gravel' } }), 'amazon_sword');
       expect(bedReading(state, DEFAULT_CONFIG).advice).toBeGreaterThan(MAX_ROOT_TABS);
       const onAct = vi.fn();
       renderOverview(bare(state), {}, onAct);

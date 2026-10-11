@@ -39,7 +39,7 @@ export function ReadingRows({
   );
 }
 
-/** The four plant foods in the water, then the bed's store — over a bare bottom only while roots go short of it. */
+/** The four plant foods in the water, then the bed's store — over a bare bottom only while something roots in it. */
 export function NutrientRows({
   book,
   onOpen,
@@ -47,8 +47,8 @@ export function NutrientRows({
   book: ReadingBook;
   onOpen: (id: ReadingId) => void;
 }): React.JSX.Element {
-  const { bare, limiting } = book.bed;
-  const rows = bare && !limiting ? book.demand : [...book.demand, book.byId.bed];
+  const { bare, asked } = book.bed;
+  const rows = bare && !asked ? book.demand : [...book.demand, book.byId.bed];
   return (
     <>
       {rows.map((reading) => (
@@ -61,7 +61,7 @@ export function NutrientRows({
           band={reading.band}
           tone={reading.tone}
           trend={reading.trend ?? undefined}
-          note={reading.need}
+          note={reading.beside}
           onClick={() => onOpen(reading.id)}
         />
       ))}

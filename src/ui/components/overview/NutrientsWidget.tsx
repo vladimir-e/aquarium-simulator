@@ -18,10 +18,10 @@ interface NutrientsWidgetProps {
 }
 
 /**
- * The four plant foods against what the plants are asking for — the one place
- * the tank's nitrate is read as food rather than as the toxin the cycle ends
- * in, and the millilitre that moves all four — then the bed the root feeders
- * draw on, and the tab that refills it.
+ * The four plant foods beside the plants' stores of them — the one place the
+ * tank's nitrate is read as food rather than as the toxin the cycle ends in,
+ * and the millilitre that moves all four — then the bed the root feeders draw
+ * on, and the tab that refills it.
  */
 export function NutrientsWidget({
   book,

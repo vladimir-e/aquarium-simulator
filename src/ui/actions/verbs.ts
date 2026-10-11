@@ -484,7 +484,7 @@ function meta(
       const bed = bedReading(state, config);
       if (bed.bare) return 'bare bottom';
       const holds = `bed holds ${bed.text} tabs`;
-      return bed.needed > 0 ? `${holds} · roots need ${bed.neededText} tabs` : holds;
+      return bed.asked ? `${holds} · roots' ${bed.storesText}` : holds;
     }
     case 'trimPlants': {
       const reach = reached(state, scope);
