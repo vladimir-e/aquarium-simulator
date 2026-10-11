@@ -1,6 +1,6 @@
 ---
 title: Light
-description: PAR at the substrate, recomputed each tick from the fixture, the photoperiod, the depth of the box and the green water in it, then read by each plant at its own height through the water, the canopy above it and the film on its leaves — and a day of it kept for the plants to starve on.
+description: PAR at the substrate, recomputed each tick from the fixture, the photoperiod, the depth of the box and the green water in it, then read by each plant at its own height through the water, the canopy above it and the film on its leaves — and a day of it kept to read each plant's light against.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -12,8 +12,8 @@ publishes. What the tank runs on is what reaches the substrate, so the rating is
 gated by the photoperiod and then carried down the water column by Beer–Lambert,
 through the water and the green water suspended in it. Each plant reads that
 substrate PAR at its own height, through the water and the canopy above its
-leaves and the film coating them, and the last 24 hours of it are kept for the
-plants to starve on.
+leaves and the film coating them, and the last 24 hours of it are kept to read
+each plant's day against.
 
 ## Status
 
@@ -21,12 +21,12 @@ plants to starve on.
 |---|---|---|
 | PAR at the substrate | <Badge text="settled" variant="success" /> | `surfacePar × exp(−k · depth)`. Beer–Lambert through a depth the capacity already implies, so a fixture is worth less in a deeper tank without anyone declaring it. |
 | Saturation curve | <Badge text="settled" variant="success" /> | `tanh(PAR / Ik)`, the Jassby–Platt response. Near-linear below `Ik`, flat above it — a brighter fixture stops buying anything. |
-| Light multiplies the benefit budget | <Badge text="settled" variant="success" /> | Every benefit a plant earns is realised *through* photosynthesis, so light scales all three channels rather than standing beside them. Good water is worth nothing at midnight. |
+| Light reaches income through the reserve | <Badge text="settled" variant="success" /> | Every benefit a plant earns is earned on the reserve its photosynthesis fills, so light reaches income through the reserve, and a fed plant earns through the night. |
 | `Ik` derived from the species band | <Badge text="settled" variant="success" /> | A fixed multiple of the band's lower bound, so one number carries both the saturation curve and the daily light edge and they cannot drift apart. |
 | The canopy | <Badge text="settled" variant="success" /> | Leaf attenuates like water — Beer–Lambert per unit of leaf area index — so a planting shades what grows beneath it and each plant reads its own height. |
-| The blooms | <Badge text="settled" variant="success" /> | Algal tissue attenuates too — Beer–Lambert per gram crossed, one coefficient for every kind. Green water joins the water's extinction by its tissue per litre, so it shades itself, the film below it and each plant by its depth; film coats every leaf at its coverage. |
-| The day's light | <Badge text="settled" variant="success" /> | A 24-slot history, one slot rewritten each tick. Plants starve on its integral — the day, not the hour. |
-| The day at height | <Badge text="scaffolding" variant="caution" /> | A plant's day is the substrate's day read through the canopy and the film as they stand now, so after a trim, a removal, an offshoot or a scrub the whole window is re-read at once rather than an hour at a time. |
+| The blooms | <Badge text="settled" variant="success" /> | Beer–Lambert on a bloom's coverage, one coefficient per habitat. Green water joins the water's extinction by its coverage, so it shades itself, the film below it and each plant by its depth; film coats every leaf at its coverage. |
+| The day's light | <Badge text="settled" variant="success" /> | A 24-slot history, one slot rewritten each tick. Each plant's day is read against the day its species is rated to live on — the day, not the hour — and nothing starves on it. |
+| The day at height | <Badge text="scaffolding" variant="caution" /> | A plant's day is the substrate's day read through the canopy and the film as they stand now, so after a trim, a removal, a plantlet or a scrub the whole window is re-read at once rather than an hour at a time. |
 | Light taken, by the hour | <Badge text="scaffolding" variant="caution" /> | Light settles before the biology, off the blooms the hour starts with, so the light a bloom takes lags its growth by an hour, and each past slot of the day keeps the green water of its own hour. |
 | Photoperiod shape | <Badge text="scaffolding" variant="caution" /> | A rectangular window: rated PAR or zero, with no ramp at either edge. |
 | Depth tracks standing water | <Badge text="scaffolding" variant="caution" /> | Attenuation runs over the height the *capacity* implies. A half-drained tank lights its substrate as if it were full. |
@@ -40,7 +40,7 @@ plants to starve on.
 ```
 depth      = ∛(capacity / 2) × 10                cm
 surfacePar = schedule active ? fixture.par : 0   µmol/m²/s
-k          = waterAttenuationPerCm + algaeAttenuationPerGram × green water's tissue per cm³
+k          = waterAttenuationPerCm + algaeAttenuationPerCm × green water's coverage / 100
 light      = surfacePar × exp(−k × depth)
 ```
 
@@ -63,17 +63,16 @@ taken its share.
 
 ### The blooms
 
-Algal tissue takes light by Beer–Lambert on the grams of it the light crosses
-per cm² of its path, at `algaeAttenuationPerGram` for every kind. A kind's
-habitat decides how the light crosses it.
+A bloom takes light by Beer–Lambert on its coverage, as it fixes and burns by
+it. A kind's habitat decides how the light crosses it.
 
 | Kind | Crossed as | Takes |
 |---|---|---|
-| Green water | Tissue spread through the column | `algaeAttenuationPerGram × tissue per cm³` added to `k`: from the substrate, and from every leaf by the depth above it |
-| Film | A coat on every lit surface, leaves included, at its coverage | `coverage × (1 − e^(−algaeAttenuationPerGram × σ))` of a leaf's light, σ a full coat's tissue per cm² |
+| Green water | Spread through the column | `algaeAttenuationPerCm` at full coverage, in proportion to it, added to `k`: from the substrate, and from every leaf by the depth above it |
+| Film | A coat on every lit surface, leaves included, at its coverage | `coverage × (1 − e^(−algaeCoatOpticalDepth))` of a leaf's light |
 
-At the shipped coefficient a full bloom of green water, 30 mg of tissue a litre,
-adds 0.09 per cm to the water's 0.01, and a full coat of film passes 41 % of a
+At the shipped coefficients a full bloom of green water adds 0.09 per cm to
+the water's 0.01, and a full coat of film passes 41 % of a
 leaf's light. Through the 42 cm of a 150 L tank green water takes from the
 substrate:
 
@@ -96,10 +95,10 @@ lower bound of its tolerable band. At the shipped factor a plant at the bottom
 of its band runs at 46 % of its maximum, at `Ik` 76 %, and at twice `Ik` 96 %. Each species' band and `Ik` are on the
 [roster](/subsystems/plants/#the-species-roster).
 
-### Light as the multiplier
+### Light and income
 
-A plant's three benefit channels are each multiplied by the saturation term, so
-light takes the whole of its income down together — the budget is under
+A plant's three benefit channels are earned on the reserve its photosynthesis
+fills, so light reaches its income through the reserve — the budget is under
 [Plants](/subsystems/plants/#income-and-harm).
 
 ### The canopy
@@ -163,10 +162,11 @@ steady schedule it holds constant through day and night. When the fixture dies
 or the schedule shortens, it falls one lit hour at a time as those hours come
 round, and reaches zero a day after the last lit hour.
 
-A species starves under the low end of its PAR band held for the 8-hour day care
-sheets assume — 0.86 mol/m²/d for monte carlo, 0.23 for anubias. Each plant
-reads the integral at its own leaf, `dli × s_i`: today's canopy over the whole
-window. A new tank opens with the history of the schedule it was built on, read
+A species is rated to live on the low end of its PAR band held for the 8-hour
+day care sheets assume — 0.86 mol/m²/d for monte carlo, 0.23 for anubias. Each
+plant's day is the integral at its own leaf, `dli × s_i`: today's canopy over
+the whole window. Nothing starves on it — a plant starves on its reserve — but
+it is the yardstick its light is read against. A new tank opens with the history of the schedule it was built on, read
 through the optics it will run on, as though it had run it all along.
 
 ### Photoperiod
@@ -180,12 +180,10 @@ inside it reads the full attenuated rating.
 
 | Consumer | How |
 |---|---|
-| Photosynthesis | Per plant, `tanh(PAR / Ik)` at its mean leaf scales the carbon it fixes, and the O₂ that comes with it |
-| Plant benefits | All three channels multiplied by the same term |
-| Plant nutrient deficiency | Scaled by the same term |
-| Plant starvation | The day's light at its mean leaf, against the species' edge |
+| Photosynthesis | Per plant, `tanh(PAR / Ik)` at its mean leaf scales the carbon it fixes into its reserve, and the O₂ that comes with it |
+| A plant's day | The day's light at its mean leaf, against its rated day |
 | Plant light-high stressor | PAR at its crown top over the species band, while the lamp is on |
-| Algae | The mean PAR over its habitat, on the plants' curve at its own `Ik`, and the day of it against its own edge: green water the column's mean — `(e^{kD} − 1) / kD` times the substrate figure, through its own shade — and film the walls at that mean and the floor and hardscape at what the canopy leaves, weighted by area |
+| Algae | The mean PAR over its habitat, on the plants' curve at its own `Ik`, and the day of it against its own rated day: green water the column's mean — `(e^{kD} − 1) / kD` times the substrate figure, through its own shade — and film the walls at that mean and the floor and hardscape at what the canopy leaves, weighted by area |
 
 ### Stocks and rates
 
@@ -198,8 +196,8 @@ it is derived from the planting every hour.
 
 The optics coefficients are listed in the reference under
 [Optics](/reference/tunables/#optics), and the plant constants that read this
-light — `saturationIrradianceFactor`, `lightStarvationSeverity` and
-`lightExcessiveSeverity` — under [Plants](/reference/tunables/#plants).
+light — `saturationIrradianceFactor` and `lightExcessiveSeverity` — under
+[Plants](/reference/tunables/#plants).
 
 | Constant | Meaning | Value |
 |---|---|---|
@@ -214,8 +212,8 @@ construction refuses it.
 |---|---|---|
 | [Equipment](/subsystems/equipment/) | The fixture's rating, its enabled flag and its photoperiod | — |
 | [Environment](/subsystems/environment/) | Depth, from the box capacity implies | — |
-| [Plants](/subsystems/plants/) | Every unit's size and growth form, which build the canopy | Light at each plant's own height: at the mean leaf, the saturation multiplier on the whole benefit budget and the nutrient-deficiency stressor, the photosynthesis rate, and the day's light they starve on; at the crown top, the light-high stressor |
-| [Algae](/subsystems/algae/) | Green water's tissue per litre, in the water's extinction; film's coverage, the coat on every leaf | The mean PAR over each kind's habitat: the light curve on its income and the day it starves on |
+| [Plants](/subsystems/plants/) | Every unit's size and growth form, which build the canopy | Light at each plant's own height: at the mean leaf, the photosynthesis rate and the day read against its rated day; at the crown top, the light-high stressor |
+| [Algae](/subsystems/algae/) | Green water's coverage, in the water's extinction; film's, the coat on every leaf | The mean PAR over each kind's habitat: the light curve on what it fixes, and the day of it |
 | [Water & gases](/subsystems/water-and-gases/) | — | Indirectly: the photoperiod is what makes oxygen and CO₂ swing across a day |
 
 ## Source

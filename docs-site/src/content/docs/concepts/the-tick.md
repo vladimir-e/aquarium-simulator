@@ -29,7 +29,7 @@ The sequence exists so that every reader sees a value that has already settled
 this hour. Plants and the blooms read the equipment's hour, livestock read a tank
 the flora has already been through. Reversing any pair would not break anything
 visibly — it would quietly make one of them an hour stale. Plants and the blooms
-share one pass because they share the water: they draw their tissue in one
+share one pass because they share the water: they fill their stores in one
 call, so none gets first pick of the water, and each reads the others as the
 hour starts. Against the nitrifying colony the order does pick: the flora take
 their ammonia from what the colony left, and the colony oxidises what they

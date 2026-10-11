@@ -136,11 +136,11 @@ The fish's own stocks; what it reads and writes in the tank is under [Seams](#se
 
 ### Health
 
-Health moves by benefits less damage, plus repair: the fish asks
-`(1 − e^−healingRate × τ) × (100 − health)` points an hour of its reserve at
-`healingCost` hours of its somatic maintenance a point, paid at the hour's
-oxygen; an empty reserve repairs nothing. Health above 100 is lost. A fish is
-sick while its damage outruns what it earns and repairs.
+Health runs the [vitality](/concepts/vitality/) step and the repair rule every
+organism shares: the fish asks a first-order share of its deficit at
+`healingRate` and its pace, priced at `healingCost` hours of its upkeep a point
+and paid from its reserve at the hour's oxygen; an empty reserve repairs
+nothing. A fish is sick while its damage outruns what it earns and repairs.
 
 | Stressor | Activates | Per |
 |---|---|---|
