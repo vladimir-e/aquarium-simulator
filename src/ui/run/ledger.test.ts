@@ -30,7 +30,7 @@ import { LEDGER_DECIMALS, readLedger, type BudgetRow, type Ledger, type LedgerTa
 import { FED, atReserve, starving } from '../test/gut';
 import { projectedTrend } from './status.js';
 import { TRACK_PAST_LINE, WATER_DECIMALS } from './water.js';
-import { fishRecord, holdingEggs, saturated } from '../../simulation/tests/fish.js';
+import { fishRecord, holdingEggs, poisoned, saturated } from '../../simulation/tests/fish.js';
 import { spawnsAt } from '../../simulation/systems/brood.js';
 import { fishHardiness, toxinEdges } from '../../simulation/livestock/tolerance.js';
 
@@ -133,11 +133,13 @@ describe('readLedger', () => {
     ...state,
     resources: { ...state.resources, nitrite: level * state.resources.water },
   });
+  const carriedNitrite = (state: SimulationState): number => readHourAhead(state, DEFAULT_CONFIG).fish[0].hour.fish.load.nitrite;
 
   it('reads each toxin the fish carries beside its water’s level, on a track to twice its own edge, coral past it', () => {
     const steeped = (nitrite: number): SimulationState => saturated(inNitrite(tank([makeFish({ id: 'fish_a_1' })]), nitrite));
 
-    const past = fishLedger(steeped(1.5 * edge)).load;
+    const state = steeped(1.5 * edge);
+    const past = fishLedger(state).load;
     expect(past).toHaveLength(1);
     expect(past[0]).toMatchObject({
       key: 'nitrite',
@@ -147,26 +149,34 @@ describe('readLedger', () => {
       status: 'alert',
       note: `water ${ppm(1.5 * edge)}`,
     });
-    expect(past[0].at).toBeCloseTo(1.5 / TRACK_PAST_LINE, 3);
+    expect(past[0].at).toBeCloseTo(carriedNitrite(state) / (TRACK_PAST_LINE * edge), 12);
     expect(fishLedger(steeped(0.5 * edge)).load[0]).toMatchObject({ status: 'ok' });
   });
 
   it('reads the load the hour carries the fish to, so a row turns coral the hour its load crosses, beside the charge', () => {
     const level = 5 * edge;
     const state = inNitrite(tank([makeFish({ id: 'fish_a_1', load: { ammonia: 0, nitrite: 0.9 * edge, nitrate: 0 } })]), level);
-    const carried = readHourAhead(state, DEFAULT_CONFIG).fish[0].hour.fish.load.nitrite;
+    const carried = carriedNitrite(state);
     const ledger = fishLedger(state);
 
     expect(carried).toBeGreaterThan(edge);
     expect(ledger.load[0]).toMatchObject({ key: 'nitrite', text: ppm(carried), status: 'alert', note: `water ${ppm(level)}` });
+    expect(ledger.load[0].at).toBeCloseTo(carried / (TRACK_PAST_LINE * edge), 12);
     expect(ledger.hurting.map((factor) => factor.key)).toContain('nitrite');
   });
 
   it('reads the ammonia row’s water as its free share, where the Water page reads the total', () => {
-    const state = saturated(tank([makeFish({ id: 'fish_a_1' })], 2));
+    const state = poisoned(tank([makeFish({ id: 'fish_a_1' })]), 2);
     const free = waterToxins(state.resources).ammonia.toFixed(WATER_DECIMALS.ammonia);
 
-    expect(fishLedger(state).load.find((row) => row.key === 'ammonia')).toMatchObject({ note: `free in water ${free}` });
+    expect(fishLedger(state).load.find((row) => row.key === 'ammonia')).toMatchObject({ note: `water ${free}` });
+  });
+
+  it('reads a toxin its water holds though the fish carries none that prints', () => {
+    const fresh = tank([makeFish({ id: 'fish_a_1' })]);
+    const state = { ...fresh, resources: { ...fresh.resources, nitrate: 0.5 * fresh.resources.water } };
+
+    expect(fishLedger(state).load).toEqual([expect.objectContaining({ key: 'nitrate', text: '0.0', note: 'water 0.5' })]);
   });
 
   it('reads no load where neither the fish nor its water holds any toxin that prints', () => {

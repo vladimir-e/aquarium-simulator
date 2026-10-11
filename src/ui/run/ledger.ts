@@ -37,7 +37,6 @@ import {
   type Light,
   type LightPath,
   type SimulationState,
-  type Toxin,
   type ToxinVector,
   type VitalityBreakdown,
   type VitalityFactor,
@@ -406,8 +405,6 @@ function fishLedger(
   };
 }
 
-const WATER_NOTE: Record<Toxin, string> = { ammonia: 'free in water', nitrite: 'water', nitrate: 'water' };
-
 function loadRows(fish: Fish, water: ToxinVector): BudgetRow[] {
   const edges = toxinEdges(fishHardiness(fish));
   return TOXINS.filter(
@@ -420,7 +417,7 @@ function loadRows(fish: Fish, water: ToxinVector): BudgetRow[] {
     at: Math.min(1, fish.load[t] / (TRACK_PAST_LINE * edges[t])),
     band: { from: 0, to: 1 / TRACK_PAST_LINE },
     status: fish.load[t] > edges[t] ? 'alert' : 'ok',
-    note: `${WATER_NOTE[t]} ${water[t].toFixed(WATER_DECIMALS[t])}`,
+    note: `water ${water[t].toFixed(WATER_DECIMALS[t])}`,
   }));
 }
 

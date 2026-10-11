@@ -94,10 +94,10 @@ describe('a hatched fish', () => {
 });
 
 describe('every new fish', () => {
-  it('arrives unloaded from the shop, and hatches carrying what its clutch read', () => {
-    const read = { ammonia: 0.05, nitrite: 1, nitrate: 40 };
+  it('arrives unloaded from the shop, and hatches carrying the load it is handed', () => {
+    const levels = { ammonia: 0.05, nitrite: 1, nitrate: 40 };
     expect(stock().load).toEqual(ZERO_TOXINS);
-    expect(hatch({ load: read }).load).toEqual(read);
+    expect(hatch({ load: levels }).load).toEqual(levels);
   });
 });
 

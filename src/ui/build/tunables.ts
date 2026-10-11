@@ -155,7 +155,7 @@ const SECTIONS: readonly SectionSpec[] = [
     key: 'livestock',
     label: 'Livestock',
     meta: livestockConfigMeta,
-    groups: [{ path: 'loadRate', label: 'Toxin load', meta: loadRateMeta }],
+    groups: [{ path: 'loadRate', label: 'Load rates', meta: loadRateMeta }],
   },
 ];
 

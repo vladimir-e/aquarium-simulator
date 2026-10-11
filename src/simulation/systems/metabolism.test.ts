@@ -30,7 +30,7 @@ describe('oxygenPace', () => {
 });
 
 const guppy = fishRecord({ species: 'guppy' });
-const carrying = (load: Partial<ToxinVector>, fish: Fish = guppy): Fish => ({ ...fish, load: { ...ZERO_TOXINS, ...load } });
+const loadedWith = (load: Partial<ToxinVector>, fish: Fish = guppy): Fish => ({ ...fish, load: { ...ZERO_TOXINS, ...load } });
 const edges = toxinEdges(fishHardiness(guppy));
 const WATER = { temperature: 26, oxygen: SATURATED };
 
@@ -40,8 +40,8 @@ describe('loadStress', () => {
   });
 
   it('holds the ceiling whole up to the fish’s own edge, and lowers it hyperbolically on the e-folds past it', () => {
-    expect(loadStress(carrying({ nitrite: edges.nitrite }), config).assimilation).toBe(1);
-    expect(loadStress(carrying({ nitrite: edges.nitrite * Math.E }), config).assimilation).toBeCloseTo(
+    expect(loadStress(loadedWith({ nitrite: edges.nitrite }), config).assimilation).toBe(1);
+    expect(loadStress(loadedWith({ nitrite: edges.nitrite * Math.E }), config).assimilation).toBeCloseTo(
       1 / (1 + config.loadAssimilationSeverity),
       12
     );
@@ -49,7 +49,7 @@ describe('loadStress', () => {
 
   it('falls as the load rises past the edge, and stays in (0, 1]', () => {
     const shares = [1, 2, 10, 1e3, 1e12].map(
-      (times) => loadStress(carrying({ ammonia: edges.ammonia * times }), config).assimilation
+      (times) => loadStress(loadedWith({ ammonia: edges.ammonia * times }), config).assimilation
     );
     shares.slice(1).forEach((share, i) => expect(share).toBeLessThan(shares[i]));
     for (const share of shares) {
@@ -59,8 +59,8 @@ describe('loadStress', () => {
   });
 
   it('weighs an e-fold of one toxin as an e-fold of another', () => {
-    const one = loadStress(carrying({ ammonia: edges.ammonia * Math.E ** 2 }), config);
-    const both = loadStress(carrying({ ammonia: edges.ammonia * Math.E, nitrate: edges.nitrate * Math.E }), config);
+    const one = loadStress(loadedWith({ ammonia: edges.ammonia * Math.E ** 2 }), config);
+    const both = loadStress(loadedWith({ ammonia: edges.ammonia * Math.E, nitrate: edges.nitrate * Math.E }), config);
     expect(both.assimilation).toBeCloseTo(one.assimilation, 12);
   });
 
@@ -68,9 +68,9 @@ describe('loadStress', () => {
     const { resources } = createSimulation({ tankCapacity: 100 });
     const load = { ammonia: 0.1, nitrite: 3, nitrate: 400 };
     const fishes = [
-      carrying(load),
-      carrying(load, fishRecord({ species: 'neon_tetra' })),
-      carrying(load, fishRecord({ species: 'angelfish', hardinessOffset: 0.1 })),
+      loadedWith(load),
+      loadedWith(load, fishRecord({ species: 'neon_tetra' })),
+      loadedWith(load, fishRecord({ species: 'angelfish', hardinessOffset: 0.1 })),
     ];
     for (const fish of fishes) {
       const charged = waterStressors(fish.species, fishHardiness(fish), fish.load, resources, resources.water, config);
@@ -82,14 +82,14 @@ describe('loadStress', () => {
   });
 
   it('leaves maintenance, growth cost and egg cost whole', () => {
-    const stress = loadStress(carrying({ ammonia: 1, nitrite: 20, nitrate: 2000 }), config);
+    const stress = loadStress(loadedWith({ ammonia: 1, nitrite: 20, nitrate: 2000 }), config);
     expect({ ...stress, assimilation: 1 }).toEqual(NO_STRESS);
   });
 });
 
 describe('fishPace', () => {
   it('runs on its species’ Arrhenius temperature, on oxygen alone for ω, and on its load for stress', () => {
-    const fish = carrying({ nitrite: 4 });
+    const fish = loadedWith({ nitrite: 4 });
     const pace = fishPace(fish, { temperature: 26, oxygen: 3 }, SATURATED, config);
     expect(pace.tau).toBe(speciesTau('guppy', 26));
     expect(pace.omega).toBe(oxygenPace(3, SATURATED, config.oxygenHalfSaturation));
@@ -97,7 +97,7 @@ describe('fishPace', () => {
   });
 
   it('lowers a loaded fish’s hourly appetite below an unloaded one’s, and a full gut still bites', () => {
-    const loaded = carrying({ nitrite: edges.nitrite * 4 });
+    const loaded = loadedWith({ nitrite: edges.nitrite * 4 });
     const cleanPace = fishPace(guppy, WATER, SATURATED, config);
     const loadedPace = fishPace(loaded, WATER, SATURATED, config);
     expect(appetite(loaded, loadedPace)).toBeLessThan(appetite(guppy, cleanPace));
