@@ -10,8 +10,7 @@ import type { OpticsConfig } from '../config/optics.js';
 import { mapForms, mapNutrients, NUTRIENT_OF, NUTRIENTS, type FormVector, type NutrientVector } from '../config/nutrients.js';
 import { calculateTankHeight } from '../core/geometry.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
-import { sum } from '../core/sum.js';
-import { formHalfSaturations, nutrientsIn, type Feeder, type PerPool, type PoolDraw, type TankPools } from '../systems/nutrients.js';
+import { formHalfSaturations, type Feeder } from '../systems/nutrients.js';
 import type { CarbonFixer } from '../systems/photosynthesis.js';
 import { metabolicRateUnits, saturationIrradiance, TISSUE_PER_RATE_UNIT } from '../systems/flora.js';
 import { floraNutrients, scaleFlora, type FloraParams, type FloraState } from '../systems/flora-budget.js';
@@ -94,23 +93,6 @@ export function habitatGain(
   const column = columnGain(calculateTankHeight(tank.tank.capacity), waterExtinction(tank, optics));
   const underCanopy = 1 - floorShade(tank.plants, tank.tank.capacity, optics);
   return habitatMean(habitat, tank, { column, walls: column, floor: underCanopy, hardscape: underCanopy });
-}
-
-/**
- * Grams of spore, of `structure`, the bloom asks the pools for: as many as all
- * the pools hold of its scarcest nutrient, where it feeds, would build at
- * Q_min. Spores are built in fixed proportion, so an ask past what they could
- * build would still take its share of every other nutrient in the allocation
- * and leave it in the water, shorting every feeder beside it.
- */
-export function sporesAsked(
-  structure: number,
-  pools: TankPools,
-  draws: PerPool<TankPools, PoolDraw>,
-  p: FloraParams
-): number {
-  const reached = nutrientsIn(mapForms((f) => sum(pools.map(({ stock }, i) => draws[i].weight * stock[f]))));
-  return sporesBuilt(structure, reached, p).structure;
 }
 
 /**
