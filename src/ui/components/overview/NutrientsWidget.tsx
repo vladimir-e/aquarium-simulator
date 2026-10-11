@@ -34,6 +34,7 @@ export function NutrientsWidget({
   const { advice, perMl } = book.dose;
   const { bed } = book;
   const alert = nutrientAlert(book.nutrients, bed);
+  const refilling = [...book.demand, book.byId.bed].some((reading) => reading.stores?.tone === 'alert');
   const ml = advisedAmount('dose', advice?.ml ?? null) ?? undefined;
   const tabs = advisedAmount('rootTab', bed.advice) ?? undefined;
 
@@ -43,7 +44,7 @@ export function NutrientsWidget({
       caption={
         state.plants.length === 0
           ? 'no plants to feed'
-          : (alert?.text ?? 'plants have what they need')
+          : (alert?.text ?? (refilling ? 'stores refilling' : 'plants have what they need'))
       }
       to="/water"
       className={className}

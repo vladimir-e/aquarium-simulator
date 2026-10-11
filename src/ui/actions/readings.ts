@@ -86,7 +86,7 @@ export interface PreviewRow {
 /**
  * One state, read the way every other surface reads it. The water sheet and the
  * nutrient sheet are taken once per state because a row needs its neighbours'
- * arithmetic — a nutrient's tone is the planting's stores of it.
+ * arithmetic — nitrate's line is the least hardy plant's edge.
  */
 interface Sheet {
   state: SimulationState;
@@ -205,8 +205,8 @@ function tolerated(
   };
 }
 
-function nutrient(key: Nutrient, label: string, decimals: number): Reading {
-  const at = (value: number): number => onScale(DISPLAY_CEILING[key], value);
+/** A plant food with no line of its own: an unlit track, quiet. */
+function nutrient(key: Exclude<Nutrient, 'nitrate'>, label: string, decimals: number): Reading {
   return {
     key,
     label,
@@ -214,8 +214,8 @@ function nutrient(key: Nutrient, label: string, decimals: number): Reading {
     unit: PPM,
     display: same,
     decimals,
-    status: (_value, sheet): Status => sheet.nutrients[key].status,
-    at,
+    status: quiet,
+    at: (value) => onScale(DISPLAY_CEILING[key], value),
     band: none,
     note: none,
   };
@@ -326,7 +326,7 @@ const READINGS: Reading[] = [
     unit: () => 'tabs',
     display: same,
     decimals: TAB_DECIMALS,
-    status: (_value, { bed }) => bed.status,
+    status: quiet,
     at: (value, { bed }) => onScale(bed.scale, value),
     band: none,
     note: none,

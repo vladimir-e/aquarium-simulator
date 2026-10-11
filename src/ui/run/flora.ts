@@ -3,11 +3,11 @@
  * settles, how the planting folds into species and families and how the reader
  * counts them, how each bloom reads off its coverage, and the tank's nutrient
  * readings, the bed's among them. Nothing here invents a band — a planting is
- * fed to the degree its stores are, so a nutrient or the bed reads short where
+ * fed to the degree its stores are, so a pool reads short of a nutrient where
  * a plant's store of it has fallen under the Droop edge the engine charges
- * deficiency from, and high past a line the engine itself charges or alerts
- * from, so no surface can name a shortage or an excess the tank is not
- * actually feeling.
+ * deficiency from and the pool holds less than the stores lack, and high past
+ * a line the engine itself charges or alerts from, so no surface can name a
+ * shortage or an excess the tank is not actually feeling.
  */
 
 import {
@@ -21,16 +21,20 @@ import {
   isOvergrown,
   nutrientsIn,
   offshootShare,
+  plantFeeder,
   plantParams,
+  poolDraws,
   sizeOf,
   storeFill,
   storeGap,
+  tankPools,
   PLANT_SPECIES_DATA,
   plantNitrateEdge,
   type AlgaeKind,
   type LogEntry,
   type Plant,
   type PlantSpecies,
+  type PoolDraw,
   type SimulationState,
 } from '../../simulation/index.js';
 import {
@@ -339,23 +343,39 @@ const NUTRIENT_RESOURCE: Record<Nutrient, ResourceDefinition<Nutrient>> = {
 /** Mass is stored in mg, so a drained nutrient lands near zero rather than on it. */
 const DEPLETED_PPM = 0.001;
 
+/** A store as its strip reads it: its fill, 0–1, banded from where its Droop edge sits, and coral under it. */
+export interface StoresFigure {
+  fill: number;
+  edge: number;
+  status: Status;
+}
+
+/** A store's fill, full at 1 — shedding keeps the stores, so a shrunk plant's can run past it. */
+export function storesFigure(fill: number, edge: number): StoresFigure {
+  const held = Math.min(1, fill);
+  return { fill: held, edge, status: held < edge ? 'alert' : 'ok' };
+}
+
+const NO_STORES: StoresFigure = { fill: 0, edge: 0, status: 'neutral' };
+
 /**
- * What one pool's feeders hold in their stores: the least-filled of each
- * nutrient, whether any has fallen under the Droop edge where deficiency harm
- * starts, and what they lack of full at their weight on the pool — the share
- * of their stores' request this pool is asked to meet.
+ * What one pool's feeders hold in their stores, per nutrient: the store that
+ * runs its feeder's Droop limit lowest, and what their stores lack of full at
+ * their weight on the pool past what it holds. The pool is short of a
+ * nutrient where that store has fallen under its Droop edge and the pool
+ * holds less than they lack.
  */
 export interface PoolStores {
   /** Some plant feeds from the pool. */
   asked: boolean;
-  /** The least-filled feeder's store of each, 0–1; 0 while nothing feeds here. */
-  fill: NutrientVector;
-  /** Where a store's fill meets the Droop edge. */
-  edge: NutrientVector;
-  /** The nutrients some feeder's store has fallen under the Droop edge on. */
+  /** The lowest-running store of each, quiet while nothing feeds here. */
+  stores: Record<Nutrient, StoresFigure>;
+  /** That store's Droop limit. */
+  limit: NutrientVector;
+  /** mg the feeders' stores lack of full, at their weight on the pool, past what it holds. */
+  unmet: NutrientVector;
+  /** Under the edge, with the pool holding less than the stores lack. */
   short: Nutrient[];
-  /** mg of each the feeders' stores lack of full, at their weight on the pool. */
-  ask: NutrientVector;
 }
 
 export interface PlantingStores {
@@ -363,33 +383,52 @@ export interface PlantingStores {
   bed: PoolStores;
 }
 
-/** A plant's weight on each pool: its roots' share on the bed, the rest on the water. */
-const WEIGHT_ON = {
-  water: (plant: Plant): number => 1 - growthFormOf(plant.species).rootShare,
-  bed: (plant: Plant): number => growthFormOf(plant.species).rootShare,
-};
+/** A plant as the pools feed it: its draw on each, and its stores. */
+interface Feeding {
+  draws: readonly PoolDraw[];
+  fill: NutrientVector;
+  limits: NutrientVector;
+  edge: NutrientVector;
+  gap: NutrientVector;
+}
 
-function poolStores(plants: readonly Plant[], weight: (plant: Plant) => number, config: PlantsConfig): PoolStores {
-  const feeders = plants
-    .filter((plant) => weight(plant) > 0)
-    .map((plant) => ({ plant, p: plantParams(plant.species, config) }));
-  const fills = feeders.map(({ plant, p }) => storeFill(plant.budget, p));
-  const limits = feeders.map(({ plant, p }) => droopLimits(plant.budget, p));
-  const gaps = feeders.map(({ plant, p }) => storeGap(plant.budget, p));
+function poolStores(feedings: readonly Feeding[], pool: number, held: NutrientVector): PoolStores {
+  const feeders = feedings.filter(({ draws }) => draws[pool].weight > 0);
+  const lowest = mapNutrients((n) =>
+    feeders.reduce<Feeding | null>((low, feeder) => (low && low.limits[n] <= feeder.limits[n] ? low : feeder), null)
+  );
+  const stores = mapNutrients((n) => {
+    const feeder = lowest[n];
+    return feeder ? storesFigure(feeder.fill[n], feeder.edge[n]) : NO_STORES;
+  });
+  const unmet = mapNutrients((n) =>
+    Math.max(0, feeders.reduce((sum, { draws, gap }) => sum + draws[pool].weight * gap[n], 0) - held[n])
+  );
   return {
     asked: feeders.length > 0,
-    fill: mapNutrients((n) => (feeders.length > 0 ? Math.min(1, ...fills.map((fill) => fill[n])) : 0)),
-    edge: feeders.length > 0 ? fillAtDroop(feeders[0].p, config.droopEdge) : mapNutrients(() => 0),
-    short: NUTRIENTS.filter((n) => limits.some((limit) => limit[n] < config.droopEdge)),
-    ask: mapNutrients((n) => feeders.reduce((sum, { plant }, i) => sum + weight(plant) * gaps[i][n], 0)),
+    stores,
+    limit: mapNutrients((n) => lowest[n]?.limits[n] ?? 0),
+    unmet,
+    short: NUTRIENTS.filter((n) => stores[n].status === 'alert' && unmet[n] > 0),
   };
 }
 
 /** The planting's stores as each pool's feeders hold them — what every nutrient reading is read against. */
 export function plantingStores(state: SimulationState, config: TunableConfig): PlantingStores {
+  const pools = tankPools(state);
+  const feedings = state.plants.map((plant): Feeding => {
+    const p = plantParams(plant.species, config.plants);
+    return {
+      draws: poolDraws(pools, plantFeeder(plant.species, config.nutrients)),
+      fill: storeFill(plant.budget, p),
+      limits: droopLimits(plant.budget, p),
+      edge: fillAtDroop(p, config.plants.droopEdge),
+      gap: storeGap(plant.budget, p),
+    };
+  });
   return {
-    water: poolStores(state.plants, WEIGHT_ON.water, config.plants),
-    bed: poolStores(state.plants, WEIGHT_ON.bed, config.plants),
+    water: poolStores(feedings, 0, nutrientsIn(pools[0].stock)),
+    bed: poolStores(feedings, 1, nutrientsIn(pools[1].stock)),
   };
 }
 
@@ -400,11 +439,9 @@ export interface NutrientReading {
   text: string;
   /** Some plant feeds on it from the water. */
   asked: boolean;
-  /** The water feeders' least-filled store of it, 0–1. */
-  stores: number;
-  /** `stores …` beside the reading, empty while nothing asks. */
-  storesText: string;
-  /** Some water feeder's store of it has fallen under the Droop edge. */
+  /** The water feeders' lowest-running store of it. */
+  stores: StoresFigure;
+  /** That store has fallen under its Droop edge, and the water holds less than the stores lack. */
   short: boolean;
   /** The water holds none of it, in any of its forms. */
   depleted: boolean;
@@ -414,7 +451,7 @@ export interface NutrientReading {
   ceiling: number | null;
   /** Past that ceiling. */
   excess: boolean;
-  /** Coral harming or short, amber with none left to refill the stores, ink while they are fed — grey with nothing to feed. */
+  /** The ppm's: coral past the ceiling, ink short of it. */
   status: Status;
 }
 
@@ -436,24 +473,17 @@ export function feedsFromBed(species: PlantSpecies): boolean {
   return growthFormOf(species).rootShare > 0;
 }
 
-/** A store's fill as the readings print it. */
-function storesText(asked: boolean, fill: number): string {
-  return asked ? `stores ${sharePercent(fill)} %` : '';
-}
-
 export function nutrientReadings(
   state: SimulationState,
   config: TunableConfig,
   stores: PlantingStores = plantingStores(state, config)
 ): NutrientReading[] {
   const water = state.resources.water;
-  const { asked, fill, short, ask } = stores.water;
-  const held = nutrientsIn(state.resources);
+  const { asked, unmet, short } = stores.water;
 
   return NUTRIENTS.map((key) => {
     const resource = NUTRIENT_RESOURCE[key];
     const ppm = getPpm(state.resources[key], water);
-    const depleted = FORMS_OF[key].every((form) => getPpm(state.resources[form], water) <= DEPLETED_PPM);
     const ceiling = ceilingPpm(state, key, config.plants);
     const excess = ceiling !== null && ppm > ceiling;
 
@@ -463,14 +493,13 @@ export function nutrientReadings(
       ppm,
       text: ppm.toFixed(resource.precision),
       asked,
-      stores: fill[key],
-      storesText: storesText(asked, fill[key]),
+      stores: stores.water.stores[key],
       short: short.includes(key),
-      depleted,
-      unmet: Math.max(0, ask[key] - held[key]),
+      depleted: FORMS_OF[key].every((form) => getPpm(state.resources[form], water) <= DEPLETED_PPM),
+      unmet: unmet[key],
       ceiling,
       excess,
-      status: excess || short.includes(key) ? 'alert' : asked ? (depleted ? 'warn' : 'ok') : 'neutral',
+      status: excess ? 'alert' : 'ok',
     };
   });
 }
@@ -488,24 +517,22 @@ export interface BedReading {
   scale: number;
   /** Some plant feeds through its roots from the bed. */
   asked: boolean;
-  /** The root feeders' least-filled store, over every nutrient, 0–1. */
-  stores: number;
-  storesText: string;
-  /** A root feeder's store has fallen under the Droop edge on a nutrient the bed holds less of than they lack. */
+  /** The root feeders' store that runs its Droop limit lowest, over every nutrient. */
+  stores: StoresFigure;
+  /** A root feeder's store has fallen under its Droop edge on a nutrient the bed holds less of than their stores lack. */
   short: boolean;
   /** A bare bottom: nothing for roots, and no tab goes in. */
   bare: boolean;
   /** The bed holds none of that nutrient. */
   empty: boolean;
-  /** Whole tabs that put in the bed what its root feeders' stores lack; null while it holds that, nothing roots, or tabs can't cover it. */
+  /** Whole tabs that put in the bed what its root feeders' stores lack past what it holds; null while it holds that, or tabs can't cover it. */
   advice: number | null;
-  status: Status;
 }
 
 /**
  * The bed as its root feeders read it, in the tabs a keeper pushes into it,
- * judged by their stores as the water's nutrients are. The reading is taken
- * on the nutrient the bed holds fewest tabs' worth of, so the marker falls as
+ * beside their stores as the water's nutrients are. The reading is taken on
+ * the nutrient the bed holds fewest tabs' worth of, so the marker falls as
  * soon as any carried nutrient runs out; the advice is what the root feeders'
  * stores lack of full past what the bed holds, offered only where tabs can
  * cover it — not over a bare bottom, and not while it lacks a nutrient the tab
@@ -521,18 +548,16 @@ export function bedReading(
   const tab = config.nutrients.rootTab;
   const capacity = state.tank.capacity;
   const stock = state.equipment.substrate.nutrients;
-  const { asked, fill, short, ask } = stores.bed;
+  const { asked, limit, unmet, short } = stores.bed;
   const bare = !canRootTab(state);
   const carried = NUTRIENTS.filter((n) => tab[n] > 0);
   const nutrient = on ?? [...carried].sort((a, b) => stock[a] / tab[a] - stock[b] / tab[b])[0] ?? null;
   const tabsOf = (vector: NutrientVector): number => (nutrient ? vector[nutrient] / tab[nutrient] : 0);
   const tabs = tabsOf(stock);
-  const empty = printsAsZero(tabs, TAB_DECIMALS);
-  const lacking = NUTRIENTS.filter((n) => ask[n] > stock[n]);
+  const lacking = NUTRIENTS.filter((n) => unmet[n] > 0);
   const tabsCover = !bare && lacking.every((n) => tab[n] > 0);
-  const lack = Math.max(0, ...lacking.map((n) => (ask[n] - stock[n]) / tab[n]));
-  const isShort = short.some((n) => stock[n] < ask[n]);
-  const least = Math.min(...NUTRIENTS.map((n) => fill[n]));
+  const lack = Math.max(0, ...lacking.map((n) => unmet[n] / tab[n]));
+  const ruling = NUTRIENTS.reduce((least, n) => (limit[n] < limit[least] ? n : least));
 
   return {
     nutrient,
@@ -540,13 +565,11 @@ export function bedReading(
     text: tabs.toFixed(TAB_DECIMALS),
     scale: tabsOf(getSubstrateNutrients('aqua_soil', capacity)),
     asked,
-    stores: asked ? least : 0,
-    storesText: storesText(asked, least),
-    short: isShort,
+    stores: stores.bed.stores[ruling],
+    short: short.length > 0,
     bare,
-    empty,
-    advice: asked && (isShort || bare || empty) && tabsCover && lack > 0 ? Math.ceil(lack) : null,
-    status: !asked ? 'neutral' : isShort ? 'alert' : bare || empty ? 'warn' : 'ok',
+    empty: printsAsZero(tabs, TAB_DECIMALS),
+    advice: tabsCover && lack > 0 ? Math.ceil(lack) : null,
   };
 }
 
@@ -572,11 +595,11 @@ function waterShortage(readings: NutrientReading[]): NutrientAlert | null {
   return { text: `${lacking.length} nutrients ${word}`, status };
 }
 
-/** What the bed lacks, in one phrase. */
+/** What the bed lacks, in one phrase: short coral, bare or empty amber. */
 function bedShortage(bed: BedReading): NutrientAlert | null {
-  if (!bed.asked || bed.status === 'ok') return null;
+  if (!bed.asked || !(bed.short || bed.bare || bed.empty)) return null;
   const text = bed.bare ? 'no bed' : bed.empty ? 'bed empty' : 'bed short';
-  return { text, status: bed.status };
+  return { text, status: bed.short ? 'alert' : 'warn' };
 }
 
 /**
@@ -622,7 +645,7 @@ export function formatDose(deltas: NutrientDelta[]): string {
 }
 
 export interface DoseAdvice {
-  /** Whole ml of fertiliser that puts in the water what the plants' stores lack of every flagged nutrient. */
+  /** Whole ml of fertiliser that puts in the water what the plants' stores lack of every nutrient it carries past what the water holds. */
   ml: number;
   /** Labels of the nutrients it covers, so the advice names its own scope. */
   covers: string[];
@@ -634,7 +657,7 @@ export function doseToCover(
   config: TunableConfig
 ): DoseAdvice | null {
   const formula = config.nutrients.fertilizerFormula;
-  const lacking = readings.filter((r) => flagged(r) && r.unmet > 0 && formula[r.key] > 0);
+  const lacking = readings.filter((r) => r.unmet > 0 && formula[r.key] > 0);
   if (lacking.length === 0 || state.resources.water <= 0) return null;
 
   const ml = Math.max(...lacking.map((r) => r.unmet / formula[r.key]));

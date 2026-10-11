@@ -59,19 +59,21 @@ function sick(readings: { sick: boolean }[]): string {
   return count > 0 ? ` · ${count} sick` : '';
 }
 
-/** The planting's mean reserve, and its emptiest store, as the console reads them. */
-function plantBudget(state: SimulationState, config: TunableConfig): { reserve: number; stores: number } {
+/** The planting's mean reserve. */
+function meanReserve(state: SimulationState, config: TunableConfig): number {
   const reserve = state.plants.reduce((sum, plant) => sum + wellFed(plant.budget, plantParams(plant.species, config.plants)), 0);
-  const { water, bed } = plantingStores(state, config);
-  const fills = [water, bed].filter((pool) => pool.asked).flatMap((pool) => NUTRIENTS.map((n) => pool.fill[n]));
-  return { reserve: reserve / state.plants.length, stores: Math.min(...fills) };
+  return reserve / state.plants.length;
 }
 
-/** What the plants' stores hold and what the tank's nutrients say, where anything is planted. */
+/** The plants' lowest-running store over both pools, and what the tank's nutrients say, where anything is planted. */
 function storesLine(state: SimulationState, config: TunableConfig): string {
   if (state.plants.length === 0) return '';
-  const alert = nutrientAlert(nutrientReadings(state, config), bedReading(state, config));
-  const stores = ` · stores ${sharePercent(plantBudget(state, config).stores)}%`;
+  const pools = plantingStores(state, config);
+  const fills = [pools.water, pools.bed]
+    .filter((pool) => pool.asked)
+    .flatMap((pool) => NUTRIENTS.map((n) => pool.stores[n].fill));
+  const alert = nutrientAlert(nutrientReadings(state, config, pools), bedReading(state, config, pools));
+  const stores = fills.length > 0 ? ` · stores ${sharePercent(Math.min(...fills))}%` : '';
   return alert ? `${stores} · ${alert.text}${marker(alert.status)}` : stores;
 }
 
@@ -140,7 +142,7 @@ export function renderObserve(session: Session): string {
     }${sick(readFish(state, session.config, ahead))}`,
     `**Plants (${state.plants.length})** ${
       state.plants.length
-        ? `avg condition ${avgPlantCondition}% · reserve ${sharePercent(plantBudget(state, session.config).reserve)}%`
+        ? `avg condition ${avgPlantCondition}% · reserve ${sharePercent(meanReserve(state, session.config))}%`
         : '—'
     }${sick(plantRows(state, ahead))}`,
   ];

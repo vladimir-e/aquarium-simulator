@@ -9,7 +9,7 @@ import {
 import { cycledColony } from './seed.js';
 import { DEFAULT_CONFIG, withTunable } from './config/index.js';
 import { plantParams } from './flora/params.js';
-import { wellFed } from './systems/reserve.js';
+import { maxReserveDensity, wellFed } from './systems/reserve.js';
 
 describe('presets', () => {
   it('resolves every shipped preset by id, and nothing else', () => {
@@ -71,10 +71,11 @@ describe('presets', () => {
     const planted: PresetDefinition = { ...seeded, seed: { plants: [{ species: 'java_fern', count: 1 }] } };
     const tuned = withTunable(withTunable(DEFAULT_CONFIG, 'plants.reserveCapacity', 0.4), 'optics.waterAttenuationPerCm', 0.04);
     const [plant] = createPresetSimulation(planted, tuned, 1).plants;
-    const [stock] = createPresetSimulation(planted, DEFAULT_CONFIG, 1).plants;
+    const p = plantParams('java_fern', tuned.plants);
 
-    expect(wellFed(plant.budget, plantParams('java_fern', tuned.plants))).toBe(1);
-    expect(plant.budget.reserve).toBeCloseTo(2 * stock.budget.reserve, 12);
+    expect(wellFed(plant.budget, p)).toBe(1);
+    expect(plant.budget.reserve).toBeCloseTo(maxReserveDensity(p) * plant.budget.structure, 12);
+    expect(maxReserveDensity(p)).not.toBeCloseTo(maxReserveDensity(plantParams('java_fern', DEFAULT_CONFIG.plants)), 6);
     expect(createPresetSimulation(planted, tuned, 1).resources.lightByHour).not.toEqual(
       createPresetSimulation(planted, DEFAULT_CONFIG, 1).resources.lightByHour
     );

@@ -1,15 +1,13 @@
 /**
- * Nutrition — how much of each nutrient a feeder needs, how much of that need
- * the tank's pools meet, and what its stores take out of them. Plants and
- * algae feed the same way.
+ * Nutrition — how much of each nutrient a feeder needs, where it feeds, and
+ * what its stores take out of the tank's pools. Plants and algae feed the same
+ * way.
  *
  * A feeder draws on two pools: the water column and, through roots, the bed. A
  * plant's growth form fixes the share it draws through its roots, and algae
  * has none. Every form a pool holds saturates on its own Monod curve, at the
  * feeder's own half-saturation for it. Nitrogen comes in two — ammonia, taken
- * first, and nitrate for what ammonia leaves unmet — so a nutrient's share in a
- * pool is what its forms meet between them, `1 − Π(1 − share)`. Its share of a
- * nutrient is the two pools' shares weighted by where it feeds.
+ * first, and nitrate for what ammonia leaves unmet.
  *
  * A feeder's stores ask for what they lack, and what the pools deliver moves
  * into them: a plant or a bloom holds the N, P, K and Fe it took up, in its
@@ -124,11 +122,6 @@ export function formShares(pool: NutrientPool, feeder: Feeder): FormVector {
   return mapForms((f) => monodFactor(getPpm(pool.stock[f], pool.volume), feeder.halfSaturation[f]));
 }
 
-/** Share of each nutrient's need its forms meet between them, each taking what those before it left. */
-export function formsMeet(shares: FormVector): NutrientVector {
-  return mapNutrients((n) => 1 - FORMS_OF[n].reduce((unmet, f) => unmet * (1 - shares[f]), 1));
-}
-
 /** A feeder's draw on one pool: the share of its feeding done there, and the share each form there meets on its own. */
 export interface PoolDraw {
   weight: number;
@@ -142,12 +135,6 @@ export function poolDraws([water, bed]: TankPools, feeder: Feeder): PerPool<Tank
     { weight: wet * (1 - feeder.rootShare), shares: formShares(water, feeder) },
     { weight: wet * feeder.rootShare, shares: formShares(bed, feeder) },
   ];
-}
-
-/** Share of a feeder's need for each nutrient its pools meet together, 0–1. */
-export function feederShares(draws: readonly PoolDraw[]): NutrientVector {
-  const met = draws.map(({ shares }) => formsMeet(shares));
-  return mapNutrients((n) => draws.reduce((sum, { weight }, p) => sum + weight * met[p][n], 0));
 }
 
 /** mg of each nutrient, as the recipe counts it, that these masses of its forms carry. */

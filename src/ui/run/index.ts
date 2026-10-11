@@ -143,6 +143,7 @@ export {
   groupPlantsBySpecies,
   floorPlanted,
   sharePercent,
+  type StoresFigure,
   type PoolStores,
   type PlantingStores,
   plantingStores,

@@ -25,6 +25,7 @@ const PAID: FloraFluxes = {
   burned: { maintenance: 1, growth: 0, starvation: 0, healing: 0 },
   owed: 1,
   shortfall: 0,
+  growthLimit: 1,
 };
 
 describe.each(ALGAE_KINDS)('%s', (kind) => {

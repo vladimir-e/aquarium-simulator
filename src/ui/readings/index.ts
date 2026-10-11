@@ -78,6 +78,7 @@ import {
   type PopulationRosterRow,
   type RunSnapshot,
   type Status,
+  type StoresFigure,
   type StockedBand,
   type WasteReadout,
   type WaterReading,
@@ -146,14 +147,14 @@ export interface ReadingView {
 }
 
 /**
- * The four plant foods, read against the plants' stores of them rather than an
- * alert line — which is why NO₃ has two readings: the toxin the engine alerts
- * on, and the plants' nitrogen.
+ * The four plant foods, read beside the plants' stores of them — which is why
+ * NO₃ has two readings: the toxin the engine alerts on, and the plants'
+ * nitrogen.
  */
 type DemandId = Extract<ReadingId, 'nitrateDemand' | 'phosphate' | 'potassium' | 'iron'>;
 
-/** Every reading the plants have a word beside: the four foods and the bed their stores, the day's light their need. */
-type NeedId = DemandId | 'bed' | 'dailyLight';
+/** What a pool holds for the plants: the four foods in the water, and the bed. */
+type FoodId = DemandId | 'bed';
 
 const DEMAND_ID: Record<Nutrient, DemandId> = {
   nitrate: 'nitrateDemand',
@@ -167,8 +168,22 @@ export interface NeedView extends ReadingView {
   beside: string;
 }
 
+/** The feeders' lowest-running store, on a strip of its own: banded from its Droop edge, coral under it. */
+export interface StoresGauge {
+  /** % full, the way the strip's marker stands. */
+  value: string;
+  at: number;
+  band: StripBand;
+  tone: StripTone;
+}
+
+/** A pool's food beside its feeders' stores of it — none while nothing feeds there. */
+export interface FoodView extends ReadingView {
+  stores: StoresGauge | null;
+}
+
 export type ReadingsById = {
-  [K in ReadingId]: K extends NeedId ? NeedView : ReadingView;
+  [K in ReadingId]: K extends FoodId ? FoodView : K extends 'dailyLight' ? NeedView : ReadingView;
 };
 
 /** Who lives here, folded the way every roster reads them. */
@@ -199,7 +214,7 @@ export interface ReadingBook {
   /** The hour the next tick runs, which every forward-looking reading shares. */
   ahead: HourAhead;
   byId: ReadingsById;
-  demand: NeedView[];
+  demand: FoodView[];
   nutrients: NutrientReading[];
   /** The bed's store for root feeders. */
   bed: BedReading;
@@ -408,23 +423,28 @@ function harmClause(id: ReadingId, ceiling: number | null): string {
     : `the engine alerts over ${said(id, ceiling)}`;
 }
 
-/** What the plants' stores of a nutrient say, and what the water does for them. */
-function storesSentence(reading: NutrientReading, edge: number): string {
-  if (!reading.asked) return 'Nothing planted, so nothing stores it';
-  const held = `The plants store it, the emptiest store ${sharePercent(reading.stores)} % full; under ${Math.round(edge * 100)} % a plant takes harm`;
+/** A pool's feeders' stores on their own strip, while anything feeds there. */
+function storesGauge(asked: boolean, { fill, edge, status }: StoresFigure): StoresGauge | null {
+  if (!asked) return null;
+  return { value: String(sharePercent(fill)), at: fill, band: { from: edge, to: 1 }, tone: toneOf(status) };
+}
+
+/**
+ * What the plants' stores of a nutrient say, and what the water does for them.
+ * The edge is printed on the side of its line, so a store that prints under it
+ * is under it.
+ */
+function storesSentence(reading: NutrientReading): string {
+  if (!reading.asked) return 'Nothing here feeds on it, so nothing stores it';
+  const { fill, edge } = reading.stores;
+  const held = `The plants store it, the emptiest store ${sharePercent(fill)} % full; under ${Math.ceil(edge * 100)} % a plant takes harm`;
   return reading.depleted
     ? `${held}, and the water holds none to refill them`
     : `${held}, and the water refills them faster the more it holds`;
 }
 
-/** A nutrient toned by the plants' stores of it, and nitrate banded on its alert line too. */
-function nutrientView(
-  id: DemandId,
-  reading: NutrientReading,
-  edge: number,
-  tape: Tape,
-  fills: ReadingFlow[] = []
-): NeedView {
+/** A nutrient in the water, ink on its band — nitrate's alert line — beside the plants' stores of it. */
+function nutrientView(id: DemandId, reading: NutrientReading, tape: Tape, fills: ReadingFlow[] = []): FoodView {
   const at = scale(DISPLAY_CEILING[reading.key]);
   const harm = harmClause(id, reading.ceiling);
   return {
@@ -436,8 +456,8 @@ function nutrientView(
     band: reading.ceiling === null ? null : { from: 0, to: at(reading.ceiling) },
     tone: toneOf(reading.status),
     trend: measuredTrend(tape, id),
-    beside: reading.storesText,
-    sentence: `${storesSentence(reading, edge)}${harm && `; ${harm}`}.`,
+    stores: storesGauge(reading.asked, reading.stores),
+    sentence: `${storesSentence(reading)}${harm && `; ${harm}`}.`,
     net: null,
     fills,
     drains: [],
@@ -445,8 +465,8 @@ function nutrientView(
   };
 }
 
-/** The bed read in the tabs a keeper pushes into it, toned by its root feeders' stores. */
-function bedView(bed: BedReading): NeedView {
+/** The bed read in the tabs a keeper pushes into it, beside its root feeders' stores. */
+function bedView(bed: BedReading): FoodView {
   return {
     id: 'bed',
     name: 'Bed',
@@ -454,15 +474,15 @@ function bedView(bed: BedReading): NeedView {
     unit: 'tabs',
     at: onScale(bed.scale, bed.tabs),
     band: null,
-    tone: toneOf(bed.status),
+    tone: 'ink',
     trend: '',
-    beside: bed.storesText,
+    stores: storesGauge(bed.asked, bed.stores),
     sentence: bed.bare
       ? bed.asked
         ? 'A bare bottom holds nothing for roots, and takes no tab — its root feeders fill their stores from the water alone.'
         : 'A bare bottom holds nothing for roots, and takes no tab.'
       : bed.asked
-        ? `Root tabs' worth of the nutrient the bed holds least of. Root feeders fill their stores from it through their roots, the emptiest store ${sharePercent(bed.stores)} % full.`
+        ? `Root tabs' worth of the nutrient the bed holds least of. Root feeders fill their stores from it through their roots, the emptiest store ${sharePercent(bed.stores.fill)} % full.`
         : "Root tabs' worth of the nutrient the bed holds least of. Nothing here feeds through its roots, so it only leaks into the water.",
     net: null,
     fills: [],
@@ -688,10 +708,10 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       drains: [],
       series: tape.series.co2 ?? null,
     },
-    nitrateDemand: nutrientView('nitrateDemand', nutrient('nitrate'), stores.water.edge.nitrate, tape, nitrateFills),
-    phosphate: nutrientView('phosphate', nutrient('phosphate'), stores.water.edge.phosphate, tape),
-    potassium: nutrientView('potassium', nutrient('potassium'), stores.water.edge.potassium, tape),
-    iron: nutrientView('iron', nutrient('iron'), stores.water.edge.iron, tape),
+    nitrateDemand: nutrientView('nitrateDemand', nutrient('nitrate'), tape, nitrateFills),
+    phosphate: nutrientView('phosphate', nutrient('phosphate'), tape),
+    potassium: nutrientView('potassium', nutrient('potassium'), tape),
+    iron: nutrientView('iron', nutrient('iron'), tape),
     bed: bedView(bed),
     ...mapKinds((kind) => bloomView(kind, state, ahead, taken[kind], tape)),
     dailyLight: {

@@ -5,6 +5,7 @@ import type { RunSnapshot } from '../../run';
 import { Track, formatTrackValue } from '../review/Track';
 import { Drawer } from '../ui/Drawer';
 import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
+import { ReadingRow } from '../ui/ReadingRow';
 
 /** A week of hourly samples — as far back as the reading rows' trend can reach. */
 const WINDOW_HOURS = 24 * 7;
@@ -81,8 +82,8 @@ interface ReadingDrawerProps {
 
 /**
  * One reading, inspected: the number at hero size, the band it is judged
- * against stated in words, the week behind it, and what fills and drains the
- * stock. Keyed by id rather than handed a body, so every surface that shows a
+ * against stated in words, a plant food's stores on their own strip, the week
+ * behind it, and what fills and drains the stock. Keyed by id rather than handed a body, so every surface that shows a
  * reading opens the same inspector for it.
  */
 export function ReadingDrawer({
@@ -110,6 +111,19 @@ export function ReadingDrawer({
           <RangeStrip at={reading.at} band={reading.band} tone={reading.tone} />
           <p className="text-[13px] leading-[18px] text-ink-2">{reading.sentence}</p>
         </div>
+
+        {'stores' in reading && reading.stores && (
+          <div className="border-t border-hairline">
+            <ReadingRow
+              name="Stores"
+              value={reading.stores.value}
+              unit="% full"
+              at={reading.stores.at}
+              band={reading.stores.band}
+              tone={reading.stores.tone}
+            />
+          </div>
+        )}
 
         {reading.series && (
           <div className="border-t border-hairline pt-3">

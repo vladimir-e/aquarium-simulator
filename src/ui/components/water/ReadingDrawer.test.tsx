@@ -61,4 +61,13 @@ describe('ReadingDrawer', () => {
 
     expect(within(drawer).queryByRole('img', { name: 'The last week' })).toBeNull();
   });
+
+  it('reads a plant food’s stores on their own row, and none beside a reading the plants do not store', () => {
+    const stores = book.byId.potassium.stores!;
+    const food = within(open('potassium'));
+    expect(food.getByText('Stores')).toBeTruthy();
+    expect(food.getByText(stores.value)).toBeTruthy();
+    cleanup();
+    expect(within(open('ammonia')).queryByText('Stores')).toBeNull();
+  });
 });

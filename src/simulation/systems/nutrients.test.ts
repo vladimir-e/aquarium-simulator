@@ -4,13 +4,11 @@ import {
   bedPool,
   drawNutrients,
   formShares,
-  formsMeet,
   ghDrawn,
   GH_HALF_SATURATION,
   leach,
   GH_PER_NITRATE_DRAWN,
   nutrientsIn,
-  feederShares,
   plantFeeder,
   poolDraws,
   speciesDemand,
@@ -21,6 +19,7 @@ import {
 } from './nutrients.js';
 import {
   demandMeta,
+  FORMS_OF,
   mapForms,
   mapNutrients,
   NUTRIENT_FORMS,
@@ -121,48 +120,31 @@ const poolsAt = (water: number, bed: number): TankPools => [
   { stock: resourcesAt(multiplesOfHalfSaturation(bed)), volume: WATER },
 ];
 
-describe('the share of a feeder’s need its pools meet', () => {
-  const met = (pools: TankPools, species: PlantSpecies): NutrientVector => feederShares(poolDraws(pools, plantFeeder(species)));
-
-  it('is nothing for a water feeder with no water, nor for a root feeder in a dry tank however charged its bed', () => {
-    const dry = { ...resourcesAt(multiplesOfHalfSaturation(10)), water: 0 };
-    expect(Object.values(met(mirroredPools(dry), 'java_fern')).every((share) => share === 0)).toBe(true);
-    const [water, bed] = poolsAt(10, 10);
-    expect(Object.values(met([{ ...water, volume: 0 }, bed], 'amazon_sword')).every((share) => share === 0)).toBe(true);
-  });
-
-  it('meets more of a low-demand plant’s need than a high-demand one’s on the same water', () => {
-    const lean = mirroredPools(resourcesAt(multiplesOfHalfSaturation(1)));
-    for (const n of NUTRIENTS) expect(met(lean, 'java_fern')[n]).toBeGreaterThan(met(lean, 'monte_carlo')[n]);
-  });
-
-  it('meets none of a nutrient pools that hold none of it', () => {
-    for (const species of ['java_fern', 'amazon_sword', 'monte_carlo'] as const) {
-      for (const n of NUTRIENTS) {
-        expect(speciesDemand(species)[n]).toBeGreaterThan(0);
-        const without = resourcesAt({ ...multiplesOfHalfSaturation(10), [n]: 0 });
-        expect(met(mirroredPools(without), species)[n]).toBe(0);
-      }
-    }
-  });
-});
-
 describe('where a plant feeds', () => {
-  it('weights each pool’s share by its growth form’s root share: a sword and a carpet draw on the bed, a fern on the water alone', () => {
+  it('weights each pool by its growth form’s root share, at the share each pool’s forms meet: a sword and a carpet draw on the bed, a fern on the water alone', () => {
     const pools = poolsAt(1, 5);
     for (const species of ['amazon_sword', 'monte_carlo', 'java_fern'] as const) {
       const roots = growthFormOf(species).rootShare;
-      const water = formsMeet(formShares(pools[0], plantFeeder(species)));
-      const bed = formsMeet(formShares(pools[1], plantFeeder(species)));
-      const shares = feederShares(poolDraws(pools, plantFeeder(species)));
-      for (const n of NUTRIENTS) expect(shares[n]).toBeCloseTo(roots * bed[n] + (1 - roots) * water[n], 12);
+      const [water, bed] = poolDraws(pools, plantFeeder(species));
+      expect(water).toEqual({ weight: 1 - roots, shares: formShares(pools[0], plantFeeder(species)) });
+      expect(bed).toEqual({ weight: roots, shares: formShares(pools[1], plantFeeder(species)) });
     }
     expect(growthFormOf('amazon_sword').rootShare).toBeGreaterThan(0);
     expect(growthFormOf('java_fern').rootShare).toBe(0);
   });
 
-  it('holds a sword on a bare bed to the water’s share of its need however rich the water, and a charged bed lifts it past', () => {
-    const met = (pools: TankPools): NutrientVector => feederShares(poolDraws(pools, plantFeeder('amazon_sword')));
+  it('feeds nothing from either pool in a dry tank, however charged its bed', () => {
+    const [water, bed] = poolsAt(10, 10);
+    const draws = poolDraws([{ ...water, volume: 0 }, bed], plantFeeder('amazon_sword'));
+    expect(draws.map((draw) => draw.weight)).toEqual([0, 0]);
+  });
+
+  it('holds a sword on a bare bed to the water’s share of its ask however rich the water, and a charged bed lifts it past', () => {
+    const met = (pools: TankPools): NutrientVector => {
+      const asked = mapNutrients(() => 1e-6);
+      const [delivered] = drawNutrients([{ asked, draws: poolDraws(pools, plantFeeder('amazon_sword')) }], pools).delivered;
+      return mapNutrients((n) => delivered[n] / asked[n]);
+    };
     const water = 1 - growthFormOf('amazon_sword').rootShare;
     for (const n of NUTRIENTS) {
       expect(met(poolsAt(1000, 0))[n]).toBeCloseTo(water, 2);
@@ -201,19 +183,11 @@ describe('nitrogen in two forms', () => {
   });
   const fern = (pools: TankPools, nitrogen: number): NutrientRequest => feed('java_fern', pools, nitrogen);
 
-  it('meets a nutrient with what its forms meet between them, each taking what those before it left', () => {
-    const met = formsMeet({ ammonia: 0.3, nitrate: 0.6, phosphate: 0.2, potassium: 0.9, iron: 0.5 });
-    expect(met.nitrate).toBeCloseTo(0.3 + 0.7 * 0.6, 12);
-    expect(met.phosphate).toBeCloseTo(0.2, 12);
-    expect(met.potassium).toBeCloseTo(0.9, 12);
-    expect(met.iron).toBeCloseTo(0.5, 12);
-  });
-
   it('feeds a plant on either form alone, and better on both', () => {
-    const nitrogen = (pools: TankPools): number => feederShares(poolDraws(pools, plantFeeder('java_fern'))).nitrate;
-    expect(nitrogen(nitrogenAt(1, 0))).toBeCloseTo(0.5, 10);
-    expect(nitrogen(nitrogenAt(0, 1))).toBeCloseTo(0.5, 10);
-    expect(nitrogen(nitrogenAt(1, 1))).toBeCloseTo(0.75, 10);
+    const nitrogen = (pools: TankPools): number => drawNutrients([fern(pools, 1e-6)], pools).delivered[0].nitrate / 1e-6;
+    expect(nitrogen(nitrogenAt(1, 0))).toBeCloseTo(0.5, 6);
+    expect(nitrogen(nitrogenAt(0, 1))).toBeCloseTo(0.5, 6);
+    expect(nitrogen(nitrogenAt(1, 1))).toBeCloseTo(0.75, 6);
     expect(nitrogen(nitrogenAt(0, 0))).toBe(0);
   });
 
@@ -273,7 +247,11 @@ describe('drawNutrients', () => {
     asked: mapNutrients((n) => scale * ASK[n]),
     draws: poolDraws(pools, plantFeeder(species)),
   });
-  const shares = ({ draws }: NutrientRequest): NutrientVector => feederShares(draws);
+  /** Share of each nutrient's need its pools meet: each pool's forms in turn, weighted by where it feeds. */
+  const shares = ({ draws }: NutrientRequest): NutrientVector =>
+    mapNutrients((n) =>
+      draws.reduce((sum, { weight, shares }) => sum + weight * (1 - FORMS_OF[n].reduce((unmet, f) => unmet * (1 - shares[f]), 1)), 0)
+    );
   /** Share of its ask each nutrient arrived at. */
   const met = (delivered: NutrientVector, { asked }: NutrientRequest): NutrientVector =>
     mapNutrients((n) => (asked[n] > 0 ? delivered[n] / asked[n] : 0));

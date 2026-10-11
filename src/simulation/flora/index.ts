@@ -103,6 +103,8 @@ export interface BloomHour {
   waterUptake: FormVector;
   /** g of structure its spores landed. */
   spores: number;
+  /** Share of its assimilation ceiling the planting's exudates left it, 0–1. */
+  exudates: number;
 }
 
 export interface FloraProcessingResult {
@@ -330,6 +332,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
       shedding: bloomLosses[k].shed,
       waterUptake: bloomUptakes[k],
       spores: spores[k].structure,
+      exudates: exudates.assimilation,
     })),
   };
 }

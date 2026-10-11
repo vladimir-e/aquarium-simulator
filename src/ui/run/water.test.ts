@@ -25,6 +25,7 @@ import {
 import { applyAction, createSimulation, type SimulationState } from '../../simulation/index.js';
 import { getKhMass, getMassFromPpm } from '../../simulation/resources/index.js';
 import { nutrientReadings, type NutrientReading } from './flora';
+import { withStores } from '../../simulation/tests/plant.js';
 
 function tank(): SimulationState {
   return createSimulation({ tankCapacity: 200 });
@@ -124,22 +125,23 @@ describe('waterReadings', () => {
     expect(byKey(state, 'ph').band).toBeNull();
   });
 
-  it('reads nitrate as the one reading the plant food is, tone and band', () => {
+  it('reads nitrate as the one reading the plant food is: ink inside its band, coral past it, whatever the plants’ stores', () => {
     const planted = applyAction(tank(), { type: 'addPlant', species: 'anubias' }).state;
-    const holding = (ppm: number): SimulationState =>
+    const holding = (ppm: number, fill = 1): SimulationState =>
       produce(planted, (draft) => {
         draft.resources.nitrate = getMassFromPpm(ppm, draft.resources.water);
+        draft.plants = draft.plants.map((plant) => withStores(plant, fill));
       });
-    const at = (ppm: number): WaterReading => byKey(holding(ppm), 'nitrate');
+    const at = (ppm: number, fill?: number): WaterReading => byKey(holding(ppm, fill), 'nitrate');
 
     expect(at(0).band).toEqual({ from: readingAt('nitrate', 0), to: readingAt('nitrate', NITRATE_EDGE) });
     for (const ppm of [0, 5, NITRATE_EDGE + 1]) {
       expect(at(ppm).status).toBe(nitrateOf(holding(ppm)).status);
     }
-    expect(at(0).status).toBe('warn');
+    expect(at(0).status).toBe('ok');
+    expect(at(0, 0).status).toBe('ok');
     expect(at(5).status).toBe('ok');
     expect(at(NITRATE_EDGE + 1).status).toBe('alert');
-    expect(byKey(tank(), 'nitrate').status).not.toBe('warn');
   });
 
   it('takes its status from the engine line, never from the scale', () => {

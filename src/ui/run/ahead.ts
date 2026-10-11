@@ -120,13 +120,14 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
       broods: broods.has(fish.id),
     })),
     algae: mapKinds((kind) => {
-      const { vitality, light, fluxes, shedding, waterUptake } = flora.algae[kind];
+      const { vitality, light, fluxes, shedding, waterUptake, exudates } = flora.algae[kind];
       return {
         vitality,
         light,
         fluxes,
         shedding,
         waterUptake,
+        exudates,
         condition: planted.algae[kind].condition,
         mass: bloomMass(planted, kind),
       };

@@ -9,13 +9,11 @@
 import {
   ALGAE,
   ALGAE_KINDS,
-  allelopathy,
   bloomMass,
   bloomParams,
   debParams,
-  droopFactor,
-  droopLimits,
   fillAtDroop,
+  fullDroopFactor,
   offshootShare,
   offshootStructure,
   PLANT_SPECIES_DATA,
@@ -47,7 +45,15 @@ import type { VerbId, VerbScope } from '../actions/verbs.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 import { COVERAGE_DECIMALS } from '../utils/units.js';
 import type { HourAhead } from './ahead.js';
-import { algaeReading, lightTakenStatus, NUTRIENT_LABEL, plantLabels, sharePercent, unitTitle } from './flora.js';
+import {
+  algaeReading,
+  lightTakenStatus,
+  NUTRIENT_LABEL,
+  plantLabels,
+  sharePercent,
+  storesFigure,
+  unitTitle,
+} from './flora.js';
 import { crownBurns, lightStatus, plantLightStatus } from './light.js';
 import { fishGut, fishNumbers, fishReading, fishTitle, type Gut } from './livestock.js';
 import { CONDITION_BAND, type SpeciesId } from './roster.js';
@@ -203,15 +209,40 @@ function reserveFills({ assimilated, mobilised, burned }: FloraFluxes): boolean 
   return assimilated - mobilised - burned.healing >= 0;
 }
 
+const GROWTH_UNHELD = 0.99;
+
 /**
- * A plant's or a bloom's reserve, then what draws on it past the hour's
- * upkeep: the share of upkeep it could not pay, and the repair it buys.
+ * The growth limit the hour ran at, against its value on full stores and full
+ * room — a Droop limit never reaches 1 — while something holds it back.
+ */
+function growthRow(fluxes: FloraFluxes, p: FloraParams): BudgetRow[] {
+  const growth = fluxes.growthLimit / fullDroopFactor(p);
+  if (growth >= GROWTH_UNHELD) return [];
+  return [
+    {
+      key: 'growth',
+      label: 'Growth',
+      text: String(sharePercent(growth)),
+      unit: '% of full pace',
+      at: null,
+      band: null,
+      status: 'neutral',
+      note: '',
+    },
+  ];
+}
+
+/**
+ * A plant's or a bloom's reserve and the growth it ran at, then what draws on
+ * the reserve past the hour's upkeep: the share of upkeep it could not pay,
+ * and the repair it buys.
  */
 function floraBudget(budget: FloraState, p: FloraParams, fluxes: FloraFluxes, breakdown: VitalityBreakdown, sick: boolean): BudgetRow[] {
   const unpaid = starvation({ fluxes });
   const healing = breakdown.healed * TICKS_PER_DAY;
   return [
     reserveRow(wellFed(budget, p), reserveFills(fluxes) ? 'filling' : 'drawing down'),
+    ...growthRow(fluxes, p),
     ...(unpaid > 0
       ? [
           {
@@ -243,26 +274,23 @@ function floraBudget(budget: FloraState, p: FloraParams, fluxes: FloraFluxes, br
   ];
 }
 
-/**
- * Each store's fill, banded from where its Droop limit meets the edge harm
- * starts at, and the least of them named with the share of growth it allows.
- */
+/** Each store's fill, full at 100, banded from the fill its Droop edge sits at and coral under it. */
 function storeRows(budget: FloraState, p: FloraParams, droopEdge: number): BudgetRow[] {
   const fill = storeFill(budget, p);
-  const limits = droopLimits(budget, p);
   const edge = fillAtDroop(p, droopEdge);
-  const factor = droopFactor(budget, p);
-  const least = NUTRIENTS.find((n) => limits[n] === factor);
-  return NUTRIENTS.map((n) => ({
-    key: n,
-    label: NUTRIENT_LABEL[n],
-    text: String(sharePercent(fill[n])),
-    unit: '% full',
-    at: Math.min(1, fill[n]),
-    band: { from: edge[n], to: 1 },
-    status: limits[n] < droopEdge ? 'alert' : 'neutral',
-    note: n === least ? `holds growth to ${sharePercent(factor)} %` : '',
-  }));
+  return NUTRIENTS.map((n) => {
+    const store = storesFigure(fill[n], edge[n]);
+    return {
+      key: n,
+      label: NUTRIENT_LABEL[n],
+      text: String(sharePercent(store.fill)),
+      unit: '% full',
+      at: store.fill,
+      band: { from: store.edge, to: 1 },
+      status: store.status,
+      note: '',
+    };
+  });
 }
 
 /** Days at the hour's pace, as a reader counts them: whole, and never "in 0". */
@@ -270,18 +298,21 @@ function inDays(hours: number): string {
   return hours < TICKS_PER_DAY ? 'within a day' : `in ${Math.round(hours / TICKS_PER_DAY)} d`;
 }
 
+const PLANTLET_HORIZON = 365 * TICKS_PER_DAY;
+
 /**
  * What the offshoot buffer does over the hour, read off the budget the tick
- * leaves: cuts a plantlet loose, pays upkeep, builds toward the next at the
- * hour's pace, or waits on stores that let it fill no further or cannot pay a
- * plantlet's Q_min.
+ * leaves: cuts a plantlet loose, pays upkeep out of what it holds, builds
+ * toward the next at the hour's pace, or waits on stores that let it fill no
+ * further, too slowly to name a day, or cannot pay a plantlet's Q_min.
  */
 function plantletNote(budget: FloraState, next: FloraState | null, unit: number, buds: boolean, starving: boolean): string {
   if (buds) return 'cuts loose this hour';
   const before = budget.offshootBuffer;
   const after = next?.offshootBuffer ?? before;
-  if (after < before || (after === before && starving)) return 'paying upkeep';
-  return after > before && after < unit ? `cuts loose ${inDays((unit - after) / (after - before))}` : 'waiting on stores';
+  if (before > 0 && (after < before || (after === before && starving))) return 'paying upkeep';
+  const hours = after > before && after < unit ? (unit - after) / (after - before) : Infinity;
+  return hours <= PLANTLET_HORIZON ? `cuts loose ${inDays(hours)}` : 'waiting on stores';
 }
 
 /**
@@ -462,31 +493,27 @@ export function bloomVerb(kind: AlgaeKind): BloomRemoval {
   return REMOVED_BY[ALGAE[kind].habitat];
 }
 
-/**
- * What the planting's exudates leave of a bloom's assimilation, while anything
- * is planted.
- */
-function heldRow(state: SimulationState, config: TunableConfig): BudgetRow[] {
-  if (state.plants.length === 0) return [];
-  const held = allelopathy(state.plants, state.resources.water, config.algae).assimilation;
+/** What the planting's exudates left of a bloom's photosynthesis this hour, while they hold it back. */
+function exudatesRow(exudates: number): BudgetRow[] {
+  if (exudates >= 1) return [];
   return [
     {
-      key: 'held',
-      label: 'Held to',
-      text: String(sharePercent(held)),
-      unit: '%',
+      key: 'exudates',
+      label: 'Exudates',
+      text: String(sharePercent(exudates)),
+      unit: '% of its photosynthesis',
       at: null,
       band: null,
       status: 'neutral',
-      note: 'by the planting',
+      note: '',
     },
   ];
 }
 
 /**
  * A bloom as the organism it is — condition, what feeds it and what harms it,
- * its reserve and stores growing it, the planting holding it — headed by its
- * kind's word for how much of it there is.
+ * its reserve and stores growing it, the planting's exudates holding it —
+ * headed by its kind's word for how much of it there is.
  */
 function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourAhead, kind: AlgaeKind): Ledger {
   const { condition, budget } = state.algae[kind];
@@ -537,7 +564,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     helps: total(breakdown.benefits),
     hurts: total(breakdown.stressors),
     net: breakdown.net * TICKS_PER_DAY,
-    budget: [...floraBudget(budget, p, next.fluxes, breakdown, sick), ...heldRow(state, config)],
+    budget: [...floraBudget(budget, p, next.fluxes, breakdown, sick), ...exudatesRow(next.exudates)],
     stores: storeRows(budget, p, config.plants.droopEdge),
     demand: `half-fed at ${traits.ammoniaHalfSaturation} ppm NH₃, ${traits.nitrateHalfSaturation} NO₃, ${traits.phosphateHalfSaturation} PO₄ · light from ${traits.lowLight} PAR`,
     verb: bloomVerb(kind),

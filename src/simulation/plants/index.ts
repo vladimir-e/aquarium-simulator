@@ -43,12 +43,10 @@ export {
   speciesDemand,
   formHalfSaturations,
   formShares,
-  formsMeet,
   bedPool,
   tankPools,
   plantFeeder,
   poolDraws,
-  feederShares,
   nutrientsIn,
 } from '../systems/nutrients.js';
 export type { Feeder, NutrientPool, TankPools, PoolDraw } from '../systems/nutrients.js';

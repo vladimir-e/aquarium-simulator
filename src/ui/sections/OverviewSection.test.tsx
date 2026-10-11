@@ -18,13 +18,13 @@ import {
 } from '../../simulation/index.js';
 import { bedReading, doseToCover, nutrientReadings } from '../run';
 import { plantRecord, withStores } from '../../simulation/tests/plant.js';
+import type { useSimulation } from '../hooks/useSimulation';
 
 /** Eight grown plants with every store empty: more than one dose or push covers what they lack. */
 function starved(tank: SimulationState, species: 'java_fern' | 'amazon_sword'): SimulationState {
   const plants = Array.from({ length: 8 }, (_, i) => withStores(plantRecord({ id: `${species}_${i}`, species, size: 100 }), 0));
   return { ...tank, plants };
 }
-import type { useSimulation } from '../hooks/useSimulation';
 
 afterEach(cleanup);
 
@@ -269,6 +269,17 @@ describe('OverviewSection', () => {
     expect(asked.length).toBeGreaterThan(0);
     expect(nutrients.getAllByText(/^stores \d+ %$/)).toHaveLength(asked.length);
     expect(nutrients.getByText(/1 ml moves/)).toBeTruthy();
+  });
+
+  it('reads stores under their edge as refilling while the tank holds what they lack, and short once it does not', () => {
+    const fern = applyAction(createSimulation({ tankCapacity: 200 }), { type: 'addPlant', species: 'java_fern' }).state;
+    const starving = { ...fern, plants: fern.plants.map((plant) => withStores(plant, 0.02)) };
+    renderOverview(bare(applyAction(starving, { type: 'dose', amountMl: 20 }).state));
+    expect(within(widget('Nutrients')).getByText('stores refilling')).toBeTruthy();
+    cleanup();
+
+    renderOverview(bare(starving));
+    expect(within(widget('Nutrients')).queryByText('stores refilling')).toBeNull();
   });
 
   it('says nothing is asking for the nutrients when nothing is planted', () => {

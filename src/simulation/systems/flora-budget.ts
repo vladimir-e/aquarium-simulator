@@ -12,6 +12,7 @@ import { hourlyDraw, monodFactor, monodUptake } from '../core/kinetics.js';
 import { addOrganics, ofComposition, type Organics } from '../core/organics.js';
 import { mapNutrients, NUTRIENTS, ZERO_NUTRIENTS, type Nutrient, type NutrientVector } from '../config/nutrients.js';
 import {
+  hourSlices,
   integrateHour,
   maxReserveDensity,
   NO_STRESS,
@@ -82,6 +83,8 @@ export interface FloraFluxes {
   owed: number;
   /** Maintenance its κ share could not pay. */
   shortfall: number;
+  /** The share of a full reserve's growth its room and stores left it, 0–1, over the hour's slices. */
+  growthLimit: number;
 }
 
 export interface FloraStep {
@@ -114,6 +117,10 @@ export const droopFactor = (state: FloraState, p: FloraParams): number => {
   const limits = droopLimits(state, p);
   return Math.min(...NUTRIENTS.map((n) => limits[n]));
 };
+
+/** Droop's growth limit on full stores: ρ/(1 + ρ) of the least nutrient. */
+export const fullDroopFactor = (p: FloraParams): number =>
+  Math.min(...NUTRIENTS.map((n) => monodFactor(storeMax(p, n), p.qMin[n])));
 
 export const floraOrganics = (state: FloraState): number =>
   state.reserve + state.offshootBuffer + state.structure;
@@ -154,7 +161,8 @@ function sliceFlora(
   p: FloraParams,
   room: number,
   released: number,
-  { inflow, healing, tau }: Readonly<ReserveHour>
+  { inflow, healing, tau }: Readonly<ReserveHour>,
+  growthLimit: number
 ): ReserveSlice<FloraState, FloraFluxes> {
   const { structure: V, reserve: E, offshootBuffer: B, stores } = state;
   const upkeep = p.pM * V * tau;
@@ -208,6 +216,7 @@ function sliceFlora(
       },
       owed: upkeep,
       shortfall: somaticUnpaid,
+      growthLimit,
     },
     turnedBack: released - mobilised,
   };
@@ -221,13 +230,15 @@ function sliceFlora(
 export function stepFlora(state: FloraState, p: FloraParams, hour: FloraBudgetHour): FloraStep {
   const { offered, tau, omega, room, stress = NO_STRESS, healing = 0 } = hour;
   const stressed = { ...p, pM: p.pM * stress.maintenance, EG: p.EG * stress.growthCost };
+  const growthLimit = (at: FloraState): number => room * droopFactor(at, stressed);
+  const share = 1 / hourSlices(stressed, tau);
   return integrateHour(
     state,
     stressed,
     { inflow: offered, healing: omega * healing, tau, omega },
     {
-      growthLimit: (at) => room * droopFactor(at, stressed),
-      slice: (at, released, slice) => sliceFlora(at, stressed, room, released, slice),
+      growthLimit,
+      slice: (at, released, slice) => sliceFlora(at, stressed, room, released, slice, share * growthLimit(at)),
       add: addFluxes,
     }
   );

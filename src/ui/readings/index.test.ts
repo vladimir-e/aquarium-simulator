@@ -7,9 +7,12 @@ import {
   applyAction,
   coverage,
   createSimulation,
+  fillAtDroop,
+  plantParams,
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
+import { withStores } from '../../simulation/tests/plant.js';
 import { ammoniaAlertLine } from '../../simulation/alerts/index.js';
 import { FREE_AMMONIA_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
 import { snapshotFromState, type RunSnapshot } from '../run/index.js';
@@ -107,7 +110,7 @@ describe('readTank', () => {
       expect(asFood.band).toEqual(book.byId.nitrate.band);
       expect(asFood.sentence).not.toBe(book.byId.nitrate.sentence);
     }
-    expect(read(stocked()).byId.nitrateDemand.beside).toMatch(/^stores \d+ %$/);
+    expect(read(stocked()).byId.nitrateDemand.stores!.value).toMatch(/^\d+$/);
   });
 
   it('gives the demand reading the same stock to inspect as the toxin', () => {
@@ -120,12 +123,31 @@ describe('readTank', () => {
     expect(asFood.series!(latest)).toBe(book.byId.nitrate.series!(latest));
   });
 
-  it('bands no plant food but nitrate, on its alert line, and says nothing beside them with nothing planted', () => {
+  it('bands no plant food but nitrate, on its alert line, and reads no stores beside them with nothing planted', () => {
     for (const run of [stocked(), bare()]) {
       for (const reading of read(run).demand) expect(reading.band === null).toBe(reading.id !== 'nitrateDemand');
       expect(read(run).byId.nitrateDemand.band?.from).toBe(0);
     }
-    for (const reading of read(bare()).demand) expect(reading.beside).toBe('');
+    for (const reading of [...read(bare()).demand, read(bare()).byId.bed]) expect(reading.stores).toBeNull();
+  });
+
+  it('reads the feeders’ stores on a strip of their own — the lowest store banded from its Droop edge, coral under it — and leaves what the pool holds ink', () => {
+    const sword = applyAction(createSimulation({ tankCapacity: 200, substrate: { type: 'gravel' } }), { type: 'addPlant', species: 'amazon_sword' }).state;
+    const starved = { ...sword, plants: sword.plants.map((plant) => withStores(plant, 0.02)) };
+    const book = read({ state: starved, history: [snapshotFromState(starved)] });
+    const edge = fillAtDroop(plantParams('amazon_sword', DEFAULT_CONFIG.plants), DEFAULT_CONFIG.plants.droopEdge);
+
+    for (const [id, n] of [['nitrateDemand', 'nitrate'], ['phosphate', 'phosphate'], ['potassium', 'potassium'], ['iron', 'iron']] as const) {
+      const food = book.byId[id];
+      expect(food.tone).toBe('ink');
+      expect(food.stores).toMatchObject({ value: '2', band: { from: edge[n], to: 1 }, tone: 'alert' });
+      expect(food.stores!.at).toBeCloseTo(0.02, 12);
+      expect(food.sentence).toContain(`under ${Math.ceil(edge[n] * 100)} % a plant takes harm`);
+    }
+    expect(book.byId.bed).toMatchObject({ band: null, tone: 'ink', stores: { value: '2', tone: 'alert' } });
+
+    const fed = { ...sword, plants: sword.plants.map((plant) => withStores(plant, 0.5)) };
+    expect(read({ state: fed, history: [snapshotFromState(fed)] }).byId.iron.stores).toMatchObject({ value: '50', tone: 'ink' });
   });
 
   it('balances ammonia against what makes it and what clears it', () => {

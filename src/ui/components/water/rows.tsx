@@ -1,6 +1,7 @@
 import React from 'react';
-import { ratePerHour, type ReadingBook, type ReadingId } from '../../readings';
+import { ratePerHour, type ReadingBook, type ReadingId, type StoresGauge } from '../../readings';
 import { colonyCount, type BacteriaReadout, type Colony } from '../../run';
+import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
 import { ReadingRow } from '../ui/ReadingRow';
 
 /**
@@ -39,6 +40,21 @@ export function ReadingRows({
   );
 }
 
+/**
+ * The feeders' stores beside what a pool holds: a reading of their own, figure
+ * and strip, so the tone sits on the stores' band and never on the pool's.
+ */
+function StoresNote({ stores }: { stores: StoresGauge }): React.JSX.Element {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className={`min-w-0 truncate tabular-nums ${stores.tone === 'ink' ? 'text-ink-3' : TONE_TEXT[stores.tone]}`}>
+        stores {stores.value} %
+      </span>
+      <RangeStrip className="w-10 shrink-0" at={stores.at} band={stores.band} tone={stores.tone} />
+    </span>
+  );
+}
+
 /** The four plant foods in the water, then the bed's store — over a bare bottom only while something roots in it. */
 export function NutrientRows({
   book,
@@ -61,7 +77,7 @@ export function NutrientRows({
           band={reading.band}
           tone={reading.tone}
           trend={reading.trend ?? undefined}
-          note={reading.beside}
+          note={reading.stores && <StoresNote stores={reading.stores} />}
           onClick={() => onOpen(reading.id)}
         />
       ))}

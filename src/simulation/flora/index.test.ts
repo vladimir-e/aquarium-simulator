@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { processFlora } from './index.js';
+import { processFlora, type BloomHour } from './index.js';
 import { bloomParams, plantParams } from './params.js';
 import { readPlantLight } from '../plants/index.js';
 import { floorCover, sizeOf } from '../plants/canopy.js';
@@ -409,17 +409,21 @@ describe.each(ALGAE_KINDS)('processFlora — %s', (kind) => {
     }
   });
 
-  it('is offered carbon to the ceiling thriving plants’ exudates leave it, and the lower the more of them', () => {
+  it('is offered carbon to the ceiling thriving plants’ exudates leave it, the lower the more of them, and reports that ceiling', () => {
     const planting = (count: number): Plant[] => Array.from({ length: count }, (_, i) => sword({ id: `s${i}` }));
-    const offered = (count: number, allelopathySeverity: number): number => {
+    const hour = (count: number, allelopathySeverity = config.algae.allelopathySeverity): BloomHour => {
       const state = tank({ plants: planting(count), algae: { [kind]: 10 }, ...LIT, co2: 1e6 });
-      const { fluxes } = processFlora(state, { ...config, algae: { ...config.algae, allelopathySeverity } }).algae[kind];
+      return processFlora(state, { ...config, algae: { ...config.algae, allelopathySeverity } }).algae[kind];
+    };
+    const offered = (count: number, allelopathySeverity?: number): number => {
+      const { fluxes } = hour(count, allelopathySeverity);
       return fluxes.assimilated + fluxes.returned;
     };
-    const ceiling = (count: number): number => offered(count, config.algae.allelopathySeverity) / offered(count, 0);
+    const ceiling = (count: number): number => offered(count) / offered(count, 0);
     expect(ceiling(0)).toBe(1);
     expect(ceiling(1)).toBeCloseTo(allelopathy(planting(1), tank().resources.water, config.algae).assimilation, 5);
     expect(ceiling(2)).toBeLessThan(ceiling(1));
+    for (const count of [0, 1, 2]) expect(hour(count).exudates).toBeCloseTo(ceiling(count), 5);
   });
 });
 
