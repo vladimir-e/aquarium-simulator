@@ -22,7 +22,11 @@ export interface ReserveParams {
   kappaG: number;
 }
 
-/** Multipliers on the budget: assimilation in [0, 1]; maintenance, growthCost and eggCost ≥ 1. */
+/**
+ * DEBtox's multipliers on the budget, one per mode of action: assimilation in
+ * [0, 1]; maintenance, growthCost and eggCost ≥ 1. eggCost is the toxicant's
+ * cost per egg, so only a brood reads it.
+ */
 export interface DebStress {
   assimilation: number;
   maintenance: number;

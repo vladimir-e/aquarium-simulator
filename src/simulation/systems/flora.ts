@@ -56,9 +56,9 @@ export function dailyLightEdge(traits: FloraTraits): number {
   return parHoursToDli(traits.lowLight, CARE_SHEET_PHOTOPERIOD);
 }
 
-/** Share of its growth room left: 1 empty, none at a full 100. */
+/** Share of its growth room left: 1 empty, none at a full 100 or past it. */
 export function growthTaper(fill: number): number {
-  return 1 - fill / 100;
+  return Math.max(0, 1 - fill / 100);
 }
 
 /** Rate units its metabolism runs at: the rate units its tissue is, at its growth rate. */

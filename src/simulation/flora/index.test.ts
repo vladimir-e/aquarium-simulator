@@ -244,6 +244,15 @@ describe('processFlora — plants', () => {
     expect(result.state.logs.at(-1)!.message).toContain(growthFormOf('java_fern').offshootVerb);
   });
 
+  it('cuts one offshoot loose an hour: a buffer holding two buys one, and the other the hour after', () => {
+    const fern = plantRecord({ id: 'fern', species: 'java_fern', size: 80 });
+    const budding = withBudget(fern, { offshootBuffer: 2.02 * offshootStructure('java_fern') });
+    const first = processFlora(tank({ plants: [budding], ...LIT }), config).state;
+    const second = processFlora(first, config).state;
+    expect(first.plants.map((p) => p.parentId)).toEqual([null, 'fern']);
+    expect(second.plants.map((p) => p.parentId)).toEqual([null, 'fern', 'fern']);
+  });
+
   it('reads every plant’s light off the one canopy pass', () => {
     const plants = [sword(), plantRecord({ id: 'carpet', species: 'monte_carlo', size: 60 })];
     const state = tank({ plants, ...LIT });
@@ -314,18 +323,17 @@ describe.each(ALGAE_KINDS)('processFlora — %s', (kind) => {
     expect(result.algae[kind].waterUptake.phosphate).toBeGreaterThan(0);
   });
 
-  it('takes the share of what it is offered that thriving plants leave it, and the less the more of them', () => {
+  it('is offered carbon to the ceiling thriving plants’ exudates leave it, and the lower the more of them', () => {
     const planting = (count: number): Plant[] => Array.from({ length: count }, (_, i) => sword({ id: `s${i}` }));
-    const taken = (count: number): number => {
-      const state = produce(tank({ plants: planting(count), algae: { [kind]: 10 }, ...LIT }), (draft) => {
-        draft.algae[kind].budget.reserve = 0;
-      });
-      const { fluxes } = processFlora(state, config).algae[kind];
-      return fluxes.assimilated / (fluxes.assimilated + fluxes.returned);
+    const offered = (count: number, allelopathySeverity: number): number => {
+      const state = tank({ plants: planting(count), algae: { [kind]: 10 }, ...LIT, co2: 1e6 });
+      const { fluxes } = processFlora(state, { ...config, algae: { ...config.algae, allelopathySeverity } }).algae[kind];
+      return fluxes.assimilated + fluxes.returned;
     };
-    expect(taken(0)).toBeCloseTo(1, 12);
-    expect(taken(1)).toBeCloseTo(allelopathy(planting(1), tank().resources.water, config.algae).assimilation, 12);
-    expect(taken(2)).toBeLessThan(taken(1));
+    const ceiling = (count: number): number => offered(count, config.algae.allelopathySeverity) / offered(count, 0);
+    expect(ceiling(0)).toBe(1);
+    expect(ceiling(1)).toBeCloseTo(allelopathy(planting(1), tank().resources.water, config.algae).assimilation, 5);
+    expect(ceiling(2)).toBeLessThan(ceiling(1));
   });
 });
 

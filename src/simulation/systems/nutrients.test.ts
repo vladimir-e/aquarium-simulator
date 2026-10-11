@@ -8,6 +8,7 @@ import {
   formsMeet,
   ghDrawn,
   GH_HALF_SATURATION,
+  leach,
   GH_PER_NITRATE_DRAWN,
   nutrientShare,
   nutrientsIn,
@@ -444,5 +445,23 @@ describe('uptakeAlkalinity', () => {
       uptakeAlkalinity({ ...ZERO_FORMS, ammonia: nitrified.ammoniaConsumed }),
       10
     );
+  });
+});
+
+describe('leach', () => {
+  const total = (leachate: NutrientVector, resource: string): number =>
+    leach(leachate)
+      .filter((effect) => effect.resource === resource)
+      .reduce((sum, effect) => sum + (effect.delta as number), 0);
+
+  it('puts every nutrient back in the water, its nitrogen as nitrate, and undoes the KH that nitrate’s uptake moved', () => {
+    const leachate = { nitrate: 12, phosphate: 1, potassium: 4, iron: 0.1 };
+    for (const n of NUTRIENTS) expect(total(leachate, n)).toBe(leachate[n]);
+    expect(total(leachate, 'kh')).toBeCloseTo(-uptakeAlkalinity({ ...ZERO_FORMS, nitrate: 12 }), 12);
+    expect(leach(leachate).every((effect) => effect.source === 'leaching')).toBe(true);
+  });
+
+  it('moves nothing when nothing leaches', () => {
+    expect(leach(mapNutrients(() => 0))).toEqual([]);
   });
 });

@@ -4,6 +4,7 @@ import {
   ALGAE_KINDS,
   allelopathy,
   bloomFeeder,
+  bloomFixer,
   bloomLight,
   bloomRateUnits,
   bloomTissue,
@@ -11,14 +12,16 @@ import {
   landSpores,
   massOf,
   sporesBuilt,
+  sporesUptake,
   thrivingPlantDensity,
 } from './index.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { mapNutrients, NUTRIENTS } from '../config/nutrients.js';
+import { mapNutrients, NUTRIENTS, ZERO_FORMS } from '../config/nutrients.js';
 import { dailyLightIntegral } from '../equipment/light.js';
 import { dailyLightEdge, TISSUE_PER_RATE_UNIT } from '../systems/flora.js';
 import { formHalfSaturations, poolDraws } from '../systems/nutrients.js';
-import { stocked, type FloraState } from '../systems/flora-budget.js';
+import { floraNutrients, stocked, type FloraState } from '../systems/flora-budget.js';
+import type { CarbonFixer } from '../systems/photosynthesis.js';
 import { bloomParams } from '../flora/params.js';
 import { PLANT_SPECIES_DATA, plantTraits, type PlantSpecies } from '../plants/species.js';
 import { getPlantPower } from '../systems/plant-power.js';
@@ -103,11 +106,51 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
       for (const n of NUTRIENTS) expect(built.stores[n]).toBeCloseTo(0, 15);
     });
 
-    it('builds what its scarcest nutrient delivered, the rest of the delivery in its stores', () => {
-      const delivered = { ...asked(0.01), phosphate: asked(0.004).phosphate };
+    it('builds what its scarcest nutrient delivered, its stores the rest of the delivery as far as full', () => {
+      const delivered = {
+        ...asked(0.01),
+        nitrate: p.qMax.nitrate * 0.01,
+        phosphate: asked(0.004).phosphate,
+        iron: asked(0.0041).iron,
+      };
       const built = sporesBuilt(0.01, delivered, p);
       expect(built.structure).toBeCloseTo(0.004, 15);
-      for (const n of NUTRIENTS) expect(built.stores[n] + p.qMin[n] * built.structure).toBeCloseTo(delivered[n], 15);
+      expect(built.stores.phosphate).toBeCloseTo(0, 15);
+      expect(built.stores.iron).toBeCloseTo(delivered.iron - p.qMin.iron * built.structure, 15);
+      for (const n of NUTRIENTS) expect(built.stores[n]).toBeLessThanOrEqual((p.qMax[n] - p.qMin[n]) * built.structure * (1 + 1e-12));
+      expect(built.stores.nitrate).toBeCloseTo((p.qMax.nitrate - p.qMin.nitrate) * built.structure, 15);
+    });
+
+    it('builds nothing, and holds nothing, with a nutrient absent', () => {
+      const built = sporesBuilt(0.01, { ...asked(0.01), iron: 0 }, p);
+      expect(built.structure).toBe(0);
+      for (const n of NUTRIENTS) expect(built.stores[n]).toBe(0);
+    });
+  });
+
+  describe('sporesUptake', () => {
+    it('takes up each form at the share of its nutrient the spores hold, so the water keeps what they could not', () => {
+      const delivered = mapNutrients((n) => p.qMax[n] * 0.01);
+      const built = sporesBuilt(0.01, { ...delivered, phosphate: p.qMin.phosphate * 0.005 }, p);
+      const uptake = { ammonia: 0.3, nitrate: 0.7, phosphate: p.qMin.phosphate * 0.005, potassium: delivered.potassium, iron: delivered.iron };
+      const taken = sporesUptake(uptake, { ...delivered, phosphate: uptake.phosphate }, built, p);
+      const held = floraNutrients(built, p);
+      expect(taken.phosphate).toBeCloseTo(uptake.phosphate, 15);
+      expect(taken.ammonia / uptake.ammonia).toBeCloseTo(held.nitrate / delivered.nitrate, 12);
+      expect(taken.nitrate / uptake.nitrate).toBeCloseTo(held.nitrate / delivered.nitrate, 12);
+      expect(taken.iron).toBeCloseTo(held.iron, 15);
+      expect(sporesUptake(uptake, delivered, sporesBuilt(0.01, { ...delivered, iron: 0 }, p), p)).toEqual(ZERO_FORMS);
+    });
+  });
+
+  describe('bloomFixer', () => {
+    it('lowers the ceiling it fixes to by its assimilation stress, and with it its draw', () => {
+      const bloom = { budget: stocked(2, p), condition: 100 };
+      const light = { par: 30, dailyLight: 1, needShare: 1 };
+      const fixer = (assimilation: number): CarbonFixer =>
+        bloomFixer(bloom, light, 1, { ...NO_STRESS, assimilation }, traits, config.plants);
+      expect(fixer(0.4).metabolicRateUnits).toBeCloseTo(0.4 * fixer(1).metabolicRateUnits, 15);
+      expect({ ...fixer(0.4), metabolicRateUnits: 0 }).toEqual({ ...fixer(1), metabolicRateUnits: 0 });
     });
   });
 
@@ -160,7 +203,7 @@ describe('allelopathy', () => {
     expect(doses.at(-1)).toBeGreaterThan(0);
   });
 
-  it('is a Monod on the dose: halved where severity × dose is 1, and nothing at severity 0', () => {
+  it('inhibits hyperbolically with the dose: halved where severity × dose is 1, and nothing at severity 0', () => {
     const dose = thrivingPlantDensity([sword(100)], LITRES);
     expect(assimilation([sword(100)], LITRES, 1 / dose)).toBeCloseTo(0.5, 12);
     expect(assimilation([sword(100)], LITRES, 3 / dose)).toBeCloseTo(0.25, 12);

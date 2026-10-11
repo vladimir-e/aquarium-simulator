@@ -7,13 +7,13 @@
 import type { AlgaeState, Blooms, Plant, SimulationState } from '../state.js';
 import type { AlgaeConfig, NutrientsConfig, PlantsConfig } from '../config/index.js';
 import type { OpticsConfig } from '../config/optics.js';
-import { mapNutrients, NUTRIENTS, type NutrientVector } from '../config/nutrients.js';
+import { mapForms, mapNutrients, NUTRIENT_OF, NUTRIENTS, type FormVector, type NutrientVector } from '../config/nutrients.js';
 import { calculateTankHeight } from '../core/geometry.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
 import { formHalfSaturations, type Feeder } from '../systems/nutrients.js';
 import type { CarbonFixer } from '../systems/photosynthesis.js';
 import { metabolicRateUnits, saturationIrradiance, TISSUE_PER_RATE_UNIT } from '../systems/flora.js';
-import { scaleFlora, type FloraParams, type FloraState } from '../systems/flora-budget.js';
+import { floraNutrients, scaleFlora, type FloraParams, type FloraState } from '../systems/flora-budget.js';
 import { NO_STRESS, type DebStress } from '../systems/reserve.js';
 import { getPlantPower } from '../systems/plant-power.js';
 import { floorShade } from '../plants/canopy.js';
@@ -48,15 +48,17 @@ export function bloomFeeder(traits: AlgaeTraits, config: NutrientsConfig): Feede
   };
 }
 
+/** A bloom as photosynthesis reads it: its stress lowers the ceiling it fixes to, and so its draw on the CO₂. */
 export function bloomFixer(
   bloom: AlgaeState,
   light: BloomLight,
   omega: number,
+  stress: Readonly<DebStress>,
   traits: AlgaeTraits,
   config: PlantsConfig
 ): CarbonFixer {
   return {
-    metabolicRateUnits: bloomRateUnits(bloom.budget.structure, traits),
+    metabolicRateUnits: stress.assimilation * bloomRateUnits(bloom.budget.structure, traits),
     lightResponse: lightSaturationFactor(light.par, saturationIrradiance(traits, config)),
     omega,
     co2HalfSaturation: traits.co2HalfSaturation,
@@ -69,8 +71,8 @@ export function thrivingPlantDensity(plants: readonly Plant[], litres: number): 
 }
 
 /**
- * What thriving plants' exudates do to a bloom's budget: they lower the share
- * of its photosynthate it can take, along a Monod falling from 1 with the dose,
+ * What thriving plants' exudates do to a bloom's budget: they lower its
+ * assimilation ceiling by hyperbolic inhibition, falling from 1 with the dose,
  * halved where `allelopathySeverity × dose` is 1.
  */
 export function allelopathy(plants: readonly Plant[], litres: number, config: AlgaeConfig): DebStress {
@@ -95,9 +97,9 @@ export function habitatGain(
 
 /**
  * The spores the water built over the hour, out of `structure` grams of spore
- * asked at Q_min: as much as the scarcest nutrient delivered built, its stores
- * what the rest delivered past that. A spore lands unfed: its reserve is what
- * it fixes once it lands.
+ * asked at Q_min: as much as the scarcest nutrient delivered built, their
+ * stores what the rest delivered past that, up to full. A spore lands unfed:
+ * its reserve is what it fixes once it lands.
  */
 export function sporesBuilt(structure: number, delivered: Readonly<NutrientVector>, p: FloraParams): FloraState {
   const built = Math.min(
@@ -108,8 +110,22 @@ export function sporesBuilt(structure: number, delivered: Readonly<NutrientVecto
     structure: built,
     reserve: 0,
     offshootBuffer: 0,
-    stores: mapNutrients((n) => delivered[n] - p.qMin[n] * built),
+    stores: mapNutrients((n) => Math.min(delivered[n] - p.qMin[n] * built, (p.qMax[n] - p.qMin[n]) * built)),
   };
+}
+
+/** mg of each form the spores take up of what was delivered them: each at the share of its nutrient they hold. */
+export function sporesUptake(
+  uptake: Readonly<FormVector>,
+  delivered: Readonly<NutrientVector>,
+  spores: FloraState,
+  p: FloraParams
+): FormVector {
+  const held = floraNutrients(spores, p);
+  return mapForms((f) => {
+    const n = NUTRIENT_OF[f];
+    return delivered[n] > 0 ? (uptake[f] * held[n]) / delivered[n] : 0;
+  });
 }
 
 /**

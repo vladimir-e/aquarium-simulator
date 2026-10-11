@@ -467,19 +467,22 @@ describe('blooms and their crash', () => {
     }
   });
 
-  it('grow on the water and fade in the dark, every kind, their tissue fouling the water', () => {
+  it('grow on the water and fade in the dark, every kind, until one dies back, their tissue fouling the water', () => {
+    const dieBacks = crashed.logs.slice(bloomed.logs.length).filter((log) => log.event === 'algae-died');
     expect(bloomsTissue(bloomed)).toBeGreaterThan(bloomsTissue(start));
     expect(bloomed.resources.nitrate).toBeLessThan(start.resources.nitrate);
     for (const kind of ALGAE_KINDS) {
       expect(crashed.algae[kind].budget.structure).toBeLessThan(bloomed.algae[kind].budget.structure / 2);
     }
+    expect(dieBacks.length).toBeGreaterThan(0);
     expect(peakAmmonia).toBeGreaterThan(bloomed.resources.ammonia);
   });
 
-  it('conserves nitrogen and every mineral through the blooms and the crash', () => {
+  it('conserves nitrogen, every mineral and KH net of nitrogen through the blooms, the crash and the die-back’s leach', () => {
     for (const state of [bloomed, crashed]) {
       expect(nitrogenInPools(state) / nitrogenInPools(start)).toBeCloseTo(1, 10);
       for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(state, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
+      expect(alkalinityNetOfNitrogen(state) / alkalinityNetOfNitrogen(start)).toBeCloseTo(1, 10);
     }
   });
 });
@@ -623,11 +626,55 @@ describe('the keeper’s hands on the blooms', () => {
     expect(tissueNitrogen(coated) - tissueNitrogen(changed)).toBeCloseTo(share * greenWater, 9);
   });
 
-  it('keep every gram of a scrub in the tank, as waste and leachate', () => {
+  it('keep every gram of a scrub in the tank, as waste and leachate, KH moving back by the charge the leachate’s uptake moved', () => {
     const scrubbed = applyAction(coated, { type: 'scrubAlgae' }).state;
     expect(bloomMass(scrubbed, 'film')).toBeLessThan(bloomMass(coated, 'film'));
     expect(scrubbed.algae.greenWater).toEqual(coated.algae.greenWater);
+    expect(scrubbed.resources.kh).toBeLessThan(coated.resources.kh);
     expect(nitrogenInPools(scrubbed) / nitrogenInPools(coated)).toBeCloseTo(1, 12);
+    expect(alkalinityNetOfNitrogen(scrubbed) / alkalinityNetOfNitrogen(coated)).toBeCloseTo(1, 12);
+    for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(scrubbed, n) / mineralsInPools(coated, n)).toBeCloseTo(1, 12);
+  });
+});
+
+describe('a plant dying in the dark', () => {
+  const start = produce(cycledBareTank(), (draft) => {
+    const doomed = plantRecord({ id: 'sword', species: 'amazon_sword', size: 50, condition: 0.01 });
+    doomed.budget.reserve = 0;
+    draft.plants = [doomed];
+    draft.equipment.light.enabled = false;
+    draft.resources.nitrate = 20 * draft.resources.water;
+  });
+  const end = tick(start);
+
+  it('leaches its stores back, KH moving back by the charge their uptake moved', () => {
+    expect(end.plants).toHaveLength(0);
+    expect(end.logs.some((log) => log.event === 'plant-died')).toBe(true);
+    expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 12);
+    expect(alkalinityNetOfNitrogen(end) / alkalinityNetOfNitrogen(start)).toBeCloseTo(1, 12);
+  });
+});
+
+describe('a fresh tank with no iron', () => {
+  let state: SimulationState;
+  beforeAll(() => {
+    state = run(
+      produce(createSimulation({ tankCapacity: 100 }), (draft) => {
+        draft.resources.ammonia = 2 * draft.resources.water;
+        draft.resources.nitrate = 10 * draft.resources.water;
+        draft.resources.phosphate = 1 * draft.resources.water;
+        draft.resources.potassium = 5 * draft.resources.water;
+      }),
+      60 * 24
+    );
+  });
+
+  it('builds no spore in sixty days, and so holds nothing for one', () => {
+    expect(state.resources.iron).toBe(0);
+    for (const kind of ALGAE_KINDS) {
+      expect(state.algae[kind].budget.structure).toBe(0);
+      for (const n of NUTRIENTS) expect(state.algae[kind].budget.stores[n]).toBe(0);
+    }
   });
 });
 

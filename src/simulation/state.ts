@@ -17,6 +17,7 @@ import { DEFAULT_HARDSCAPE, createHardscapeItem } from './equipment/hardscape.js
 import type { Light } from './equipment/light.js';
 import { DEFAULT_LIGHT, MAX_LIGHT_PAR } from './equipment/light.js';
 import { opticsDefaults, type OpticsConfig } from './config/optics.js';
+import { plantsDefaults, type PlantsConfig } from './config/plants.js';
 import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
@@ -369,6 +370,8 @@ export interface SimulationConfig {
   autoFeeder?: Partial<AutoFeeder>;
   /** Optics the tank will run on, which its first day of light is read through (defaults to the shipped optics) */
   optics?: OpticsConfig;
+  /** Plants config the tank will run on, which its seeded plants are stocked on (defaults to the shipped config) */
+  plants?: PlantsConfig;
 }
 
 const DEFAULT_TEMPERATURE = 25;
@@ -492,6 +495,7 @@ export function createSimulation(
     autoDoser,
     autoFeeder,
     optics,
+    plants,
   } = config;
 
   const heaterConfig: Heater = {
@@ -634,6 +638,6 @@ export function createSimulation(
   };
 
   writePassiveResources(state, optics ?? opticsDefaults);
-  if (seed !== undefined) applySeed(state, seed);
+  if (seed !== undefined) applySeed(state, seed, plants ?? plantsDefaults);
   return state;
 }

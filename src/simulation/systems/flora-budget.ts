@@ -71,7 +71,7 @@ export interface FloraBurned {
 }
 
 export interface FloraFluxes {
-  /** Photosynthate offered that stress refused or the reserve had no room for. */
+  /** Photosynthate offered that the reserve had no room for. */
   returned: number;
   assimilated: number;
   /** Reserve spent: what growth and the buffer turn back stays in reserve. */
@@ -103,6 +103,10 @@ export const droopFactor = (state: FloraState, p: FloraParams): number =>
 
 export const floraOrganics = (state: FloraState): number =>
   state.reserve + state.offshootBuffer + state.structure;
+
+/** mg of each nutrient it holds: its structure at Q_min and its stores. */
+export const floraNutrients = (state: FloraState, p: FloraParams): NutrientVector =>
+  mapNutrients((n) => p.qMin[n] * state.structure + state.stores[n]);
 
 /** Structure `capacity` builds at the Droop limit of the stores it leaves, so no store is overdrawn at any pace. */
 function structureGrown(state: FloraState, p: FloraParams, capacity: number): number {
@@ -197,24 +201,22 @@ function sliceFlora(
 
 /**
  * One hour of the budget: τ paces every rate; ω scales {p_Am}, v and healing,
- * and maintenance is owed regardless. Stress lowers the share of what is
- * offered it can take and raises its maintenance and the price of structure.
+ * and maintenance is owed regardless. Stress raises its maintenance and the
+ * price of structure; its assimilation ceiling is the carbon fixer's to lower.
  */
 export function stepFlora(state: FloraState, p: FloraParams, hour: FloraBudgetHour): FloraStep {
   const { offered, tau, omega, room, stress = NO_STRESS, healing = 0 } = hour;
   const stressed = { ...p, pM: p.pM * stress.maintenance, EG: p.EG * stress.growthCost };
-  const taken = stress.assimilation * offered;
-  const step = integrateHour(
+  return integrateHour(
     state,
     stressed,
-    { inflow: taken, healing: omega * healing, tau, omega },
+    { inflow: offered, healing: omega * healing, tau, omega },
     {
       growthLimit: (at) => room * droopFactor(at, stressed),
       slice: (at, released, slice) => sliceFlora(at, stressed, room, released, slice),
       add: addFluxes,
     }
   );
-  return { state: step.state, fluxes: { ...step.fluxes, returned: step.fluxes.returned + offered - taken } };
 }
 
 /**
@@ -264,20 +266,27 @@ export interface Offshoot {
 
 /**
  * A new unit of `structure` cut loose from the buffer, its Q_min out of the
- * stores and its share of the reserve, so parent and offshoot stand at one
- * density; null while the buffer or the stores cannot make it.
+ * stores, with its share of the reserve and of what the stores hold past
+ * that, so parent and offshoot stand at one density of both; null while the
+ * buffer or the stores cannot make it.
  */
 export function buyOffshoot(state: FloraState, p: FloraParams, structure: number): Offshoot | null {
   if (!offshootReady(state, p, structure)) return null;
   const share = structure / (state.structure + structure);
+  const stores = mapNutrients((n) => state.stores[n] - p.qMin[n] * structure);
   return {
     parent: {
       ...state,
       reserve: state.reserve * (1 - share),
       offshootBuffer: state.offshootBuffer - structure,
-      stores: mapNutrients((n) => state.stores[n] - p.qMin[n] * structure),
+      stores: mapNutrients((n) => stores[n] * (1 - share)),
     },
-    offshoot: { structure, reserve: state.reserve * share, offshootBuffer: 0, stores: { ...ZERO_NUTRIENTS } },
+    offshoot: {
+      structure,
+      reserve: state.reserve * share,
+      offshootBuffer: 0,
+      stores: mapNutrients((n) => stores[n] * share),
+    },
   };
 }
 

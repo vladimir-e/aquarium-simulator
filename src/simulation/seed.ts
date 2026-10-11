@@ -24,7 +24,7 @@ import { speciesTau } from './livestock/species.js';
 import { sum } from './core/sum.js';
 import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
-import { plantsDefaults } from './config/plants.js';
+import type { PlantsConfig } from './config/plants.js';
 import { mapNutrients, type NutrientVector } from './config/nutrients.js';
 import { scaleOrganics, type Organics } from './core/organics.js';
 import { alkalinityMoved, MW_NO3, NH3_TO_NO2_MASS_RATIO, PROTONS_PER_N } from './core/chemistry.js';
@@ -311,8 +311,8 @@ function seedTank(state: SimulationState, seed: TankSeed): void {
   );
 }
 
-export function applySeed(state: SimulationState, seed: PresetSeed): void {
-  const { fish, plants, ...tank } = seed;
+export function applySeed(state: SimulationState, seed: PresetSeed, plants: PlantsConfig): void {
+  const { fish, plants: planting, ...tank } = seed;
 
   for (const group of fish ?? []) {
     for (let i = 0; i < (group.count ?? 1); i++) {
@@ -327,7 +327,7 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
     }
   }
 
-  for (const group of plants ?? []) {
+  for (const group of planting ?? []) {
     for (let i = 0; i < (group.count ?? 1); i++) {
       state.plants.push(
         createPlant({
@@ -335,7 +335,7 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
           size: group.size,
           age: group.age,
           rng: state.rng,
-          config: plantsDefaults,
+          config: plants,
         })
       );
     }

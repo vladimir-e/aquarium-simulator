@@ -23,6 +23,8 @@ import { DEFAULT_CONFIG } from './config/index.js';
 import { calculateMaxBacteria } from './systems/nitrogen-cycle.js';
 import { HARDSCAPE_TANNINS } from './equipment/hardscape.js';
 import { DEFAULT_PLANT_SIZE, MIN_PLANTABLE_SIZE } from './plants/create-plant.js';
+import { plantParams } from './flora/params.js';
+import { stocked as stockedFlora } from './systems/flora-budget.js';
 import { getDgh, getDkh, getKhMass } from './resources/helpers.js';
 import { CACO3_PER_EQUIVALENT, MW_NO3 } from './core/chemistry.js';
 
@@ -458,6 +460,15 @@ describe('createSimulation seeding', () => {
       expect(state.plants[3].species).toBe('anubias');
       expect(sizeOf(state.plants[3])).toBeCloseTo(DEFAULT_PLANT_SIZE, 9);
       expect(state.plants.every((p) => p.condition === 100 && p.budget.offshootBuffer === 0)).toBe(true);
+    });
+
+    it('stocks each plant fed and full on the plants config the tank runs on', () => {
+      const plants = { ...DEFAULT_CONFIG.plants, reserveCapacity: 2 * DEFAULT_CONFIG.plants.reserveCapacity };
+      const [tuned] = createSimulation({ ...TANK, plants }, { plants: [{ species: 'java_fern' }] }).plants;
+      const [shipped] = createSimulation(TANK, { plants: [{ species: 'java_fern' }] }).plants;
+
+      expect(tuned.budget).toEqual(stockedFlora(tuned.budget.structure, plantParams('java_fern', plants)));
+      expect(tuned.budget.reserve).toBeCloseTo(2 * shipped.budget.reserve, 12);
     });
 
     it('plants only a size a unit can be planted at', () => {

@@ -57,9 +57,10 @@ describe('dailyLightEdge', () => {
 });
 
 describe('growthTaper', () => {
-  it('is whole when empty, closed when full, and linear in between', () => {
+  it('is whole when empty, closed when full or past it, and linear in between', () => {
     expect(growthTaper(0)).toBe(1);
     expect(growthTaper(100)).toBe(0);
+    expect(growthTaper(130)).toBe(0);
     expect(growthTaper(25)).toBe(0.75);
     expect(growthTaper(75)).toBe(0.25);
   });

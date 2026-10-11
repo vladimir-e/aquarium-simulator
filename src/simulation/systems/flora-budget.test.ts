@@ -562,7 +562,7 @@ describe('offshoots', () => {
     expect(buyOffshoot(parent({ offshootBuffer: 0 }), sword, unit)).toBeNull();
   });
 
-  it('are cut loose on empty stores with their share of the reserve, parent and offshoot at one density, burning nothing', () => {
+  it('are cut loose with their share of the reserve and of the stores past their Q_min, parent and offshoot at one density of both, burning nothing', () => {
     const before = parent();
     const bought = buyOffshoot(before, sword, unit);
     expect(bought).not.toBeNull();
@@ -571,8 +571,12 @@ describe('offshoots', () => {
     expect(offshoot.structure).toBe(unit);
     expectNear(reserveDensity(offshoot, sword), reserveDensity(after, sword));
     expectNear(reserveDensity(offshoot, sword), (reserveDensity(before, sword) * before.structure) / (before.structure + unit));
+    for (const n of NUTRIENTS) {
+      expectNear(storeFill(offshoot, sword)[n], storeFill(after, sword)[n]);
+      expectNear(offshoot.stores[n] + after.stores[n], before.stores[n] - sword.qMin[n] * unit);
+    }
+    expect(droopFactor(offshoot, sword)).toBeGreaterThan(0);
     expect(offshoot.offshootBuffer).toBe(0);
-    expect(offshoot.stores).toEqual(ZERO_NUTRIENTS);
     expect(after.structure).toBe(before.structure);
 
     expectNear(floraOrganics(before), floraOrganics(after) + floraOrganics(offshoot));
@@ -580,13 +584,6 @@ describe('offshoots', () => {
     expect(NUTRIENTS.every((n) => near(held[0][n], held[1][n] + held[2][n]))).toBe(true);
   });
 
-  it('come in bouts: a buffer holding two buys two, one after the other', () => {
-    const rich = parent({ offshootBuffer: 2 * unit * (1 + 1e-9) });
-    const first = buyOffshoot(rich, sword, unit);
-    const second = first && buyOffshoot(first.parent, sword, unit);
-    expect(second).not.toBeNull();
-    expect(offshootReady(second!.parent, sword, unit)).toBe(false);
-  });
 });
 
 describe('tissue as organics', () => {
@@ -725,21 +722,12 @@ describe('stress', () => {
     expect(stepFlora(s, sword, hour)).toEqual(stressed({}));
   });
 
-  it('takes its assimilation share of what it is offered, and hands back the rest', () => {
-    const empty = flora(sword, 2, 0, 0.9);
-    const taking = (assimilation: number): FloraStep =>
-      stepFlora(empty, sword, { ...hour, stress: { ...NO_STRESS, assimilation } });
-    expectNear(taking(0.4).fluxes.assimilated, 0.4 * taking(1).fluxes.assimilated);
-    expectNear(taking(0.4).fluxes.returned, 0.6 * hour.offered);
-    expect(taking(0).fluxes.assimilated).toBe(0);
-  });
-
-  it('moves the flux each stress names', () => {
+  it('moves the flux each stress names, and leaves the assimilation ceiling to what offers the photosynthate', () => {
     const plain = stressed({}).fluxes;
     expectNear(stressed({ maintenance: 1.5 }).fluxes.owed, 1.5 * plain.owed);
     expect(stressed({ maintenance: 1.5 }).fluxes.burned.maintenance).toBeGreaterThan(plain.burned.maintenance);
     expect(stressed({ growthCost: 1.5 }).fluxes.toStructure).toBeLessThan(plain.toStructure);
-    expect(stressed({ assimilation: 0.5 }).fluxes.assimilated).toBeLessThan(plain.assimilated);
+    expect(stressed({ assimilation: 0.5 })).toEqual(stressed({}));
   });
 });
 

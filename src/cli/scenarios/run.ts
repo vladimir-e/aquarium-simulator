@@ -59,7 +59,11 @@ interface KeepOptions {
 const ROUTINE_NO_OPS: ReadonlySet<Action['type']> = new Set(['scrubAlgae', 'trimPlants', 'topOff']);
 
 export function keepTank(setup: Setup, { config, untilTick, observe, onRefusal }: KeepOptions): SimulationState {
-  let state = createSimulation({ ...toConfig(setup), optics: config.optics }, toSeed(setup), RNG_SEED);
+  let state = createSimulation(
+    { ...toConfig(setup), optics: config.optics, plants: config.plants },
+    toSeed(setup),
+    RNG_SEED
+  );
   observe?.(state);
   while (state.tick < untilTick) {
     if (setup.rescapeOn !== undefined && isKeeperHourOf(setup.rescapeOn, state.tick)) {

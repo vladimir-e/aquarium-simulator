@@ -11,7 +11,7 @@
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
-import { NUTRIENTS } from '../config/nutrients.js';
+import { mapNutrients } from '../config/nutrients.js';
 import {
   ALGAE,
   ALGAE_KINDS,
@@ -25,8 +25,11 @@ import {
 } from '../algae/index.js';
 import { bloomParams } from '../flora/params.js';
 import { remains, scaleFlora } from '../systems/flora-budget.js';
+import { leach } from '../systems/nutrients.js';
+import { applyEffects } from '../core/effects.js';
 import { createLog } from '../core/logging.js';
 import { addOrganics } from '../core/organics.js';
+import { sum } from '../core/sum.js';
 import type { ActionResult } from './types.js';
 
 /** Each kind's mass times the walls' share of its habitat — what a scrub takes off. */
@@ -39,14 +42,17 @@ export function scrubAlgae(state: SimulationState, config: PlantsConfig): Action
   const scraped = ALGAE_KINDS.filter((kind) => glass[kind] > 0);
   if (scraped.length === 0) return { state, message: 'Nothing on the glass to scrub' };
 
+  const scrubbed = ALGAE_KINDS.map((kind) =>
+    remains(
+      scaleFlora(state.algae[kind].budget, placeShare(ALGAE[kind].habitat, 'walls', state)),
+      bloomParams(kind, config)
+    )
+  );
   const newState = produce(state, (draft) => {
     draft.algae = clearPlace(state, 'walls');
+    draft.resources.waste = addOrganics(draft.resources.waste, ...scrubbed.map(({ waste }) => waste));
     for (const kind of scraped) {
       const traits = ALGAE[kind];
-      const scrubbed = scaleFlora(state.algae[kind].budget, placeShare(traits.habitat, 'walls', state));
-      const { waste, leachate } = remains(scrubbed, bloomParams(kind, config));
-      draft.resources.waste = addOrganics(draft.resources.waste, waste);
-      for (const n of NUTRIENTS) draft.resources[n] += leachate[n];
       draft.logs.push(
         createLog(
           draft.tick,
@@ -58,6 +64,7 @@ export function scrubAlgae(state: SimulationState, config: PlantsConfig): Action
     }
   });
 
+  const leachate = mapNutrients((n) => sum(scrubbed.map((left) => left.leachate[n])));
   const removed = scraped.map((kind) => `${glass[kind].toFixed(1)} ${ALGAE[kind].name.toLowerCase()}`);
-  return { state: newState, message: `Scrubbed the glass: removed ${removed.join(', ')}` };
+  return { state: applyEffects(newState, leach(leachate)), message: `Scrubbed the glass: removed ${removed.join(', ')}` };
 }
