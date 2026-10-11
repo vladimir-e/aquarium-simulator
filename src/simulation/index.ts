@@ -111,7 +111,7 @@ export type {
   Toxin,
   ToxinVector,
 } from './config/index.js';
-export { DEFAULT_CONFIG, TOXINS, ZERO_TOXINS, mapToxins } from './config/index.js';
+export { DEFAULT_CONFIG, TOXINS } from './config/index.js';
 
 // Resources
 export type { ResourceDefinition, ResourceKey } from './resources/index.js';
@@ -494,7 +494,7 @@ export { clutchMass, clutchesWithMothers } from './systems/clutch.js';
 export { appetite, fullPaceLine, gutCapacity, ration, type Pace } from './systems/digestion.js';
 export { burn, gillAmmonia } from './systems/metabolism.js';
 export type { FishHour } from './systems/metabolism.js';
-export { waterToxins, loadRate, stepLoad, loadFish } from './systems/toxicokinetics.js';
+export { waterToxins } from './systems/toxicokinetics.js';
 export { mature, type DebState, type DebParams } from './systems/deb.js';
 
 // Energy budget — the reserve core every organism's budget runs on

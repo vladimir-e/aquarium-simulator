@@ -9,7 +9,7 @@ import { burn, fishPace } from '../systems/metabolism.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { getPpm } from '../resources/index.js';
 import { atRecipe } from '../core/organics.js';
-import { fishRecord } from '../tests/fish.js';
+import { fishRecord, saturated } from '../tests/fish.js';
 import { fishHardiness, waterStressors } from '../systems/fish-health.js';
 import { loadFish, waterToxins } from '../systems/toxicokinetics.js';
 import { TOXINS, type Toxin, type ToxinVector } from '../config/livestock.js';
@@ -141,8 +141,8 @@ describe('toxin loads', () => {
   it('harms less in the first hour of a spike than the water read straight would', () => {
     const state = spiked(makeState([makeFish()]));
     const fresh = processLivestock(state, DEFAULT_CONFIG).vitalities[0];
-    const saturated = processLivestock(carrying(state, waterToxins(state.resources)), DEFAULT_CONFIG).vitalities[0];
-    for (const toxin of TOXINS) expect(charge(fresh, toxin)).toBeLessThan(charge(saturated, toxin));
+    const steeped = processLivestock(saturated(state), DEFAULT_CONFIG).vitalities[0];
+    for (const toxin of TOXINS) expect(charge(fresh, toxin)).toBeLessThan(charge(steeped, toxin));
   });
 
   it('keeps harming once the water clears, less each hour as the load clears', () => {

@@ -30,8 +30,7 @@ export function holdingEggs<F extends Pick<Fish, 'species' | 'budget'>>(fish: F,
   return { ...fish, budget: { ...fish.budget, broodBuffer: (eggs * p.E0) / p.kappaR } };
 }
 
-export function steepedInAmmonia(state: SimulationState, ppm: number): SimulationState {
-  const resources = { ...state.resources, ammonia: ppm * state.resources.water };
-  const load = waterToxins(resources);
-  return { ...state, resources, fish: state.fish.map((fish) => ({ ...fish, load })) };
+/** The tank with every fish's load at the water's levels, as a fish long in that water carries it. */
+export function saturated<S extends Pick<SimulationState, 'resources' | 'fish'>>(state: S): S {
+  return { ...state, fish: state.fish.map((fish) => ({ ...fish, load: waterToxins(state.resources) })) };
 }

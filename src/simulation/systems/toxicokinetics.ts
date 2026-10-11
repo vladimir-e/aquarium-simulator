@@ -26,7 +26,7 @@ export function waterToxins(
 }
 
 /** Per hour, the rate a fish `length` cm long at pace τ follows the water at, `rateAt1cm` the toxin's at 1 cm, τ 1. */
-export function loadRate(rateAt1cm: number, tau: number, length: number): number {
+export function fishLoadRate(rateAt1cm: number, tau: number, length: number): number {
   return (rateAt1cm * tau) / length;
 }
 
@@ -38,5 +38,5 @@ export function stepLoad(load: number, level: number, rate: number): number {
 /** A fish an hour on in water holding `levels`, at pace τ, `rates` each toxin's at 1 cm: every load stepped. */
 export function loadFish(fish: Fish, levels: ToxinVector, tau: number, rates: ToxinVector): Fish {
   const length = structuralLength(fish.budget);
-  return { ...fish, load: mapToxins((t) => stepLoad(fish.load[t], levels[t], loadRate(rates[t], tau, length))) };
+  return { ...fish, load: mapToxins((t) => stepLoad(fish.load[t], levels[t], fishLoadRate(rates[t], tau, length))) };
 }

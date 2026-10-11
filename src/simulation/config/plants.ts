@@ -8,7 +8,7 @@
  * - Nitrate consumption: ~5-10 mg/day
  */
 
-import type { NutrientVector, NutrientVectorMeta } from './nutrients.js';
+import type { Nutrient, NutrientVector, VectorMeta } from './nutrients.js';
 
 export interface PlantsConfig {
   // Photosynthesis constants
@@ -294,14 +294,14 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'maxSheddingRate', label: 'Max Shedding Rate', unit: '/hr', min: 0.005, max: 0.1, step: 0.005 },
 ];
 
-export const quotaMinMeta: NutrientVectorMeta[] = [
+export const quotaMinMeta: VectorMeta<Nutrient>[] = [
   { key: 'nitrate', label: 'Nitrogen floor (Q_min)', unit: 'mg N/g', min: 4, max: 20, step: 1 },
   { key: 'phosphate', label: 'Phosphorus floor (Q_min)', unit: 'mg P/g', min: 0.3, max: 2, step: 0.1 },
   { key: 'potassium', label: 'Potassium floor (Q_min)', unit: 'mg K/g', min: 1, max: 8, step: 0.5 },
   { key: 'iron', label: 'Iron floor (Q_min)', unit: 'mg Fe/g', min: 0.01, max: 0.1, step: 0.01 },
 ];
 
-export const quotaMaxMeta: NutrientVectorMeta[] = [
+export const quotaMaxMeta: VectorMeta<Nutrient>[] = [
   { key: 'nitrate', label: 'Nitrogen ceiling (Q_max)', unit: 'mg N/g', min: 25, max: 80, step: 1 },
   { key: 'phosphate', label: 'Phosphorus ceiling (Q_max)', unit: 'mg P/g', min: 3, max: 15, step: 0.5 },
   { key: 'potassium', label: 'Potassium ceiling (Q_max)', unit: 'mg K/g', min: 10, max: 60, step: 1 },

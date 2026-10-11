@@ -18,7 +18,7 @@ import {
 import { readHourAhead } from './ahead';
 import { projectedTrend } from './status';
 import { FED, atReserve, hungry, starving } from '../test/gut';
-import { fishRecord, steepedInAmmonia } from '../../simulation/tests/fish.js';
+import { fishRecord, saturated } from '../../simulation/tests/fish.js';
 
 function makeFish(overrides: Partial<Fish> & { size?: number } = {}): Fish {
   return fishRecord({ gut: FED, ...overrides });
@@ -167,7 +167,10 @@ describe('groupFry', () => {
 });
 
 describe('the reading behind a fish', () => {
-  const poisoned = (fish: Fish[], ppm: number): SimulationState => steepedInAmmonia(tank(fish), ppm);
+  const poisoned = (fish: Fish[], ppm: number): SimulationState => {
+    const state = tank(fish);
+    return saturated({ ...state, resources: { ...state.resources, ammonia: ppm * state.resources.water } });
+  };
 
   it('reads a fish across every channel it keeps, not just its condition', () => {
     const state = tank([starving(makeFish({ id: 'a', health: 100, gut: 0 }))]);

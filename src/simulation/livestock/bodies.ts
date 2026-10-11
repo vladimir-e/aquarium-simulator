@@ -76,6 +76,7 @@ function tendClutches(
   const mothers = new Map(draft.fish.map((fish) => [fish.id, fish]));
   const masses = draft.fish.map(fishMass);
   const shares = draft.fish.map(() => 0);
+  const levels = waterToxins(resources);
   let waste = 0;
   let burned = 0;
 
@@ -86,7 +87,8 @@ function tendClutches(
     const weights = clutch.motherId === undefined ? masses.map((mass) => predatorWeight(mass, egg)) : [];
     const mother = clutch.motherId === undefined ? undefined : mothers.get(clutch.motherId);
     const hardiness = mother ? fishHardiness(mother) : speciesHardiness(clutch.species);
-    const toxins = mother ? mother.load : waterToxins(resources);
+    // A laid clutch loads in the fast limit of the same law, a carried brood with its mother.
+    const toxins = mother ? mother.load : levels;
     const hour = settleClutch(
       clutch,
       eggHarmRate(clutch, hardiness, toxins, resources, resources.water, config),

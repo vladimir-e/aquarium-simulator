@@ -157,6 +157,18 @@ describe('processBodies', () => {
     expect(left({ ...ZERO_TOXINS, nitrite: 5 }, 5)).toBeLessThan(left(ZERO_TOXINS, 5));
   });
 
+  it('thins a laid clutch on the water, not the load of the fish beside it', () => {
+    const left = (load: Fish['load'], nitritePpm: number): number => {
+      const clutch: Clutch = { id: 'c', species: 'neon_tetra', eggs: 100, development: 0 };
+      const state = produce(withTank([mkFish({ sex: 'male', load })], [clutch]), (draft) => {
+        draft.resources.nitrite = nitritePpm * draft.resources.water;
+      });
+      return breed(state).state.clutches[0].eggs;
+    };
+    expect(left({ ammonia: 1, nitrite: 20, nitrate: 2000 }, 0)).toBe(left(ZERO_TOXINS, 0));
+    expect(left(ZERO_TOXINS, 5)).toBeLessThan(left(ZERO_TOXINS, 0));
+  });
+
   it('hatches each whole egg into a hatchling, the reserve its embryo spent burned, the part egg to waste', () => {
     const clutch: Clutch = { id: 'c', species: 'neon_tetra', eggs: 7.6, development: 0.9999 };
     const p = debParams('neon_tetra');
@@ -167,7 +179,6 @@ describe('processBodies', () => {
       expect(fry.gut).toBe(0);
       expect(fry.age).toBe(0);
       expect(fry.survival).toBe(1);
-      expect(fry.load).toEqual(ZERO_TOXINS);
     }
     expect(wasteOf(out)).toBeCloseTo(0.6 * p.E0, 15);
     expect(out.burned).toBeCloseTo(7 * (p.E0 - organics(hatchling(p), p)), 15);

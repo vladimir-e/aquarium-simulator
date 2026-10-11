@@ -11,6 +11,7 @@
  */
 
 import { N_TO_NH3_MASS_RATIO, N_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
+import type { VectorMeta } from './nutrients.js';
 
 /** What a fish loads from the water: free NH₃, nitrite as NO₂⁻ and nitrate as NO₃⁻. */
 export const TOXINS = ['ammonia', 'nitrite', 'nitrate'] as const;
@@ -171,7 +172,7 @@ export const livestockDefaults: LivestockConfig = {
   hazardSeverity: 5000,
 
   loadRate: {
-    ammonia: 0.015, // half-time ~2 d at 1 cm: NH₃ crosses the gill in hours, repair sets it; 96 h LC50 well under 24 h
+    ammonia: 0.015, // half-time ~2 d at 1 cm: NH₃ crosses the gill in hours, repair sets it; 96 h LC50 well under the 24 h one
     nitrite: 0.03, // half-time ~1 d at 1 cm: methaemoglobin's turnover sets it; 96 h LC50 under 24 h
     nitrate: 0.004, // half-time ~1 wk at 1 cm: the gill barely passes it; acute LC50 thousands of ppm, chronic tens over weeks
   },
@@ -228,17 +229,8 @@ export interface LivestockConfigMeta {
   step: number;
 }
 
-export interface ToxinVectorMeta {
-  key: Toxin;
-  label: string;
-  unit: string;
-  min: number;
-  max: number;
-  step: number;
-}
-
-export const loadRateMeta: ToxinVectorMeta[] = [
-  { key: 'ammonia', label: 'Free NH3 load rate', unit: '/hr at 1 cm, 20 °C', min: 0.0001, max: 5, step: 0.0001 },
+export const loadRateMeta: VectorMeta<Toxin>[] = [
+  { key: 'ammonia', label: 'Free NH3 load rate', unit: '/hr at 1 cm, 20 °C', min: 0.0001, max: 1, step: 0.0001 },
   { key: 'nitrite', label: 'Nitrite load rate', unit: '/hr at 1 cm, 20 °C', min: 0.0001, max: 1, step: 0.0001 },
   { key: 'nitrate', label: 'Nitrate load rate', unit: '/hr at 1 cm, 20 °C', min: 0.0001, max: 1, step: 0.0001 },
 ];

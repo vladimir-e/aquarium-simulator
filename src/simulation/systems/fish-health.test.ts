@@ -42,7 +42,7 @@ import { TOXINS, ZERO_TOXINS } from '../config/livestock.js';
 import { plantRecord } from '../tests/plant.js';
 import { gutCapacity, type Pace } from './digestion.js';
 import { liveHour, type FishHour } from './metabolism.js';
-import { fishRecord } from '../tests/fish.js';
+import { fishRecord, saturated } from '../tests/fish.js';
 
 const STRESSORS = [
   'temperature',
@@ -131,7 +131,7 @@ function vitality(
   }
 ): VitalityResult {
   const tank = makeResources(resources);
-  const record = fishRecord({ load: waterToxins(tank), ...fish });
+  const record = fish.load ? fishRecord(fish) : saturated({ resources: tank, fish: [fishRecord(fish)] }).fish[0];
   return computeFishVitality(
     record,
     hourOf(record, config),

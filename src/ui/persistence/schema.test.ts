@@ -467,6 +467,7 @@ describe('PersistedSimulationSchema', () => {
   });
 
   const withFish = (fish: object): object => ({ ...validSimulation, fish: [fish] });
+  const without = (key: string): object => Object.fromEntries(Object.entries(fishRecord()).filter(([k]) => k !== key));
 
   it('validates a fish and its energy budget', () => {
     expect(PersistedSimulationSchema.safeParse(withFish(fishRecord({ hardinessOffset: 0.05 }))).success).toBe(true);
@@ -497,7 +498,6 @@ describe('PersistedSimulationSchema', () => {
   });
 
   it('rejects a fish missing hardinessOffset or its budget (strict mode)', () => {
-    const without = (key: string): object => Object.fromEntries(Object.entries(fishRecord()).filter(([k]) => k !== key));
     expect(PersistedSimulationSchema.safeParse(withFish(without('hardinessOffset'))).success).toBe(false);
     expect(PersistedSimulationSchema.safeParse(withFish(without('budget'))).success).toBe(false);
   });
@@ -505,6 +505,12 @@ describe('PersistedSimulationSchema', () => {
   it('refuses a survival or threshold outside 0–1', () => {
     expect(PersistedSimulationSchema.safeParse(withFish(fishRecord({ survival: 1.1 }))).success).toBe(false);
     expect(PersistedSimulationSchema.safeParse(withFish(fishRecord({ survivalDraw: -0.1 }))).success).toBe(false);
+  });
+
+  it('refuses a fish without a load, or with a negative one', () => {
+    expect(PersistedSimulationSchema.safeParse(withFish(without('load'))).success).toBe(false);
+    const negative = fishRecord({ load: { ammonia: 0, nitrite: -0.1, nitrate: 0 } });
+    expect(PersistedSimulationSchema.safeParse(withFish(negative)).success).toBe(false);
   });
 });
 

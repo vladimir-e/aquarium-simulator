@@ -34,9 +34,8 @@ export function clutchOrganics(clutch: Pick<Clutch, 'species' | 'eggs'>): number
 /**
  * Share of a clutch the water kills an hour, as a first-order rate: the water
  * harm of a fish of this hardiness, `eggSensitivity` times as hard on laid
- * eggs, and as hard as on its mother on a brood she carries. Its toxins are
- * read at `toxins`: the water's for a laid egg, which loads in the fast limit
- * of a fish's law, and its mother's load for a carried brood.
+ * eggs, and as hard as on its mother on a brood she carries; `toxins`: the
+ * levels it is exposed to.
  */
 export function eggHarmRate(
   clutch: Pick<Clutch, 'species' | 'motherId'>,

@@ -78,7 +78,7 @@ export function fishHardiness(fish: Pick<Fish, 'species' | 'hardinessOffset'>): 
 }
 
 interface FishFactorContext {
-  /** The fish as the hour found it. */
+  /** The fish as the hour found it, its load stepped on the hour's water (`loadFish`). */
   fish: Fish;
   hour: FishHour;
   resources: Resources;
@@ -111,8 +111,7 @@ function plantBenefitAmount(plants: Plant[], config: LivestockConfig): number {
 /**
  * What the water charges an organism of this species and hardiness, in %/h:
  * the tolerance bands scaled by `1 − hardiness`, the toxins and oxygen with
- * hardiness moving their edge instead. The toxins are read at `toxins` — a
- * fish's load, or a laid clutch's water.
+ * hardiness moving their edge instead; `toxins`: the levels it is exposed to.
  */
 export function waterStressors(
   species: FishSpecies,
@@ -264,8 +263,9 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
 /**
  * A fish's health over the hour its budget ran, without applying it —
  * `processHealth` applies it. A caller wanting the next tick's numbers reads it
- * on the hour that tick settles, with the fish as the hour found it, the hour
- * its budget ran, and its predator mass.
+ * on the hour that tick settles, with the fish as the hour found it, its load
+ * stepped on the hour's water (`loadFish`), the hour its budget ran, and its
+ * predator mass.
  */
 export function computeFishVitality(
   fish: Fish,
@@ -305,11 +305,12 @@ function damageShare(vitality: VitalityResult, key: string): number {
 
 /**
  * One hour of health for every fish its budget ran for: `fish` as the hour
- * found them, `hours` their budgets' hours and `fed` them fed after. A fish
- * dies when its health reaches 0 or its survival falls below its draw. What it
- * leaves — its body, its gut and the brood it carried, all in grams of
- * organic matter — its predators eat in the share of its damage they did, by
- * their weight on it and as far as their guts have room; the rest is waste.
+ * found them, their loads stepped on the hour's water (`loadFish`), `hours`
+ * their budgets' hours and `fed` them fed after. A fish dies when its health
+ * reaches 0 or its survival falls below its draw. What it leaves — its body,
+ * its gut and the brood it carried, all in grams of organic matter — its
+ * predators eat in the share of its damage they did, by their weight on it and
+ * as far as their guts have room; the rest is waste.
  */
 export function processHealth(
   fish: readonly Fish[],
