@@ -70,7 +70,7 @@ npx tsx src/cli/sim.ts config set nitrogenCycle.bacteriaPerCm2 260
 npx tsx src/cli/sim.ts smoke   # end-to-end wiring check
 ```
 
-Durations accept `5d`, `48h`, or a bare integer (hours). `config set` holds a tunable to the range its `*ConfigMeta` declares.
+Durations accept `5d`, `48h`, or a bare integer (hours). `config set` holds a tunable to the range its `*ConfigMeta` declares. Where anything is planted, `observe` reads the planting's budget: its mean reserve on the Plants line, and on the Nutrients line the store running its Droop limit lowest, % full, with the console's nutrient alert.
 
 ## Add-my-Pet entries
 
