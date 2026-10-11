@@ -10,6 +10,8 @@
  * reaction that carries one mole of X to one mole of Y.
  */
 
+/** Elemental carbon (g/mol). */
+export const MW_C = 12.01;
 /** Elemental nitrogen (g/mol). */
 export const MW_N = 14.01;
 /** Ammonia (g/mol). */
@@ -24,6 +26,8 @@ export const MW_O2 = 32.0;
 export const MW_CO2 = 44.01;
 /** Carbohydrate, CH2O: photosynthate as a budget counts it (g/mol). */
 export const MW_CH2O = 30.03;
+/** Add-my-Pet's reserve, CH1.8O0.5N0.15: a fish's organics as its budget counts them (g per C-mole). */
+export const MW_RESERVE = 23.9;
 /** Elemental phosphorus (g/mol). */
 export const MW_P = 30.97;
 /** Phosphate, PO4³⁻ (g/mol). */
@@ -59,6 +63,10 @@ export const O2_TO_CO2_MASS_RATIO = MW_CO2 / MW_O2;
  * into, and respiration burns back out of.
  */
 export const CO2_TO_CH2O_MASS_RATIO = MW_CH2O / MW_CO2;
+/** ≈ 0.400. The carbon in a gram of plant or algal tissue, reserve or buffer. */
+export const CH2O_TO_C_MASS_RATIO = MW_C / MW_CH2O;
+/** ≈ 0.503. The carbon in a gram of a fish's organics. */
+export const RESERVE_TO_C_MASS_RATIO = MW_C / MW_RESERVE;
 
 /**
  * ≈ 2.819. NH4⁺ + 1.5 O2 → NO2⁻ + 2H⁺ + H2O, read per gram of ammonia. Per

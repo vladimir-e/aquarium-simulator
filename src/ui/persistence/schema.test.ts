@@ -246,8 +246,8 @@ describe('PersistedSimulationSchema', () => {
       light: 0,
       lightByHour: new Array(24).fill(0),
       aeration: false,
-      food: 0,
-      waste: { grams: 0, nutrients: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 } },
+      food: { grams: 0, carbon: 0, nutrients: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 } },
+      waste: { grams: 0, carbon: 0, nutrients: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 } },
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
@@ -275,7 +275,7 @@ describe('PersistedSimulationSchema', () => {
       powerhead: { enabled: false, flowRateGPH: 240 },
       substrate: {
         type: 'gravel',
-        organicReserve: { grams: 0.5, nutrients: { nitrate: 110, phosphate: 10, potassium: 4, iron: 0.1 } },
+        organicReserve: { grams: 0.5, carbon: 0.225, nutrients: { nitrate: 110, phosphate: 10, potassium: 4, iron: 0.1 } },
         khReserve: 0,
         nutrients: { nitrate: 400, phosphate: 60, potassium: 200, iron: 10 },
       },
@@ -319,11 +319,20 @@ describe('PersistedSimulationSchema', () => {
     expect(PersistedSimulationSchema.safeParse(bareMulm).success).toBe(false);
   });
 
+  it('rejects the v37 shape, food as bare grams and organics without their carbon', () => {
+    const { resources } = validSimulation;
+    const carbonless = { grams: resources.waste.grams, nutrients: resources.waste.nutrients };
+    expect(PersistedSimulationSchema.safeParse({ ...validSimulation, resources: { ...resources, food: 0 } }).success).toBe(false);
+    expect(
+      PersistedSimulationSchema.safeParse({ ...validSimulation, resources: { ...resources, waste: carbonless } }).success
+    ).toBe(false);
+  });
+
   it('rejects organics holding less than nothing of a nutrient', () => {
     const { resources } = validSimulation;
     const negative = {
       ...validSimulation,
-      resources: { ...resources, waste: { grams: 1, nutrients: { ...resources.waste.nutrients, iron: -0.1 } } },
+      resources: { ...resources, waste: { grams: 1, carbon: 0.4, nutrients: { ...resources.waste.nutrients, iron: -0.1 } } },
     };
     expect(PersistedSimulationSchema.safeParse(negative).success).toBe(false);
   });
@@ -526,8 +535,8 @@ describe('PersistedStateSchema', () => {
       light: 0,
       lightByHour: new Array(24).fill(0),
       aeration: false,
-      food: 0,
-      waste: { grams: 0, nutrients: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 } },
+      food: { grams: 0, carbon: 0, nutrients: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 } },
+      waste: { grams: 0, carbon: 0, nutrients: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 } },
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
@@ -555,7 +564,7 @@ describe('PersistedStateSchema', () => {
       powerhead: { enabled: false, flowRateGPH: 240 },
       substrate: {
         type: 'gravel',
-        organicReserve: { grams: 0.5, nutrients: { nitrate: 110, phosphate: 10, potassium: 4, iron: 0.1 } },
+        organicReserve: { grams: 0.5, carbon: 0.225, nutrients: { nitrate: 110, phosphate: 10, potassium: 4, iron: 0.1 } },
         khReserve: 0,
         nutrients: { nitrate: 400, phosphate: 60, potassium: 200, iron: 10 },
       },
@@ -631,6 +640,7 @@ describe('PersistedStateSchema', () => {
     [19, 'the oxygen term every consumer carries'],
     [31, 'the size death threshold'],
     [33, 'satiation, before the gut'],
+    [37, 'organics without their carbon'],
   ];
 
   it('rejects every prior version, so no save survives a breaking bump', () => {

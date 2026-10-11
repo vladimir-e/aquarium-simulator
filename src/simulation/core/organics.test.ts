@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { addOrganics, atRecipe, foodRecipe, NO_ORGANICS, ofComposition, scaleOrganics } from './organics.js';
+import { addOrganics, atRecipe, foodRecipe, NO_ORGANICS, ofComposition, portion, scaleOrganics } from './organics.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { NUTRIENTS, WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { MW_N, MW_NO3 } from './chemistry.js';
@@ -8,34 +8,47 @@ import { LEAN, organicsCloseTo } from '../tests/organics.js';
 describe('foodRecipe', () => {
   const recipe = foodRecipe(DEFAULT_CONFIG);
 
+  it('carries the carbon of food', () => {
+    expect(recipe.carbon).toBe(DEFAULT_CONFIG.livestock.foodCarbonFraction);
+  });
+
   it('carries the nitrogen of food, as the nitrate it ends up as', () => {
-    expect((recipe.nitrate * MW_N) / MW_NO3 / 1000).toBeCloseTo(DEFAULT_CONFIG.livestock.foodNitrogenFraction, 12);
+    expect((recipe.nutrients.nitrate * MW_N) / MW_NO3 / 1000).toBeCloseTo(DEFAULT_CONFIG.livestock.foodNitrogenFraction, 12);
   });
 
   it('carries the minerals of food', () => {
-    for (const n of WASTE_NUTRIENTS) expect(recipe[n]).toBe(DEFAULT_CONFIG.nutrients.foodMineralContent[n]);
+    for (const n of WASTE_NUTRIENTS) expect(recipe.nutrients[n]).toBe(DEFAULT_CONFIG.nutrients.foodMineralContent[n]);
   });
 });
 
 describe('organics', () => {
-  it('hold their grams at the composition they came in at', () => {
+  it('hold their grams at the composition they came in at, carbon and every nutrient', () => {
     const pool = ofComposition(3, LEAN);
     expect(pool.grams).toBe(3);
-    for (const n of NUTRIENTS) expect(pool.nutrients[n]).toBe(3 * LEAN[n]);
+    expect(pool.carbon).toBe(3 * LEAN.carbon);
+    for (const n of NUTRIENTS) expect(pool.nutrients[n]).toBe(3 * LEAN.nutrients[n]);
     expect(atRecipe(3, DEFAULT_CONFIG)).toEqual(ofComposition(3, foodRecipe(DEFAULT_CONFIG)));
   });
 
-  it('give up a share with that share of every nutrient', () => {
+  it('give up a share with that share of their carbon and every nutrient', () => {
     const pool = addOrganics(ofComposition(2, LEAN), atRecipe(1, DEFAULT_CONFIG));
     const share = scaleOrganics(pool, 0.3);
+    expect(share.carbon / share.grams).toBeCloseTo(pool.carbon / pool.grams, 12);
     for (const n of NUTRIENTS) expect(share.nutrients[n] / share.grams).toBeCloseTo(pool.nutrients[n] / pool.grams, 12);
   });
 
-  it('add up grams and content alike, whatever each part was made of', () => {
+  it('give up a portion of grams at their composition, and nothing from an empty pool', () => {
+    const pool = addOrganics(ofComposition(2, LEAN), atRecipe(1, DEFAULT_CONFIG));
+    expect(portion(pool, 0.6)).toEqual(organicsCloseTo(scaleOrganics(pool, 0.2), 12));
+    expect(portion(NO_ORGANICS, 0.6)).toEqual(NO_ORGANICS);
+  });
+
+  it('add up grams, carbon and content alike, whatever each part was made of', () => {
     const lean = ofComposition(2, LEAN);
     const food = atRecipe(1, DEFAULT_CONFIG);
     const pool = addOrganics(lean, food);
     expect(pool.grams).toBe(3);
+    expect(pool.carbon).toBeCloseTo(lean.carbon + food.carbon, 12);
     for (const n of NUTRIENTS) expect(pool.nutrients[n]).toBeCloseTo(lean.nutrients[n] + food.nutrients[n], 12);
   });
 
@@ -49,5 +62,13 @@ describe('organics', () => {
     const pool = ofComposition(2, LEAN);
     expect(addOrganics(pool, scaleOrganics(pool, -1.5))).toEqual(NO_ORGANICS);
     expect(addOrganics(pool, scaleOrganics(pool, -1))).toEqual(NO_ORGANICS);
+  });
+
+  it('keep whatever they still hold once their grams run out', () => {
+    const grams = ofComposition(1, { carbon: 0, nutrients: { ...LEAN.nutrients, nitrate: 0 } });
+    const left = addOrganics(ofComposition(1, LEAN), scaleOrganics(grams, -1));
+    expect(left.grams).toBe(0);
+    expect(left.carbon).toBe(LEAN.carbon);
+    expect(left.nutrients.nitrate).toBe(LEAN.nutrients.nitrate);
   });
 });

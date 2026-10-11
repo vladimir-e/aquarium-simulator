@@ -8,7 +8,7 @@ import { group, query, renderStage } from '../test/stage';
 import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { LEDGER_DECIMALS, readHourAhead } from '../run';
-import {
+import { NO_ORGANICS,
   applyAction,
   debParams,
   fishLifeStage,
@@ -162,7 +162,7 @@ describe('LifeSection', () => {
     const run = stocked();
     const state: SimulationState = {
       ...run.state,
-      fish: run.state.fish.map((fish, i) => (i === 0 ? { ...starving(fish), gut: 0 } : fish)),
+      fish: run.state.fish.map((fish, i) => (i === 0 ? { ...starving(fish), gut: NO_ORGANICS } : fish)),
     };
     renderLife({ ...run, state });
 

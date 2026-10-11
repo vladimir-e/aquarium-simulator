@@ -1,11 +1,14 @@
 /**
  * What a fish's energy budget reads as: its weight, its size against its
- * species' grown length, the organics it holds, and its life stage.
+ * species' grown length, the organics it holds and what they are made of, and
+ * its life stage.
  */
 
 import type { Fish } from '../state.js';
 import type { FishLifeStage, FishSpecies } from '../livestock/species.js';
 import { debParams } from '../livestock/species.js';
+import { RESERVE_TO_C_MASS_RATIO } from '../core/chemistry.js';
+import { foodRecipe, type Composition, type RecipeConfig } from '../core/organics.js';
 import { hatchling, mature, organics, size, wetMass, type DebParams } from './deb.js';
 
 type Body = Pick<Fish, 'species' | 'budget'>;
@@ -19,6 +22,11 @@ export const fishSize = (fish: Body): number => size(fish.budget, fishParams(fis
 
 /** Grams of organic matter its body holds: structure, reserve and brood buffer. */
 export const fishOrganics = (fish: Body): number => organics(fish.budget, fishParams(fish));
+
+/** What a gram of a fish, its eggs and its brood is made of: the carbon of its reserve, and the nutrients of the food it ate. */
+export function fishComposition(config: RecipeConfig): Composition {
+  return { carbon: RESERVE_TO_C_MASS_RATIO, nutrients: foodRecipe(config).nutrients };
+}
 
 /** Grams of organic matter an egg is laid with: E_0. */
 export const eggOrganics = (species: FishSpecies): number => debParams(species).E0;

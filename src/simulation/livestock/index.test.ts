@@ -8,7 +8,8 @@ import type { Fish } from '../state.js';
 import { burn, fishPace } from '../systems/metabolism.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { getPpm } from '../resources/index.js';
-import { atRecipe } from '../core/organics.js';
+import { fishComposition } from '../systems/fish-body.js';
+import { ofFood } from '../tests/organics.js';
 import { carrying, fishRecord, saturated } from '../tests/fish.js';
 import { waterStressors } from '../systems/fish-health.js';
 import { fishHardiness } from './tolerance.js';
@@ -18,14 +19,14 @@ import { TOXINS, type Toxin } from '../config/livestock.js';
 import type { VitalityResult } from '../systems/vitality.js';
 
 function makeFish(overrides: Partial<Fish> & { size?: number } = {}): Fish {
-  return fishRecord({ gut: 0.001, ...overrides });
+  return fishRecord({ gut: ofFood(0.001), ...overrides });
 }
 
 function makeState(fish: Fish[] = []): SimulationState {
   const state = createSimulation({ tankCapacity: 100 });
   return produce(state, (draft) => {
     draft.fish = fish;
-    draft.resources.food = 5;
+    draft.resources.food = ofFood(5);
     draft.resources.oxygen = 8.0;
   });
 }
@@ -56,22 +57,22 @@ describe('processLivestock', () => {
     const result = processLivestock(makeState([makeFish({ id: 'a' }), makeFish({ id: 'b', size: 40 })]), DEFAULT_CONFIG);
 
     expect(effectOf(result, 'food')).toBeLessThan(0);
-    expect(effectOf(result, 'waste', 'fish-metabolism')).toBeCloseTo(result.feces.grams, 15);
+    expect(result.effects.find((e) => e.resource === 'waste' && e.source === 'fish-metabolism')?.delta).toEqual(result.feces);
     expect(result.feces.grams).toBeGreaterThan(0);
-    expect(result.feces).toEqual(atRecipe(result.feces.grams, DEFAULT_CONFIG));
     const { water } = makeState().resources;
-    const burnt = burn(result.burned, DEFAULT_CONFIG.livestock, DEFAULT_CONFIG.nutrients.foodMineralContent);
+    const burnt = burn(result.burned, fishComposition(DEFAULT_CONFIG), DEFAULT_CONFIG.livestock);
     expect(effectOf(result, 'oxygen')).toBeCloseTo(-getPpm(burnt.oxygen, water), 15);
     expect(effectOf(result, 'co2')).toBeCloseTo(getPpm(burnt.co2, water), 15);
     expect(effectOf(result, 'ammonia')).toBeCloseTo(burnt.ammonia, 15);
   });
 
   it('turns a burn into gill ammonia, minerals, an oxygen draw and CO2, and nothing of nothing', () => {
-    const effects = burnEffects(0.01, 100, DEFAULT_CONFIG.livestock, DEFAULT_CONFIG.nutrients.foodMineralContent, 'x');
+    const body = fishComposition(DEFAULT_CONFIG);
+    const effects = burnEffects(0.01, 100, DEFAULT_CONFIG.livestock, body, 'x');
     expect(effects.map((e) => e.resource)).toEqual(
       expect.arrayContaining(['ammonia', 'kh', 'phosphate', 'potassium', 'iron', 'oxygen', 'co2'])
     );
-    expect(burnEffects(0, 100, DEFAULT_CONFIG.livestock, DEFAULT_CONFIG.nutrients.foodMineralContent, 'x')).toEqual([]);
+    expect(burnEffects(0, 100, DEFAULT_CONFIG.livestock, body, 'x')).toEqual([]);
   });
 
   it('returns an hour and a vitality per fish handed in, the dead included', () => {
@@ -91,7 +92,7 @@ describe('processLivestock', () => {
     const result = processLivestock(makeState([fish]), DEFAULT_CONFIG);
 
     expect(result.state.fish[0].age).toBe(101);
-    expect(result.state.fish[0].gut).toBeGreaterThan(fish.gut);
+    expect(result.state.fish[0].gut.grams).toBeGreaterThan(fish.gut.grams);
     expect(result.state.fish[0].budget).not.toEqual(fish.budget);
   });
 

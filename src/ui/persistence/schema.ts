@@ -39,6 +39,7 @@ const NutrientVectorSchema = numbersFor(NUTRIENTS);
 const OrganicsSchema = z
   .object({
     grams: z.number().min(0),
+    carbon: z.number().min(0),
     nutrients: numbersFor(NUTRIENTS, z.number().min(0)),
   })
   .strict();
@@ -78,7 +79,7 @@ const ResourcesSchema = z
     light: z.number().min(0),
     lightByHour: z.array(z.number().min(0)).length(24),
     aeration: z.boolean(),
-    food: z.number().min(0),
+    food: OrganicsSchema,
     waste: OrganicsSchema,
     ammonia: z.number().min(0),
     nitrite: z.number().min(0),
@@ -290,7 +291,7 @@ const FishSchema = z
     species: z.enum(FISH_SPECIES),
     health: z.number().min(0).max(100),
     age: z.number().int().min(0),
-    gut: z.number().min(0),
+    gut: OrganicsSchema,
     sex: z.enum(['male', 'female']),
     hardinessOffset: z.number(),
     budget: DebStateSchema,
@@ -543,6 +544,7 @@ const LivestockConfigSchema = z
     digestionRate: z.number(),
     oxygenHalfSaturation: z.number(),
     foodNitrogenFraction: z.number(),
+    foodCarbonFraction: z.number(),
     oxygenPerGramBurned: z.number().min(0),
     respiratoryQuotient: z.number(),
     temperatureStressSeverity: z.number(),

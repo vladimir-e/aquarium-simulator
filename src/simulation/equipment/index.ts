@@ -212,7 +212,7 @@ export function processEquipment(
   effects.push(...autoDoserResult.effects);
   updatedState = autoDoserResult.state;
 
-  effects.push(...autoFeederUpdate(updatedState));
+  effects.push(...autoFeederUpdate(updatedState, config));
 
   return { state: updatedState, effects };
 }

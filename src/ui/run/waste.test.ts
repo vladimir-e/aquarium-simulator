@@ -90,7 +90,7 @@ describe('wasteInflow', () => {
         state.resources.temperature,
         state.resources.oxygen,
         config.decay
-      ) * config.decay.wasteConversionRatio;
+      ).grams * config.decay.wasteConversionRatio;
     const food = inflowOf(state).sources[0].gramsPerHour;
 
     expect(food).toBe(readHourAhead(state, config).foodWaste.grams);
@@ -179,8 +179,8 @@ describe('wasteReadout', () => {
   it('reads the share of food the next tick actually decays, at any oxygen', () => {
     for (const oxygen of [0, 0.2, 2, 8]) {
       const state = fed(oxygen);
-      const decayed = state.resources.food - tick(state, config).resources.food;
-      expect(readoutOf(state).decayRate * state.resources.food).toBeCloseTo(
+      const decayed = state.resources.food.grams - tick(state, config).resources.food.grams;
+      expect(readoutOf(state).decayRate * state.resources.food.grams).toBeCloseTo(
         decayed,
         10
       );

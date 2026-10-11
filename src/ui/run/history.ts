@@ -53,7 +53,7 @@ export function snapshotFromState(state: SimulationState): RunSnapshot {
     fryCount,
     plantCount: state.plants.length,
     algae: mapKinds((kind) => bloomCoverage(state, kind)),
-    food: r.food,
+    food: r.food.grams,
     lightOn: getLightOutput(state.equipment.light, state.tick % 24) > 0,
   };
 }

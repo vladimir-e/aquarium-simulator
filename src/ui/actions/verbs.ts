@@ -469,8 +469,8 @@ function meta(
         state.fish.length === 0
           ? 'no fish to feed'
           : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'needs' : 'need'} ${grams(ahead.ration)} a day`;
-      return state.resources.food > 0
-        ? `${mouths} · ${grams(state.resources.food)} still in the water`
+      return state.resources.food.grams > 0
+        ? `${mouths} · ${grams(state.resources.food.grams)} still in the water`
         : mouths;
     }
     case 'waterChange': {

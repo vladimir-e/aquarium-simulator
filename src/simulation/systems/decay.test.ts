@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { deltaOf } from '../tests/effects.js';
-import { atRecipe } from '../core/organics.js';
-import { organicsCloseTo } from '../tests/organics.js';
+import { NO_ORGANICS, atRecipe, ofComposition, scaleOrganics, type Organics } from '../core/organics.js';
+import { LEAN, ofFood, organicsCloseTo } from '../tests/organics.js';
 import {
   decaySystem,
   getTemperatureFactor,
@@ -28,54 +28,50 @@ describe('getTemperatureFactor', () => {
   });
 });
 
-describe('calculateDecay', () => {
-  it('returns 0 when food is 0', () => {
-    const decay = calculateDecay(0, 25, SATURATED_O2);
-    expect(decay).toBe(0);
-  });
+const decayed = (food: number, temperature: number, oxygen: number): number =>
+  calculateDecay(ofFood(food), temperature, oxygen).grams;
 
-  it('returns 0 when food is negative', () => {
-    const decay = calculateDecay(-1, 25, SATURATED_O2);
-    expect(decay).toBe(0);
+describe('calculateDecay', () => {
+  it('returns nothing when there is no food', () => {
+    expect(calculateDecay(NO_ORGANICS, 25, SATURATED_O2)).toEqual(NO_ORGANICS);
   });
 
   it('takes the base fraction per hour at reference temperature', () => {
-    const decay = calculateDecay(1, 25, SATURATED_O2);
-    expect(decay).toBeCloseTo(decayDefaults.baseDecayRate * AT_SATURATION, 6);
+    expect(decayed(1, 25, SATURATED_O2)).toBeCloseTo(decayDefaults.baseDecayRate * AT_SATURATION, 6);
   });
 
   it('runs q10 faster ten degrees above reference', () => {
-    const decay = calculateDecay(1, 35, SATURATED_O2);
-    expect(decay).toBeCloseTo(calculateDecay(1, 25, SATURATED_O2) * decayDefaults.q10, 6);
+    expect(decayed(1, 35, SATURATED_O2)).toBeCloseTo(decayed(1, 25, SATURATED_O2) * decayDefaults.q10, 6);
   });
 
   it('never decays more than available food', () => {
-    const decay = calculateDecay(0.01, 50, SATURATED_O2);
-    expect(decay).toBeLessThanOrEqual(0.01);
+    expect(decayed(0.01, 50, SATURATED_O2)).toBeLessThanOrEqual(0.01);
   });
 
   it('scales linearly with food amount', () => {
-    const decay1 = calculateDecay(1, 25, SATURATED_O2);
-    const decay2 = calculateDecay(2, 25, SATURATED_O2);
-    expect(decay2).toBeCloseTo(decay1 * 2, 6);
+    expect(decayed(2, 25, SATURATED_O2)).toBeCloseTo(decayed(1, 25, SATURATED_O2) * 2, 6);
+  });
+
+  it('takes every part of the food in proportion, carbon and nutrients with the grams', () => {
+    const food: Organics = ofComposition(1, LEAN);
+    const decay = calculateDecay(food, 25, SATURATED_O2);
+    expect(decay).toEqual(organicsCloseTo(scaleOrganics(food, decay.grams), 15));
   });
 });
 
 describe('calculateDecay — oxygen availability', () => {
   it('runs at half its base rate at the half-saturation constant', () => {
-    const half = calculateDecay(1, 25, decayDefaults.oxygenHalfSaturation);
-
-    expect(half).toBeCloseTo(decayDefaults.baseDecayRate * 0.5, 9);
+    expect(decayed(1, 25, decayDefaults.oxygenHalfSaturation)).toBeCloseTo(decayDefaults.baseDecayRate * 0.5, 9);
   });
 
   it('stops entirely in water with no oxygen, so the sludge stands', () => {
-    expect(calculateDecay(1, 25, 0)).toBe(0);
+    expect(decayed(1, 25, 0)).toBe(0);
   });
 
   it('falls monotonically as the water empties', () => {
     let previous = Infinity;
     for (const oxygen of [8, 4, 2, 1, 0.5, 0.1, 0]) {
-      const decayed = calculateDecay(1, 25, oxygen);
+      const decayed = calculateDecay(ofFood(1), 25, oxygen).grams;
       expect(decayed).toBeGreaterThanOrEqual(0);
       expect(decayed).toBeLessThan(previous);
       previous = decayed;
@@ -93,7 +89,7 @@ describe('decaySystem', () => {
     const state = createSimulation({ tankCapacity: 100 });
     return produce(state, (draft) => {
       if (overrides.food !== undefined) {
-        draft.resources.food = overrides.food;
+        draft.resources.food = ofFood(overrides.food);
       }
       if (overrides.waste !== undefined) {
         draft.resources.waste = atRecipe(overrides.waste, DEFAULT_CONFIG);
@@ -107,7 +103,7 @@ describe('decaySystem', () => {
     });
   }
 
-  it('turns the waste-conversion share of decayed food into waste at food’s recipe', () => {
+  it('turns the waste-conversion share of decayed food into waste at food’s composition', () => {
     const state = createTestState({ food: 1.0, temperature: 25 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
@@ -119,6 +115,19 @@ describe('decaySystem', () => {
     expect(wasteEffect).toBeDefined();
     expect(wasteEffect!.delta).toEqual(
       organicsCloseTo(atRecipe(-deltaOf(foodEffect!) * decayDefaults.wasteConversionRatio, DEFAULT_CONFIG))
+    );
+  });
+
+  it('rots food at the composition it was fed at, not at the recipe food has now', () => {
+    const state = produce(createTestState(), (draft) => {
+      draft.resources.food = ofComposition(1, LEAN);
+    });
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
+    const food = effects.find((e) => e.resource === 'food')!;
+    const waste = effects.find((e) => e.resource === 'waste')!;
+
+    expect(waste.delta).toEqual(
+      organicsCloseTo(ofComposition(-deltaOf(food) * decayDefaults.wasteConversionRatio, LEAN), 12)
     );
   });
 

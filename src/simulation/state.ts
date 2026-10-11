@@ -48,8 +48,8 @@ export interface Fish {
   health: number;
   /** Ticks since it hatched. */
   age: number;
-  /** Grams of food in its gut, up to a day of its appetite. */
-  gut: number;
+  /** What it has eaten and not yet digested, up to a day of its appetite. */
+  gut: Organics;
   sex: FishSex;
   /**
    * Per-individual hardiness offset applied on top of species hardiness.
@@ -154,8 +154,8 @@ export interface Resources {
   aeration: boolean;
 
   // Biological resources
-  /** Food available for consumption (grams, 2 decimal precision) */
-  food: number;
+  /** Food standing in the water, at the recipe it was fed at */
+  food: Organics;
   /** Organic waste standing in the water */
   waste: Organics;
 
@@ -600,7 +600,7 @@ export function createSimulation(
       lightByHour: [],
       aeration: false,
       // Biological
-      food: 0.0,
+      food: NO_ORGANICS,
       waste: NO_ORGANICS,
       // Chemical (nitrogen cycle)
       ammonia: 0,

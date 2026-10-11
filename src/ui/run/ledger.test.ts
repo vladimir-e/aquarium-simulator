@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import {
+import { NO_ORGANICS,
   ALGAE_KINDS,
   applyAction,
   bloomParams,
@@ -65,7 +65,7 @@ const reserveOf = (ledger: Ledger): BudgetRow => line(ledger, 'reserve')!;
 
 describe('readLedger', () => {
   it('quotes every factor that prints at the rate the reader’s day is measured in, and no other', () => {
-    const state = tank([starving(makeFish({ id: 'fish_a_1', gut: 0 }))], 20);
+    const state = tank([starving(makeFish({ id: 'fish_a_1', gut: NO_ORGANICS }))], 20);
     const ledger = fishLedger(state);
     const { breakdown } = readHourAhead(state, DEFAULT_CONFIG).fish[0].vitality;
     const shows = (perDay: number): boolean => Number(perDay.toFixed(LEDGER_DECIMALS)) > 0;
@@ -85,7 +85,7 @@ describe('readLedger', () => {
   it('balances: what helps less what hurts is the number it prints', () => {
     for (const state of [
       tank([makeFish({ id: 'fish_a_1' })]),
-      tank([starving(makeFish({ id: 'fish_a_1', gut: 0 }))], 20),
+      tank([starving(makeFish({ id: 'fish_a_1', gut: NO_ORGANICS }))], 20),
     ]) {
       const ledger = fishLedger(state);
       expect(ledger.helps - ledger.hurts).toBeCloseTo(ledger.net, 6);
@@ -93,7 +93,7 @@ describe('readLedger', () => {
   });
 
   it('sorts each column worst-first, so the reason is the top line', () => {
-    const ledger = fishLedger(tank([starving(makeFish({ id: 'fish_a_1', gut: 0 }))], 20));
+    const ledger = fishLedger(tank([starving(makeFish({ id: 'fish_a_1', gut: NO_ORGANICS }))], 20));
     const rates = ledger.hurting.map((factor) => factor.perDay);
 
     expect(rates).toEqual([...rates].sort((a, b) => b - a));
@@ -110,9 +110,9 @@ describe('readLedger', () => {
   it('says what the reserve does over the hour: filling, drawing down, healing from reserve, or short of upkeep', () => {
     const lean = atReserve(makeFish({ id: 'fish_a_1' }), 0.9);
     expect(reserveOf(fishLedger(tank([lean]))).note).toBe('filling');
-    expect(reserveOf(fishLedger(tank([{ ...makeFish({ id: 'fish_a_1' }), gut: 0 }]))).note).toBe('drawing down');
+    expect(reserveOf(fishLedger(tank([{ ...makeFish({ id: 'fish_a_1' }), gut: NO_ORGANICS }]))).note).toBe('drawing down');
     expect(reserveOf(fishLedger(tank([makeFish({ id: 'fish_a_1', health: 80 })]))).note).toBe('healing from reserve');
-    expect(reserveOf(fishLedger(tank([starving(makeFish({ id: 'fish_a_1', gut: 0 }))]))).note).toBe('short of upkeep');
+    expect(reserveOf(fishLedger(tank([starving(makeFish({ id: 'fish_a_1', gut: NO_ORGANICS }))]))).note).toBe('short of upkeep');
   });
 
   it('reads a spawning female’s reserve as spawning the hour she lays', () => {

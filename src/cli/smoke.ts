@@ -103,7 +103,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
       { ...session, state, history: appendSnapshot(session.history, snapshot(state, session.config)) },
       { path }
     );
-    if (state.resources.food <= 0) throw new Error('feed had no effect');
+    if (state.resources.food.grams <= 0) throw new Error('feed had no effect');
   });
 
   step('tick 48h', () => {

@@ -9,11 +9,13 @@ import type { LogEntry } from '../core/logging.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { hatchling, organics } from '../systems/deb.js';
-import { eggMass, eggOrganics, fishMass, fishOrganics } from '../systems/fish-body.js';
+import { eggMass, eggOrganics, fishComposition, fishMass, fishOrganics } from '../systems/fish-body.js';
 import { gutCapacity } from '../systems/digestion.js';
 import { spawnsAt } from '../systems/brood.js';
 import { clutchOrganics } from '../systems/clutch.js';
 import { fishRecord, holdingEggs } from '../tests/fish.js';
+import { ofFood } from '../tests/organics.js';
+import { NO_ORGANICS } from '../core/organics.js';
 import { ZERO_TOXINS } from '../config/livestock.js';
 import { waterToxins } from '../systems/toxicokinetics.js';
 
@@ -40,9 +42,16 @@ const egg = eggOrganics;
 const wasteOf = (out: ReturnType<typeof processBodies>): number =>
   out.effects.reduce((sum, e) => (e.resource === 'waste' ? sum + e.delta.grams : sum), 0);
 
+const BODY = fishComposition(DEFAULT_CONFIG);
+
 /** Grams of organics the fish and their clutches hold, guts included. */
 const held = ({ fish, clutches }: SimulationState): number =>
-  fish.reduce((sum, f) => sum + fishOrganics(f) + f.gut, 0) + clutches.reduce((sum, c) => sum + clutchOrganics(c), 0);
+  fish.reduce((sum, f) => sum + fishOrganics(f) + f.gut.grams, 0) + clutches.reduce((sum, c) => sum + clutchOrganics(c), 0);
+
+/** Grams of carbon the same hold. */
+const heldCarbon = ({ fish, clutches }: SimulationState): number =>
+  fish.reduce((sum, f) => sum + fishOrganics(f) * BODY.carbon + f.gut.carbon, 0) +
+  clutches.reduce((sum, c) => sum + clutchOrganics(c) * BODY.carbon, 0);
 
 describe('processBodies', () => {
   it('no-ops an empty tank', () => {
@@ -177,7 +186,7 @@ describe('processBodies', () => {
     expect(out.state.fish).toHaveLength(7);
     for (const fry of out.state.fish) {
       expect(fry.budget).toEqual(hatchling(p));
-      expect(fry.gut).toBe(0);
+      expect(fry.gut).toEqual(NO_ORGANICS);
       expect(fry.age).toBe(0);
       expect(fry.survival).toBe(1);
     }
@@ -215,7 +224,7 @@ describe('processBodies', () => {
     expect(males).toBeLessThan(0.55);
   });
 
-  it('closes its ledger: what the fish and their clutches lose is the waste and the burn', () => {
+  it('closes its ledger in grams and carbon: what the fish and their clutches lose is the waste and the burn', () => {
     const tanks = [
       withTank([mkFish({ id: 'a', species: 'neon_tetra', sex: 'male' })], [
         { id: 'c', species: 'neon_tetra', eggs: 40.3, development: 0.9999 },
@@ -232,6 +241,7 @@ describe('processBodies', () => {
     for (const tank of tanks) {
       const out = breed(tank);
       expect(held(tank) - held(out.state)).toBeCloseTo(out.waste.grams + out.burned, 15);
+      expect(heldCarbon(tank) - heldCarbon(out.state)).toBeCloseTo(out.waste.carbon + out.burned * BODY.carbon, 15);
       expect(wasteOf(out)).toBeCloseTo(out.waste.grams, 15);
     }
   });
@@ -239,13 +249,13 @@ describe('processBodies', () => {
   it('feeds eaten eggs to a gut only as far as it has room, the rest to waste', () => {
     const full = mkFish({ id: 'full', species: 'angelfish', sex: 'male' });
     const [pace] = tankPaces(withTank([full]), DEFAULT_CONFIG);
-    const stuffed = { ...full, gut: gutCapacity(full, pace) };
+    const stuffed = { ...full, gut: ofFood(gutCapacity(full, pace)) };
     const clutch: Clutch = { id: 'c', species: 'neon_tetra', eggs: 40, development: 0 };
     const out = breed(withTank([stuffed], [clutch]));
 
     const eaten = (clutch.eggs - out.state.clutches[0].eggs) * egg('neon_tetra');
     expect(eaten).toBeGreaterThan(0);
-    expect(out.state.fish[0].gut).toBe(stuffed.gut);
+    expect(out.state.fish[0].gut).toEqual(stuffed.gut);
     expect(wasteOf(out)).toBeCloseTo(eaten, 12);
   });
 
@@ -257,20 +267,21 @@ describe('processBodies', () => {
 
     const [bigAfter, smallAfter] = out.state.fish;
     const eaten = (clutch.eggs - out.state.clutches[0].eggs) * egg('neon_tetra');
-    expect(bigAfter.gut + smallAfter.gut + wasteOf(out)).toBeCloseTo(eaten, 12);
+    expect(bigAfter.gut.grams + smallAfter.gut.grams + wasteOf(out)).toBeCloseTo(eaten, 12);
+    expect(bigAfter.gut.carbon + smallAfter.gut.carbon + out.waste.carbon).toBeCloseTo(eaten * BODY.carbon, 12);
     const outweighs = (fish: Fish): number => fishMass(fish) - eggMass('neon_tetra');
-    expect(bigAfter.gut / smallAfter.gut).toBeCloseTo(outweighs(big) / outweighs(small), 8);
+    expect(bigAfter.gut.grams / smallAfter.gut.grams).toBeCloseTo(outweighs(big) / outweighs(small), 8);
   });
 
   it('shares the eggs of every clutch in the hour alike, whichever clutch comes first', () => {
-    const fish = [mkFish({ id: 'big', species: 'angelfish', sex: 'male', gut: 0.0123 }), mkFish({ id: 'small', species: 'neon_tetra', sex: 'male' })];
+    const fish = [mkFish({ id: 'big', species: 'angelfish', sex: 'male', gut: ofFood(0.0123) }), mkFish({ id: 'small', species: 'neon_tetra', sex: 'male' })];
     const neon: Clutch = { id: 'n', species: 'neon_tetra', eggs: 400, development: 0 };
     const cory: Clutch = { id: 'c', species: 'corydoras', eggs: 200, development: 0 };
 
     const one = breed(withTank(fish, [neon, cory]));
     const other = breed(withTank(fish, [cory, neon]));
 
-    expect(one.state.fish[0].gut).toBeGreaterThan(fish[0].gut);
+    expect(one.state.fish[0].gut.grams).toBeGreaterThan(fish[0].gut.grams);
     expect(other.state.fish.map((f) => f.gut)).toEqual(one.state.fish.map((f) => f.gut));
     expect(wasteOf(other)).toBeCloseTo(wasteOf(one), 15);
   });

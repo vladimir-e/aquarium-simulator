@@ -17,7 +17,15 @@ import {
   type NutrientsConfig,
   type NutrientVector,
 } from '../config/nutrients.js';
-import { addOrganics, foodRecipe, NO_ORGANICS, ofComposition, scaleOrganics, type Organics } from '../core/organics.js';
+import {
+  addOrganics,
+  foodRecipe,
+  NO_ORGANICS,
+  ofComposition,
+  scaleOrganics,
+  type Composition,
+  type Organics,
+} from '../core/organics.js';
 
 export type SubstrateType = 'none' | 'sand' | 'gravel' | 'aqua_soil';
 
@@ -60,8 +68,8 @@ export const SUBSTRATE_ORGANIC_PER_LITER: Record<SubstrateType, number> = {
   aqua_soil: 0.05,
 };
 
-/** mg of each nutrient in a gram of a fresh bag's organic matter — its own, whatever the keeper feeds. */
-export const SUBSTRATE_ORGANIC_COMPOSITION: NutrientVector = foodRecipe({
+/** What a gram of a fresh bag's organic matter is made of — its own, whatever the keeper feeds. */
+export const SUBSTRATE_ORGANIC_COMPOSITION: Composition = foodRecipe({
   livestock: livestockDefaults,
   nutrients: nutrientsDefaults,
 });

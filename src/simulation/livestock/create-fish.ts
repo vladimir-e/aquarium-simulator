@@ -13,6 +13,7 @@
 
 import type { Fish } from '../state.js';
 import { draw, drawId, type RngState } from '../core/rng.js';
+import { NO_ORGANICS } from '../core/organics.js';
 import type { FishSex, FishSpecies } from './species.js';
 import { debParams, FISH_SPECIES_DATA, midRangeTemperature, speciesTau } from './species.js';
 import { hatchling, size, stepDeb, type DebState } from '../systems/deb.js';
@@ -100,7 +101,7 @@ function individual(
     species,
     health,
     age: body.age,
-    gut: 0,
+    gut: NO_ORGANICS,
     sex: sex ?? sampledSex,
     hardinessOffset,
     budget: body.budget,

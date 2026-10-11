@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { ofFood } from '../../simulation/tests/organics.js';
 import { produce } from 'immer';
 import {
   ALGAE_KINDS,
@@ -18,7 +19,7 @@ import { settleEnvironment } from '../../simulation/tick.js';
 import { deltaOf } from '../../simulation/tests/effects.js';
 import { spawnsAt } from '../../simulation/systems/brood.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { ammoniaPerGramOfFood } from '../../simulation/config/livestock.js';
+import { ammoniaIn } from '../../simulation/systems/index.js';
 import { holdingEggs } from '../../simulation/tests/fish.js';
 import { readHourAhead } from './ahead.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
@@ -58,7 +59,7 @@ function recovering(): SimulationState {
     draft.fish[1].sex = 'male';
     ripe(draft.fish[1], 20);
     for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 20);
-    draft.resources.food = 1;
+    draft.resources.food = ofFood(1);
   });
 }
 
@@ -185,10 +186,10 @@ describe('readHourAhead', () => {
 
     const readsTheRot = (state: SimulationState, next: SimulationState): void => {
       const ahead = readHourAhead(state, config);
-      const rotted = bodiesOf(state).bodies.state.resources.food - next.resources.food;
+      const rotted = bodiesOf(state).bodies.state.resources.food.grams - next.resources.food.grams;
       const share = config.decay.wasteConversionRatio;
       expect(ahead.foodWaste.grams).toBeCloseTo(rotted * share, 12);
-      expect(ahead.foodAmmonia).toBeCloseTo(rotted * (1 - share) * ammoniaPerGramOfFood(config.livestock), 12);
+      expect(ahead.foodAmmonia).toBeCloseTo(ammoniaIn(ofFood(rotted * (1 - share))), 12);
     };
 
     for (const { state, next } of hours) {
@@ -203,7 +204,7 @@ describe('readHourAhead', () => {
 
     const stifled = produce(hatching(), (draft) => {
       draft.resources.oxygen = 0.05;
-      draft.resources.food = 1;
+      draft.resources.food = ofFood(1);
     });
     const { bodies, delta } = bodiesOf(stifled);
     expect(bodies.burned).toBeGreaterThan(0);

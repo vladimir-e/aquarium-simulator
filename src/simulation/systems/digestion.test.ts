@@ -7,10 +7,12 @@ import { assimilationCeiling, stepDeb } from './deb.js';
 import { NO_STRESS } from './reserve.js';
 import { debParams } from '../livestock/species.js';
 import { fishRecord } from '../tests/fish.js';
+import { LEAN, ofFood, organicsCloseTo } from '../tests/organics.js';
+import { NO_ORGANICS, ofComposition, scaleOrganics } from '../core/organics.js';
 import type { Fish } from '../state.js';
 
 const REFERENCE: Pace = { tau: 1, omega: 1, stress: NO_STRESS };
-const guppy = (size: number, gut = 0): Fish => fishRecord({ species: 'guppy', size, gut });
+const guppy = (size: number, gut = 0): Fish => fishRecord({ species: 'guppy', size, gut: ofFood(gut) });
 
 describe('appetite', () => {
   it('is the assimilation ceiling in food: {p_Am}·L² over κ_X', () => {
@@ -49,16 +51,18 @@ describe('the gut', () => {
   it('holds a day of its appetite, and wants the room left in it', () => {
     const fish = guppy(50);
     expect(gutCapacity(fish, REFERENCE)).toBeCloseTo(HOURS_PER_DAY * appetite(fish, REFERENCE), 15);
-    const half = { ...fish, gut: gutCapacity(fish, REFERENCE) / 2 };
+    const half = { ...fish, gut: ofFood(gutCapacity(fish, REFERENCE) / 2) };
     expect(gutRoom(half, REFERENCE)).toBeCloseTo(gutCapacity(fish, REFERENCE) / 2, 15);
-    expect(gutRoom({ ...fish, gut: 2 * gutCapacity(fish, REFERENCE) }, REFERENCE)).toBe(0);
+    expect(gutRoom({ ...fish, gut: ofFood(2 * gutCapacity(fish, REFERENCE)) }, REFERENCE)).toBe(0);
   });
 
-  it('digests first order at τ: the same share of whatever it holds', () => {
-    expect(digest(1, 1, config)).toBeCloseTo(hourlyDraw(config.digestionRate), 12);
-    expect(digest(2, 1.5, config)).toBeCloseTo(2 * hourlyDraw(1.5 * config.digestionRate), 12);
-    expect(digest(1, 0, config)).toBe(0);
-    expect(digest(1, 1e6, config)).toBeLessThanOrEqual(1);
+  it('digests first order at τ: the same share of whatever it holds, every part of it', () => {
+    expect(digest(ofFood(1), 1, config).grams).toBeCloseTo(hourlyDraw(config.digestionRate), 12);
+    expect(digest(ofFood(2), 1.5, config).grams).toBeCloseTo(2 * hourlyDraw(1.5 * config.digestionRate), 12);
+    expect(digest(ofFood(1), 0, config)).toEqual(NO_ORGANICS);
+    expect(digest(ofFood(1), 1e6, config).grams).toBeLessThanOrEqual(1);
+    const mixed = ofComposition(2, LEAN);
+    expect(digest(mixed, 1, config)).toEqual(organicsCloseTo(scaleOrganics(mixed, hourlyDraw(config.digestionRate)), 15));
   });
 
   it('draws the full-pace line where a gut that full digests what the budget can take up in the hour', () => {
@@ -66,7 +70,7 @@ describe('the gut', () => {
       const fish = guppy(50);
       const pace = { ...REFERENCE, tau };
       const line = fullPaceLine(tau, config) * gutCapacity(fish, pace);
-      expect(digest(line, tau, config)).toBeCloseTo(appetite(fish, pace), 12);
+      expect(digest(ofFood(line), tau, config).grams).toBeCloseTo(appetite(fish, pace), 12);
     }
     expect(fullPaceLine(0.5, config)).toBe(1);
     expect(fullPaceLine(0, config)).toBe(1);
@@ -118,20 +122,20 @@ describe('shareCapped', () => {
 });
 
 describe('swallow', () => {
-  const school = (): Fish[] => [guppy(30), guppy(60), { ...guppy(50), gut: gutCapacity(guppy(50), REFERENCE) }];
+  const school = (): Fish[] => [guppy(30), guppy(60), guppy(50, gutCapacity(guppy(50), REFERENCE))];
   const paces = [REFERENCE, REFERENCE, REFERENCE];
 
   it('takes each share while the gut has room, leaving the eaters as they were', () => {
     const eaters = Object.freeze(school().map((e) => Object.freeze(e)));
     const shares = [1e-5, 3e-5, 0];
     expect(swallow(eaters, paces, shares)).toEqual({ taken: shares, overflow: 0 });
-    expect(eaters.map((e) => e.gut)).toEqual([0, 0, gutCapacity(guppy(50), REFERENCE)]);
+    expect(eaters.map((e) => e.gut.grams)).toEqual([0, 0, gutCapacity(guppy(50), REFERENCE)]);
   });
 
   it('takes no more than a gut has room for, the rest overflowing, every gram accounted for', () => {
     const eaters = school();
     const { taken, overflow } = swallow(eaters, paces, [5, 5, 5]);
-    eaters.forEach((e, i) => expect(e.gut + taken[i]).toBeLessThanOrEqual(gutCapacity(e, REFERENCE) + 1e-15));
+    eaters.forEach((e, i) => expect(e.gut.grams + taken[i]).toBeLessThanOrEqual(gutCapacity(e, REFERENCE) + 1e-15));
     expect(overflow).toBeGreaterThan(0);
     expect(taken.reduce((sum, g) => sum + g, 0) + overflow).toBeCloseTo(15, 12);
   });

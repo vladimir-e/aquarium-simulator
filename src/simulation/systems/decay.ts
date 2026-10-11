@@ -4,7 +4,7 @@
  *
  * The oxidised share leaves no solid behind, so its nitrogen and minerals go
  * straight to the water: N as NH3, and phosphate, potassium and iron at the
- * food's `foodMineralContent`.
+ * food's composition.
  */
 
 import type { Effect } from '../core/effects.js';
@@ -14,7 +14,7 @@ import type { TunableConfig } from '../config/index.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { monodFactor, q10Factor } from '../core/kinetics.js';
 import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
-import { atRecipe } from '../core/organics.js';
+import { scaleOrganics, type Organics } from '../core/organics.js';
 import { getPpm } from '../resources/index.js';
 import { mineralise } from './nitrogen-cycle.js';
 
@@ -49,15 +49,14 @@ export function decayFraction(
   );
 }
 
-/** Grams of food that decay to waste this tick, never more than there is. */
+/** The food that decays this tick, never more than there is. */
 export function calculateDecay(
-  food: number,
+  food: Organics,
   temperature: number,
   oxygen: number,
   config: DecayConfig = decayDefaults
-): number {
-  if (food <= 0) return 0;
-  return Math.min(food * decayFraction(temperature, oxygen, config), food);
+): Organics {
+  return scaleOrganics(food, Math.min(decayFraction(temperature, oxygen, config), 1));
 }
 
 export const decaySystem: System = {
@@ -69,35 +68,34 @@ export const decaySystem: System = {
     const decayConfig = config.decay;
 
     // Decay food → waste + CO2 + O2 consumption
-    if (state.resources.food > 0) {
-      const decayAmount = calculateDecay(
+    if (state.resources.food.grams > 0) {
+      const decayed = calculateDecay(
         state.resources.food,
         state.resources.temperature,
         state.resources.oxygen,
         decayConfig
       );
 
-      if (decayAmount > 0) {
+      if (decayed.grams > 0) {
         effects.push({
           tier: 'passive',
           resource: 'food',
-          delta: -decayAmount,
+          delta: scaleOrganics(decayed, -1),
           source: 'decay',
         });
 
-        const wasteAmount = decayAmount * decayConfig.wasteConversionRatio;
         effects.push({
           tier: 'passive',
           resource: 'waste',
-          delta: atRecipe(wasteAmount, config),
+          delta: scaleOrganics(decayed, decayConfig.wasteConversionRatio),
           source: 'decay',
         });
 
-        const oxidizedAmount = decayAmount * (1 - decayConfig.wasteConversionRatio);
-        effects.push(...mineralise(atRecipe(oxidizedAmount, config), 'passive', 'decay'));
+        const oxidized = scaleOrganics(decayed, 1 - decayConfig.wasteConversionRatio);
+        effects.push(...mineralise(oxidized, 'passive', 'decay'));
 
         const oxygenDemandMgPerL = getPpm(
-          oxidizedAmount * decayConfig.gasExchangePerGramDecay,
+          oxidized.grams * decayConfig.gasExchangePerGramDecay,
           state.resources.water
         );
 

@@ -10,7 +10,7 @@
  *   the threshold it drew at creation.
  */
 
-import { N_TO_NH3_MASS_RATIO, N_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
+import { N_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
 import type { VectorMeta } from './nutrients.js';
 
 /** What a fish loads from the water: free NH₃, nitrite as NO₂⁻ and nitrate as NO₃⁻. */
@@ -45,6 +45,8 @@ export interface LivestockConfig {
    * of what it ate, so both carry the same fraction.
    */
   foodNitrogenFraction: number;
+  /** Grams of carbon in a gram of food (g C / g food). */
+  foodCarbonFraction: number;
   /** mg of O2 a gram of organics a fish burns takes. */
   oxygenPerGramBurned: number;
   /**
@@ -141,6 +143,9 @@ export const livestockDefaults: LivestockConfig = {
   oxygenHalfSaturation: 1.0,
   // 5 % N in food — conservative; typical flake is 6–8 % N.
   foodNitrogenFraction: 0.05,
+  // A flake on a dry basis: about half protein, a tenth fat, a quarter
+  // carbohydrate and a tenth ash comes to 0.45–0.47 g C/g.
+  foodCarbonFraction: 0.45,
   // Burning AmP's reserve, CH1.8O0.5N0.15 at 23.9 g/mol, to CO2, water and
   // ammonia takes 1.09 mol O2 a C-mole.
   oxygenPerGramBurned: 1450,
@@ -219,12 +224,7 @@ export const livestockDefaults: LivestockConfig = {
   preyVulnerabilityExponent: 4,
 };
 
-/** mg of NH₃ a gram of food yields once mineralized. */
-export function ammoniaPerGramOfFood(config: LivestockConfig): number {
-  return config.foodNitrogenFraction * N_TO_NH3_MASS_RATIO * 1000;
-}
-
-/** mg of NO₃ the same gram's nitrogen makes once it is nitrate. */
+/** mg of NO₃ a gram of food's nitrogen makes once it is nitrate. */
 export function nitratePerGramOfFood(config: LivestockConfig): number {
   return config.foodNitrogenFraction * N_TO_NO3_MASS_RATIO * 1000;
 }
@@ -256,6 +256,14 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     min: 0.03,
     max: 0.12,
     step: 0.005,
+  },
+  {
+    key: 'foodCarbonFraction',
+    label: 'Food C Fraction',
+    unit: 'g C/g food',
+    min: 0.42,
+    max: 0.52,
+    step: 0.01,
   },
   { key: 'oxygenPerGramBurned', label: 'O2 per Gram Burned', unit: 'mg O2/g', min: 500, max: 2500, step: 50 },
   { key: 'respiratoryQuotient', label: 'Respiratory Quotient', unit: '', min: 0.5, max: 1.2, step: 0.1 },

@@ -1,10 +1,11 @@
-import { debParams, gutCapacity, NO_STRESS } from '../../simulation/index.js';
+import { debParams, gutCapacity, NO_STRESS, type Organics } from '../../simulation/index.js';
 import type { Fish } from '../../simulation/state.js';
 import { fishRecord } from '../../simulation/tests/fish.js';
+import { ofFood } from '../../simulation/tests/organics.js';
 
-/** Grams in the gut of this fish, this full, at its pace in 20 °C water; a stocked neon when none is named. */
-export function gutAt(fullness: number, fish: Pick<Fish, 'species' | 'budget'> = fishRecord()): number {
-  return fullness * gutCapacity(fish, { tau: 1, omega: 1, stress: NO_STRESS });
+/** The food in the gut of this fish, this full, at its pace in 20 °C water; a stocked neon when none is named. */
+export function gutAt(fullness: number, fish: Pick<Fish, 'species' | 'budget'> = fishRecord()): Organics {
+  return ofFood(fullness * gutCapacity(fish, { tau: 1, omega: 1, stress: NO_STRESS }));
 }
 
 export const FED = gutAt(1);

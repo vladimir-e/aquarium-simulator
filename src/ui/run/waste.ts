@@ -125,7 +125,7 @@ export function wasteReadout(
     mineralised: wasteMineralised(mineralisationBase(state, config, inflow), config.nitrogenCycle).grams,
     settlingShare,
     settled: r.waste.grams * settlingShare,
-    food: r.food,
+    food: r.food.grams,
     decayRate: decayFraction(r.temperature, r.oxygen, config.decay),
     q10,
   };

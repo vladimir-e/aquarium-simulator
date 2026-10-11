@@ -37,7 +37,6 @@ import { type Effect } from '../core/effects.js';
 import { getPpm, getMassFromPpm } from '../resources/index.js';
 import { DEFAULT_CONFIG, WASTE_NUTRIENTS, type WasteNutrient } from '../config/index.js';
 import { AIR_SATURATED_O2, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
-import { ammoniaPerGramOfFood } from '../config/livestock.js';
 
 const REF = nitrogenCycleDefaults.referenceTemp;
 const AMPLE_O2 = 8;
@@ -661,7 +660,7 @@ describe('nitrogenCycleSystem', () => {
       expect(ammoniaEffect).toBeDefined();
       expect(deltaOf(ammoniaEffect!)).toBeGreaterThan(0);
       expect(deltaOf(ammoniaEffect!)).toBeCloseTo(
-        -deltaOf(wasteEffect!) * ammoniaPerGramOfFood(DEFAULT_CONFIG.livestock),
+        ammoniaIn(rot(-deltaOf(wasteEffect!))),
         10
       );
     });
@@ -677,8 +676,7 @@ describe('nitrogenCycleSystem', () => {
       for (const nutrient of WASTE_NUTRIENTS) {
         for (const waste of [1, 10, 100]) {
           expect(released(nutrient, waste) / released('ammonia', waste)).toBeCloseTo(
-            DEFAULT_CONFIG.nutrients.foodMineralContent[nutrient] /
-              ammoniaPerGramOfFood(DEFAULT_CONFIG.livestock),
+            DEFAULT_CONFIG.nutrients.foodMineralContent[nutrient] / ammoniaIn(rot(1)),
             10
           );
         }

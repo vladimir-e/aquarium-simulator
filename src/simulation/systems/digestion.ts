@@ -11,6 +11,7 @@ import type { Fish } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
 import { hourlyDraw } from '../core/kinetics.js';
+import { scaleOrganics, type Organics } from '../core/organics.js';
 import { sum } from '../core/sum.js';
 import { assimilationCeiling, type DebHour } from './deb.js';
 import { fishParams } from './fish-body.js';
@@ -38,7 +39,7 @@ export function gutCapacity(fish: Body, pace: Pace): number {
 
 /** Grams it would eat this hour: the room left in its gut. */
 export function gutRoom(fish: Body & Pick<Fish, 'gut'>, pace: Pace): number {
-  return Math.max(0, gutCapacity(fish, pace) - fish.gut);
+  return Math.max(0, gutCapacity(fish, pace) - fish.gut.grams);
 }
 
 export interface Shared {
@@ -85,7 +86,7 @@ export function fullPaceLine(tau: number, config: LivestockConfig): number {
   return draw > 0 ? Math.min(1, 1 / (HOURS_PER_DAY * draw)) : 1;
 }
 
-/** Grams a gut digests over the hour at pace τ. */
-export function digest(gut: number, tau: number, config: LivestockConfig): number {
-  return Math.max(0, gut) * hourlyDraw(config.digestionRate * tau);
+/** What a gut digests over the hour at pace τ. */
+export function digest(gut: Organics, tau: number, config: LivestockConfig): Organics {
+  return scaleOrganics(gut, hourlyDraw(config.digestionRate * tau));
 }

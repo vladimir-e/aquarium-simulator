@@ -158,7 +158,9 @@ export {
   atRecipe,
   foodRecipe,
   ofComposition,
+  portion,
   scaleOrganics,
+  type Composition,
   type Organics,
   type RecipeConfig,
 } from './core/organics.js';
@@ -488,7 +490,16 @@ export {
   predatorWeight,
   preyVulnerability,
 } from './systems/fish-health.js';
-export { fishMass, fishSize, fishOrganics, frySize, eggMass, fishLifeStage, countFry } from './systems/fish-body.js';
+export {
+  fishMass,
+  fishSize,
+  fishOrganics,
+  fishComposition,
+  frySize,
+  eggMass,
+  fishLifeStage,
+  countFry,
+} from './systems/fish-body.js';
 export { readyToBrood, paysTowardBrood } from './systems/brood.js';
 export { clutchMass, clutchesWithMothers } from './systems/clutch.js';
 export { appetite, fullPaceLine, gutCapacity, ration, type Pace } from './systems/digestion.js';

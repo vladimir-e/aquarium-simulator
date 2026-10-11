@@ -48,7 +48,7 @@ function resourcesAt(ppm: Partial<FormVector>): Resources {
     light: 0,
     lightByHour: new Array(24).fill(0),
     aeration: false,
-    food: 0,
+    food: NO_ORGANICS,
     waste: NO_ORGANICS,
     ammonia: (ppm.ammonia ?? 0) * WATER,
     nitrite: 0,

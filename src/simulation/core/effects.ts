@@ -27,8 +27,10 @@ interface EffectOn<R extends ResourceKey, D> {
   source: string;
 }
 
-/** The waste pool moves by organics, so its grams never move without their content. */
-export type Effect = EffectOn<Exclude<ResourceKey, 'waste'>, number> | EffectOn<'waste', Organics>;
+/** The organic pools: they move by organics, so their grams never move without their content. */
+type OrganicResource = 'food' | 'waste';
+
+export type Effect = EffectOn<Exclude<ResourceKey, OrganicResource>, number> | EffectOn<OrganicResource, Organics>;
 
 /**
  * Clamps a value between min and max (inclusive).
@@ -76,14 +78,8 @@ export function applyEffects(
           );
           break;
         case 'food':
-          draft.resources.food = clamp(
-            draft.resources.food + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
         case 'waste':
-          draft.resources.waste = addOrganics(draft.resources.waste, effect.delta);
+          draft.resources[effect.resource] = addOrganics(draft.resources[effect.resource], effect.delta);
           break;
         case 'ammonia':
           draft.resources.ammonia = clamp(
