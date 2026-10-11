@@ -129,23 +129,21 @@ export function sporesUptake(
 }
 
 /**
- * Spores are the bloom's immigration: they arrive at condition 100 and join
- * the bloom, every pool of their budget beside its own, diluting its deficit
- * by structure. On a bloom that died back, or on an empty one, what stands is
- * only what landed.
+ * Spores are the bloom's immigration: starving cells, structure without
+ * reserve, that join the bloom at its own condition, every pool of their
+ * budget beside its own. Only an empty bloom — one that died back, or never
+ * stood — starts afresh from them at condition 100.
  */
 export function landSpores(bloom: AlgaeState | null, spores: FloraState): AlgaeState {
   const { budget, condition } = bloom ?? EMPTY_BLOOM;
-  const structure = budget.structure + spores.structure;
-  const kept = structure > 0 ? budget.structure / structure : 0;
   return {
     budget: {
-      structure,
+      structure: budget.structure + spores.structure,
       reserve: budget.reserve + spores.reserve,
       offshootBuffer: budget.offshootBuffer + spores.offshootBuffer,
       stores: mapNutrients((n) => budget.stores[n] + spores.stores[n]),
     },
-    condition: 100 - (100 - condition) * kept,
+    condition: budget.structure > 0 ? condition : 100,
   };
 }
 

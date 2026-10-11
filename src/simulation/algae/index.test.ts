@@ -160,21 +160,22 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
       condition,
     });
 
-    it('lands them at condition 100, every pool beside the bloom’s own, diluting its deficit by structure', () => {
+    it('lands them at the bloom’s own condition, every pool beside its own', () => {
       const spores = stocked(1, p);
       const landed = landSpores(standing(3, 40), spores);
       expect(landed.budget.structure).toBeCloseTo(4, 15);
       expect(landed.budget.reserve).toBeCloseTo(stocked(4, p).reserve, 15);
-      expect(landed.condition).toBeCloseTo((40 * 3 + 100 * 1) / 4, 12);
+      expect(landed.condition).toBe(40);
     });
 
     it('leaves a bloom with nothing landing as it was', () => {
       expect(landSpores(standing(5, 30), EMPTY_BLOOM.budget)).toEqual(standing(5, 30));
     });
 
-    it('makes a bloom that died back what its spores are', () => {
+    it('starts an empty bloom afresh from its spores at condition 100: one that died back, or one emptied out', () => {
       const spores = stocked(0.002, p);
       expect(landSpores(null, spores)).toEqual({ budget: spores, condition: 100 });
+      expect(landSpores(standing(0, 30), spores)).toEqual({ budget: spores, condition: 100 });
       expect(landSpores(null, EMPTY_BLOOM.budget)).toEqual(EMPTY_BLOOM);
     });
   });
