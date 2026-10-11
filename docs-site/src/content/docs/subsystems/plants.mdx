@@ -194,7 +194,8 @@ holds at any pace.
 
 The **Droop limit** is each store's density read as a Monod against Q_min, the
 emptiest store ruling. It never reaches 1: on full stores a plant runs at about
-0.73, nitrogen ruling. Growth runs at it, and income is earned on it.
+0.73, nitrogen ruling. Growth runs at it; income and harm read it as a share of
+that full-store limit.
 
 The **taper** is the room a unit has left: growth slows as it fills and stops at
 100, so size approaches full and nothing clamps it. Leaf area scales with
@@ -259,10 +260,10 @@ the config; each kind of bloom carries its own
 
 ### Income and harm
 
-Every benefit channel is earned on the plant's reserve density times its Droop
-limit: good water is worth nothing to a plant that has burned its reserve or
-run its stores dry. Three peaks of `0.125` %/h make a budget of `0.375` %/h on a
-full reserve, a Droop limit of 1 and band centre. Light reaches income through
+Every benefit channel is earned on the plant's reserve density times that share
+of its Droop limit: good water is worth nothing to a plant that has burned its
+reserve or run its stores dry. Three peaks of `0.125` %/h make a budget of
+`0.375` %/h on a full reserve, full stores and band centre. Light reaches income through
 the reserve it fills, so a fed plant earns through the night.
 
 | Channel | Earns when | At its best |
@@ -279,10 +280,10 @@ the reserve it fills, so a fed plant earns through the night.
 | Nutrient deficiency | the Droop limit short of `droopEdge` of its full stores' | share of the edge |
 | Nitrate | past the plant's own edge | e-fold over |
 
-A Droop limit never reaches 1, so deficiency starts under a share of the limit
-full stores reach: `droopEdge`, a limit of 0.3 for a plant, where its nitrogen
-store has fallen to a sixth of full, near the critical 1.3 % of Gerloff &
-Krombholz. As a share, the edge sits under full stores at any quotas. Hardiness
+Deficiency starts under `droopEdge` of the limit full stores reach — 0.3 for a
+plant, where its nitrogen store has fallen to a sixth of full, near the critical
+1.3 % of Gerloff & Krombholz — so the edge sits under full stores at any
+quotas. Hardiness
 scales every stressor by `1 − hardiness` except nitrate, whose edge it carries
 out by the same factor a fish's is.
 

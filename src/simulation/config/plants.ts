@@ -98,9 +98,10 @@ export interface PlantsConfig {
   nitrateEdge: number;
 
   // Vitality benefit peaks (%/h), each at the best its factor gets, earned on
-  // reserve density times the stores' Droop limit: good water is worth nothing
-  // to a flora that has burned its reserve or run its stores dry. Sum at a
-  // full reserve, a Droop limit of 1 and band centre: 0.375 %/h.
+  // reserve density times the stores' share of the Droop limit full stores
+  // reach: good water is worth nothing to a flora that has burned its reserve
+  // or run its stores dry. Sum at a full reserve, full stores and band centre:
+  // 0.375 %/h.
   /** CO2, earned in proportion to the species' carbon Monod. */
   co2BenefitPeak: number;
   /** Temperature at the centre of the tolerable band, falling to 0 at its edges. */

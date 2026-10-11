@@ -164,10 +164,10 @@ export function floraStressors(input: FloraVitalityInput): VitalityFactor[] {
   ];
 }
 
-/** Income, every channel earned on its reserve density and its stores' Droop limit. */
+/** Income, every channel earned on its reserve density and its stores' share of the Droop limit full stores reach. */
 export function floraBenefits(input: FloraVitalityInput): VitalityFactor[] {
-  const { traits, resources, plantsConfig, wellFed, droop, co2HalfSaturation } = input;
-  const earning = wellFed * droop;
+  const { traits, resources, plantsConfig, wellFed, droop, fullDroop, co2HalfSaturation } = input;
+  const earning = (wellFed * droop) / fullDroop;
   return [
     {
       key: 'co2',
