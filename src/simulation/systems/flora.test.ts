@@ -10,7 +10,7 @@ import {
   metabolicRateUnits,
   saturationIrradiance,
   shedShare,
-  type FloraHour,
+  type FloraVitalityInput,
 } from './flora.js';
 import { monodFactor } from '../core/kinetics.js';
 import { stocked } from './flora-budget.js';
@@ -137,7 +137,7 @@ describe('loseFlora', () => {
 
 describe('the channels a plant and a bloom share', () => {
   const resources = { ...createSimulation({ tankCapacity: 100 }).resources, temperature: 25, co2: 4 };
-  const hour = (overrides: Partial<FloraHour> = {}): FloraHour => ({
+  const input = (overrides: Partial<FloraVitalityInput> = {}): FloraVitalityInput => ({
     traits: plantTraits('amazon_sword'),
     resources,
     plantsConfig: config,
@@ -152,14 +152,14 @@ describe('the channels a plant and a bloom share', () => {
     factors.find((f) => f.key === key)!.amount;
 
   it('charges starvation in proportion to the share of upkeep unpaid', () => {
-    expect(amount(floraStressors(hour()), 'starvation')).toBe(0);
-    expect(amount(floraStressors(hour({ starvation: 0.4 })), 'starvation')).toBeCloseTo(0.4 * config.starvationSeverity, 15);
+    expect(amount(floraStressors(input()), 'starvation')).toBe(0);
+    expect(amount(floraStressors(input({ starvation: 0.4 })), 'starvation')).toBeCloseTo(0.4 * config.starvationSeverity, 15);
   });
 
   it('charges nutrient deficiency on the Droop limit under its edge’s share of full stores’, linear to full at an empty store', () => {
     const full = 0.8;
     const edge = config.droopEdge * full;
-    const charged = (droop: number): number => amount(floraStressors(hour({ droop, fullDroop: full })), 'nutrients');
+    const charged = (droop: number): number => amount(floraStressors(input({ droop, fullDroop: full })), 'nutrients');
     expect(charged(full)).toBe(0);
     expect(charged(edge)).toBe(0);
     expect(charged(edge / 2)).toBeCloseTo(config.nutrientDeficiencySeverity / 2, 15);
@@ -167,7 +167,7 @@ describe('the channels a plant and a bloom share', () => {
   });
 
   it('earns on reserve density and the Droop limit, and CO₂ on the feeder’s own half-saturation', () => {
-    const earned = (overrides: Partial<FloraHour>): number => amount(floraBenefits(hour(overrides)), 'co2');
+    const earned = (overrides: Partial<FloraVitalityInput>): number => amount(floraBenefits(input(overrides)), 'co2');
     expect(earned({})).toBeCloseTo(config.co2BenefitPeak * monodFactor(4, 3), 12);
     expect(earned({ wellFed: 0.5, droop: 0.6 })).toBeCloseTo(earned({}) * 0.5 * 0.6, 12);
     expect(earned({ co2HalfSaturation: 0.3 })).toBeCloseTo((earned({}) * monodFactor(4, 0.3)) / monodFactor(4, 3), 12);

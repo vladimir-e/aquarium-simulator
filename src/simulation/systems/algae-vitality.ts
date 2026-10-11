@@ -7,9 +7,8 @@ import type { AlgaeState, Resources } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import type { AlgaeTraits } from '../algae/traits.js';
 import type { FloraFluxes, FloraParams } from './flora-budget.js';
-import { droopFactor, fullDroopFactor } from './flora-budget.js';
-import { pointsHealed, starvation, wellFed } from './reserve.js';
-import { floraBenefits, floraStressors, type FloraHour } from './flora.js';
+import { pointsHealed } from './reserve.js';
+import { floraBenefits, floraStressors, floraVitalityInput, type FloraVitalityInput } from './flora.js';
 import { computeVitality, hardened, type VitalityFactor, type VitalityResult } from './vitality.js';
 
 export interface AlgaeVitalityContext {
@@ -23,25 +22,15 @@ export interface AlgaeVitalityContext {
   plantsConfig: PlantsConfig;
 }
 
-function floraHour({ bloom, fluxes, traits, params, resources, plantsConfig }: AlgaeVitalityContext): FloraHour {
-  return {
-    traits,
-    resources,
-    plantsConfig,
-    wellFed: wellFed(bloom.budget, params),
-    droop: droopFactor(bloom.budget, params),
-    fullDroop: fullDroopFactor(params),
-    starvation: starvation({ fluxes }),
-    co2HalfSaturation: traits.co2HalfSaturation,
-  };
-}
+const vitalityInput = ({ bloom, fluxes, traits, params, resources, plantsConfig }: AlgaeVitalityContext): FloraVitalityInput =>
+  floraVitalityInput(bloom.budget, params, fluxes, { traits, resources, plantsConfig, co2HalfSaturation: traits.co2HalfSaturation });
 
 export function buildAlgaeStressors(ctx: AlgaeVitalityContext): VitalityFactor[] {
-  return hardened(floraStressors(floraHour(ctx)), ctx.traits.hardiness);
+  return hardened(floraStressors(vitalityInput(ctx)), ctx.traits.hardiness);
 }
 
 export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] {
-  return floraBenefits(floraHour(ctx));
+  return floraBenefits(vitalityInput(ctx));
 }
 
 export function computeAlgaeVitality(ctx: AlgaeVitalityContext): VitalityResult {

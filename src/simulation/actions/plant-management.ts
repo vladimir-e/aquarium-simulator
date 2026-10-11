@@ -55,7 +55,7 @@ export function canAddPlant(state: SimulationState, species: PlantSpecies): bool
 /**
  * Add a plant to the tank, at a size between `MIN_PLANTABLE_SIZE` and a full unit.
  */
-export function addPlant(state: SimulationState, action: AddPlantAction, config: PlantsConfig): ActionResult {
+export function addPlant(state: SimulationState, action: AddPlantAction, plantsConfig: PlantsConfig): ActionResult {
   const { species, initialSize = DEFAULT_PLANT_SIZE } = action;
 
   // Validate species
@@ -81,7 +81,7 @@ export function addPlant(state: SimulationState, action: AddPlantAction, config:
   const plantData = PLANT_SPECIES_DATA[species];
 
   const newState = produce(state, (draft) => {
-    draft.plants.push(createPlant({ species, size: initialSize, rng: draft.rng, config }));
+    draft.plants.push(createPlant({ species, size: initialSize, rng: draft.rng, plantsConfig }));
 
     draft.logs.push(
       createLog(

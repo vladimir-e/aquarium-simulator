@@ -311,8 +311,8 @@ function seedTank(state: SimulationState, seed: TankSeed): void {
   );
 }
 
-export function applySeed(state: SimulationState, seed: PresetSeed, plants: PlantsConfig): void {
-  const { fish, plants: planting, ...tank } = seed;
+export function applySeed(state: SimulationState, seed: PresetSeed, plantsConfig: PlantsConfig): void {
+  const { fish, plants, ...tank } = seed;
 
   for (const group of fish ?? []) {
     for (let i = 0; i < (group.count ?? 1); i++) {
@@ -327,7 +327,7 @@ export function applySeed(state: SimulationState, seed: PresetSeed, plants: Plan
     }
   }
 
-  for (const group of planting ?? []) {
+  for (const group of plants ?? []) {
     for (let i = 0; i < (group.count ?? 1); i++) {
       state.plants.push(
         createPlant({
@@ -335,7 +335,7 @@ export function applySeed(state: SimulationState, seed: PresetSeed, plants: Plan
           size: group.size,
           age: group.age,
           rng: state.rng,
-          config: plants,
+          plantsConfig,
         })
       );
     }

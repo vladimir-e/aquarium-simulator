@@ -196,13 +196,13 @@ export function plantTraits(species: PlantSpecies): FloraTraits {
   return { growthRate, lowLight: tolerableLight[0], tolerableTemp, tolerablePH };
 }
 
-export function getCo2HalfSaturation(species: PlantSpecies, config: PlantsConfig): number {
+export function getCo2HalfSaturation(species: PlantSpecies, plantsConfig: PlantsConfig): number {
   switch (PLANT_SPECIES_DATA[species].co2Requirement) {
     case 'low':
-      return config.lowCo2HalfSaturation;
+      return plantsConfig.lowCo2HalfSaturation;
     case 'medium':
-      return config.mediumCo2HalfSaturation;
+      return plantsConfig.mediumCo2HalfSaturation;
     case 'high':
-      return config.highCo2HalfSaturation;
+      return plantsConfig.highCo2HalfSaturation;
   }
 }

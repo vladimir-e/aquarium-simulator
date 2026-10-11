@@ -31,19 +31,19 @@ function floraParams(
   { growthRate }: Pick<FloraTraits, 'growthRate'>,
   kappa: number,
   { quotaMin, quotaMax, storeFillDays }: Composition,
-  config: PlantsConfig,
+  plantsConfig: PlantsConfig,
   vigour = 0
 ): FloraParams {
   const photosynthatePerGram =
-    (growthRate * config.co2PerRateUnit * CO2_TO_CH2O_MASS_RATIO) / (MG_PER_G * TISSUE_PER_RATE_UNIT);
-  const pAm = (1 + vigour) * config.basePhotosynthesisRate * photosynthatePerGram;
+    (growthRate * plantsConfig.co2PerRateUnit * CO2_TO_CH2O_MASS_RATIO) / (MG_PER_G * TISSUE_PER_RATE_UNIT);
+  const pAm = (1 + vigour) * plantsConfig.basePhotosynthesisRate * photosynthatePerGram;
   return {
     pAm,
-    v: pAm / config.reserveCapacity,
+    v: pAm / plantsConfig.reserveCapacity,
     kappa,
-    pM: config.baseRespirationRate * photosynthatePerGram,
-    EG: 1 / config.growthEfficiency,
-    kappaG: config.growthEfficiency,
+    pM: plantsConfig.baseRespirationRate * photosynthatePerGram,
+    EG: 1 / plantsConfig.growthEfficiency,
+    kappaG: plantsConfig.growthEfficiency,
     qMin: inEngineUnits(quotaMin),
     qMax: inEngineUnits(quotaMax),
     storeFillRate: mapNutrients(() => 1 / (storeFillDays * HOURS_PER_DAY)),
@@ -51,9 +51,9 @@ function floraParams(
 }
 
 /** A species' params, or a unit's at its vigour: its assimilation ceiling lifted by `1 + vigour`. */
-export const plantParams = (species: PlantSpecies, config: PlantsConfig, vigour = 0): FloraParams =>
-  floraParams(plantTraits(species), config.somaShare, config, config, vigour);
+export const plantParams = (species: PlantSpecies, plantsConfig: PlantsConfig, vigour = 0): FloraParams =>
+  floraParams(plantTraits(species), plantsConfig.somaShare, plantsConfig, plantsConfig, vigour);
 
 /** A bloom's growth is its reproduction: it keeps no offshoot buffer, so its whole mobilisation goes to the soma. */
-export const bloomParams = (kind: AlgaeKind, config: PlantsConfig): FloraParams =>
-  floraParams(ALGAE[kind], 1, ALGAE[kind], config);
+export const bloomParams = (kind: AlgaeKind, plantsConfig: PlantsConfig): FloraParams =>
+  floraParams(ALGAE[kind], 1, ALGAE[kind], plantsConfig);

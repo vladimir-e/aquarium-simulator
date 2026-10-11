@@ -55,11 +55,11 @@ export function bloomFixer(
   omega: number,
   stress: Readonly<DebStress>,
   traits: AlgaeTraits,
-  config: PlantsConfig
+  plantsConfig: PlantsConfig
 ): CarbonFixer {
   return {
     metabolicRateUnits: stress.assimilation * bloomRateUnits(bloom.budget.structure, traits),
-    lightResponse: lightSaturationFactor(light.par, saturationIrradiance(traits, config)),
+    lightResponse: lightSaturationFactor(light.par, saturationIrradiance(traits, plantsConfig)),
     omega,
     co2HalfSaturation: traits.co2HalfSaturation,
   };

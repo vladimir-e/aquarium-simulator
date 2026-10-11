@@ -444,11 +444,11 @@ export interface NutrientReading {
  * for the fish, and charges each plant past its species' own edge — so its
  * ceiling is whichever comes first, and it is one reading wherever it shows.
  */
-function ceilingPpm(state: SimulationState, key: Nutrient, config: PlantsConfig): number | null {
+function ceilingPpm(state: SimulationState, key: Nutrient, plantsConfig: PlantsConfig): number | null {
   if (key !== 'nitrate') return null;
   return Math.min(
     NITRATE_EDGE,
-    ...state.plants.map((plant) => plantNitrateEdge(plant.species, config))
+    ...state.plants.map((plant) => plantNitrateEdge(plant.species, plantsConfig))
   );
 }
 

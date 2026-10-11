@@ -74,12 +74,12 @@ describe('pace', () => {
   });
 
   it('fills every kind’s reserve to the plants’ E_m', () => {
-    const everyKind = (c: PlantsConfig): FloraParams[] => [
-      plantParams('anubias', c),
-      ...ALGAE_KINDS.map((kind) => bloomParams(kind, c)),
+    const everyKind = (plantsConfig: PlantsConfig): FloraParams[] => [
+      plantParams('anubias', plantsConfig),
+      ...ALGAE_KINDS.map((kind) => bloomParams(kind, plantsConfig)),
     ];
-    const fills = (c: PlantsConfig): boolean =>
-      everyKind(c).every((p) => close(maxReserveDensity(p), c.reserveCapacity));
+    const fills = (plantsConfig: PlantsConfig): boolean =>
+      everyKind(plantsConfig).every((p) => close(maxReserveDensity(p), plantsConfig.reserveCapacity));
     expect(fills(config)).toBe(true);
     expect(fills({ ...config, reserveCapacity: 2 * config.reserveCapacity })).toBe(true);
   });
@@ -133,11 +133,11 @@ describe('quotas', () => {
         ),
       [config]
     );
-    const harm = (p: FloraParams, c: PlantsConfig): number =>
+    const harm = (p: FloraParams, plantsConfig: PlantsConfig): number =>
       floraStressors({
         traits: plantTraits('amazon_sword'),
         resources: createSimulation({ tankCapacity: 100 }).resources,
-        plantsConfig: c,
+        plantsConfig: plantsConfig,
         wellFed: 1,
         droop: droopFactor(stocked(1, p), p),
         fullDroop: fullDroopFactor(p),

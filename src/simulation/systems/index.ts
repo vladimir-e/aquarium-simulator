@@ -35,7 +35,7 @@ export {
   floraStressors,
   floraBenefits,
   type FloraTraits,
-  type FloraHour,
+  type FloraVitalityInput,
 } from './flora.js';
 
 export {

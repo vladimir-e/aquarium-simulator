@@ -52,19 +52,19 @@ export interface CreatePlantParams {
   age?: number;
   /** The tank's draw stream — the vigour and the id come off it. */
   rng: RngState;
-  config: PlantsConfig;
+  plantsConfig: PlantsConfig;
 }
 
 /** A planted or seeded plant, fed and stocked as a shop sells it: the founder of its own family. */
 export function createPlant(params: CreatePlantParams): Plant {
-  const { species, size = DEFAULT_PLANT_SIZE, age = 0, rng, config } = params;
+  const { species, size = DEFAULT_PLANT_SIZE, age = 0, rng, plantsConfig } = params;
   const vigour = drawVigour(rng);
   const id = drawId(rng, 'plant');
 
   return {
     id,
     species,
-    budget: stocked(tissueMass(species, size), plantParams(species, config)),
+    budget: stocked(tissueMass(species, size), plantParams(species, plantsConfig)),
     condition: 100,
     parentId: null,
     familyId: id,

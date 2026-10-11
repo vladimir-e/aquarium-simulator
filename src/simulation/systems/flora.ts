@@ -12,7 +12,16 @@ import { monodFactor, q10Factor } from '../core/kinetics.js';
 import { parHoursToDli } from '../equipment/light.js';
 import { ZERO_NUTRIENTS, type NutrientVector } from '../config/nutrients.js';
 import { NO_ORGANICS, type Organics } from '../core/organics.js';
-import { remains, shed, type FloraParams, type FloraState } from './flora-budget.js';
+import {
+  droopFactor,
+  fullDroopFactor,
+  remains,
+  shed,
+  type FloraFluxes,
+  type FloraParams,
+  type FloraState,
+} from './flora-budget.js';
+import { starvation, wellFed } from './reserve.js';
 import { bandComfort, outsideBand, shortfall, type VitalityFactor } from './vitality.js';
 
 /** Hours a day the care-sheet PAR bands assume the lamps are on. */
@@ -43,8 +52,8 @@ export const TISSUE_PER_RATE_UNIT = 3;
  * The PAR it stops answering more of — `Ik` of the Jassby–Platt curve its
  * photosynthesis runs on: `saturationIrradianceFactor × lowLight`.
  */
-export function saturationIrradiance(traits: FloraTraits, config: PlantsConfig): number {
-  return config.saturationIrradianceFactor * traits.lowLight;
+export function saturationIrradiance(traits: FloraTraits, plantsConfig: PlantsConfig): number {
+  return plantsConfig.saturationIrradianceFactor * traits.lowLight;
 }
 
 /**
@@ -75,9 +84,9 @@ export function metabolicRateUnits(tissueRateUnits: number, traits: FloraTraits)
 }
 
 /** Share of itself it sheds in an hour at this condition: the square of its deficit, at `maxSheddingRate`. */
-export function shedShare(condition: number, config: PlantsConfig): number {
+export function shedShare(condition: number, plantsConfig: PlantsConfig): number {
   const deficit = Math.max(0, Math.min(1, 1 - condition / 100));
-  return config.maxSheddingRate * deficit * deficit;
+  return plantsConfig.maxSheddingRate * deficit * deficit;
 }
 
 /** A flora after the hour's losses, and what each loss left. */
@@ -92,15 +101,15 @@ export interface FloraLoss {
 }
 
 /** Low condition sheds its `shedShare` of the structure, and condition 0 kills what is left. */
-export function loseFlora(state: FloraState, p: FloraParams, condition: number, config: PlantsConfig): FloraLoss {
-  const shedding = shed(state, p, shedShare(condition, config) * state.structure);
+export function loseFlora(state: FloraState, p: FloraParams, condition: number, plantsConfig: PlantsConfig): FloraLoss {
+  const shedding = shed(state, p, shedShare(condition, plantsConfig) * state.structure);
   if (condition > 0) return { survivor: shedding.state, shed: shedding.waste, died: NO_ORGANICS, leachate: ZERO_NUTRIENTS };
   const left = remains(shedding.state, p);
   return { survivor: null, shed: shedding.waste, died: left.waste, leachate: left.leachate };
 }
 
 /** One feeder's hour, as the channels a plant and a bloom share read it. */
-export interface FloraHour {
+export interface FloraVitalityInput {
   traits: FloraTraits;
   resources: Resources;
   plantsConfig: PlantsConfig;
@@ -116,9 +125,25 @@ export interface FloraHour {
   co2HalfSaturation: number;
 }
 
+/** Its vitality input off its budget as the hour found it and what the hour's budget did. */
+export function floraVitalityInput(
+  budget: FloraState,
+  p: FloraParams,
+  fluxes: FloraFluxes,
+  reads: Pick<FloraVitalityInput, 'traits' | 'resources' | 'plantsConfig' | 'co2HalfSaturation'>
+): FloraVitalityInput {
+  return {
+    ...reads,
+    wellFed: wellFed(budget, p),
+    droop: droopFactor(budget, p),
+    fullDroop: fullDroopFactor(p),
+    starvation: starvation({ fluxes }),
+  };
+}
+
 /** The harms both have, unhardened. */
-export function floraStressors(hour: FloraHour): VitalityFactor[] {
-  const { traits, resources, plantsConfig, droop, fullDroop, starvation } = hour;
+export function floraStressors(input: FloraVitalityInput): VitalityFactor[] {
+  const { traits, resources, plantsConfig, droop, fullDroop, starvation } = input;
   return [
     { key: 'starvation', label: 'Starvation', amount: plantsConfig.starvationSeverity * starvation },
     {
@@ -140,8 +165,8 @@ export function floraStressors(hour: FloraHour): VitalityFactor[] {
 }
 
 /** Income, every channel earned on its reserve density and its stores' Droop limit. */
-export function floraBenefits(hour: FloraHour): VitalityFactor[] {
-  const { traits, resources, plantsConfig, wellFed, droop, co2HalfSaturation } = hour;
+export function floraBenefits(input: FloraVitalityInput): VitalityFactor[] {
+  const { traits, resources, plantsConfig, wellFed, droop, co2HalfSaturation } = input;
   const earning = wellFed * droop;
   return [
     {

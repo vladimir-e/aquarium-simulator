@@ -15,9 +15,9 @@ import { PLANT_SPECIES_DATA, getCo2HalfSaturation, plantTraits, type PlantSpecie
 import { toleranceFactor } from '../livestock/tolerance.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { getDgh, getPpm } from '../resources/index.js';
-import { droopFactor, fullDroopFactor, type FloraFluxes, type FloraParams } from './flora-budget.js';
-import { pointsHealed, starvation, wellFed } from './reserve.js';
-import { floraBenefits, floraStressors, type FloraHour } from './flora.js';
+import type { FloraFluxes, FloraParams } from './flora-budget.js';
+import { pointsHealed } from './reserve.js';
+import { floraBenefits, floraStressors, floraVitalityInput, type FloraVitalityInput } from './flora.js';
 import {
   computeVitality,
   eFoldsPast,
@@ -40,18 +40,13 @@ export interface PlantVitalityContext {
   light: PlantLight;
 }
 
-function floraHour({ plant, params, fluxes, resources, plantsConfig }: PlantVitalityContext): FloraHour {
-  return {
+const vitalityInput = ({ plant, params, fluxes, resources, plantsConfig }: PlantVitalityContext): FloraVitalityInput =>
+  floraVitalityInput(plant.budget, params, fluxes, {
     traits: plantTraits(plant.species),
     resources,
     plantsConfig,
-    wellFed: wellFed(plant.budget, params),
-    droop: droopFactor(plant.budget, params),
-    fullDroop: fullDroopFactor(params),
-    starvation: starvation({ fluxes }),
     co2HalfSaturation: getCo2HalfSaturation(plant.species, plantsConfig),
-  };
-}
+  });
 
 /** Nitrate ppm a species takes harm past: the plant edge, carried out by its hardiness. */
 export function plantNitrateEdge(species: PlantSpecies, plantsConfig: PlantsConfig): number {
@@ -70,7 +65,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   return [
     ...hardened(
       [
-        ...floraStressors(floraHour(ctx)),
+        ...floraStressors(vitalityInput(ctx)),
         {
           key: 'light',
           label: 'Light high',
@@ -95,7 +90,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
 }
 
 export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] {
-  return floraBenefits(floraHour(ctx));
+  return floraBenefits(vitalityInput(ctx));
 }
 
 /** A plant's condition over the hour its budget ran, its reserve paying for the repair. Stateless. */

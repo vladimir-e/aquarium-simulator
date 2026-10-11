@@ -37,7 +37,7 @@ export function onTheGlass(state: SimulationState): Record<AlgaeKind, number> {
   return coverageAt(state, 'walls');
 }
 
-export function scrubAlgae(state: SimulationState, config: PlantsConfig): ActionResult {
+export function scrubAlgae(state: SimulationState, plantsConfig: PlantsConfig): ActionResult {
   const glass = onTheGlass(state);
   const scraped = ALGAE_KINDS.filter((kind) => glass[kind] > 0);
   if (scraped.length === 0) return { state, message: 'Nothing on the glass to scrub' };
@@ -45,7 +45,7 @@ export function scrubAlgae(state: SimulationState, config: PlantsConfig): Action
   const scrubbed = ALGAE_KINDS.map((kind) =>
     remains(
       scaleFlora(state.algae[kind].budget, placeShare(ALGAE[kind].habitat, 'walls', state)),
-      bloomParams(kind, config)
+      bloomParams(kind, plantsConfig)
     )
   );
   const newState = produce(state, (draft) => {

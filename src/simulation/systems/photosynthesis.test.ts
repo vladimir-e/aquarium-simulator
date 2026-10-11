@@ -52,26 +52,26 @@ describe('offerCarbon', () => {
       volume = waterVolume,
       lightPar = light,
       omega = 1,
-      config = plantsDefaults,
-    }: { co2?: number; volume?: number; lightPar?: number; omega?: number; config?: PlantsConfig } = {}
+      plantsConfig = plantsDefaults,
+    }: { co2?: number; volume?: number; lightPar?: number; omega?: number; plantsConfig?: PlantsConfig } = {}
   ): number[] {
     return offerCarbon(
-      plants.map((p) => plantFixer(p, lightPar, omega, config)),
+      plants.map((p) => plantFixer(p, lightPar, omega, plantsConfig)),
       co2,
       volume,
-      config
+      plantsConfig
     );
   }
   const total = (mg: number[]): number => mg.reduce((sum, m) => sum + m, 0);
 
   const metabolic = (p: Plant, size: number): number => rateUnits({ species: p.species, size }) * plantTraits(p.species).growthRate;
 
-  function carbonCapacity(p: Plant, size: number, config = plantsDefaults): number {
+  function carbonCapacity(p: Plant, size: number, plantsConfig = plantsDefaults): number {
     return (
       metabolic(p, size) *
-      lightSaturationFactor(light, saturationIrradiance(plantTraits(p.species), config)) *
-      config.basePhotosynthesisRate *
-      config.co2PerRateUnit
+      lightSaturationFactor(light, saturationIrradiance(plantTraits(p.species), plantsConfig)) *
+      plantsConfig.basePhotosynthesisRate *
+      plantsConfig.co2PerRateUnit
     );
   }
 

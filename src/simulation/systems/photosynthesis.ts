@@ -48,15 +48,15 @@ export function plantFixer(
   plant: Pick<Plant, 'species' | 'budget' | 'vigour'>,
   par: number,
   omega: number,
-  config: PlantsConfig = plantsDefaults
+  plantsConfig: PlantsConfig = plantsDefaults
 ): CarbonFixer {
   const traits = plantTraits(plant.species);
   return {
     metabolicRateUnits:
       (1 + plant.vigour) * metabolicRateUnits(rateUnits({ species: plant.species, size: sizeOf(plant) }), traits),
-    lightResponse: lightSaturationFactor(par, saturationIrradiance(traits, config)),
+    lightResponse: lightSaturationFactor(par, saturationIrradiance(traits, plantsConfig)),
     omega,
-    co2HalfSaturation: getCo2HalfSaturation(plant.species, config),
+    co2HalfSaturation: getCo2HalfSaturation(plant.species, plantsConfig),
   };
 }
 
