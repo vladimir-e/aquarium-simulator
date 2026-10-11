@@ -31,7 +31,7 @@ and the config layer cannot reach it.
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, the energy budget and stores, harm, income, shedding |
 | Nutrients | `nutrients.` | Fertilizer formula, root tab, the bed's leak, half-saturations, demand tiers, minerals in food |
-| Livestock | `livestock.` | Feeding, pace, burn, health and repair, broods, death |
+| Livestock | `livestock.` | Feeding, pace, burn, toxin loads, health and repair, broods, death |
 
 The values themselves are not repeated here. They move when the model is
 recalibrated, and the file that holds each one carries the reference it was read
@@ -213,7 +213,9 @@ A fish's energy budget — growth, reserve, maturity, brood buffer, ageing — c
 | `oxygenPerGramBurned` | Oxygen a fish breathes per gram of organics its budget burns | mg O₂/g |
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per °C, pH unit or dGH outside the species' tolerable band | %/unit/hr |
-| `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own tolerance edge, which hardiness moves out — free NH₃, not total ammonia; oxygen counts e-folds under | %/e-fold/hr |
+| `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own tolerance edge, which hardiness moves out — the toxins on its load, free NH₃ not total ammonia; oxygen counts e-folds under | %/e-fold/hr |
+| `loadRate.ammonia` · `.nitrite` · `.nitrate` | Dominant rate a fish of 1 cm structural length loads and clears each toxin at, at 20 °C; its Arrhenius factor paces it and its length divides it | /hr |
+| `loadAssimilationSeverity` | How hard a fish's load, in e-folds past its own edges summed, lowers its assimilation ceiling | /e-fold |
 | `waterLevelStressSeverity` · `flowStressSeverity` | Damage per % of capacity under the threshold, and per turnover above the species' tolerance | %/%/hr · %/turnover/hr |
 | `waterLevelStressThreshold` | Share of capacity the water-level stressor switches on under | % |
 | `starvationSeverity` | Damage at a maintenance left wholly unpaid, before hardiness; the hour's shortfall scales it | %/hr |
