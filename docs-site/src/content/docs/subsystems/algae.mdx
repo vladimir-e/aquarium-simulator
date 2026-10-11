@@ -11,13 +11,13 @@ A bloom is plant mechanics without a position. It has a condition and an energy
 budget — a reserve, tissue and four nutrient stores — on the
 [vitality](/concepts/vitality/) model, and its light curve, income, harms,
 shedding and budget are the [plants'](/subsystems/plants/), on the plants'
-constants and its own traits. It runs at κ = 1, keeping no plantlet buffer:
-its growth is its reproduction. It has no
-height or footprint: in their place is a habitat it fills, and spores land in
-it and join it.
+constants and its own traits. It runs at κ = 1: its growth is its
+reproduction. It has no height or footprint: in their place is a habitat it
+fills, and spores land in it and join it.
 
-The tank holds two kinds on that one model, run through one code path. They differ by habitat and by traits, and the tank's
-conditions pick the winner — there is no split and no coded preference.
+The tank holds two kinds on that one model and one code path. They differ by
+habitat and traits, and the tank's conditions pick the winner, with no coded
+preference.
 
 | Kind | Habitat | Size of it | Light it reads | Light taken from | Taken out by |
 |---|---|---|---|---|---|
@@ -37,14 +37,14 @@ wear its coverage but are not habitat.
 | Condition and budget | <Badge text="settled" variant="success" /> | The shared vitality step on the plants' budget at κ = 1, repair paid from its reserve. |
 | Income | <Badge text="settled" variant="success" /> | The plants' three channels, full on a full reserve and full stores. |
 | Growth | <Badge text="settled" variant="success" /> | Maintenance first, then tissue at the Droop limit through the crowding taper — the share of its habitat still empty — day and night. |
-| Spores | <Badge text="settled" variant="success" /> | Immigration at a constant rate per kind, built from the water: they join a standing bloom at its condition and start an empty one at 100, so an empty tank is never closed to either. |
+| Spores | <Badge text="settled" variant="success" /> | Immigration at a constant rate per kind, built from the water, so an empty tank is never closed to either. |
 | Two kinds | <Badge text="settled" variant="success" /> | Two trait records on one path. Green water is the sprinter: a lit, fed day about doubles it, but it needs richer water. Film is the stayer: a third of the pace, so it takes a week or two to show, but efficient on lean water. |
 | Habitats | <Badge text="settled" variant="success" /> | A water change carries green water out with the water; a lifted piece of hardscape takes its share of the film, and a swapped bed the floor's, arriving bare. |
 | Nutrients | <Badge text="settled" variant="success" /> | Its own Q_min and Q_max, filled from the water alone in one draw with every plant: no feeder is served before another. |
 | Nitrogen form | <Badge text="settled" variant="success" /> | Ammonia first and nitrate for the rest, on each kind's affinities: film takes nitrate about as readily as a plant. |
 | Carbon and oxygen | <Badge text="settled" variant="success" /> | The plants' photosynthesis and burn on one CO₂ stock, its tissue rated at the plants' relation and run at its growth rate. |
 | Allelopathy | <Badge text="settled" variant="success" /> | Thriving plant leaf per litre lowers every kind's assimilation ceiling, with no threshold — a stress on its budget, not a harm, standing for every way a planting suppresses algae that the model doesn't resolve. |
-| Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape; condition 0 kills what is left. Tissue returns as waste at Q_min and a die-back's stores leach; a die-back of a bloom that showed is logged with its kind and the coverage it took. |
+| Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape; condition 0 kills what is left. Tissue returns as waste at Q_min and a die-back's stores leach; a die-back that showed is logged. |
 | Scrubbing | <Badge text="scaffolding" variant="caution" /> | Coverage is one figure, so the scrubbed glass refills from the floor and the hardscape at once — see [Actions](/subsystems/actions/). |
 | Light taken | <Badge text="settled" variant="success" /> | Light, not damage — Beer–Lambert on its coverage. |
 | Film on the leaves | <Badge text="scaffolding" variant="caution" /> | One coverage over the habitat, worn by every leaf alike: a months-old leaf carries no more than last week's, so film costs a light-hungry plant more than a slow one. |
@@ -132,8 +132,8 @@ green water out, stores and all.
 A dark tank starves a bloom on its reserve, not on the day. From 10 % coverage
 green water dies back in about two weeks and film a day or two later, and the
 log says so. Spores keep landing, start the bloom afresh at 100 and starve in
-turn, so the dust dies back every two weeks while the dark lasts — too thin to
-show, so the keeper sees clear water and a clean glass, and no more die-backs.
+turn, so the dust dies back every two weeks while the dark lasts, too thin to
+show: the keeper sees clear water, a clean glass and no more die-backs.
 Relit, film is back past 20 % within a month.
 
 ## Key tunables and traits

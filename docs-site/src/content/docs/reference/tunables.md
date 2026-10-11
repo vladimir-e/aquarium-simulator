@@ -30,7 +30,7 @@ and the config layer cannot reach it.
 | Optics | `optics.` | What the water column, the blooms and the leaves above take out of the light on the way down |
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, the energy budget and stores, harm, income, shedding |
-| Nutrients | `nutrients.` | Fertilizer formula, root tab, the bed's leak, half-saturations, demand tiers, minerals in organic matter |
+| Nutrients | `nutrients.` | Fertilizer formula, root tab, the bed's leak, half-saturations, demand tiers, minerals in food |
 | Livestock | `livestock.` | Feeding, pace, burn, health and repair, broods, death |
 
 The values themselves are not repeated here. They move when the model is

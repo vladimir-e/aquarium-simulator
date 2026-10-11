@@ -1,6 +1,6 @@
 ---
 title: Vitality
-description: One model for every organism — rates of benefit and harm move condition, nothing banks, and each organism's reserve pays its repair and buys what it makes.
+description: One model for every organism — rates of benefit and harm move condition, which stops at 100, and each organism's reserve pays its repair and buys what it makes.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -28,7 +28,7 @@ its energy budget paid for — fish, plants and the blooms alike.
 | Starvation | One stressor among them: the share of the hour's upkeep its budget left unpaid |
 | Repair | A first-order share of the deficit at `healingRate` and the organism's pace, priced at `healingCost` hours of its own upkeep a point and paid from its reserve inside the budget's hour. An empty reserve repairs nothing |
 
-Nothing banks: condition past 100 is lost. The reserve is the buffer — it pays
+Condition past 100 is lost. The reserve is the buffer — it pays
 maintenance first and repair after, so a fed organism repairs as it is harmed
 and a starving one cannot.
 
@@ -56,11 +56,11 @@ sickness, and it ends when the rates turn round.
 | Mechanic | Status | Why |
 |---|---|---|
 | The balance | <Badge text="settled" variant="success" /> | One step for every organism. Each hardens its own charges, so a channel can move its edge instead of scaling its charge |
-| Nothing banks | <Badge text="settled" variant="success" /> | Condition past 100 is lost; the reserve is the only buffer, and maintenance comes before repair |
+| Condition at 100 | <Badge text="settled" variant="success" /> | Condition past 100 is lost; the reserve is the only buffer, and maintenance comes before repair |
 | Repair from reserve | <Badge text="settled" variant="success" /> | First order on the deficit at the organism's pace, priced in its own upkeep, paid inside its budget's hour — no floor, switch or clamp |
 | Sickness | <Badge text="settled" variant="success" /> | A reading of the rates, not a state: condition falling is the whole of it |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at each edge, and the matching damage starts from zero at or past it, so net never jumps as a reading leaves its band |
-| Offspring | <Badge text="settled" variant="success" /> | A buffer the reserve's other share fills — a fish's brood, a plant's plantlet — released once it holds one: filling it is the price and the cooldown, with no timers |
+| Offspring | <Badge text="settled" variant="success" /> | A buffer the reserve's other share fills — a fish's brood, a plant's plantlet — released once it holds one: filling it is the price and the cooldown |
 
 ## Source
 
