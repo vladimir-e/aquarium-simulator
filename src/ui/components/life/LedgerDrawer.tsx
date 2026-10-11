@@ -98,6 +98,18 @@ function BudgetLine({ row }: { row: BudgetRow }): React.JSX.Element {
   );
 }
 
+function BudgetSection({ title, rows }: { title: string; rows: BudgetRow[] }): React.JSX.Element | null {
+  if (rows.length === 0) return null;
+  return (
+    <>
+      <h3 className="pt-2 text-[11px] text-ink-3">{title}</h3>
+      {rows.map((row) => (
+        <BudgetLine key={row.key} row={row} />
+      ))}
+    </>
+  );
+}
+
 /**
  * Why one organism is where it is: the condition it holds, what is buying that
  * and what is spending it, and the budget that pays for it. Every line is
@@ -227,14 +239,8 @@ export function LedgerDrawer({
           {ledger.budget.map((row) => (
             <BudgetLine key={row.key} row={row} />
           ))}
-          {ledger.stores.length > 0 && (
-            <>
-              <h3 className="pt-2 text-[11px] text-ink-3">Stores</h3>
-              {ledger.stores.map((row) => (
-                <BudgetLine key={row.key} row={row} />
-              ))}
-            </>
-          )}
+          <BudgetSection title="Stores" rows={ledger.stores} />
+          <BudgetSection title="Load" rows={ledger.load} />
         </div>
 
         {ledger.demand && (

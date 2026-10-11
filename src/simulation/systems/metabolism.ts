@@ -18,25 +18,38 @@ import type { LivestockConfig } from '../config/livestock.js';
 import { N_TO_NH3_MASS_RATIO, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
 import { WASTE_NUTRIENTS, type MineralVector } from '../config/nutrients.js';
 import { sum } from '../core/sum.js';
-import { speciesTau, type FishSpecies } from '../livestock/species.js';
+import { speciesTau } from '../livestock/species.js';
+import { fishHardiness, toxinEFolds } from '../livestock/tolerance.js';
 import { stepDeb, type DebFluxes } from './deb.js';
-import { NO_STRESS, oxygenPace, totalBurned } from './reserve.js';
+import { NO_STRESS, oxygenPace, totalBurned, type DebStress } from './reserve.js';
 import { fishParams } from './fish-body.js';
 import { digest, gutRoom, shareCapped, type Pace } from './digestion.js';
 
 const NH3_MG_PER_G_N = N_TO_NH3_MASS_RATIO * 1000;
 
-/** The pace a fish of this species runs at in this water, `saturation` the O2 it holds saturated. */
+type Loaded = Pick<Fish, 'species' | 'hardinessOffset' | 'load'>;
+
+/**
+ * DEBtox's assimilation mode for a fish carrying its load: every toxin's
+ * e-folds past the fish's own edge, summed, lower its assimilation ceiling by
+ * hyperbolic inhibition at `loadAssimilationSeverity`.
+ */
+export function loadStress(fish: Loaded, config: LivestockConfig): DebStress {
+  const folds = sum(Object.values(toxinEFolds(fish.load, fishHardiness(fish))));
+  return { ...NO_STRESS, assimilation: 1 / (1 + config.loadAssimilationSeverity * folds) };
+}
+
+/** The pace a fish runs at in this water, `saturation` the O2 it holds saturated. */
 export function fishPace(
-  species: FishSpecies,
+  fish: Loaded,
   water: Pick<Resources, 'temperature' | 'oxygen'>,
   saturation: number,
   config: LivestockConfig
 ): Pace {
   return {
-    tau: speciesTau(species, water.temperature),
+    tau: speciesTau(fish.species, water.temperature),
     omega: oxygenPace(water.oxygen, saturation, config.oxygenHalfSaturation),
-    stress: NO_STRESS,
+    stress: loadStress(fish, config),
   };
 }
 

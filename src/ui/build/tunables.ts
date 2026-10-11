@@ -20,6 +20,7 @@ import {
   foodMineralContentMeta,
   gasExchangeConfigMeta,
   livestockConfigMeta,
+  loadRateMeta,
   nitrogenCycleConfigMeta,
   opticsConfigMeta,
   waterChemistryConfigMeta,
@@ -150,7 +151,12 @@ const SECTIONS: readonly SectionSpec[] = [
       { path: 'foodMineralContent', label: 'Minerals per gram of food', meta: foodMineralContentMeta },
     ],
   },
-  { key: 'livestock', label: 'Livestock', meta: livestockConfigMeta },
+  {
+    key: 'livestock',
+    label: 'Livestock',
+    meta: livestockConfigMeta,
+    groups: [{ path: 'loadRate', label: 'Load rates', meta: loadRateMeta }],
+  },
 ];
 
 function field(config: TunableConfig, prefix: string, meta: FieldMeta): TunableField {

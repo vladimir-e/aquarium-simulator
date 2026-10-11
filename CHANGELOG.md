@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Fish carry toxin loads** (#78) - a per-toxin load follows the water at its dominant rate; health and appetite read it, a hatchling carries its clutch's; breaking (v37).
 - **Flora run on energy budgets** (#77) - plants and blooms grow on a reserve and Droop nutrient stores, starve on reserve in the dark; breaking (v36).
 - **Organic matter carries its nutrients** (#77) - waste and the bed's mulm keep the N, P, K and Fe of what made them; breaking: waste is Organics.
 - **The console reads the budget** (#77) - reserve, stores and the next offshoot in the ledgers, foods against the stores; breaking: preset factory args.

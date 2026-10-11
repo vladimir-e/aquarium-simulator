@@ -12,7 +12,7 @@ import { produce } from 'immer';
 import type { SimulationState, Clutch, Fish } from '../state.js';
 import type { Effect } from '../core/effects.js';
 import { debParams, FISH_SPECIES_DATA } from '../livestock/species.js';
-import type { LivestockConfig } from '../config/livestock.js';
+import type { LivestockConfig, ToxinVector } from '../config/livestock.js';
 import type { TunableConfig } from '../config/index.js';
 import { createLog } from '../core/logging.js';
 import { atRecipe, NO_ORGANICS, type Organics } from '../core/organics.js';
@@ -23,8 +23,10 @@ import { hatchling, organics } from '../systems/deb.js';
 import { brood, readyToBrood } from '../systems/brood.js';
 import { shareOut, swallow, type Pace } from '../systems/digestion.js';
 import { eggMass, eggOrganics, fishMass } from '../systems/fish-body.js';
-import { fishHardiness, predatorWeight, speciesHardiness } from '../systems/fish-health.js';
+import { predatorWeight } from '../systems/fish-health.js';
+import { fishHardiness, speciesHardiness } from './tolerance.js';
 import { developmentRate, eggHarmRate, eggPredationRate, settleClutch } from '../systems/clutch.js';
+import { waterToxins } from '../systems/toxicokinetics.js';
 import { hatchFish } from './create-fish.js';
 import { burnEffects, tankPaces } from './index.js';
 
@@ -75,19 +77,22 @@ function tendClutches(
   const mothers = new Map(draft.fish.map((fish) => [fish.id, fish]));
   const masses = draft.fish.map(fishMass);
   const shares = draft.fish.map(() => 0);
+  const levels = waterToxins(resources);
   let waste = 0;
   let burned = 0;
 
   const developing: Clutch[] = [];
-  const developed: Clutch[] = [];
+  const developed: [Clutch, ToxinVector][] = [];
   for (const clutch of draft.clutches) {
     const egg = eggMass(clutch.species);
     const weights = clutch.motherId === undefined ? masses.map((mass) => predatorWeight(mass, egg)) : [];
     const mother = clutch.motherId === undefined ? undefined : mothers.get(clutch.motherId);
     const hardiness = mother ? fishHardiness(mother) : speciesHardiness(clutch.species);
+    // A laid clutch loads in the fast limit of the same law, a carried brood with its mother.
+    const toxins = mother ? mother.load : levels;
     const hour = settleClutch(
       clutch,
-      eggHarmRate(clutch, hardiness, resources, resources.water, config),
+      eggHarmRate(clutch, hardiness, toxins, resources, resources.water, config),
       eggPredationRate(clutch, sum(weights), resources.water, config),
       developmentRate(clutch.species, resources.temperature)
     );
@@ -98,7 +103,8 @@ function tendClutches(
       shares[i] += taken;
     });
     waste += hour.spoiled * grams + eaten.overflow;
-    (hour.clutch.development < 1 ? developing : developed).push(hour.clutch);
+    if (hour.clutch.development < 1) developing.push(hour.clutch);
+    else developed.push([hour.clutch, toxins]);
   }
   const swallowed = swallow(draft.fish, paces, shares);
   draft.fish.forEach((fish, i) => {
@@ -107,8 +113,8 @@ function tendClutches(
   waste += swallowed.overflow;
 
   draft.clutches = developing;
-  for (const clutch of developed) {
-    const hatched = hatch(draft, clutch);
+  for (const [clutch, toxins] of developed) {
+    const hatched = hatch(draft, clutch, toxins);
     waste += hatched.waste;
     burned += hatched.burned;
   }
@@ -116,15 +122,16 @@ function tendClutches(
 }
 
 /**
- * Each whole egg becomes a hatchling, the reserve its embryo spent getting
- * there burned; the part-egg left over is waste.
+ * Each whole egg becomes a hatchling carrying the `toxins` its clutch read, the
+ * reserve its embryo spent getting there burned; the part-egg left over is
+ * waste.
  */
-function hatch(draft: SimulationState, clutch: Clutch): { waste: number; burned: number } {
+function hatch(draft: SimulationState, clutch: Clutch, toxins: ToxinVector): { waste: number; burned: number } {
   const { species } = clutch;
   const { name } = FISH_SPECIES_DATA[species];
   const p = debParams(species);
   const count = Math.floor(clutch.eggs);
-  for (let i = 0; i < count; i++) draft.fish.push(hatchFish({ species, rng: draft.rng }));
+  for (let i = 0; i < count; i++) draft.fish.push(hatchFish({ species, rng: draft.rng, load: toxins }));
   if (count > 0) {
     draft.logs.push(
       clutch.motherId === undefined

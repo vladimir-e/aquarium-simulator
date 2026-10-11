@@ -35,6 +35,7 @@ import type { PlantSpecies } from './plants/species.js';
 import type { FishSpecies, FishSex } from './livestock/species.js';
 import type { DebState } from './systems/deb.js';
 import type { FloraState } from './systems/flora-budget.js';
+import type { ToxinVector } from './config/livestock.js';
 
 /**
  * Individual fish in the tank. Its body is its energy budget: mass, size and
@@ -62,6 +63,8 @@ export interface Fish {
   survival: number;
   /** 0–1, drawn once at creation: the fish dies of old age when its survival falls below it. */
   survivalDraw: number;
+  /** ppm of each toxin it carries, in the water's units: what its health and appetite read for each. */
+  load: ToxinVector;
 }
 
 /**

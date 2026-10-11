@@ -25,6 +25,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v37: A fish carries its toxin loads. `Fish` gains `load` — free NH₃,
+ *      nitrite and nitrate in ppm — and `LivestockConfig` gains `loadRate`
+ *      and `loadAssimilationSeverity`.
  * v36: Organic pools carry their content, and the flora run on energy budgets.
  *      `Resources.waste` and `Substrate.organicReserve` become
  *      `{ grams, nutrients }` — the grams and the mg of each nutrient inside
@@ -290,7 +293,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 36;
+export const PERSISTENCE_VERSION = 37;
 
 /**
  * Storage key for the unified persisted state.

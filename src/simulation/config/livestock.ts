@@ -11,6 +11,22 @@
  */
 
 import { N_TO_NH3_MASS_RATIO, N_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
+import type { VectorMeta } from './nutrients.js';
+
+/** What a fish loads from the water: free NH₃, nitrite as NO₂⁻ and nitrate as NO₃⁻. */
+export const TOXINS = ['ammonia', 'nitrite', 'nitrate'] as const;
+
+export type Toxin = (typeof TOXINS)[number];
+
+export const TOXIN_LABEL: Record<Toxin, string> = { ammonia: 'Free NH₃', nitrite: 'Nitrite', nitrate: 'Nitrate' };
+
+export type ToxinVector = Record<Toxin, number>;
+
+export function mapToxins(value: (t: Toxin) => number): ToxinVector {
+  return Object.fromEntries(TOXINS.map((t) => [t, value(t)])) as ToxinVector;
+}
+
+export const ZERO_TOXINS: Readonly<ToxinVector> = Object.freeze(mapToxins(() => 0));
 
 export interface LivestockConfig {
   // Feeding
@@ -65,6 +81,12 @@ export interface LivestockConfig {
   /** Damage, %/h, per unit of DEB hazard (per hour): what age does to health. */
   hazardSeverity: number;
 
+  // Toxins
+  /** Dominant rate constant, per hour at 20 °C, a fish of 1 cm structural length loads and clears each toxin at. */
+  loadRate: ToxinVector;
+  /** How hard a fish's load, in e-folds past its own edges summed, lowers its assimilation ceiling. */
+  loadAssimilationSeverity: number;
+
   // Vitality benefit peaks (%/h) — each earned in full only on a full
   // reserve. Sum at all-good (no plants) ≈ 0.7 %/h; with saturated
   // planting it rises to ≈ 0.9 %/h.
@@ -93,7 +115,10 @@ export interface LivestockConfig {
   maleBufferTurnover: number;
 
   // Clutches
-  /** How many times harder the water harms a laid egg than a fish; an egg's harm is the share of the clutch lost an hour. */
+  /**
+   * How many times harder the water harms a laid egg than a fish loaded to
+   * that water; an egg's harm is the share of the clutch lost an hour.
+   */
   eggSensitivity: number;
   /** Share of a clutch's eggs an hour one gram of fish per litre finds, before the clutch's exposure. */
   eggPredationRate: number;
@@ -153,6 +178,14 @@ export const livestockDefaults: LivestockConfig = {
   // Hazard at the species lifespan runs 2–9 × 10⁻⁵ /h, so 0.1–0.5 %/h there.
   hazardSeverity: 5000,
 
+  loadRate: {
+    ammonia: 0.015, // half-time ~2 d at 1 cm: NH₃ crosses the gill in hours, repair sets it; 96 h LC50 well under the 24 h one
+    nitrite: 0.03, // half-time ~1 d at 1 cm: methaemoglobin's turnover sets it; 96 h LC50 under 24 h
+    nitrate: 0.004, // half-time ~1 wk at 1 cm: the gill barely passes it; acute LC50 thousands of ppm, chronic tens over weeks
+  },
+  // Tune's: at one e-fold past its edge a fish eats a third less.
+  loadAssimilationSeverity: 0.5,
+
   // Benefit peaks (%/h), each scaled by reserve density. Sum at all-good in a
   // bare tank, pH at its band centre: pH 0.4 + O2 0.3 = 0.7 %/h. With a
   // saturating planting (see `plantBenefitSaturationPoint`): +0.2 → 0.9 %/h.
@@ -205,6 +238,12 @@ export interface LivestockConfigMeta {
   step: number;
 }
 
+export const loadRateMeta: VectorMeta<Toxin>[] = [
+  { key: 'ammonia', label: 'Free NH3 load rate', unit: '/hr at 1 cm, 20 °C', min: 0.0001, max: 1, step: 0.0001 },
+  { key: 'nitrite', label: 'Nitrite load rate', unit: '/hr at 1 cm, 20 °C', min: 0.0001, max: 1, step: 0.0001 },
+  { key: 'nitrate', label: 'Nitrate load rate', unit: '/hr at 1 cm, 20 °C', min: 0.0001, max: 1, step: 0.0001 },
+];
+
 export const livestockConfigMeta: LivestockConfigMeta[] = [
   // Feeding
   { key: 'digestionRate', label: 'Digestion Rate', unit: '/hr at 20 °C', min: 0.01, max: 1, step: 0.01 },
@@ -254,6 +293,8 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'waterLevelStressThreshold', label: 'Water Level Stress Threshold', unit: '%', min: 20, max: 80, step: 5 },
   { key: 'starvationSeverity', label: 'Starvation Severity', unit: '%/hr unpaid', min: 0, max: 5, step: 0.05 },
   { key: 'hazardSeverity', label: 'Hazard Severity', unit: '%/hr per hazard', min: 0, max: 50000, step: 500 },
+  // Toxins
+  { key: 'loadAssimilationSeverity', label: 'Load Assimilation Severity', unit: '/e-fold', min: 0, max: 5, step: 0.05 },
   // Vitality benefit peaks
   { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'oxygenBenefitPeak', label: 'O2 Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },

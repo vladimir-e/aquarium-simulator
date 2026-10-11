@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { bloomParams, plantParams, unitParams } from './params.js';
 import { plantsDefaults, quotaMaxMeta, quotaMinMeta, type PlantsConfig } from '../config/plants.js';
-import { NUTRIENTS, type Nutrient, type NutrientVectorMeta } from '../config/nutrients.js';
+import { NUTRIENTS, type Nutrient, type VectorMeta } from '../config/nutrients.js';
 import { CO2_TO_CH2O_MASS_RATIO } from '../core/chemistry.js';
 import { maxReserveDensity, structureOrganics } from '../systems/reserve.js';
 import { offerCarbon, photosynthateOf, plantFixer } from '../systems/photosynthesis.js';
@@ -112,14 +112,14 @@ describe('quotas', () => {
     );
   });
 
-  const range = (meta: NutrientVectorMeta[], n: Nutrient): NutrientVectorMeta => meta.find((m) => m.key === n)!;
+  const range = (meta: VectorMeta<Nutrient>[], n: Nutrient): VectorMeta<Nutrient> => meta.find((m) => m.key === n)!;
 
   it('leave a store room above Q_min at every setting: each floor’s range sits below its ceiling’s', () => {
     expect(NUTRIENTS.every((n) => range(quotaMinMeta, n).max < range(quotaMaxMeta, n).min)).toBe(true);
   });
 
   it('leave full stores unharmed at the shipped Droop edge, at every corner of their bounds', () => {
-    const ends = (meta: NutrientVectorMeta[], n: Nutrient): number[] => [range(meta, n).min, range(meta, n).max];
+    const ends = (meta: VectorMeta<Nutrient>[], n: Nutrient): number[] => [range(meta, n).min, range(meta, n).max];
     const corners = NUTRIENTS.reduce<PlantsConfig[]>(
       (configs, n) =>
         configs.flatMap((c) =>

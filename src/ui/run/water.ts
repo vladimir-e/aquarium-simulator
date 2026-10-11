@@ -58,12 +58,14 @@ export const WATER_SCALE: Record<FixedWaterKey, Scale> = {
   nitrate: [0, 100],
 };
 
+/** A track runs to twice its line, so the line sits mid-track. */
+export const TRACK_PAST_LINE = 2;
+
 const AMMONIA_FLOOR_PPM = 1;
-const AMMONIA_TRACK_PAST_LINE = 2;
 
 /** The ammonia track, stretched so its pH- and temperature-bound line always sits on it. */
 export function ammoniaScale(alertLine: number): Scale {
-  return [0, Math.max(AMMONIA_FLOOR_PPM, alertLine * AMMONIA_TRACK_PAST_LINE)];
+  return [0, Math.max(AMMONIA_FLOOR_PPM, alertLine * TRACK_PAST_LINE)];
 }
 
 /** Position of a value on a track, 0 (floor) to 1 (ceiling). */

@@ -29,7 +29,7 @@ describe('appetite', () => {
   it('runs at τ·ω and falls with assimilation stress', () => {
     const fish = guppy(50);
     const base = appetite(fish, REFERENCE);
-    expect(appetite(fish, { tau: 1.5, omega: 0.5 })).toBeCloseTo(0.75 * base, 15);
+    expect(appetite(fish, { ...REFERENCE, tau: 1.5, omega: 0.5 })).toBeCloseTo(0.75 * base, 15);
     expect(appetite(fish, { ...REFERENCE, stress: { ...NO_STRESS, assimilation: 0.4 } })).toBeCloseTo(0.4 * base, 15);
   });
 });

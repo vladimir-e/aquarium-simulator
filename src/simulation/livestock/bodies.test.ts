@@ -14,6 +14,8 @@ import { gutCapacity } from '../systems/digestion.js';
 import { spawnsAt } from '../systems/brood.js';
 import { clutchOrganics } from '../systems/clutch.js';
 import { fishRecord, holdingEggs } from '../tests/fish.js';
+import { ZERO_TOXINS } from '../config/livestock.js';
+import { waterToxins } from '../systems/toxicokinetics.js';
 
 let idSeq = 0;
 function mkFish(o: Partial<Fish> = {}): Fish {
@@ -134,16 +136,38 @@ describe('processBodies', () => {
 
   it('thins a carried brood by its mother’s own hardiness, a hardier mother keeping more', () => {
     const left = (hardinessOffset: number): number => {
-      const mother = mkFish({ id: 'mother', hardinessOffset });
+      const mother = mkFish({ id: 'mother', hardinessOffset, load: { ...ZERO_TOXINS, nitrite: 20 } });
       const brood: Clutch = { id: 'c', species: 'guppy', eggs: 100, development: 0, motherId: 'mother' };
-      const state = produce(withTank([mother], [brood]), (draft) => {
-        draft.resources.nitrite = 20 * draft.resources.water;
-      });
-      return breed(state).state.clutches[0].eggs;
+      return breed(withTank([mother], [brood])).state.clutches[0].eggs;
     };
     expect(left(0)).toBeLessThan(100);
     expect(left(0.1)).toBeGreaterThan(left(0));
     expect(left(-0.1)).toBeLessThan(left(0));
+  });
+
+  it('thins a carried brood on its mother’s load, not the water, a loaded mother losing more of it', () => {
+    const left = (load: Fish['load'], nitritePpm: number): number => {
+      const mother = mkFish({ id: 'mother', load });
+      const brood: Clutch = { id: 'c', species: 'guppy', eggs: 100, development: 0, motherId: 'mother' };
+      const state = produce(withTank([mother], [brood]), (draft) => {
+        draft.resources.nitrite = nitritePpm * draft.resources.water;
+      });
+      return breed(state).state.clutches[0].eggs;
+    };
+    expect(left(ZERO_TOXINS, 5)).toBe(left(ZERO_TOXINS, 0));
+    expect(left({ ...ZERO_TOXINS, nitrite: 5 }, 5)).toBeLessThan(left(ZERO_TOXINS, 5));
+  });
+
+  it('thins a laid clutch on the water, not the load of the fish beside it', () => {
+    const left = (load: Fish['load'], nitritePpm: number): number => {
+      const clutch: Clutch = { id: 'c', species: 'neon_tetra', eggs: 100, development: 0 };
+      const state = produce(withTank([mkFish({ sex: 'male', load })], [clutch]), (draft) => {
+        draft.resources.nitrite = nitritePpm * draft.resources.water;
+      });
+      return breed(state).state.clutches[0].eggs;
+    };
+    expect(left({ ammonia: 1, nitrite: 20, nitrate: 2000 }, 0)).toBe(left(ZERO_TOXINS, 0));
+    expect(left(ZERO_TOXINS, 5)).toBeLessThan(left(ZERO_TOXINS, 0));
   });
 
   it('hatches each whole egg into a hatchling, the reserve its embryo spent burned, the part egg to waste', () => {
@@ -160,6 +184,21 @@ describe('processBodies', () => {
     expect(wasteOf(out)).toBeCloseTo(0.6 * p.E0, 15);
     expect(out.burned).toBeCloseTo(7 * (p.E0 - organics(hatchling(p), p)), 15);
     expect(out.burned).toBeGreaterThan(0);
+  });
+
+  it('hatches fry carrying the load their clutch read: a laid clutch the water’s, a carried brood its mother’s', () => {
+    const laid = produce(withTank([], [{ id: 'c', species: 'neon_tetra', eggs: 5, development: 0.9999 }]), (draft) => {
+      draft.resources.nitrite = 2 * draft.resources.water;
+    });
+    const hatched = breed(laid).state.fish;
+    expect(hatched.length).toBeGreaterThan(0);
+    for (const fry of hatched) expect(fry.load).toEqual(waterToxins(laid.resources));
+
+    const mother = mkFish({ id: 'mother', load: { ...ZERO_TOXINS, nitrite: 2 } });
+    const brood: Clutch = { id: 'b', species: 'guppy', eggs: 5, development: 0.9999, motherId: 'mother' };
+    const carried = born([mother], breed(withTank([mother], [brood])).state.fish);
+    expect(carried.length).toBeGreaterThan(0);
+    for (const fry of carried) expect(fry.load).toEqual(mother.load);
   });
 
   it('hatches about half of each sex, each weighing its egg', () => {

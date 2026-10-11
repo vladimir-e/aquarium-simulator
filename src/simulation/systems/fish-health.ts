@@ -13,6 +13,8 @@
  *   scaled by `1 − fishHardiness`.
  * - Free NH3, nitrite, nitrate and oxygen instead carry hardiness on the
  *   concentration axis: it moves where harm starts, not how steeply it grows.
+ *   The toxins read the load the hour carries the fish to, oxygen the water of
+ *   this moment.
  * - Starvation is the hour's maintenance shortfall as a share of its upkeep.
  * - Age is the DEB hazard at `hazardSeverity`: intrinsic, no hardiness
  *   shields it.
@@ -27,9 +29,8 @@
 import type { Fish, Plant, Resources } from '../state.js';
 import { getPh } from '../core/carbonate.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
-import { getDgh, getPpm } from '../resources/index.js';
-import type { LivestockConfig } from '../config/livestock.js';
-import { freeAmmoniaPpm } from './nitrogen-cycle.js';
+import { getDgh } from '../resources/index.js';
+import { TOXIN_LABEL, type LivestockConfig, type ToxinVector } from '../config/livestock.js';
 import { shareOut, swallow, type Pace } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import { sum } from '../core/sum.js';
@@ -37,13 +38,12 @@ import { pointsHealed, starvation, wellFed } from './reserve.js';
 import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
 import type { FishHour } from './metabolism.js';
 import {
-  FREE_AMMONIA_EDGE,
-  NITRATE_EDGE,
-  NITRITE_EDGE,
+  fishHardiness,
   OXYGEN_COMFORT,
   OXYGEN_EDGE,
   OXYGEN_LOG_OFFSET,
   toleranceFactor,
+  toxinEFolds,
 } from '../livestock/tolerance.js';
 import {
   bandComfort,
@@ -63,18 +63,6 @@ export interface HealthResult {
   deathWaste: number;
   /** Each fish's vitality this tick, in the order handed in, the dead included */
   vitalities: VitalityResult[];
-}
-
-/**
- * Hardiness clamped to [0.1, 0.95], so no offset makes an organism
- * invincible or instantly doomed.
- */
-export function speciesHardiness(species: FishSpecies, offset = 0): number {
-  return Math.max(0.1, Math.min(0.95, FISH_SPECIES_DATA[species].hardiness + offset));
-}
-
-export function fishHardiness(fish: Pick<Fish, 'species' | 'hardinessOffset'>): number {
-  return speciesHardiness(fish.species, fish.hardinessOffset);
 }
 
 interface FishFactorContext {
@@ -111,11 +99,12 @@ function plantBenefitAmount(plants: Plant[], config: LivestockConfig): number {
 /**
  * What the water charges an organism of this species and hardiness, in %/h:
  * the tolerance bands scaled by `1 − hardiness`, the toxins and oxygen with
- * hardiness moving their edge instead. Fish and their clutches both read it.
+ * hardiness moving their edge instead; `toxins`: the levels it is exposed to.
  */
 export function waterStressors(
   species: FishSpecies,
   hardiness: number,
+  toxins: ToxinVector,
   resources: Resources,
   waterVolume: number,
   config: LivestockConfig
@@ -129,13 +118,7 @@ export function waterStressors(
   const ghStress =
     config.ghStressSeverity * outsideBand(getDgh(resources.gh, waterVolume), speciesData.ghRange);
 
-  // Only the unionized NH3 fraction is acutely toxic.
-  const freeNH3Ppm = freeAmmoniaPpm({ ...resources, water: waterVolume });
-  const ammoniaStress = config.ammoniaStressSeverity * eFoldsPast(freeNH3Ppm, FREE_AMMONIA_EDGE * tolerance);
-  const nitriteStress =
-    config.nitriteStressSeverity * eFoldsPast(getPpm(resources.nitrite, waterVolume), NITRITE_EDGE * tolerance);
-  const nitrateStress =
-    config.nitrateStressSeverity * eFoldsPast(getPpm(resources.nitrate, waterVolume), NITRATE_EDGE * tolerance);
+  const folds = toxinEFolds(toxins, hardiness);
   const oxygenStress =
     config.oxygenStressSeverity * eFoldsUnder(resources.oxygen, OXYGEN_EDGE / tolerance, OXYGEN_LOG_OFFSET);
 
@@ -148,9 +131,9 @@ export function waterStressors(
       ],
       hardiness
     ),
-    { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
-    { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
-    { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
+    { key: 'ammonia', label: TOXIN_LABEL.ammonia, amount: config.ammoniaStressSeverity * folds.ammonia },
+    { key: 'nitrite', label: TOXIN_LABEL.nitrite, amount: config.nitriteStressSeverity * folds.nitrite },
+    { key: 'nitrate', label: TOXIN_LABEL.nitrate, amount: config.nitrateStressSeverity * folds.nitrate },
     { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
   ];
 }
@@ -217,7 +200,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   const huntedStress = predationStress(fishSize(fish), ctx.predatorMass, waterVolume, config);
 
   return [
-    ...waterStressors(fish.species, ctx.hardiness, resources, waterVolume, config),
+    ...waterStressors(fish.species, ctx.hardiness, hour.fish.load, resources, waterVolume, config),
     ...hardened(
       [
         { key: 'starvation', label: 'Starvation', amount: config.starvationSeverity * starvation(hour) },
@@ -309,9 +292,9 @@ function damageShare(vitality: VitalityResult, key: string): number {
  * One hour of health for every fish its budget ran for: `fish` as the hour
  * found them, `hours` their budgets' hours and `fed` them fed after. A fish
  * dies when its health reaches 0 or its survival falls below its draw. What it
- * leaves — its body, its gut and the brood it carried, all in grams of
- * organic matter — its predators eat in the share of its damage they did, by
- * their weight on it and as far as their guts have room; the rest is waste.
+ * leaves — its body, its gut and the brood it carried, all in grams of organic
+ * matter — its predators eat in the share of its damage they did, by their
+ * weight on it and as far as their guts have room; the rest is waste.
  */
 export function processHealth(
   fish: readonly Fish[],

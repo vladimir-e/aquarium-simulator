@@ -12,10 +12,11 @@ structure, reserve, maturity and a brood buffer, in grams. Food fills the gut;
 what the gut digests feeds the reserve; the reserve pays maintenance first, and
 a fixed share κ of the rest buys growth while the remainder matures the fish
 and then fills its brood buffer. Mass and size are read off the budget. Health
-is the damage axis: the water and the fish's own budget harm it, benefits and
-paid repair restore it. Old age is DEB ageing — a hazard that accumulates into
-a survival the fish dies under. A brood is a clutch of eggs the water and the
-tank's fish thin, and the larger fish hunt the young that hatch.
+is the damage axis: the water, the toxins the fish loads from it and its own
+budget harm it, benefits and paid repair restore it. Old age is DEB ageing — a
+hazard that accumulates into a survival the fish dies under. A brood is a
+clutch of eggs the water and the tank's fish thin, and the larger fish hunt the
+young that hatch.
 
 ## Status
 
@@ -26,9 +27,11 @@ tank's fish thin, and the larger fish hunt the young that hatch.
 | The gut | <Badge text="settled" variant="success" /> | One stock, holding a day of the fish's appetite — its assimilation ceiling — digested first order. |
 | Mass ledger | <Badge text="settled" variant="success" /> | Feces, burn, bodies and eggs close against food; every gram burned excretes the food's recipe. |
 | Body composition | <Badge text="scaffolding" variant="caution" /> | Every pool holds the food's recipe; per-pool composition is the stoichiometry work. |
-| Stress hooks | <Badge text="scaffolding" variant="caution" /> | Assimilation, maintenance, growth and egg multipliers exist; no toxin drives them yet. |
+| Stress hooks | <Badge text="scaffolding" variant="caution" /> | The load drives assimilation's; the maintenance, growth and egg multipliers exist and nothing drives them yet. |
 | Serving | <Badge text="settled" variant="success" /> | Every fish eats at once; short food splits in proportion to the room in each gut. |
-| Water quality | <Badge text="settled" variant="success" /> | Log-dose harm from each fish's own edge. Chloride, which blunts nitrite, is not modelled. |
+| Toxin loads | <Badge text="settled" variant="success" /> | GUTS-RED: one load per toxin in the water's ppm, following the water at the toxin's dominant rate. |
+| Water quality | <Badge text="settled" variant="success" /> | Log-dose harm from each fish's own edge, the toxins charged on its load. Chloride, which blunts nitrite, is not modelled. |
+| Load on appetite | <Badge text="scaffolding" variant="caution" /> | First-pass, not fitted: one severity across the toxins. |
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits. |
 | Starvation | <Badge text="settled" variant="success" /> | The hour's unpaid maintenance as a damage rate; the buffer, then structure, pay it. |
 | Repair | <Badge text="settled" variant="success" /> | A first-order share of the deficit, paid from reserve; condition past 100 is lost. |
@@ -78,7 +81,7 @@ factor (1 at 20 °C) and ω the oxygen pace:
 
 | Flux | Per hour |
 |---|---|
-| Assimilation ceiling | `{p_Am} × L² × τ × ω` |
+| Assimilation ceiling | `{p_Am} × L² × τ × ω`, lowered by the fish's [load](#the-load) |
 | Assimilated | `κ_X ×` what the gut offers, up to the ceiling; the rest of the offer returns to the gut |
 | Mobilised | `E × (ω·v·[E_G]·L² + [p_M]·V) × τ / ([E_G]·V + κ·E)` |
 | Maintenance | `[p_M] × V × τ`, paid from the soma share `κ × mobilised` |
@@ -130,9 +133,33 @@ The fish's own stocks; what it reads and writes in the tank is under [Seams](#se
 | `budget.broodBuffer` | The maturity share after puberty | Spawning; fathering; a male's turnover; a shortfall | g |
 | `budget.wearLoad` · `budget.hazard` | Mobilisation | Dilution as the fish grows | 1/h² · 1/h |
 | `survival` | — | `× e^−hazard` each hour | share of a cohort alive |
+| `load` | The water's level above it, first order | The water's level below it, the same way | ppm, one per toxin |
 | clutch `eggs` | A brood | Water harm and predation, first order; hatching | eggs |
 | clutch `development` | `τ / incubation` each hour | Hatching, at 1 | share of the way to hatching |
 | `age` | One tick per hour | — | ticks |
+
+### The load
+
+A fish carries one load per toxin — free NH₃, nitrite, nitrate — in the water's
+own ppm, GUTS-RED's scaled internal concentration. Each hour it moves toward the
+water's level at the toxin's dominant rate, the slower of what the gills pass
+and what the body repairs, paced by τ and divided by the fish's structural
+length, so a small or warm fish loads and clears faster. A stocked fish arrives
+unloaded; a hatchling carries the load its clutch read.
+
+| Toxin | Half-time at 1 cm, 20 °C |
+|---|---|
+| Free NH₃ | ≈ 2 d |
+| Nitrite | ≈ 1 d |
+| Nitrate | ≈ 1 week |
+
+Health's toxin stressors read the load, so a spike barely registers on a big fish, a held
+level bites, and harm outlives a water change while the load clears. The load's
+e-folds past the fish's own edges, summed, lower its assimilation ceiling —
+DEBtox's assimilation mode — so appetite falls with it and a full ration still
+bites: the budget takes up less of it. A laid clutch reads the water itself, an
+egg being the fast limit of the same law; a carried brood reads its mother's
+load.
 
 ### Health
 
@@ -147,9 +174,9 @@ nothing. A fish is sick while its damage outruns what it earns and repairs.
 | Temperature | outside the species range | °C |
 | pH | outside the species range | pH unit |
 | GH | outside the species range | dGH |
-| Free NH₃ | past the fish's own edge, of the *unionized* fraction read off pH and temperature | e-fold over |
-| Nitrite | past the fish's own edge | e-fold over |
-| Nitrate | past the fish's own edge | e-fold over |
+| Free NH₃ | its load of the *unionized* fraction, read off pH and temperature, past the fish's own edge | e-fold over |
+| Nitrite | its load past the fish's own edge | e-fold over |
+| Nitrate | its load past the fish's own edge | e-fold over |
 | Oxygen | under the fish's own edge | e-fold under |
 | Water level | below `waterLevelStressThreshold` of capacity | % under |
 | Flow | above the species `maxTurnover` | tank volumes/h over |
@@ -169,12 +196,12 @@ times the fish's reserve density.
 
 #### Water quality
 
-Toxicity runs on log dose. Each toxin stressor is its severity times
-`ln(reading / edge)`; oxygen's is `ln((edge + a) / (reading + a))` with
-`a` = 0.1 mg/L, so harm stays finite at zero. A fish's edge sits `2^hardiness`
-past the alert's (below it, for oxygen), with effective hardiness clamped to
-[0.1, 0.95]. Each severity is set so a mid-hardiness fish at its 96-hour LC50
-loses one %/h net.
+Toxicity runs on log dose: each toxin charges its severity per e-fold of its
+load past the fish's edge, oxygen per e-fold of the water under it, offset
+0.1 mg/L so harm stays finite at zero. A fish's edge sits `2^hardiness` past the
+alert's (below it, for oxygen), with effective hardiness clamped to
+[0.1, 0.95]. Each severity is set so a mid-hardiness fish loaded to its 96-hour
+LC50 loses one %/h net.
 
 | Reading | Alert edge | A mid-hardiness fish is harmed from | Breaks even | LC50 |
 |---|---|---|---|---|
@@ -245,7 +272,7 @@ Every hour two competing first-order losses thin it and one rate develops it:
 
 | Rate | Per hour |
 |---|---|
-| Harm | `eggSensitivity × Σ water stressors / 100` at the species' hardiness; a carried brood's at its mother's hardiness, without `eggSensitivity` |
+| Harm | `eggSensitivity × Σ water stressors / 100` at the species' hardiness, on the water's toxins; a carried brood's on its mother's hardiness and load, without `eggSensitivity` |
 | Predation | `eggPredationRate × exposure × predator mass / water`, every fish by the grams it outweighs an egg; none on a carried brood |
 | Development | `τ / incubation`, the species' age at birth at 20 °C |
 
@@ -282,7 +309,7 @@ The tunables are listed in the reference under [Livestock](/reference/tunables/#
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, each past its tolerance edge, for fish and clutches | `ammonia`, `phosphate`, `potassium` and `iron` through the gills on every gram burned; `waste` as feces, dead bodies and dead eggs |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, which each fish's loads follow and a laid clutch reads past its edge | `ammonia`, `phosphate`, `potassium` and `iron` through the gills on every gram burned; `waste` as feces, dead bodies and dead eggs |
 | [Water & gases](/subsystems/water-and-gases/) | `oxygen` against saturation as the oxygen pace ω, a stressor and a benefit; pH, from `co2` and `kh`, and `gh`, as tolerance bands | `oxygen` drawn and `co2` exhaled on every gram burned, `kh` returned on the gill ammonia |
 | [Environment](/subsystems/environment/) | `temperature` as a tolerance band and through each species' Arrhenius factor; `water` for every ppm and the water-level stressor | — |
 | [Equipment](/subsystems/equipment/) | `flow`, divided by standing water into a turnover; `food` the feeder drops | — |

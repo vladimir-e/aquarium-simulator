@@ -134,7 +134,7 @@ export const nutrientsDefaults: NutrientsConfig = {
   },
 };
 
-export interface NutrientVectorMeta<K extends string = Nutrient> {
+export interface VectorMeta<K extends string> {
   key: K;
   label: string;
   unit: string;
@@ -143,7 +143,7 @@ export interface NutrientVectorMeta<K extends string = Nutrient> {
   step: number;
 }
 
-export const fertilizerFormulaMeta: NutrientVectorMeta[] = [
+export const fertilizerFormulaMeta: VectorMeta<Nutrient>[] = [
   { key: 'nitrate', label: 'Nitrate per ml', unit: 'mg', min: 1, max: 100, step: 1 },
   { key: 'phosphate', label: 'Phosphate per ml', unit: 'mg', min: 0.1, max: 10, step: 0.1 },
   { key: 'potassium', label: 'Potassium per ml', unit: 'mg', min: 0.5, max: 80, step: 1 },
@@ -163,14 +163,14 @@ export const nutrientsConfigMeta: NutrientsConfigMeta[] = [
   { key: 'bedLeakRate', label: 'Bed Leak Rate', unit: '/hr', min: 0, max: 0.01, step: 0.0001 },
 ];
 
-export const rootTabMeta: NutrientVectorMeta[] = [
+export const rootTabMeta: VectorMeta<Nutrient>[] = [
   { key: 'nitrate', label: 'Nitrate per tab', unit: 'mg', min: 0, max: 2000, step: 10 },
   { key: 'phosphate', label: 'Phosphate per tab', unit: 'mg', min: 0, max: 500, step: 5 },
   { key: 'potassium', label: 'Potassium per tab', unit: 'mg', min: 0, max: 1000, step: 10 },
   { key: 'iron', label: 'Iron per tab', unit: 'mg', min: 0, max: 50, step: 0.5 },
 ];
 
-export const halfSaturationMeta: NutrientVectorMeta<NutrientForm>[] = [
+export const halfSaturationMeta: VectorMeta<NutrientForm>[] = [
   { key: 'ammonia', label: 'Ammonia half-saturation', unit: 'ppm', min: 0.005, max: 1, step: 0.005 },
   { key: 'nitrate', label: 'Nitrate half-saturation', unit: 'ppm', min: 0.1, max: 10, step: 0.1 },
   { key: 'phosphate', label: 'Phosphate half-saturation', unit: 'ppm', min: 0.01, max: 1, step: 0.01 },
@@ -178,14 +178,14 @@ export const halfSaturationMeta: NutrientVectorMeta<NutrientForm>[] = [
   { key: 'iron', label: 'Iron half-saturation', unit: 'ppm', min: 0.001, max: 0.2, step: 0.001 },
 ];
 
-export const demandMeta: NutrientVectorMeta[] = [
+export const demandMeta: VectorMeta<Nutrient>[] = [
   { key: 'nitrate', label: 'Nitrate demand', unit: '× full', min: 0.01, max: 1, step: 0.01 },
   { key: 'phosphate', label: 'Phosphate demand', unit: '× full', min: 0.01, max: 1, step: 0.01 },
   { key: 'potassium', label: 'Potassium demand', unit: '× full', min: 0.01, max: 1, step: 0.01 },
   { key: 'iron', label: 'Iron demand', unit: '× full', min: 0.01, max: 1, step: 0.01 },
 ];
 
-export const foodMineralContentMeta: NutrientVectorMeta[] = [
+export const foodMineralContentMeta: VectorMeta<Nutrient>[] = [
   { key: 'phosphate', label: 'Phosphate in food', unit: 'mg/g', min: 0, max: 100, step: 1 },
   { key: 'potassium', label: 'Potassium in food', unit: 'mg/g', min: 0, max: 50, step: 0.5 },
   { key: 'iron', label: 'Iron in food', unit: 'mg/g', min: 0, max: 2, step: 0.01 },

@@ -18,7 +18,7 @@ import {
 import { readHourAhead } from './ahead';
 import { projectedTrend } from './status';
 import { FED, atReserve, hungry, starving } from '../test/gut';
-import { fishRecord } from '../../simulation/tests/fish.js';
+import { fishRecord, poisoned } from '../../simulation/tests/fish.js';
 
 function makeFish(overrides: Partial<Fish> & { size?: number } = {}): Fish {
   return fishRecord({ gut: FED, ...overrides });
@@ -167,11 +167,6 @@ describe('groupFry', () => {
 });
 
 describe('the reading behind a fish', () => {
-  function poisoned(fish: Fish[], ppm: number): SimulationState {
-    const state = tank(fish);
-    return { ...state, resources: { ...state.resources, ammonia: ppm * state.resources.water } };
-  }
-
   it('reads a fish across every channel it keeps, not just its condition', () => {
     const state = tank([starving(makeFish({ id: 'a', health: 100, gut: 0 }))]);
     const [group] = species(state);
@@ -195,10 +190,10 @@ describe('the reading behind a fish', () => {
 
   it('gives every member its own reading, so the group cannot hide one', () => {
     const state = poisoned(
-      [
+      tank([
         makeFish({ id: 'fish_a_1', health: 100, gut: FED }),
         starving(makeFish({ id: 'fish_a_2', health: 100, gut: 0 })),
-      ],
+      ]),
       20
     );
     const [group] = species(state);
@@ -209,7 +204,7 @@ describe('the reading behind a fish', () => {
 
   it('calls a fish sick exactly while the next tick takes condition off it, as the trend shows', () => {
     for (const health of [100, 60]) {
-      const state = poisoned([makeFish({ id: 'a', health, gut: FED })], 10);
+      const state = poisoned(tank([makeFish({ id: 'a', health, gut: FED })]), 10);
       const [read] = readFish(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG));
       const next = tick(state, DEFAULT_CONFIG).fish[0];
 
@@ -220,7 +215,7 @@ describe('the reading behind a fish', () => {
 
   it('is not sick while the repair its reserve pays for outruns the harm', () => {
     const config = { ...DEFAULT_CONFIG, livestock: { ...livestockDefaults, healingRate: 1 } };
-    const harmed = poisoned([makeFish({ id: 'a', health: 95, gut: FED })], 10);
+    const harmed = poisoned(tank([makeFish({ id: 'a', health: 95, gut: FED })]), 10);
 
     expect(species(harmed, config)[0].members[0].reading.word).not.toBe('sick');
     expect(species(harmed)[0].members[0].reading.word).toBe('sick');

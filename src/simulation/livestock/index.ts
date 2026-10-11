@@ -1,6 +1,7 @@
 /**
- * Livestock processing — every fish's hour: its budget runs on what its gut
- * digests, it eats, and its health moves; the dead leave the tank.
+ * Livestock processing — every fish's hour: its loads follow the water, its
+ * budget runs on what its gut digests, it eats, and its health moves; the
+ * dead leave the tank.
  *
  * Called during ACTIVE tier processing in tick.ts (after plants). Returns the
  * updated state, the effects of what the fish ate, passed, burned and left,
@@ -24,7 +25,9 @@ import { mintAmmonia } from '../systems/nitrogen-cycle.js';
 import { createLog } from '../core/logging.js';
 import { atRecipe, NO_ORGANICS, type Organics } from '../core/organics.js';
 import { clutchOrganics, clutchesWithMothers } from '../systems/clutch.js';
+import { loadFish, waterToxins } from '../systems/toxicokinetics.js';
 import { getPpm } from '../resources/index.js';
+import { speciesTau } from './species.js';
 import type { LivestockConfig } from '../config/livestock.js';
 
 export interface LivestockProcessingResult {
@@ -44,7 +47,7 @@ export interface LivestockProcessingResult {
 /** The pace every fish in the tank runs at this hour, in `fish` order. */
 export function tankPaces(state: Pick<SimulationState, 'fish' | 'resources'>, config: TunableConfig): Pace[] {
   const saturation = calculateO2Saturation(state.resources.temperature, config.gasExchange);
-  return state.fish.map((fish) => fishPace(fish.species, state.resources, saturation, config.livestock));
+  return state.fish.map((fish) => fishPace(fish, state.resources, saturation, config.livestock));
 }
 
 /** What burning `grams` of fish organics does to the water: gill NH3 and minerals in, O2 out, CO2 in. */
@@ -72,11 +75,13 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
 
   const livestock = config.livestock;
   const water = state.resources.water;
-  const paces = tankPaces(state, config);
-  const healing = state.fish.map((fish, i) =>
-    repairAsked(fish.budget, fishParams(fish), fish.health, paces[i].tau, livestock)
+  const levels = waterToxins(state.resources);
+  const fish = state.fish.map((f) =>
+    loadFish(f, levels, speciesTau(f.species, state.resources.temperature), livestock.loadRate)
   );
-  const metabolism = processMetabolism(state.fish, paces, healing, state.resources, livestock);
+  const paces = tankPaces({ ...state, fish }, config);
+  const healing = fish.map((f, i) => repairAsked(f.budget, fishParams(f), f.health, paces[i].tau, livestock));
+  const metabolism = processMetabolism(fish, paces, healing, state.resources, livestock);
 
   const carried = new Map<string, number>();
   for (const clutch of state.clutches) {
@@ -91,7 +96,7 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
     state.plants,
     state.tank.capacity,
     livestock,
-    state.fish.map((fish) => carried.get(fish.id) ?? 0)
+    state.fish.map((f) => carried.get(f.id) ?? 0)
   );
 
   const feces = atRecipe(metabolism.feces, config);

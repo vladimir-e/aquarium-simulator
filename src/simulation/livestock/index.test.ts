@@ -9,7 +9,13 @@ import { burn, fishPace } from '../systems/metabolism.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { getPpm } from '../resources/index.js';
 import { atRecipe } from '../core/organics.js';
-import { fishRecord } from '../tests/fish.js';
+import { carrying, fishRecord, saturated } from '../tests/fish.js';
+import { waterStressors } from '../systems/fish-health.js';
+import { fishHardiness } from './tolerance.js';
+import { speciesTau } from './species.js';
+import { loadFish, waterToxins } from '../systems/toxicokinetics.js';
+import { TOXINS, type Toxin } from '../config/livestock.js';
+import type { VitalityResult } from '../systems/vitality.js';
 
 function makeFish(overrides: Partial<Fish> & { size?: number } = {}): Fish {
   return fishRecord({ gut: 0.001, ...overrides });
@@ -42,7 +48,7 @@ describe('processLivestock', () => {
     const state = makeState([makeFish({ species: 'guppy' }), makeFish({ species: 'angelfish' })]);
     const saturation = calculateO2Saturation(state.resources.temperature, DEFAULT_CONFIG.gasExchange);
     expect(tankPaces(state, DEFAULT_CONFIG)).toEqual(
-      state.fish.map((f) => fishPace(f.species, state.resources, saturation, DEFAULT_CONFIG.livestock))
+      state.fish.map((f) => fishPace(f, state.resources, saturation, DEFAULT_CONFIG.livestock))
     );
   });
 
@@ -98,5 +104,69 @@ describe('processLivestock', () => {
     expect(result.state.fish).toHaveLength(0);
     expect(result.state.logs.filter((l) => l.event === 'fish-died')).toHaveLength(1);
     expect(effectOf(result, 'waste', 'fish-death')).toBeGreaterThan(0);
+  });
+});
+
+describe('toxin loads', () => {
+  const livestock = DEFAULT_CONFIG.livestock;
+  const spiked = (state: SimulationState): SimulationState =>
+    produce(state, (draft) => {
+      draft.resources.ammonia = 20 * draft.resources.water;
+      draft.resources.nitrite = 20 * draft.resources.water;
+      draft.resources.nitrate = 2000 * draft.resources.water;
+    });
+  const charge = (vitality: VitalityResult, toxin: Toxin): number =>
+    vitality.breakdown.stressors.find((factor) => factor.key === toxin)!.amount;
+  const stepped = (state: SimulationState): Fish[] => {
+    const levels = waterToxins(state.resources);
+    return state.fish.map((fish) =>
+      loadFish(fish, levels, speciesTau(fish.species, state.resources.temperature), livestock.loadRate)
+    );
+  };
+
+  it('loads every fish on the hour’s water first: its hour, its health and the survivors carry the load', () => {
+    const state = spiked(makeState([makeFish({ id: 'a' }), makeFish({ id: 'b', size: 30 })]));
+    const loaded = stepped(state);
+    const result = processLivestock(state, DEFAULT_CONFIG);
+
+    expect(result.hours.map((hour) => hour.fish.load)).toEqual(loaded.map((fish) => fish.load));
+    expect(result.state.fish.map((fish) => fish.load)).toEqual(loaded.map((fish) => fish.load));
+    const { resources } = state;
+    loaded.forEach((fish, i) => {
+      const read = waterStressors(fish.species, fishHardiness(fish), fish.load, resources, resources.water, livestock);
+      for (const toxin of TOXINS) {
+        expect(charge(result.vitalities[i], toxin)).toBe(read.find((factor) => factor.key === toxin)!.amount);
+      }
+    });
+  });
+
+  it('paces every fish on the load the hour steps it to, so its budget runs on that stress', () => {
+    const state = carrying(makeState([makeFish({ id: 'a' }), makeFish({ id: 'b', size: 30 })]), {
+      ammonia: 0.5,
+      nitrite: 10,
+      nitrate: 500,
+    });
+    const loaded = stepped(state);
+    const paces = processLivestock(state, DEFAULT_CONFIG).hours.map((hour) => hour.pace);
+
+    expect(paces).toEqual(tankPaces({ ...state, fish: loaded }, DEFAULT_CONFIG));
+    for (const pace of paces) expect(pace.stress.assimilation).toBeLessThan(1);
+  });
+
+  it('harms less in the first hour of a spike than the water read straight would', () => {
+    const state = spiked(makeState([makeFish()]));
+    const fresh = processLivestock(state, DEFAULT_CONFIG).vitalities[0];
+    const steeped = processLivestock(saturated(state), DEFAULT_CONFIG).vitalities[0];
+    for (const toxin of TOXINS) expect(charge(fresh, toxin)).toBeLessThan(charge(steeped, toxin));
+  });
+
+  it('keeps harming once the water clears, less each hour as the load clears', () => {
+    const state = carrying(makeState([makeFish()]), { ammonia: 1, nitrite: 20, nitrate: 2000 });
+    const first = processLivestock(state, DEFAULT_CONFIG);
+    const second = processLivestock(first.state, DEFAULT_CONFIG);
+    for (const toxin of TOXINS) {
+      expect(charge(first.vitalities[0], toxin)).toBeGreaterThan(0);
+      expect(charge(second.vitalities[0], toxin)).toBeLessThan(charge(first.vitalities[0], toxin));
+    }
   });
 });

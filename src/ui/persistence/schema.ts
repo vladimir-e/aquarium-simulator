@@ -21,6 +21,7 @@ import {
   MAX_WATER_ATTENUATION_PER_CM,
   NUTRIENT_FORMS,
   NUTRIENTS,
+  TOXINS,
   WASTE_NUTRIENTS,
 } from '../../simulation/config/index.js';
 import { VERB_IDS, type VerbId } from '../actions/verbs.js';
@@ -295,6 +296,7 @@ const FishSchema = z
     budget: DebStateSchema,
     survival: z.number().min(0).max(1),
     survivalDraw: z.number().min(0).max(1),
+    load: numbersFor(TOXINS, z.number().min(0)),
   })
   .strict();
 
@@ -555,6 +557,8 @@ const LivestockConfigSchema = z
     waterLevelStressThreshold: z.number(),
     starvationSeverity: z.number().min(0),
     hazardSeverity: z.number().min(0),
+    loadRate: numbersFor(TOXINS, z.number().min(0)),
+    loadAssimilationSeverity: z.number().min(0),
     phBenefitPeak: z.number(),
     oxygenBenefitPeak: z.number(),
     plantBenefitPeak: z.number(),

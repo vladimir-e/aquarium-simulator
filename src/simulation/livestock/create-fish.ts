@@ -17,7 +17,9 @@ import type { FishSex, FishSpecies } from './species.js';
 import { debParams, FISH_SPECIES_DATA, midRangeTemperature, speciesTau } from './species.js';
 import { hatchling, size, stepDeb, type DebState } from '../systems/deb.js';
 import { appetite } from '../systems/digestion.js';
+import { NO_STRESS } from '../systems/reserve.js';
 import { frySize } from '../systems/fish-body.js';
+import { ZERO_TOXINS, type ToxinVector } from '../config/livestock.js';
 
 /** Per-fish hardiness offset span as a fraction of species baseline. */
 export const HARDINESS_OFFSET_SPAN = 0.15;
@@ -48,7 +50,7 @@ export interface Upbringing {
 export function raise(species: FishSpecies, target: number, temperatureC: number): Upbringing {
   if (!isStockableSize(species, target)) throw new RangeError(unstockableSizeMessage(species));
   const p = debParams(species);
-  const pace = { tau: speciesTau(species, temperatureC), omega: 1 };
+  const pace = { tau: speciesTau(species, temperatureC), omega: 1, stress: NO_STRESS };
   let [budget, survival, hours] = [hatchling(p), 1, 0];
   while (size(budget, p) < target) {
     const fromGut = appetite({ species, budget }, pace);
@@ -85,7 +87,7 @@ interface Individual {
 
 function individual(
   { species, sex, rng }: Individual,
-  body: Pick<Fish, 'budget' | 'survival' | 'age'>
+  body: Pick<Fish, 'budget' | 'survival' | 'age' | 'load'>
 ): Fish {
   // Drawn even when the caller named a sex: a seed that names one and a seed
   // that doesn't must otherwise hand every later organism a different stream.
@@ -104,15 +106,16 @@ function individual(
     budget: body.budget,
     survival: body.survival,
     survivalDraw,
+    load: body.load,
   };
 }
 
-/** A fish from the shop at `size` % of its grown length. */
+/** A fish from the shop at `size` % of its grown length, unloaded. */
 export function stockFish(params: Individual & { size: number }): Fish {
-  return individual(params, stockedBody(params.species, params.size));
+  return individual(params, { ...stockedBody(params.species, params.size), load: ZERO_TOXINS });
 }
 
-/** A fry out of its egg. */
-export function hatchFish(params: Individual): Fish {
-  return individual(params, { budget: hatchling(debParams(params.species)), survival: 1, age: 0 });
+/** A fry out of its egg, carrying the `load` its clutch read. */
+export function hatchFish(params: Individual & { load: ToxinVector }): Fish {
+  return individual(params, { budget: hatchling(debParams(params.species)), survival: 1, age: 0, load: params.load });
 }
