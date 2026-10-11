@@ -16,9 +16,8 @@ export type PlantSpecies =
  * How a species builds one unit — a carpet patch, a rosette specimen, a rhizome
  * clump. A plant's size is how full that unit is, so the form fixes what size
  * 100 means: how tall it stands, how much floor it claims and how much leaf it
- * carries over it. It also says where the plant feeds, and what its offshoot
- * buffer buys — a runner, a plantlet, a rhizome branch — and at what size,
- * though every form buys it the same way.
+ * carries over it. It also says where the plant feeds, and at what size its
+ * offshoot buffer buys a unit, though every form buys it the same way.
  */
 export type GrowthForm = 'carpet' | 'rosette' | 'attached';
 
@@ -44,7 +43,7 @@ export interface GrowthFormData {
  * fronds of 40 cm² over its 200. A sword draws most of its food through its
  * roots; a carpet roots a dense mat into the bed but lies spread under the
  * water, so it takes half from each; an epiphyte on wood has no roots in the bed.
- * An offshoot is a plantlet that stands on its own: a sword's runner plantlet
+ * An offshoot is a unit that stands on its own: a sword's runner plantlet
  * carries a few leaves of a grown unit's two dozen, about a tenth of it; a
  * rhizome branch is cut loose on three or four of a clump's dozen-odd fronds,
  * a quarter of it; and a carpet's runner roots a tuft at a node, a twentieth

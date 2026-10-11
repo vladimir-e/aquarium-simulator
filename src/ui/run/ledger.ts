@@ -284,23 +284,23 @@ function inDays(hours: number): string {
   return hours < TICKS_PER_DAY ? 'within a day' : `in ${Math.round(hours / TICKS_PER_DAY)} d`;
 }
 
-const PLANTLET_HORIZON = 365 * TICKS_PER_DAY;
+const OFFSHOOT_HORIZON = 365 * TICKS_PER_DAY;
 
 /**
  * What the offshoot buffer does over the hour, read off the budget the tick
- * leaves: cuts a plantlet loose, pays upkeep out of what it holds, builds
+ * leaves: cuts an offshoot loose, pays upkeep out of what it holds, builds
  * toward the next at the hour's pace, waits on the reserve while upkeep goes
  * unpaid, or waits on stores that let it fill no further, too slowly to name a
- * day, or cannot pay a plantlet's Q_min.
+ * day, or cannot pay an offshoot's Q_min.
  */
-function plantletNote(budget: FloraState, next: FloraState | null, unit: number, buds: boolean, starving: boolean): string {
+function offshootNote(budget: FloraState, next: FloraState | null, unit: number, buds: boolean, starving: boolean): string {
   if (buds) return 'cuts loose this hour';
   const before = budget.offshootBuffer;
   const after = next?.offshootBuffer ?? before;
   if (before > 0 && (after < before || (after === before && starving))) return 'paying upkeep';
   if (starving) return 'waiting on reserve';
   const hours = after > before && after < unit ? (unit - after) / (after - before) : Infinity;
-  return hours <= PLANTLET_HORIZON ? `cuts loose ${inDays(hours)}` : 'waiting on stores';
+  return hours <= OFFSHOOT_HORIZON ? `cuts loose ${inDays(hours)}` : 'waiting on stores';
 }
 
 /**
@@ -410,7 +410,7 @@ function plantLedger(
   const { breakdown } = vitality;
   const label = plantLabels(state.plants).get(id)!;
   const p = plantParams(plant.species, config.plants);
-  const plantlet = offshootShare(plant);
+  const offshoot = offshootShare(plant);
   const data = PLANT_SPECIES_DATA[plant.species];
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
@@ -449,14 +449,14 @@ function plantLedger(
     budget: [
       ...floraBudget(plant.budget, p, fluxes, breakdown, sick),
       {
-        key: 'plantlet',
+        key: 'offshoot',
         label: 'Plantlet',
-        text: String(sharePercent(plantlet)),
+        text: String(sharePercent(offshoot)),
         unit: '% built',
-        at: plantlet,
+        at: offshoot,
         band: FULL_TRACK,
         status: 'neutral',
-        note: plantletNote(plant.budget, next, offshootStructure(plant.species), buds, starvation({ fluxes }) > 0),
+        note: offshootNote(plant.budget, next, offshootStructure(plant.species), buds, starvation({ fluxes }) > 0),
       },
     ],
     stores: storeRows(plant.budget, p, fluxes, config.plants.droopEdge),

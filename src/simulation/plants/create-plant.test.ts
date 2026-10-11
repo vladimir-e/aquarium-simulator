@@ -100,7 +100,7 @@ describe('createOffshoot', () => {
 });
 
 describe('offshoots as the buffer buys them', () => {
-  it('are born a plantlet at their growth form’s offshoot size, never under the least a plant is planted at', () => {
+  it('are born at their growth form’s offshoot size, never under the least a plant is planted at', () => {
     for (const species of Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]) {
       const { offshootSize } = growthFormOf(species);
       expect(offshootStructure(species)).toBeCloseTo(tissueMass(species, offshootSize), 15);

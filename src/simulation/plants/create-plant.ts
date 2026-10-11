@@ -23,7 +23,7 @@ export function isPlantableSize(size: number): boolean {
   return size >= MIN_PLANTABLE_SIZE && size <= 100;
 }
 
-/** The structure an offshoot is born with: a plantlet at its growth form's offshoot size. */
+/** The structure an offshoot is born with: its growth form's offshoot size. */
 export function offshootStructure(species: PlantSpecies): number {
   return tissueMass(species, growthFormOf(species).offshootSize);
 }

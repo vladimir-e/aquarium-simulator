@@ -698,7 +698,7 @@ describe('an offshoot bought out of the buffer and the stores', () => {
     budded = tick(start);
   });
 
-  it('is born a plantlet at its growth form’s offshoot size, full condition, beside its parent', () => {
+  it('is born at its growth form’s offshoot size, full condition, beside its parent', () => {
     expect(budded.plants).toHaveLength(2);
     expect(budded.plants[1].budget.structure).toBeCloseTo(offshootStructure('java_fern'), 12);
     expect(budded.plants[1].parentId).toBe('fern');

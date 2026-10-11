@@ -138,7 +138,7 @@ describe('readLedger', () => {
     };
     const plantLedger = (state: SimulationState): Ledger =>
       ledgerOf(state, { kind: 'plant', id: state.plants[0].id })!;
-    const plantlet = (state: SimulationState): BudgetRow => line(plantLedger(state), 'plantlet')!;
+    const offshoot = (state: SimulationState): BudgetRow => line(plantLedger(state), 'offshoot')!;
     const withBudget = (state: SimulationState, budget: Partial<SimulationState['plants'][number]['budget']>): SimulationState => ({
       ...state,
       plants: state.plants.map((plant) => ({ ...plant, budget: { ...plant.budget, ...budget } })),
@@ -183,10 +183,10 @@ describe('readLedger', () => {
     });
 
     it('reads its plantlet as the share built, and cuts loose this hour once the buffer holds one', () => {
-      expect(plantlet(planted(10))).toMatchObject({ label: 'Plantlet', at: 0, unit: '% built' });
+      expect(offshoot(planted(10))).toMatchObject({ label: 'Plantlet', at: 0, unit: '% built' });
       const full = planted(10, 1.01 * offshootStructure('java_fern'));
       expect(tick(full, DEFAULT_CONFIG).plants).toHaveLength(2);
-      expect(plantlet(full)).toMatchObject({ at: 1, note: 'cuts loose this hour' });
+      expect(offshoot(full)).toMatchObject({ at: 1, note: 'cuts loose this hour' });
     });
 
     it('names the plantlet by what the next tick does to its buffer', () => {
@@ -195,7 +195,7 @@ describe('readLedger', () => {
       const notes = states.map((state) => {
         const next = tick(state, DEFAULT_CONFIG);
         const moved = next.plants[0].budget.offshootBuffer - state.plants[0].budget.offshootBuffer;
-        const { note } = plantlet(state);
+        const { note } = offshoot(state);
         if (next.plants.length > state.plants.length) expect(note).toBe('cuts loose this hour');
         else if (moved > 0) expect(note).toMatch(/^cuts loose (in \d+ d|within a day)$/);
         else expect(note).toBe('paying upkeep');
@@ -204,7 +204,7 @@ describe('readLedger', () => {
       expect(new Set(notes)).toEqual(new Set(['cuts loose', 'cuts loose this hour', 'paying upkeep']));
     });
 
-    it('waits on stores while an empty store lets the buffer fill no further, or a full one cannot pay a plantlet’s Q_min', () => {
+    it('waits on stores while an empty store lets the buffer fill no further, or a full one cannot pay an offshoot’s Q_min', () => {
       const unit = offshootStructure('java_fern');
       const ironless = (state: SimulationState): SimulationState => ({
         ...withBudget(state, { stores: { ...state.plants[0].budget.stores, iron: 0 } }),
@@ -212,11 +212,11 @@ describe('readLedger', () => {
       });
       const dry = ironless(planted(10, unit / 2));
       expect(tick(dry, DEFAULT_CONFIG).plants[0].budget.offshootBuffer).toBe(unit / 2);
-      expect(plantlet(dry).note).toBe('waiting on stores');
+      expect(offshoot(dry).note).toBe('waiting on stores');
 
       const held = ironless(planted(10, 1.01 * unit));
       expect(tick(held, DEFAULT_CONFIG).plants).toHaveLength(1);
-      expect(plantlet(held).note).toBe('waiting on stores');
+      expect(offshoot(held).note).toBe('waiting on stores');
     });
 
     it('waits on stores rather than name a day past a year off, and on the reserve while it starves with nothing in the buffer', () => {
@@ -229,11 +229,11 @@ describe('readLedger', () => {
       const gained = tick(crawling, DEFAULT_CONFIG).plants[0].budget.offshootBuffer - unit / 2;
       expect(gained).toBeGreaterThan(0);
       expect((unit / 2 - gained) / gained).toBeGreaterThan(365 * 24);
-      expect(plantlet(crawling).note).toBe('waiting on stores');
+      expect(offshoot(crawling).note).toBe('waiting on stores');
 
       const empty = unfedInTheDark(planted(0));
       expect(starvation(readHourAhead(empty, DEFAULT_CONFIG).plants[0])).toBeGreaterThan(0);
-      expect(plantlet(empty).note).toBe('waiting on reserve');
+      expect(offshoot(empty).note).toBe('waiting on reserve');
     });
 
     it('reads each store’s fill, full at 100, banded from the fill its Droop edge sits at and coral under it', () => {
@@ -376,7 +376,7 @@ describe('readLedger', () => {
     expect(alone.stores.map((row) => row.text)).toEqual(
       NUTRIENTS.map((n) => String(Math.floor(Math.min(1, storeFill(bare.algae[kind].budget, p)[n]) * 100)))
     );
-    expect(line(alone, 'plantlet')).toBeUndefined();
+    expect(line(alone, 'offshoot')).toBeUndefined();
     expect(readHourAhead(bare, DEFAULT_CONFIG).algae[kind].exudates).toBe(1);
     expect(line(alone, 'exudates')).toBeUndefined();
 

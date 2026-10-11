@@ -241,7 +241,7 @@ describe('processFlora — plants', () => {
     expect(total(result.effects, 'phosphate', 'leaching')).toBeGreaterThan(0);
   });
 
-  it('cuts an offshoot loose when its buffer holds one: a plantlet at its growth form’s size, appended at age 0', () => {
+  it('cuts an offshoot loose when its buffer holds one: its growth form’s offshoot size, appended at age 0', () => {
     const fern = plantRecord({ id: 'fern', species: 'java_fern', size: 80 });
     const budding = withBudget(fern, { offshootBuffer: 1.01 * offshootStructure('java_fern') });
     const result = processFlora(floraTank({ plants: [budding], ...LIT }), config);

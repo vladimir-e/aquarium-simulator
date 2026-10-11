@@ -115,14 +115,14 @@ function Figures({
   age,
   gut = null,
   light = null,
-  plantlet = null,
+  offshoot = null,
 }: {
   layout: RosterLayout;
   figure: string;
   age: string;
   gut?: Gut | null;
   light?: LightFigure | null;
-  plantlet?: string | null;
+  offshoot?: string | null;
 }): React.JSX.Element | null {
   if (layout === 'widget') return null;
   return (
@@ -134,7 +134,7 @@ function Figures({
       ) : (
         <>
           <LightCell light={light} />
-          <span className={`${FIGURE} ${WIDEST}`}>{plantlet}</span>
+          <span className={`${FIGURE} ${WIDEST}`}>{offshoot}</span>
         </>
       )}
     </>
@@ -347,7 +347,7 @@ function IndividualLine({
         age={row.age}
         gut={row.gut}
         light={row.light}
-        plantlet={row.plantlet}
+        offshoot={row.offshoot}
       />
       <ConditionCell at={row.at} status={row.status} label={`${row.name} condition`} />
       <Word status={row.status} word={row.word} />

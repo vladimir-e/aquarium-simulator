@@ -23,8 +23,8 @@ const slowerKin = (species: PlantSpecies): PlantSpecies[] =>
       PLANT_SPECIES_DATA[other].growthForm === PLANT_SPECIES_DATA[species].growthForm && growthRate(other) < growthRate(species)
   );
 
-/** Tune's: hobby estimates of plantlet cadence per growth form — days between plantlets a grown unit takes in a rich, bright tank. */
-const PLANTLET_DAYS: Record<GrowthForm, readonly [number, number]> = {
+/** Tune's: hobby estimates of offshoot cadence per growth form — days between offshoots a grown unit takes in a rich, bright tank. */
+const OFFSHOOT_DAYS: Record<GrowthForm, readonly [number, number]> = {
   carpet: [1, 7],
   rosette: [4, 30],
   attached: [21, 90],
@@ -47,7 +47,7 @@ const byRoster = <T>(read: (species: PlantSpecies) => T): Record<PlantSpecies, T
   Object.fromEntries(roster.map((species) => [species, read(species)])) as Record<PlantSpecies, T>;
 
 let toNinety: Record<PlantSpecies, { sizes: number[]; days: number }>;
-let plantlets: Record<PlantSpecies, number[]>;
+let offshoots: Record<PlantSpecies, number[]>;
 let inTheDark: Record<PlantSpecies, { upkeepShort: number; conditionFalls: number; death: number }>;
 
 beforeAll(() => {
@@ -56,7 +56,7 @@ beforeAll(() => {
     const sizes = grown.states.map((budget) => sizeIn(species, budget));
     return { sizes, days: hoursUntil(sizes, (size) => size >= 90) / HOURS_PER_DAY };
   });
-  plantlets = byRoster((species) => fedFreely(species, 100, horizon(100), ({ buds }) => buds.length === 3).buds);
+  offshoots = byRoster((species) => fedFreely(species, 100, horizon(100), ({ buds }) => buds.length === 3).buds);
   inTheDark = byRoster((species) => {
     const run = runFlora(floraTank({ plants: [plantRecord({ id: species, species, size: 50 })] }), horizon(60), DARK, {
       until: ({ state }) => !state.plants.some(({ id }) => id === species),
@@ -70,9 +70,9 @@ beforeAll(() => {
   });
 });
 
-const plantletDays = (species: PlantSpecies): number => {
-  const buds = plantlets[species];
-  expect(buds, `${species} buds three plantlets inside its horizon`).toHaveLength(3);
+const offshootDays = (species: PlantSpecies): number => {
+  const buds = offshoots[species];
+  expect(buds, `${species} buds three offshoots inside its horizon`).toHaveLength(3);
   return (buds[2] - buds[0]) / 2 / HOURS_PER_DAY;
 };
 
@@ -81,8 +81,8 @@ describe('the roster on its energy budget', () => {
     expect(alike(roster.map((species) => toNinety[species].days * growthRate(species)))).toBe(true);
   });
 
-  it('buds at a cadence that, times its growth rate over its form’s plantlet size, every species shares', () => {
-    expect(alike(roster.map((species) => (plantletDays(species) * growthRate(species)) / growthFormOf(species).offshootSize))).toBe(
+  it('buds at a cadence that, times its growth rate over its form’s offshoot size, every species shares', () => {
+    expect(alike(roster.map((species) => (offshootDays(species) * growthRate(species)) / growthFormOf(species).offshootSize))).toBe(
       true
     );
   });
@@ -100,11 +100,11 @@ describe.each(roster)('%s on its energy budget', (species) => {
     for (const other of slowerKin(species)) expect(days).toBeLessThan(toNinety[other].days);
   });
 
-  it('buds a plantlet grown and fed freely inside its form’s range of days, sooner than its slower kin', () => {
-    const [fastest, slowest] = PLANTLET_DAYS[PLANT_SPECIES_DATA[species].growthForm];
-    expect(plantletDays(species)).toBeGreaterThanOrEqual(fastest);
-    expect(plantletDays(species)).toBeLessThanOrEqual(slowest);
-    for (const other of slowerKin(species)) expect(plantletDays(species)).toBeLessThan(plantletDays(other));
+  it('buds an offshoot grown and fed freely inside its form’s range of days, sooner than its slower kin', () => {
+    const [fastest, slowest] = OFFSHOOT_DAYS[PLANT_SPECIES_DATA[species].growthForm];
+    expect(offshootDays(species)).toBeGreaterThanOrEqual(fastest);
+    expect(offshootDays(species)).toBeLessThanOrEqual(slowest);
+    for (const other of slowerKin(species)) expect(offshootDays(species)).toBeLessThan(offshootDays(other));
   });
 
   it('kept dark from a full reserve, holds its condition until its upkeep runs short and dies after, before its slower kin', () => {

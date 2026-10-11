@@ -403,7 +403,7 @@ describe('rosterTables', () => {
         parent: '#2',
         figure: '20 %',
         age: '1 d',
-        plantlet: '62 %',
+        offshoot: '62 %',
       });
       expect(unit.light!.text).toBe(`${Math.floor(share * 100)} %`);
       expect(founder.parent).toBeNull();
@@ -424,9 +424,9 @@ describe('rosterTables', () => {
         const ledger = readLedger(state, DEFAULT_CONFIG, ahead, { kind: 'plant', id: row.id })!;
         expect(`${ledger.light!.text} %`).toBe(row.light!.text);
         expect(ledger.light!.status).toBe(row.light!.status);
-        const plantlet = ledger.budget.find((line) => line.key === 'plantlet')!;
-        expect(`${plantlet.text} %`).toBe(row.plantlet);
-        expect(plantlet.unit).toBe('% built');
+        const offshoot = ledger.budget.find((line) => line.key === 'offshoot')!;
+        expect(`${offshoot.text} %`).toBe(row.offshoot);
+        expect(offshoot.unit).toBe('% built');
       }
     });
   });

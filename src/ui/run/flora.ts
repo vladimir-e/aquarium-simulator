@@ -196,8 +196,8 @@ export interface PlantRow {
   /** The day's light at its own height over the day its species is rated to live on. */
   light: number;
   lightStatus: Status;
-  /** Its offshoot buffer as a share of its next plantlet. */
-  plantlet: number;
+  /** Its offshoot buffer as a share of its next offshoot. */
+  offshoot: number;
 }
 
 export function plantRows(state: SimulationState, ahead: HourAhead): PlantRow[] {
@@ -218,7 +218,7 @@ export function plantRows(state: SimulationState, ahead: HourAhead): PlantRow[] 
       reading,
       light: light.needShare,
       lightStatus: plantLightStatus(light, plant.species),
-      plantlet: offshootShare(plant),
+      offshoot: offshootShare(plant),
     };
   });
 }
