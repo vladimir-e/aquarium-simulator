@@ -5,7 +5,7 @@
  * uptake and repair, at 1 cm of structural length, paced by τ and divided by
  * the fish's length — exchange runs through its surface and dilutes in its
  * volume, so a small fish loads and clears faster.
- * A spike barely loads a fish; a held level saturates it.
+ * A spike barely loads a big fish; a held level saturates any.
  */
 
 import type { Fish, Resources } from '../state.js';
