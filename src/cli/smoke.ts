@@ -48,7 +48,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     const state = createPresetSimulation(preset);
     const session = createSession(state, DEFAULT_CONFIG, 'smoke-run');
     saveSession(
-      { ...session, history: appendSnapshot(session.history, snapshot(state)) },
+      { ...session, history: appendSnapshot(session.history, snapshot(state, session.config)) },
       { path }
     );
     if (!existsSync(path)) throw new Error('session file not written');
@@ -62,7 +62,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
       session.config
     );
     saveSession(
-      { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
+      { ...session, state, history: appendSnapshot(session.history, snapshot(state, session.config)) },
       { path }
     );
     if (state.plants.length !== 1) throw new Error('plant not added');
@@ -74,7 +74,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     let history = session.history;
     for (let i = 0; i < 3; i++) {
       state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }, session.config).state;
-      history = appendSnapshot(history, snapshot(state));
+      history = appendSnapshot(history, snapshot(state, session.config));
     }
     saveSession({ ...session, state, history }, { path });
     if (state.fish.length !== 3) throw new Error('fish not added');
@@ -90,7 +90,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
       session.config
     );
     saveSession(
-      { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
+      { ...session, state, history: appendSnapshot(session.history, snapshot(state, session.config)) },
       { path }
     );
     if (state.fish.length !== 2) throw new Error('remove fish no-op');
@@ -100,7 +100,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     const session = loadSession({ path });
     const { state } = applyAction(session.state, { type: 'feed', amount: 0.5 }, session.config);
     saveSession(
-      { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
+      { ...session, state, history: appendSnapshot(session.history, snapshot(state, session.config)) },
       { path }
     );
     if (state.resources.food <= 0) throw new Error('feed had no effect');
@@ -113,7 +113,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     const count = parseDuration('48h');
     for (let i = 0; i < count; i++) {
       state = tick(state, session.config);
-      history = appendSnapshot(history, snapshot(state));
+      history = appendSnapshot(history, snapshot(state, session.config));
     }
     saveSession({ ...session, state, history }, { path });
     if (state.tick < count) throw new Error('tick did not advance');
@@ -123,7 +123,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     const session = loadSession({ path });
     const { state } = applyAction(session.state, { type: 'dose', amountMl: 1 }, session.config);
     saveSession(
-      { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
+      { ...session, state, history: appendSnapshot(session.history, snapshot(state, session.config)) },
       { path }
     );
   });
@@ -136,7 +136,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
       session.config
     );
     saveSession(
-      { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
+      { ...session, state, history: appendSnapshot(session.history, snapshot(state, session.config)) },
       { path }
     );
     if (state.resources.water !== session.state.tank.capacity) {
@@ -148,7 +148,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     const session = loadSession({ path });
     const { state } = applyAction(session.state, { type: 'topOff' }, session.config);
     saveSession(
-      { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
+      { ...session, state, history: appendSnapshot(session.history, snapshot(state, session.config)) },
       { path }
     );
   });
@@ -162,7 +162,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     };
     const { state } = applyAction(inflated, { type: 'trimPlants', targetSize: 85 }, session.config);
     saveSession(
-      { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
+      { ...session, state, history: appendSnapshot(session.history, snapshot(state, session.config)) },
       { path }
     );
   });

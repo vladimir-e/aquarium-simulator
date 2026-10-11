@@ -23,7 +23,6 @@ export {
   type Status,
   type Reading,
   STATUS_SEVERITY,
-  bankShare,
   conditionStatus,
   conditionWord,
   dayTrend,

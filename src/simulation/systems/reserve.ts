@@ -55,6 +55,39 @@ export function oxygenPace(oxygen: number, saturation: number, halfSaturation: n
   return saturated > 0 ? Math.min(1, monodFactor(oxygen, halfSaturation) / saturated) : 0;
 }
 
+/** What repair costs an organism and how fast it asks for it, off its own config. */
+export interface RepairTerms {
+  healingCost: number;
+  healingRate: number;
+}
+
+/** Grams of reserve one point of repair costs: `healingCost` hours of its somatic upkeep at the reference temperature. */
+export function repairPrice(state: ReserveState, p: ReserveParams, { healingCost }: Pick<RepairTerms, 'healingCost'>): number {
+  return healingCost * p.pM * state.structure;
+}
+
+/** Grams of reserve it asks to repair this hour: its deficit closing first order at `healingRate` × τ. */
+export function repairAsked(
+  state: ReserveState,
+  p: ReserveParams,
+  condition: number,
+  tau: number,
+  terms: RepairTerms
+): number {
+  return repairPrice(state, p, terms) * hourlyDraw(terms.healingRate * tau) * Math.max(0, 100 - condition);
+}
+
+/** Points of condition the grams its budget burned on repair bought. */
+export function pointsHealed(
+  burned: number,
+  state: ReserveState,
+  p: ReserveParams,
+  terms: Pick<RepairTerms, 'healingCost'>
+): number {
+  const price = repairPrice(state, p, terms);
+  return price > 0 ? burned / price : 0;
+}
+
 /** Share of its upkeep an hour's budget left unpaid. */
 export function starvation({ fluxes }: { fluxes: { owed: number; shortfall: number } }): number {
   return fluxes.owed > 0 ? fluxes.shortfall / fluxes.owed : 0;

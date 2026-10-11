@@ -83,8 +83,8 @@ import {
 import { getRespirationTemperatureFactor } from '../systems/respiration.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
 import { buyOffshoot, stepFlora, storeRequest, takeUp, type FloraFluxes } from '../systems/flora-budget.js';
-import { growthTaper, healingAsked, loseFlora } from '../systems/flora.js';
-import { NO_STRESS, oxygenPace, totalBurned } from '../systems/reserve.js';
+import { growthTaper, loseFlora } from '../systems/flora.js';
+import { NO_STRESS, oxygenPace, repairAsked, totalBurned } from '../systems/reserve.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import type { VitalityResult } from '../systems/vitality.js';
 import { sum } from '../core/sum.js';
@@ -101,6 +101,8 @@ export interface BloomHour {
   shedding: Organics;
   /** mg of each form its stores and its spores took up from the water. */
   waterUptake: FormVector;
+  /** g of structure its spores landed. */
+  spores: number;
 }
 
 export interface FloraProcessingResult {
@@ -216,14 +218,24 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
       omega,
       room,
       stress,
-      healing: healingAsked(fed, p, condition, tau, plantsConfig),
+      healing: repairAsked(fed, p, condition, tau, plantsConfig),
     });
   });
+
+  const assimilated = sum(steps.map(({ fluxes }) => fluxes.assimilated));
+  const burned = sum(steps.map(({ fluxes }) => totalBurned(fluxes)));
+  const fixed = carbonGases(assimilated);
+  const respired = carbonGases(burned);
+  pushDelta('co2', -getPpm(fixed.co2, waterVolume), 'photosynthesis');
+  pushDelta('oxygen', getPpm(fixed.oxygen, waterVolume), 'photosynthesis');
+  pushDelta('co2', getPpm(respired.co2, waterVolume), 'respiration');
+  pushDelta('oxygen', -getPpm(respired.oxygen, waterVolume), 'respiration');
 
   // 5. Condition.
   const vitalities = state.plants.map((plant, i) =>
     computePlantVitality({
       plant,
+      params: plants[i].p,
       fluxes: steps[i].fluxes,
       resources,
       waterVolume,
@@ -260,15 +272,6 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     if (survivor === null) return null;
     return buyOffshoot(survivor, plants[i].p, offshootStructure(plant.species));
   });
-
-  const assimilated = sum(steps.map(({ fluxes }) => fluxes.assimilated));
-  const burned = sum(steps.map(({ fluxes }) => totalBurned(fluxes)));
-  const fixed = carbonGases(assimilated);
-  const respired = carbonGases(burned);
-  pushDelta('co2', -getPpm(fixed.co2, waterVolume), 'photosynthesis');
-  pushDelta('oxygen', getPpm(fixed.oxygen, waterVolume), 'photosynthesis');
-  pushDelta('co2', getPpm(respired.co2, waterVolume), 'respiration');
-  pushDelta('oxygen', -getPpm(respired.oxygen, waterVolume), 'respiration');
 
   // 8. Offshoots and spores join, the survivors age a tick. An offshoot's id and vigour come off the tank's stream.
   const newState = produce(state, (draft) => {
@@ -326,6 +329,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
       fluxes: steps[plantCount + k].fluxes,
       shedding: bloomLosses[k].shed,
       waterUptake: bloomUptakes[k],
+      spores: spores[k].structure,
     })),
   };
 }

@@ -2,8 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { NO_ORGANICS } from '../core/organics.js';
 import {
   computeFishVitality,
-  healingAsked,
-  healingPrice,
   preyVulnerability,
   predationStress,
   predatorMasses,
@@ -11,7 +9,8 @@ import {
   processHealth,
   speciesHardiness,
 } from './fish-health.js';
-import { starvation } from './reserve.js';
+import { repairAsked, repairPrice, starvation } from './reserve.js';
+import { fishParams } from './fish-body.js';
 import type { VitalityResult } from './vitality.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
@@ -106,9 +105,13 @@ const HEALING = { ...AGELESS, healingRate: livestockDefaults.healingRate };
 
 const REFERENCE: Pace = { tau: 1, omega: 1, stress: NO_STRESS };
 
+/** Grams of reserve a fish asks to repair at this pace. */
+const asked = (fish: Fish, pace: Pace, config = livestockDefaults): number =>
+  repairAsked(fish.deb, fishParams(fish), fish.health, pace.tau, config);
+
 /** A fish's hour of budget on a full reserve and an empty gut, repairing what it asks. */
 const hourOf = (fish: Fish, config = AGELESS): FishHour =>
-  liveHour(fish, REFERENCE, healingAsked(fish, REFERENCE, config), config);
+  liveHour(fish, REFERENCE, asked(fish, REFERENCE, config), config);
 
 function vitality(
   fish: Partial<Fish> = {},
@@ -681,13 +684,13 @@ describe('starvation', () => {
 describe('repair', () => {
   it('asks its deficit closing first order at healingRate × τ, at healingCost hours of its upkeep a point', () => {
     const fish = fishRecord({ health: 60 });
-    const price = healingPrice(fish, livestockDefaults);
+    const price = repairPrice(fish.deb, fishParams(fish), livestockDefaults);
     expect(price).toBeCloseTo(livestockDefaults.healingCost * debParams('neon_tetra').pM * fish.deb.structure, 15);
-    expect(healingAsked(fish, { ...REFERENCE, tau: 1.5 }, livestockDefaults)).toBeCloseTo(
+    expect(asked(fish, { ...REFERENCE, tau: 1.5 }, livestockDefaults)).toBeCloseTo(
       price * hourlyDraw(livestockDefaults.healingRate * 1.5) * 40,
       15
     );
-    expect(healingAsked(fishRecord(), REFERENCE, livestockDefaults)).toBe(0);
+    expect(asked(fishRecord(), REFERENCE, livestockDefaults)).toBe(0);
   });
 
   it('heals the points its reserve paid for, on top of what it earns', () => {
@@ -710,7 +713,7 @@ describe('repair', () => {
     const fish = fishRecord({ health: 60 });
     expect(vitality({ ...fish, deb: { ...fish.deb, reserve: 0 } }, {}, { config: HEALING }).breakdown.healed).toBe(0);
     const record = fishRecord(fish);
-    const breathless = liveHour(record, { ...REFERENCE, omega: 0 }, healingAsked(record, REFERENCE, HEALING), HEALING);
+    const breathless = liveHour(record, { ...REFERENCE, omega: 0 }, asked(record, REFERENCE, HEALING), HEALING);
     const v = computeFishVitality(record, breathless, makeResources(), [], 100, 100, HEALING, 0);
     expect(v.breakdown.healed).toBe(0);
   });

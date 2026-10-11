@@ -69,10 +69,8 @@ export type AlgaeKind = 'greenWater' | 'film';
  * a full habitat holds, so `growthRate × tissueDensity / TISSUE_PER_RATE_UNIT`
  * is the rate units a full litre or cm² of habitat fixes and burns at: 1.8 for
  * green water and 0.006 for film, the tank-level CO₂ and O₂ per % of coverage
- * the whole-tank runs are fitted on. Held there at these paces, a % of
- * coverage holds more tissue than a reader sees — heavy green water's dry
- * cells, film's 0.3 mg a cm² — so a bloom's optics and its spores read its
- * coverage, and its grams are what its budget sees.
+ * the whole-tank runs are fitted on. Why a bloom's light reads its coverage
+ * rather than its grams is written at `opticsDefaults`.
  *
  * Spores are a source term, read in coverage like the bloom they land in:
  * 0.005 % of the column a day for green water, 0.05 % of the surfaces for

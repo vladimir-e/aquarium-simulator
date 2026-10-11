@@ -75,11 +75,11 @@ function advanceTicks(session: Session, count: number): Session {
   let history = session.history;
   // Always record the starting snapshot if history is empty.
   if (history.length === 0) {
-    history = appendSnapshot(history, snapshot(state));
+    history = appendSnapshot(history, snapshot(state, session.config));
   }
   for (let i = 0; i < count; i++) {
     state = tick(state, session.config);
-    history = appendSnapshot(history, snapshot(state));
+    history = appendSnapshot(history, snapshot(state, session.config));
   }
   return { ...session, state, history };
 }
@@ -90,7 +90,7 @@ function withState(session: Session, state: SimulationState): Session {
   if (history.length > 0 && history[history.length - 1]!.tick === state.tick) {
     history = history.slice(0, -1);
   }
-  return { ...session, state, history: appendSnapshot(history, snapshot(state)) };
+  return { ...session, state, history: appendSnapshot(history, snapshot(state, session.config)) };
 }
 
 function applyAndRecord(session: Session, action: Action): { session: Session; message: string } {
@@ -256,7 +256,7 @@ function cmdNew(flags: Record<string, string>): void {
   const preset = resolvePreset(presetId, { capacity, seeded: flags['no-seed'] === undefined });
   const state = createPresetSimulation(preset);
   const session = createSession(state, DEFAULT_CONFIG, flags.name ?? preset.name);
-  const recorded: Session = { ...session, history: appendSnapshot(session.history, snapshot(state)) };
+  const recorded: Session = { ...session, history: appendSnapshot(session.history, snapshot(state, session.config)) };
   saveSession(recorded);
   const biofilter = state.resources.aob > 0 ? 'cycled' : 'uncycled';
   process.stdout.write(

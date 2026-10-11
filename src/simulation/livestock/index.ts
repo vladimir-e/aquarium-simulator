@@ -14,13 +14,15 @@ import type { TunableConfig } from '../config/index.js';
 import type { MineralVector } from '../config/nutrients.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { burn, fishPace, processMetabolism, type FishHour } from '../systems/metabolism.js';
-import { healingAsked, processHealth } from '../systems/fish-health.js';
+import { processHealth } from '../systems/fish-health.js';
+import { repairAsked } from '../systems/reserve.js';
+import { fishParams } from '../systems/fish-body.js';
 import type { VitalityResult } from '../systems/vitality.js';
 import type { Pace } from '../systems/digestion.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { mintAmmonia } from '../systems/nitrogen-cycle.js';
 import { createLog } from '../core/logging.js';
-import { atRecipe } from '../core/organics.js';
+import { atRecipe, NO_ORGANICS, type Organics } from '../core/organics.js';
 import { clutchOrganics, clutchesWithMothers } from '../systems/clutch.js';
 import { getPpm } from '../resources/index.js';
 import type { LivestockConfig } from '../config/livestock.js';
@@ -33,8 +35,8 @@ export interface LivestockProcessingResult {
   hours: FishHour[];
   /** Each fish's vitality this tick, in `state.fish` order, the dead included */
   vitalities: VitalityResult[];
-  /** Grams of feces the fish passed. */
-  feces: number;
+  /** The feces the fish passed, at food's recipe. */
+  feces: Organics;
   /** Grams of organics their budgets burned. */
   burned: number;
 }
@@ -66,12 +68,14 @@ export function burnEffects(
 }
 
 export function processLivestock(state: SimulationState, config: TunableConfig): LivestockProcessingResult {
-  if (state.fish.length === 0) return { state, effects: [], hours: [], vitalities: [], feces: 0, burned: 0 };
+  if (state.fish.length === 0) return { state, effects: [], hours: [], vitalities: [], feces: NO_ORGANICS, burned: 0 };
 
   const livestock = config.livestock;
   const water = state.resources.water;
   const paces = tankPaces(state, config);
-  const healing = state.fish.map((fish, i) => healingAsked(fish, paces[i], livestock));
+  const healing = state.fish.map((fish, i) =>
+    repairAsked(fish.deb, fishParams(fish), fish.health, paces[i].tau, livestock)
+  );
   const metabolism = processMetabolism(state.fish, paces, healing, state.resources, livestock);
 
   const carried = new Map<string, number>();
@@ -90,14 +94,15 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
     state.fish.map((fish) => carried.get(fish.id) ?? 0)
   );
 
-  const waste = (grams: number, source: string): Effect[] =>
-    grams !== 0 ? [{ tier: 'active', resource: 'waste', delta: atRecipe(grams, config), source }] : [];
+  const feces = atRecipe(metabolism.feces, config);
+  const waste = (organics: Organics, source: string): Effect[] =>
+    organics.grams !== 0 ? [{ tier: 'active', resource: 'waste', delta: organics, source }] : [];
   const effects = (
     [
       { tier: 'active', resource: 'food', delta: -metabolism.foodConsumed, source: 'fish-metabolism' },
-      ...waste(metabolism.feces, 'fish-metabolism'),
+      ...waste(feces, 'fish-metabolism'),
       ...burnEffects(metabolism.burned, water, livestock, config.nutrients.foodMineralContent, 'fish-respiration'),
-      ...waste(health.deathWaste, 'fish-death'),
+      ...waste(atRecipe(health.deathWaste, config), 'fish-death'),
     ] satisfies Effect[]
   ).filter((effect) => effect.delta !== 0);
 
@@ -114,7 +119,7 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
     effects,
     hours: metabolism.hours,
     vitalities: health.vitalities,
-    feces: metabolism.feces,
+    feces,
     burned: metabolism.burned,
   };
 }

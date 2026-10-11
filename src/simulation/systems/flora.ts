@@ -1,15 +1,14 @@
 /**
  * The flora law — what a plant and a bloom share, written over the traits both
  * are described in: the light they saturate at, the pace their tissue lives
- * at, what repair costs them, what low condition sheds, and the vitality
- * channels both have. Each caller adds the channels only it has and hardens
- * the list itself.
+ * at, what low condition sheds, and the vitality channels both have. Each
+ * caller adds the channels only it has and hardens the list itself.
  */
 
 import type { Resources } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { getPh } from '../core/carbonate.js';
-import { hourlyDraw, monodFactor } from '../core/kinetics.js';
+import { monodFactor } from '../core/kinetics.js';
 import { parHoursToDli } from '../equipment/light.js';
 import { ZERO_NUTRIENTS, type NutrientVector } from '../config/nutrients.js';
 import { NO_ORGANICS, type Organics } from '../core/organics.js';
@@ -91,21 +90,6 @@ export function loseFlora(state: FloraState, p: FloraParams, condition: number, 
   return { survivor: null, shed: shedding.waste, died: left.waste, leachate: left.leachate };
 }
 
-/** Grams of reserve one point of repair costs: `healingCost` hours of its upkeep at the reference temperature. */
-export function healingPrice(state: FloraState, p: FloraParams, config: PlantsConfig): number {
-  return config.healingCost * p.pM * state.structure;
-}
-
-/** Grams of reserve it asks to repair this hour: its deficit closing first order at `healingRate` × τ. */
-export function healingAsked(
-  state: FloraState,
-  p: FloraParams,
-  condition: number,
-  tau: number,
-  config: PlantsConfig
-): number {
-  return healingPrice(state, p, config) * hourlyDraw(config.healingRate * tau) * Math.max(0, 100 - condition);
-}
 
 /** One feeder's hour, as the channels a plant and a bloom share read it. */
 export interface FloraHour {

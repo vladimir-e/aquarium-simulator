@@ -90,7 +90,7 @@ export interface LightPath {
 
 /** Light at a plant's height over the PAR at the substrate. */
 export interface CanopyLight {
-  /** At its mean leaf: what it earns and starves on. */
+  /** At its mean leaf: what it fixes carbon on. */
   leaf: number;
   /** At the top of its crown: what burns it. */
   top: number;
@@ -177,7 +177,7 @@ export interface PlantLight {
   crownPar: number;
   /** The day's light at its mean leaf, mol/m²/d. */
   dailyLight: number;
-  /** That day's light over the daily light the species starves under. */
+  /** That day's light over the day its species is rated to live on. */
   needShare: number;
   /** The day's light at the substrate that leaves its leaf on the species edge. */
   substrateEdge: number;

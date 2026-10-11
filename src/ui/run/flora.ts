@@ -204,7 +204,7 @@ export interface PlantRow {
   condition: number;
   sick: boolean;
   reading: Reading;
-  /** The day's light at its own height over the day's light its species starves under. */
+  /** The day's light at its own height over the day its species is rated to live on. */
   light: number;
   lightStatus: Status;
   /** Its offshoot buffer as a share of its next offshoot. */
@@ -391,7 +391,7 @@ const FEEDS_FROM = {
 
 /**
  * ppm, in one pool, at which the hungriest of these plants has its need there
- * met up to the edge where deficiency harm starts, counting what the forms it
+ * met up to the share that reads as fed, counting what the forms it
  * takes first already meet — nitrate is asked only for what the ammonia leaves.
  * A plant feeding from both pools reaches that edge with each at its own.
  */

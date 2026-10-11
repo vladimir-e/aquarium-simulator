@@ -115,7 +115,7 @@ export interface BloomLight {
   par: number;
   /** mol/m²/d. */
   dailyLight: number;
-  /** That day's light over the daily light the bloom starves under. */
+  /** That day's light over the day its kind is rated to live on. */
   needShare: number;
 }
 

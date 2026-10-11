@@ -7,7 +7,7 @@ import { floorCover, sizeOf } from '../plants/canopy.js';
 import { offshootStructure } from '../plants/create-plant.js';
 import { nutrientsIn, uptakeAlkalinity } from '../systems/nutrients.js';
 import { carbonGases } from '../systems/photosynthesis.js';
-import { floraNutrients, type FloraFluxes, type FloraState } from '../systems/flora-budget.js';
+import { floraNutrients, floraOrganics, type FloraFluxes, type FloraState } from '../systems/flora-budget.js';
 import { totalBurned } from '../systems/reserve.js';
 import { shedShare } from '../systems/flora.js';
 import { deltaOf } from '../tests/effects.js';
@@ -38,7 +38,7 @@ const config = DEFAULT_CONFIG;
 const RICH = 1000;
 const LITRES = 100;
 
-/** A day with twice the light the neediest species starves under. */
+/** A day with twice the light the neediest species is rated to live on. */
 const LIT_DAY = Array.from({ length: 24 }, (_, hour) =>
   hour < CARE_SHEET_PHOTOPERIOD
     ? 2 * Math.max(...Object.values(PLANT_SPECIES_DATA).map((species) => species.tolerableLight[0]))
@@ -363,6 +363,20 @@ describe.each(ALGAE_KINDS)('processFlora — %s', (kind) => {
     const result = processFlora(state, config);
     expect(result.state.equipment.substrate.nutrients).toEqual(state.equipment.substrate.nutrients);
     expect(result.algae[kind].waterUptake.phosphate).toBeGreaterThan(0);
+  });
+
+  it('closes its organics from what the pass reports: fixed less burned and shed, and the spores that landed', () => {
+    const hurt = produce(tank({ algae: { [kind]: 10 }, ...LIT }), (draft) => {
+      draft.algae[kind].condition = 60;
+    });
+    const result = processFlora(hurt, config);
+    const hour = result.algae[kind];
+    expect(hour.shedding.grams).toBeGreaterThan(0);
+    expect(hour.spores).toBeGreaterThan(0);
+    expect(floraOrganics(result.state.algae[kind].budget)).toBeCloseTo(
+      floraOrganics(hurt.algae[kind].budget) + hour.fluxes.assimilated - totalBurned(hour.fluxes) - hour.shedding.grams + hour.spores,
+      10
+    );
   });
 
   it('crowds out its own growth as it fills its habitat', () => {

@@ -139,7 +139,7 @@ describe('history cap', () => {
     const state = createSimulation(preset.config);
     let history: ReturnType<typeof snapshot>[] = [];
     for (let t = 0; t < HISTORY_CAP + 50; t++) {
-      history = appendSnapshot(history, { ...snapshot(state), tick: t });
+      history = appendSnapshot(history, { ...snapshot(state, DEFAULT_CONFIG), tick: t });
     }
     expect(history.length).toBe(HISTORY_CAP);
     // First retained entry should be tick=50 (oldest 50 dropped).
@@ -157,7 +157,7 @@ describe('configureSession', () => {
 
     expect(tuned.state.resources.lightByHour).toEqual(scheduledLightHistory(tuned.state, tuned.config.optics));
     expect(tuned.state.resources.lightByHour).not.toEqual(fresh.state.resources.lightByHour);
-    expect(tuned.history.at(-1)).toEqual(snapshot(tuned.state));
+    expect(tuned.history.at(-1)).toEqual(snapshot(tuned.state, tuned.config));
   });
 
   it('reads a running tank through the retuned water, and leaves it the day it has lived', () => {

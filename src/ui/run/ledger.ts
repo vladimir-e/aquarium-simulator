@@ -8,18 +8,18 @@
 
 import {
   ALGAE,
-  bloomMass,
-  offshootShare,
-  type FloraFluxes,
   ALGAE_KINDS,
+  bloomMass,
   debParams,
+  offshootShare,
   PLANT_SPECIES_DATA,
+  plantLightTaken,
+  REMOVED_BY,
   starvation,
   wellFed,
   type Fish,
   type FishHour,
-  plantLightTaken,
-  REMOVED_BY,
+  type FloraFluxes,
   type AlgaeHabitat,
   type AlgaeKind,
   type BloomRemoval,
@@ -118,7 +118,7 @@ export interface Ledger {
   /** What the next tick does to the hero figure, per day. */
   trend: string;
   gut: Gut | null;
-  /** The day's light against what the organism starves under, % of that need. */
+  /** The day's light against the day the organism is rated to live on, % of that need. */
   light: LedgerRow | null;
   /** A plant's light from the lamp to its leaf. */
   lightPath: LightPathView | null;
@@ -142,7 +142,6 @@ export interface Ledger {
 
 /** The precision a factor, a sum and the net print at, per day. */
 export const LEDGER_DECIMALS = 1;
-
 
 /** Whether a positive amount shows at a precision rather than rounding to nothing. */
 function shows(amount: number, decimals: number): boolean {
@@ -348,7 +347,7 @@ export function bloomVerb(kind: AlgaeKind): BloomRemoval {
 
 /**
  * A bloom as the organism it is — condition, what feeds it and what harms it,
- * the bank buying it mass — headed by its kind's word for how much of it there
+ * its reserve growing it — headed by its kind's word for how much of it there
  * is.
  */
 function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourAhead, kind: AlgaeKind): Ledger {

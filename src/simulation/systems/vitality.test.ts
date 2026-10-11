@@ -32,7 +32,7 @@ describe('computeVitality', () => {
     expect(result.breakdown.healed).toBe(0.3);
   });
 
-  it('banks nothing: condition past 100 is lost', () => {
+  it('loses condition past 100', () => {
     expect(computeVitality(input({ benefits: [benefit('b', 5)], condition: 99 })).newCondition).toBe(100);
   });
 

@@ -87,7 +87,7 @@ export interface PlantSpeciesData {
   /**
    * Tolerable PAR range (µmol/m²/s) on the plant's own leaves, as care sheets
    * quote it for the flora law's care-sheet day. The low end held
-   * that long is the daily light the species starves under (see
+   * that long is the day the species is rated to live on (see
    * {@link plantTraits}); past the high end the light-excessive stressor
    * burns the top of its crown while the lamps are on. The hobby's published
    * tiers are low 15-30, medium 30-50, high 50-80+.
@@ -183,12 +183,13 @@ export function growthFormOf(species: PlantSpecies): GrowthFormData {
 }
 
 /**
- * A species in the terms the flora law reads. The low end of its PAR band is
- * where it starves over a care-sheet day and, at `saturationIrradianceFactor ×`
- * it, the `Ik` it saturates at: anubias 16, java fern 20, amazon sword 40, dwarf
- * hairgrass 50, monte carlo 60. That is inside the published macrophyte range —
- * shade species saturate at 10–30 µmol/m²/s, sun species at 50–150 — and at the
- * shipped factor a plant at its lower bound runs at 46 % of its rate.
+ * A species in the terms the flora law reads. The low end of its PAR band,
+ * held over a care-sheet day, is the day it is rated to live on, and at
+ * `saturationIrradianceFactor ×` it the `Ik` it saturates at: anubias 16, java
+ * fern 20, amazon sword 40, dwarf hairgrass 50, monte carlo 60. That is inside
+ * the published macrophyte range — shade species saturate at 10–30 µmol/m²/s,
+ * sun species at 50–150 — and at the shipped factor a plant at its lower bound
+ * runs at 46 % of its rate.
  */
 export function plantTraits(species: PlantSpecies): FloraTraits {
   const { growthRate, tolerableLight, tolerableTemp, tolerablePH } = PLANT_SPECIES_DATA[species];

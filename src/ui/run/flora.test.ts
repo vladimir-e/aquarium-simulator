@@ -281,7 +281,7 @@ describe('floorPlanted', () => {
 });
 
 describe('plantRows', () => {
-  it('reads each unit’s light at its own height, as a share of what its species starves under', () => {
+  it('reads each unit’s light at its own height, as a share of the day its species is rated to live on', () => {
     const state = planted(['amazon_sword', 'monte_carlo', 'java_fern']);
     const light = readPlantLight(state, DEFAULT_CONFIG);
 

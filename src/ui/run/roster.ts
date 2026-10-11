@@ -34,7 +34,7 @@ export const CONDITION_BAND: ReadingBand = { from: 0.6, to: 1 };
 
 export type SpeciesId = FishSpecies | PlantSpecies;
 
-/** A plant's day of light at its own height, as a share of what its species starves under. */
+/** A plant's day of light at its own height, as a share of the day its species is rated to live on. */
 export interface LightFigure {
   text: string;
   status: Status;
@@ -113,7 +113,7 @@ export interface IndividualRosterRow extends Vital {
   age: string;
   gut: Gut | null;
   light: LightFigure | null;
-  /** How far a plant's bank is toward its next offshoot. */
+  /** How far a plant's offshoot buffer is toward its next offshoot. */
   bank: string | null;
 }
 

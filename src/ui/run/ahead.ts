@@ -9,7 +9,6 @@
 import {
   addOrganics,
   applyEffects,
-  atRecipe,
   bloomMass,
   calculateDecay,
   dailyLightIntegral,
@@ -132,7 +131,7 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     })),
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),
     shedding: flora.shedding,
-    fishWaste: addOrganics(atRecipe(livestock.feces, config), bodies.waste),
+    fishWaste: addOrganics(livestock.feces, bodies.waste),
     gillAmmonia: gillAmmonia(livestock.burned + bodies.burned, config.livestock),
     ration: TICKS_PER_DAY * sum(livestock.hours.map((hour) => ration(hour.fish, hour.fluxes.owed))),
     foodWaste: decayed * wasteShare,

@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  bankShare,
   conditionWord,
   groupMember,
   groupReading,
@@ -104,14 +103,6 @@ describe('groupMember', () => {
   });
 });
 
-describe('bankShare', () => {
-  it('is the bank over its cap, full at the cap and past a lowered one, empty at a cap of 0', () => {
-    expect(bankShare(10, 40)).toBe(0.25);
-    expect(bankShare(40, 40)).toBe(1);
-    expect(bankShare(60, 40)).toBe(1);
-    expect(bankShare(10, 0)).toBe(0);
-  });
-});
 
 describe('worstMember', () => {
   it('is the most urgent member, and of those the lowest condition, wherever it stands', () => {

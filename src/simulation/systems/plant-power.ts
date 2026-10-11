@@ -3,8 +3,8 @@
  *
  * The same primitive feeds two consumers:
  *   - Fish vitality: `plantPower` saturates a shelter benefit.
- *   - Algae vitality: `plantPower` per litre is the allelopathy every bloom
- *     takes from thriving plants.
+ *   - Allelopathy: `plantPower` per litre is the dose that lowers every
+ *     bloom's assimilation ceiling.
  *
  * Per-plant contribution is its rate units × `condition / 100`: a full
  * thriving sword counts 2.8, a full monte carlo patch 0.5, a half-grown

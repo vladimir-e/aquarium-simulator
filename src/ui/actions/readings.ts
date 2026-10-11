@@ -11,13 +11,13 @@
  */
 
 import {
-  sizeOf,
-  bloomMass,
   ALGAE,
   ALGAE_KINDS,
+  bloomMass,
   floorLight,
   floorShade,
   plantLightTaken,
+  sizeOf,
   type FishSpeciesData,
   type SimulationState,
 } from '../../simulation/index.js';

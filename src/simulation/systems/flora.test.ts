@@ -5,15 +5,14 @@ import {
   floraBenefits,
   floraStressors,
   growthTaper,
-  healingAsked,
-  healingPrice,
+
   loseFlora,
   metabolicRateUnits,
   saturationIrradiance,
   shedShare,
   type FloraHour,
 } from './flora.js';
-import { hourlyDraw, monodFactor } from '../core/kinetics.js';
+import { monodFactor } from '../core/kinetics.js';
 import { stocked } from './flora-budget.js';
 import { plantParams } from '../flora/params.js';
 import { addOrganics } from '../core/organics.js';
@@ -75,23 +74,6 @@ describe('metabolicRateUnits', () => {
   });
 });
 
-describe('healing', () => {
-  const p = plantParams('amazon_sword', config);
-  const budget = stocked(2, p);
-
-  it('prices a point at healingCost hours of the upkeep its structure owes', () => {
-    expect(healingPrice(budget, p, config)).toBeCloseTo(config.healingCost * p.pM * 2, 15);
-    expect(healingPrice(stocked(4, p), p, config)).toBeCloseTo(2 * healingPrice(budget, p, config), 15);
-  });
-
-  it('asks its deficit closing first order at healingRate × τ, and nothing at full condition', () => {
-    expect(healingAsked(budget, p, 100, 1, config)).toBe(0);
-    expect(healingAsked(budget, p, 60, 2, config)).toBeCloseTo(
-      healingPrice(budget, p, config) * hourlyDraw(2 * config.healingRate) * 40,
-      15
-    );
-  });
-});
 
 describe('shedShare', () => {
   it('is nothing at full condition and maxSheddingRate at 0', () => {

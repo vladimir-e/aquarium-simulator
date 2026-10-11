@@ -8,8 +8,8 @@ import type { PlantsConfig } from '../config/plants.js';
 import type { AlgaeTraits } from '../algae/traits.js';
 import type { FloraFluxes, FloraParams } from './flora-budget.js';
 import { droopFactor } from './flora-budget.js';
-import { starvation, wellFed } from './reserve.js';
-import { floraBenefits, floraStressors, healingPrice, type FloraHour } from './flora.js';
+import { pointsHealed, starvation, wellFed } from './reserve.js';
+import { floraBenefits, floraStressors, type FloraHour } from './flora.js';
 import { computeVitality, hardened, type VitalityFactor, type VitalityResult } from './vitality.js';
 
 export interface AlgaeVitalityContext {
@@ -45,11 +45,10 @@ export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] 
 }
 
 export function computeAlgaeVitality(ctx: AlgaeVitalityContext): VitalityResult {
-  const price = healingPrice(ctx.bloom.budget, ctx.params, ctx.plantsConfig);
   return computeVitality({
     stressors: buildAlgaeStressors(ctx),
     benefits: buildAlgaeBenefits(ctx),
     condition: ctx.bloom.condition,
-    healed: price > 0 ? ctx.fluxes.burned.healing / price : 0,
+    healed: pointsHealed(ctx.fluxes.burned.healing, ctx.bloom.budget, ctx.params, ctx.plantsConfig),
   });
 }

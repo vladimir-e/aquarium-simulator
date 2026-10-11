@@ -149,9 +149,9 @@ for every kind.
 | `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which a species of each carbon need photosynthesises at half rate | mg/L |
 | `saturationIrradianceFactor` | Multiple of a species' band low at which its light response saturates — the `Ik` of the light curve | × band low |
 | `co2PerRateUnit` | CO₂ carried by one rate unit, fixed and released alike; oxygen derives from it at the molar ratio | mg |
-| `baseRespirationRate` | Dark respiration per rate unit of leaf at growth rate 1, as a share of the light- and carbon-saturated rate, running around the clock | /hr |
-| `respirationQ10` | Factor respiration and light starvation multiply by per 10 °C | — |
-| `respirationReferenceTemp` | Temperature respiration and light starvation are quoted at | °C |
+| `baseRespirationRate` | Maintenance per rate unit of leaf at growth rate 1, as a share of the light- and carbon-saturated rate, owed around the clock | /hr |
+| `respirationQ10` | Factor every rate of a flora's budget multiplies by per 10 °C | — |
+| `respirationReferenceTemp` | Temperature every rate of a flora's budget is quoted at | °C |
 | `oxygenHalfSaturation` | Dissolved O₂ half-saturating a flora's oxygen pace, read against saturated water: it scales what plants and blooms assimilate and mobilise, never the upkeep they owe | mg/L |
 | `somaShare` | κ: share of what a plant's reserve mobilises that goes to its soma; the rest fills its offshoot buffer | — |
 | `growthEfficiency` | κ_G: share of what new structure costs that ends up in it, plants and blooms alike; the rest is burned building it | — |
@@ -166,7 +166,7 @@ for every kind.
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per °C, pH unit or dGH outside the species' tolerable band, one per factor | %/unit/hr |
 | `nutrientDeficiencySeverity` · `droopEdge` | Damage at a Droop limit of 0, falling linearly to nothing at the edge; and the Droop limit a plant's stores count as fed at, since it never reaches 1 | %/hr · — |
 | `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the plant's own edge, and where a hardiness-0 plant's edge sits | %/e-fold/hr · ppm |
-| `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on the light term times the Liebig sufficiency | %/hr |
+| `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on reserve density times the Droop limit | %/hr |
 | `maxSheddingRate` | Share of itself a plant sheds per hour at condition 0, falling with the square of the deficit | /hr |
 
 Every severity above is pre-hardiness. The species' own hardiness scales every

@@ -33,8 +33,6 @@ export {
   saturationIrradiance,
   dailyLightEdge,
   growthTaper,
-  healingPrice,
-  healingAsked,
   floraStressors,
   floraBenefits,
   type FloraTraits,

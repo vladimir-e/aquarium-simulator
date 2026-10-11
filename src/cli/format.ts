@@ -164,7 +164,7 @@ const DERIVED_FIELDS = [
   'dgh',
 ] as const;
 
-const BLOOM_KEYS = ['mass', 'condition', 'buffer'] as const satisfies readonly (keyof BloomTrace)[];
+const BLOOM_KEYS = ['mass', 'condition', 'reserve'] as const satisfies readonly (keyof BloomTrace)[];
 
 /** Each kind's bloom, a column per figure: `green_water_mass`, `film_condition`… */
 const BLOOM_FIELDS = new Map<string, [AlgaeKind, keyof BloomTrace]>(

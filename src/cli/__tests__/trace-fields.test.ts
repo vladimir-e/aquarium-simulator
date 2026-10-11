@@ -5,9 +5,10 @@ import { getPresetById } from '../../simulation/presets.js';
 import { renderTrace, TRACE_FIELDS } from '../format.js';
 import { snapshot } from '../history.js';
 import { snakeCase } from '../names.js';
+import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 
 const state = createSimulation(getPresetById('bare')!.config);
-const history = [snapshot(state)];
+const history = [snapshot(state, DEFAULT_CONFIG)];
 
 describe('trace fields', () => {
   it('renders every field it publishes', () => {
@@ -46,12 +47,15 @@ describe('trace fields', () => {
     expect(() => renderTrace([], { fields: ['nonsense'] })).toThrow(/Unknown trace field/);
   });
 
-  it('traces each kind of bloom the snapshot records, a column per figure', () => {
-    const bloom = snapshot({
-      ...state,
-      algae: { greenWater: bloomAt(state, 'greenWater', 12.5, 90), film: bloomAt(state, 'film', 40) },
-    });
-    const csv = renderTrace([bloom], { fields: ['green_water_mass', 'green_water_condition', 'green_water_buffer', 'film_mass'] });
-    expect(csv).toBe(`tick,green_water_mass,green_water_condition,green_water_buffer,film_mass\n${bloom.tick},12.5,90,0,40`);
+  it('traces each kind of bloom the snapshot records, a column per figure, its reserve as a density', () => {
+    const bloom = snapshot(
+      {
+        ...state,
+        algae: { greenWater: bloomAt(state, 'greenWater', 12.5, 90), film: bloomAt(state, 'film', 40) },
+      },
+      DEFAULT_CONFIG
+    );
+    const fields = ['green_water_mass', 'green_water_condition', 'green_water_reserve', 'film_mass'];
+    expect(renderTrace([bloom], { fields })).toBe(`tick,${fields.join(',')}\n${bloom.tick},12.5,90,1,40`);
   });
 });

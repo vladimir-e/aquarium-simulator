@@ -164,7 +164,7 @@ describe('readTank', () => {
     expect(fouled.band).toBeNull();
   });
 
-  it('bands the day’s light on what the worst-lit plant starves under, and not at all unplanted', () => {
+  it('bands the day’s light on the day the worst-lit plant is rated to live on, and not at all unplanted', () => {
     const planted = read(stocked(1)).byId.dailyLight;
     const unplanted = read(bare()).byId.dailyLight;
 

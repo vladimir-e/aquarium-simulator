@@ -22,8 +22,8 @@ import type { HistorySnapshot } from './history.js';
  *    budgets. `Resources.waste` and `Substrate.organicReserve` become
  *    `{ grams, nutrients }`; `Plant` trades `size` and `surplus`, and
  *    `AlgaeState` `mass` and `surplus`, for `budget`, and the trace's
- *    `*_surplus` columns become `*_buffer`. A v20 session parses and its
- *    first tick adds organics to a number.
+ *    `*_surplus` columns become `*_reserve`, the bloom's reserve density. A
+ *    v20 session parses and its first tick adds organics to a number.
  * v20 put fish on their energy budgets. `Fish` trades `mass`, `surplus` and
  *    `ovary` for `deb`, `survival` and `survivalDraw`, and `LivestockConfig`
  *    trades its gut, bank, growth, brood and wear knobs for the budget's. A v19

@@ -9,11 +9,10 @@
  */
 
 import {
-  sizeOf,
-  bloomMass,
   ALGAE,
   ALGAE_KINDS,
   applyAction,
+  bloomMass,
   canDose,
   canRootTab,
   coverage,
@@ -22,6 +21,7 @@ import {
   MAX_ROOT_TABS,
   placeShare,
   PLANT_SPECIES_DATA,
+  sizeOf,
   WATER_CHANGE_AMOUNTS,
   type Action,
   type AlgaeKind,

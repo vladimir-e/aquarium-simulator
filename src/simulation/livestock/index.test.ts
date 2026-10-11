@@ -8,6 +8,7 @@ import type { Fish } from '../state.js';
 import { burn, fishPace } from '../systems/metabolism.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { getPpm } from '../resources/index.js';
+import { atRecipe } from '../core/organics.js';
 import { fishRecord } from '../tests/fish.js';
 
 function makeFish(overrides: Partial<Fish> & { size?: number } = {}): Fish {
@@ -49,8 +50,9 @@ describe('processLivestock', () => {
     const result = processLivestock(makeState([makeFish({ id: 'a' }), makeFish({ id: 'b', size: 40 })]), DEFAULT_CONFIG);
 
     expect(effectOf(result, 'food')).toBeLessThan(0);
-    expect(effectOf(result, 'waste', 'fish-metabolism')).toBeCloseTo(result.feces, 15);
-    expect(result.feces).toBeGreaterThan(0);
+    expect(effectOf(result, 'waste', 'fish-metabolism')).toBeCloseTo(result.feces.grams, 15);
+    expect(result.feces.grams).toBeGreaterThan(0);
+    expect(result.feces).toEqual(atRecipe(result.feces.grams, DEFAULT_CONFIG));
     const { water } = makeState().resources;
     const burnt = burn(result.burned, DEFAULT_CONFIG.livestock, DEFAULT_CONFIG.nutrients.foodMineralContent);
     expect(effectOf(result, 'oxygen')).toBeCloseTo(-getPpm(burnt.oxygen, water), 15);

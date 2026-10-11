@@ -3,8 +3,8 @@
  *
  * `condition` (0–100) is the buffer between dying and thriving, normal at 100.
  * Each tick benefit rates raise it and damage rates lower it, and the repair
- * its reserve paid for heals it, so nothing dies or heals instantly. Nothing
- * banks: condition past 100 is lost.
+ * its reserve paid for heals it, so nothing dies or heals instantly.
+ * Condition past 100 is lost.
  *
  * Pure / framework-free — no Immer, no state mutation.
  */

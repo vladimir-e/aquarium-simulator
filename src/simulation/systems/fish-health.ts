@@ -4,9 +4,9 @@
  * Each hour a fish's environment is decomposed into damage and benefit
  * factors. Benefits raise health and damage lowers it; on top, the fish
  * repairs a share of its deficit at `healingRate`, paying `healingCost` hours
- * of upkeep a point from its reserve inside the budget step. Nothing banks:
- * health above 100 is lost. A fish dies at 0, or of old age when its
- * survival falls below the threshold it drew.
+ * of upkeep a point from its reserve inside the budget step. Health above 100
+ * is lost. A fish dies at 0, or of old age when its survival falls below the
+ * threshold it drew.
  *
  * Stressors:
  * - Temperature, pH, GH, water level, flow, predation and starvation are
@@ -33,8 +33,8 @@ import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { shareOut, swallow, type Pace } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import { sum } from '../core/sum.js';
-import { hourlyDraw } from '../core/kinetics.js';
-import { starvation, wellFed } from './reserve.js';
+
+import { pointsHealed, starvation, wellFed } from './reserve.js';
 import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
 import type { FishHour } from './metabolism.js';
 import {
@@ -190,15 +190,6 @@ export function predationStress(
   return ((config.predationRate * predatorMass) / waterVolume) * preyVulnerability(preySize, config);
 }
 
-/** Grams of reserve one point of repair costs: `healingCost` hours of its somatic upkeep at 20 °C. */
-export function healingPrice(fish: Pick<Fish, 'species' | 'deb'>, config: LivestockConfig): number {
-  return config.healingCost * fishParams(fish).pM * fish.deb.structure;
-}
-
-/** Grams of reserve a fish asks to repair this hour: its deficit closing first order at `healingRate` × τ. */
-export function healingAsked(fish: Pick<Fish, 'species' | 'deb' | 'health'>, pace: Pace, config: LivestockConfig): number {
-  return healingPrice(fish, config) * hourlyDraw(config.healingRate * pace.tau) * Math.max(0, 100 - fish.health);
-}
 
 /**
  * Build the hardened stressor list for a fish: the water's, then its own
@@ -301,12 +292,11 @@ export function computeFishVitality(
     hardiness: fishHardiness(fish),
     predatorMass,
   };
-  const price = healingPrice(fish, config);
   return computeVitality({
     stressors: buildStressors(ctx),
     benefits: buildBenefits(ctx),
     condition: fish.health,
-    healed: price > 0 ? hour.fluxes.burned.healing / price : 0,
+    healed: pointsHealed(hour.fluxes.burned.healing, fish.deb, fishParams(fish), config),
   });
 }
 

@@ -6,7 +6,7 @@ import {
   computePlantVitality,
   type PlantVitalityContext,
 } from './plant-vitality.js';
-import { healingPrice } from './flora.js';
+import { repairPrice } from './reserve.js';
 import { toleranceFactor } from '../livestock/tolerance.js';
 import { plantsDefaults } from '../config/plants.js';
 import { mapNutrients } from '../config/nutrients.js';
@@ -82,6 +82,7 @@ function ctx(
 ): PlantVitalityContext {
   return {
     plant,
+    params: plantParams(plant.species, plantsDefaults),
     fluxes,
     resources,
     waterVolume: resources.water,
@@ -225,13 +226,13 @@ describe('buildPlantBenefits', () => {
 });
 
 describe('computePlantVitality', () => {
-  it('banks nothing: a fed plant at full condition stays at 100', () => {
+  it('holds a fed plant at full condition at 100', () => {
     expect(computePlantVitality(ctx(makePlant('anubias'), makeResources())).newCondition).toBe(100);
   });
 
   it('heals the points its reserve paid for, at its price per point', () => {
     const plant = makePlant('amazon_sword', { condition: 50 });
-    const price = healingPrice(plant.budget, plantParams('amazon_sword', plantsDefaults), plantsDefaults);
+    const price = repairPrice(plant.budget, plantParams('amazon_sword', plantsDefaults), plantsDefaults);
     const paid = { ...PAID, burned: { ...PAID.burned, healing: 3 * price } };
     const healed = computePlantVitality(ctx(plant, makeResources({ light: 0 }), paid));
     expect(healed.breakdown.healed).toBeCloseTo(3, 12);

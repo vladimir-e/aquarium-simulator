@@ -5,7 +5,7 @@ import {
   computeAlgaeVitality,
   type AlgaeVitalityContext,
 } from './algae-vitality.js';
-import { healingPrice } from './flora.js';
+import { repairPrice } from './reserve.js';
 import { monodFactor } from '../core/kinetics.js';
 import { ALGAE, ALGAE_KINDS } from '../algae/traits.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
@@ -74,9 +74,9 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
     expect(amount(buildAlgaeStressors(context()), 'starvation')).toBe(0);
   });
 
-  it('heals the points its reserve paid for, and banks nothing', () => {
+  it('heals the points its reserve paid for, and holds a fed bloom at full condition at 100', () => {
     const budget = stocked(2, params);
-    const price = healingPrice(budget, params, plantsConfig);
+    const price = repairPrice(budget, params, plantsConfig);
     const hurt = computeAlgaeVitality(
       context({ bloom: { budget, condition: 60 }, fluxes: { ...PAID, burned: { ...PAID.burned, healing: 2 * price } } })
     );

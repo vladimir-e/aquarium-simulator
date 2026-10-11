@@ -355,8 +355,6 @@ export {
   dailyLightEdge,
   TISSUE_PER_RATE_UNIT,
   shedShare,
-  healingPrice,
-  healingAsked,
 } from './systems/flora.js';
 export type { FloraTraits, FloraLoss } from './systems/flora.js';
 export {

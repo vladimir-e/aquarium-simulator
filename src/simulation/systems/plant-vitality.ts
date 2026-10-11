@@ -15,10 +15,9 @@ import { PLANT_SPECIES_DATA, getCo2HalfSaturation, plantTraits, type PlantSpecie
 import { toleranceFactor } from '../livestock/tolerance.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { getDgh, getPpm } from '../resources/index.js';
-import { plantParams } from '../flora/params.js';
-import { droopFactor, type FloraFluxes } from './flora-budget.js';
-import { starvation, wellFed } from './reserve.js';
-import { floraBenefits, floraStressors, healingPrice, type FloraHour } from './flora.js';
+import { droopFactor, type FloraFluxes, type FloraParams } from './flora-budget.js';
+import { pointsHealed, starvation, wellFed } from './reserve.js';
+import { floraBenefits, floraStressors, type FloraHour } from './flora.js';
 import {
   computeVitality,
   eFoldsPast,
@@ -31,6 +30,7 @@ import {
 export interface PlantVitalityContext {
   /** The plant as the hour found it. */
   plant: Plant;
+  params: FloraParams;
   /** What its budget did over the hour. */
   fluxes: FloraFluxes;
   resources: Resources;
@@ -40,14 +40,13 @@ export interface PlantVitalityContext {
   light: PlantLight;
 }
 
-function floraHour({ plant, fluxes, resources, plantsConfig }: PlantVitalityContext): FloraHour {
-  const p = plantParams(plant.species, plantsConfig);
+function floraHour({ plant, params, fluxes, resources, plantsConfig }: PlantVitalityContext): FloraHour {
   return {
     traits: plantTraits(plant.species),
     resources,
     plantsConfig,
-    wellFed: wellFed(plant.budget, p),
-    droop: droopFactor(plant.budget, p),
+    wellFed: wellFed(plant.budget, params),
+    droop: droopFactor(plant.budget, params),
     starvation: starvation({ fluxes }),
     co2HalfSaturation: getCo2HalfSaturation(plant.species, plantsConfig),
     vigour: plant.vigour,
@@ -101,11 +100,10 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
 
 /** A plant's condition over the hour its budget ran, its reserve paying for the repair. Stateless. */
 export function computePlantVitality(ctx: PlantVitalityContext): VitalityResult {
-  const price = healingPrice(ctx.plant.budget, plantParams(ctx.plant.species, ctx.plantsConfig), ctx.plantsConfig);
   return computeVitality({
     stressors: buildPlantStressors(ctx),
     benefits: buildPlantBenefits(ctx),
     condition: ctx.plant.condition,
-    healed: price > 0 ? ctx.fluxes.burned.healing / price : 0,
+    healed: pointsHealed(ctx.fluxes.burned.healing, ctx.plant.budget, ctx.params, ctx.plantsConfig),
   });
 }
