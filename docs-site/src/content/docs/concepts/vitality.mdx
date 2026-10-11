@@ -1,6 +1,6 @@
 ---
 title: Vitality
-description: One model for every organism — rates of benefit and harm move condition; a plant or a bloom banks at full condition and its bank heals it and buys what it makes, while a fish banks nothing and its reserve buys its growth and broods and pays its repair.
+description: One model for every organism — rates of benefit and harm move condition, nothing banks, and each organism's reserve pays its repair and buys what it makes.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -18,72 +18,53 @@ at a tolerance edge is not ([Rates into stocks](/concepts/rates-into-stocks/#swi
 ## One hour
 
 Each hour an organism lists what is doing it good and what is harming it, both
-in condition points per hour, and one shared step settles them. A fish settles
-the same lists on its own step: nothing banks, and it repairs a share of its
-deficit from its energy budget's reserve instead — see
-[Health](/subsystems/livestock/#health).
-
-```
-condition += Σbenefits − Σstressors
-above 100:  the excess banks, up to surplusCap, and condition sits at 100
-below 100:  the bank heals min(100 − condition, (1 − e^−healingRate) × bank)
-```
+in condition points per hour, and one shared step settles them, with the repair
+its energy budget paid for — fish, plants and the blooms alike.
 
 | Term | Is |
 |---|---|
-| Benefits | Income from favourable conditions, earned on what the organism takes in — a plant's light and nutrients, a fish's reserve. Hardiness never scales them |
+| Benefits | Income from favourable conditions, earned on how fed its reserve is — a plant's and a bloom's also on how full its stores run. Hardiness never scales them |
 | Stressors | Damage, hardened by each organism: `× (1 − hardiness)`, or by moving where harm starts |
-| Bank | Condition points banked at full condition, capped at `surplusCap` |
-| Healing rate | The first-order rate its bank drains at while it heals, per hour |
+| Starvation | One stressor among them: the share of the hour's upkeep its budget left unpaid |
+| Repair | A first-order share of the deficit at `healingRate` and the organism's pace, priced at `healingCost` hours of its own upkeep a point and paid from its reserve inside the budget's hour. An empty reserve repairs nothing |
 
-Income heals first, and only what a full condition leaves over banks. Damage
-never touches the bank; it lowers condition, and the bank heals it back. Healing
-is first order, integrated over the hour: a bank pays out at most
-`1 − e^−healingRate` of itself, so under damage heavier than that it drains on an
-exponential with a time constant of `1 / healingRate` hours, however fast the
-rate. Under lighter damage it pays out only what the damage took, and drains in
-a straight line.
+Nothing banks: condition past 100 is lost. The reserve is the buffer — it pays
+maintenance first and repair after, so a fed organism repairs as it is harmed
+and a starving one cannot.
 
-## Sickness and immunity
+## Sickness
 
-The bank feeding condition is the organism's immunity. A full bank heals up to
-`(1 − e^−healingRate) × surplusCap` in an hour, which is what lets a banked
-organism ride out a bad spell at full condition while an unbanked one loses
-condition from the first hour.
+An organism is sick while its damage outruns its income and repair, so its
+condition falls. Sickness is not a separate mechanic: the damage rate *is* the
+sickness, and it ends when the rates turn round.
 
-An organism is sick while its damage outruns its healing, so its condition
-falls. Sickness is not a separate mechanic: the damage rate *is* the sickness,
-and it ends when the rates turn round.
-
-| Organism | Healing rate | Shipped |
+| Organism | Repair | Shipped |
 |---|---|---|
-| Fish | Its deficit, first order at `healingRate × τ`, paid from reserve at `healingCost` hours of upkeep a point | 0.005 /h at 20 °C |
-| Plant | `healingDrawRate × growthRate` — a plant repairs at the rate it grows | 0.09 /h for monte carlo, 0.015 /h for anubias |
-| Algae | The plants' law, at its kind's growth rate | 3 /h for green water — 95 % of its bank in an hour — and 1 /h for film, 63 % |
+| Fish | At its Arrhenius pace | 0.005 /h at 20 °C, half an hour of upkeep a point |
+| Plant · bloom | At the flora's Q10 pace, on the plants' constants | 0.05 /h at 25 °C, an hour of upkeep a point |
 
-## What the bank buys
+## What the budget buys
 
-| Organism | Low condition | The bank buys |
+| Organism | Low condition | Its budget buys |
 |---|---|---|
-| Fish | Dies at 0 | Nothing: its energy budget buys its growth and broods from its reserve — see [The budget](/subsystems/livestock/#the-budget) |
-| Plant | Sheds tissue, with the square of the deficit; dies at 0 | Its growth and its offshoots: growth draws on the bank through a taper that closes as the unit fills, and a full bank buys a new unit of the family — see [Offshoots](/subsystems/plants/#offshoots) |
-| Algae | Sheds mass as a plant sheds tissue; dies back at 0 | Mass, in proportion to the mass standing, on the logistic its habitat sets — see [Algae](/subsystems/algae/#the-bank-buys-mass). Its spores are its offshoots: they land at condition 100 on an empty bank whatever the bloom is doing |
+| Fish | Dies at 0 | Growth and broods — see [The budget](/subsystems/livestock/#the-budget) |
+| Plant | Sheds tissue, with the square of the deficit; dies at 0 | Growth on its least-filled store, and the plantlet its offshoot buffer builds — see [The budget](/subsystems/plants/#the-budget) |
+| Algae | Sheds as a plant does; dies back at 0 | Growth alone, its whole release to the soma: its growth is its reproduction — see [Algae](/subsystems/algae/#the-budget) |
 
 ## Status
 
 | Mechanic | Status | Why |
 |---|---|---|
-| The balance | <Badge text="settled" variant="success" /> | One step for plants and the blooms, its lists shared with fish. Each organism hardens its own charges, so a channel can move its edge instead of scaling its charge |
-| Banking at full condition | <Badge text="settled" variant="success" /> | Income heals first and banks only at 100; damage never reaches the bank |
-| First-order healing | <Badge text="settled" variant="success" /> | The bank heals at a species rate, integrated over the hour, with no floor, switch or clamp |
+| The balance | <Badge text="settled" variant="success" /> | One step for every organism. Each hardens its own charges, so a channel can move its edge instead of scaling its charge |
+| Nothing banks | <Badge text="settled" variant="success" /> | Condition past 100 is lost; the reserve is the only buffer, and maintenance comes before repair |
+| Repair from reserve | <Badge text="settled" variant="success" /> | First order on the deficit at the organism's pace, priced in its own upkeep, paid inside its budget's hour — no floor, switch or clamp |
 | Sickness | <Badge text="settled" variant="success" /> | A reading of the rates, not a state: condition falling is the whole of it |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at each edge, and the matching damage starts from zero at or past it, so net never jumps as a reading leaves its band |
-| Offshoot | <Badge text="settled" variant="success" /> | An event a full bank buys: the bank is its price and refilling it is the cooldown, with no timers |
+| Offspring | <Badge text="settled" variant="success" /> | A buffer the reserve's other share fills — a fish's brood, a plant's plantlet — released once it holds one: filling it is the price and the cooldown, with no timers |
 
 ## Source
 
-`src/simulation/systems/` holds the shared step, the flora law plants and the
-blooms all run on, and each organism's factor builders;
-`src/simulation/plants/` and `src/simulation/algae/` decide what their bank
-buys, `src/simulation/livestock/` what a fish's reserve pays for, and
-`src/simulation/flora/` runs plants and the blooms through one pass.
+`src/simulation/systems/` holds the shared step, the reserve and repair every
+budget shares, the flora law plants and the blooms run on, and each organism's
+factor builders; `src/simulation/flora/` runs plants and the blooms through one
+pass, and `src/simulation/livestock/` the fish.

@@ -27,8 +27,8 @@ tank has to keep earning.
 | Temperature | <Badge text="settled" variant="success" /> | One Q10 factor across oxidation, growth and decay, because they are one metabolism. |
 | Guild seeding | <Badge text="settled" variant="success" /> | A trickle per litre of water that never stops, so a guild is always present and grows the moment it has feedstock — no concentration gate. |
 | Mineralization rate | <Badge text="scaffolding" variant="caution" /> | A flat fraction of standing waste with no temperature and no oxygen term, in the one aerobic step of the chain that has neither. |
-| Ammonia's other consumers | <Badge text="settled" variant="success" /> | Plants and the blooms take ammonia as they grow, from what the colony left; the colony works on what they leave and the hour's arrivals. |
-| N mass conservation | <Badge text="settled" variant="success" /> | Water, organics, the bed's store and every body — plant and bloom tissue, fish, their guts and their clutches — conserve N per atom, whichever form tissue took it in. It enters only as food, fertilizer, root tabs and stocked fish and plants, and leaves only with water changes and the fish and plants taken out. |
+| Ammonia's other consumers | <Badge text="settled" variant="success" /> | Plants and the blooms take ammonia into their stores, from what the colony left; the colony works on what they leave and the hour's arrivals. |
+| N mass conservation | <Badge text="settled" variant="success" /> | Water, organics, the bed's store and every body — plant and bloom tissue and stores, fish, their guts and their clutches — conserve N per atom, whichever form it was taken in. It enters only as food, fertilizer, root tabs and stocked fish and plants, and leaves only with water changes and the fish and plants taken out. |
 | Colony sizing on inert beds | <Badge text="settled" variant="success" /> | A colony grows to the load it is fed, not to the surface under it, so an inert bed's smaller surface lowers the ceiling without setting the cycling clock. |
 | Cycled seed | <Badge text="settled" variant="success" /> | A `'cycled'` colony is the one the tank's load sustains at rest — its fish assimilating their upkeep and burning all of it, and its bed's leach — floored at a fishless month's share of the surface ceiling. A seeded colony already clears its resting load at the trace line, so a stocked setup opens without a spike; food fed past upkeep is outside that load, so an overfed tank's colony grows on from the seed. |
 | Nitrogen alerts | <Badge text="settled" variant="success" /> | Free NH₃, nitrite and nitrate alert at the shared `*_EDGE`s, the lines every fish's own edge is read off. |
@@ -42,7 +42,7 @@ tank has to keep earning.
 
 | Stage | Reaction | Run by |
 |---|---|---|
-| 1 · Mineralization | waste (g) → NH₃ + PO₄ + K + Fe (mg) | No organism. A flat fraction of standing waste, at the N, P, K and Fe content of the food it came from. |
+| 1 · Mineralization | waste (g) → NH₃ + PO₄ + K + Fe (mg) | No organism. A flat fraction of standing waste, at the N, P, K and Fe content it carries. |
 | 2 · Ammonia oxidation | NH₄⁺ + 1.5 O₂ → NO₂⁻ + 2 H⁺ + H₂O | AOB, saturating on what is dissolved |
 | 3 · Nitrite oxidation | NO₂⁻ + 0.5 O₂ → NO₃⁻ | NOB, saturating on what is dissolved |
 
@@ -194,12 +194,12 @@ moving the water to 90.1 % on a canister, an air pump and a powerhead.
 ### Who else takes the ammonia
 
 Plants and the blooms take their nitrogen as ammonia first
-([Plants](/subsystems/plants/#nutrition)), and they run in the living tier,
+([Plants](/subsystems/plants/#uptake)), and they run in the living tier,
 before the cycle: each hour they draw on what the colony left, and the colony
 meets what they leave beside the hour's excretion and mineralization. Each side
 draws through its own end-of-tick Monod, so neither overdraws the stock.
 
-Flora take ammonia only as they build tissue, so beside a stocked tank's load
+Flora take ammonia only as their stores lack it, so beside a stocked tank's load
 they are a small drain — about 1 % in a community tank with a few easy plants,
 5–15 % in a planted one — and a colony that still gets the rest settles at its
 usual trace. Where they take most of it, the colony shrinks to what is left and
@@ -279,8 +279,8 @@ settling under [Decay](/reference/tunables/#decay).
 | [Environment](/subsystems/environment/) | `water` for ppm and the submerged gate, `temperature` for the Q10 factor | — |
 | [Equipment](/subsystems/equipment/) | `surface` — the colony ceiling, from filter media, substrate, hardscape and glass | `waste` — settles into the substrate's organic reserve and leaches back out of it |
 | [Livestock](/subsystems/livestock/) | — | Fish write `ammonia` and the minerals directly through gill excretion, and `waste` as feces and dead bodies |
-| [Plants](/subsystems/plants/) | — | Plants draw `ammonia` first and `nitrate` for the rest, with `phosphate`, `potassium` and `iron`, into new tissue — the ammonia from what the colony left — and hand it back as `waste` when it is shed or dies |
-| [Algae](/subsystems/algae/) | — | Each bloom draws the same forms from the water as plants do, ammonia first, and its shed, dead and scrubbed tissue comes back as `waste`; green water a water change takes leaves the tank |
+| [Plants](/subsystems/plants/) | — | Plants draw `ammonia` first and `nitrate` for the rest, with `phosphate`, `potassium` and `iron`, into their stores — the ammonia from what the colony left — and hand tissue back as `waste` when it is shed or dies, their stores as nitrate and the rest when they die |
+| [Algae](/subsystems/algae/) | — | Each bloom draws the same forms from the water as plants do, ammonia first, and its shed, dead and scrubbed tissue comes back as `waste`, a die-back's and a scrub's stores as nitrate and the rest; green water a water change takes leaves the tank |
 | [Actions](/subsystems/actions/) | — | A water change removes `ammonia`, `nitrite` and `nitrate` mass proportionally, and a gravel vac a share of the bed's reserve; dosing adds `nitrate`; uprooting a plant disturbs the bed |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Free NH₃ > 0.02 ppm, nitrite > 0.5 ppm and nitrate > 80 ppm each raise an alert once per crossing |
 

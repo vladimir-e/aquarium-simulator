@@ -1,6 +1,6 @@
 ---
 title: Plants
-description: Units of a growth form that read light at their own height, earn on it, and bank — the bank heals a plant, grows it toward a full unit and buys its offshoots, and the canopy decides how much a tank can carry.
+description: Units of a growth form that read light at their own height and live on an energy budget — photosynthate into a reserve, nutrients into stores, maintenance first, growth on the least store and a plantlet built on the parent — while the canopy decides how much a tank can carry.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -8,42 +8,44 @@ import { Badge } from '@astrojs/starlight/components';
 ## What it models
 
 Each plant is one unit of its growth form — a carpet patch, a sword, a rhizome
-clump — with a size, a condition and a bank, on the
+clump — with a condition and an energy budget, on the
 [vitality](/concepts/vitality/) model. It reads light at its own height, under
 whatever crowns and green water stand above it and through the film on its
-leaves: that light drives everything it earns, and the
-day of it decides whether it starves. Income at full condition banks; the bank
-heals the plant, grows it toward a full unit and then buys an offshoot of its
-family. Low condition sheds tissue.
+leaves, and what that light fixes fills its reserve. Uptake fills four nutrient
+stores from the water and the bed. The reserve pays maintenance first, then
+growth, paced by the emptiest store, and a plantlet built on the parent and
+cut loose at its form's size. Low condition sheds tissue.
 
 ## Status
 
 | Mechanic | Status | Why |
 |---|---|---|
 | Photosynthesis on PAR | <Badge text="settled" variant="success" /> | Jassby–Platt `tanh(PAR/Ik)`, per plant, on the light at its own mean leaf against its own saturating irradiance. |
-| Rated by leaf | <Badge text="settled" variant="success" /> | Photosynthesis, respiration, plant power and waste run on leaf area, in rate units of 500 cm², so a full sword counts for more than a full carpet patch. |
-| Metabolic pace | <Badge text="settled" variant="success" /> | Every flora fixes, respires and starves at its growth rate against a leaf at 1, so a monte carlo's leaf runs 1.8×, an anubias's 0.3×, green water 60× and film 20×. |
-| Carbon–oxygen exchange | <Badge text="settled" variant="success" /> | One yield, run both ways. Respiration releases the carbon photosynthesis fixed, and the oxygen derives from it at the molar mass ratio rather than from a second constant. |
-| Respiration | <Badge text="settled" variant="success" /> | Runs 24/7 on Q10 × Monod, so a plant in suffocating water respires slower and releases proportionally less carbon. |
-| Light starvation | <Badge text="settled" variant="success" /> | A rate on the day's light at the plant's own leaf, short of the species' edge — the day, not the hour. |
-| The bank | <Badge text="settled" variant="success" /> | Income banks at full condition; the bank heals at the rate the species grows, buys size through a taper, and buys an offshoot once full. |
-| Size of a unit | <Badge text="settled" variant="success" /> | Size is how full one unit of the growth form is. Growth tapers to nothing at 100, so no ceiling clamps it. |
+| Rated by leaf | <Badge text="settled" variant="success" /> | Photosynthesis, maintenance, plant power and tissue run on leaf area, in rate units of 500 cm², so a full sword counts for more than a full carpet patch. |
+| Metabolic pace | <Badge text="settled" variant="success" /> | Every flora fixes and burns at its growth rate against a leaf at 1, so a monte carlo's leaf runs 1.8×, an anubias's 0.3×, green water 10× and film 4×. Maintenance, mobilisation, uptake and repair run on one Q10. |
+| Temperature on photosynthesis | <Badge text="missing" variant="danger" /> | What a plant fixes carries no temperature pace, so a cold tank's flora fix at the reference pace and burn at their Q10. |
+| Carbon–oxygen exchange | <Badge text="settled" variant="success" /> | One yield, run both ways: what the reserve takes in is fixed and everything burned releases it, oxygen derived at the molar ratio rather than from a second constant. |
+| Maintenance | <Badge text="settled" variant="success" /> | Owed around the clock and paid first. Oxygen paces only what a plant takes in and mobilises, never the upkeep it owes. |
+| The shortfall | <Badge text="settled" variant="success" /> | Maintenance the reserve cannot pay is a damage rate off the hour's own budget: a plant starves when its reserve runs out, not when a day runs dark. |
+| Reserve | <Badge text="settled" variant="success" /> | Photosynthate in grams, up to full per gram of tissue. A full reserve caps photosynthesis, and it carries a plant through the night. |
+| Stores | <Badge text="settled" variant="success" /> | One per nutrient, above what the tissue itself carries, filled toward Q_max past need: a planting is a nitrate sink between doses. |
+| Plantlet | <Badge text="settled" variant="success" /> | The reserve's other share builds the next unit on the parent and cuts it loose at its form's size — a runner, not a lump purchase, with no timer. |
+| Size of a unit | <Badge text="settled" variant="success" /> | Size is the tissue a unit holds against a grown one. Growth tapers to nothing at 100, so no ceiling clamps it. |
 | Self-shading | <Badge text="settled" variant="success" /> | A unit's own crown shades its leaves, so a plant too big for its light sheds to a size its light holds, with no switch. |
-| Offshoots | <Badge text="settled" variant="success" /> | A full bank buys a new unit of the family at the growth conversion — value conserved, no timer, no space test. |
-| Vigour | <Badge text="settled" variant="success" /> | Each unit draws its own offset on income at birth, so clones bud apart rather than in lockstep. |
-| Shedding | <Badge text="settled" variant="success" /> | A rate reading a stock — the square of the condition deficit, zero at full condition, with no threshold in it. |
-| Death | <Badge text="settled" variant="success" /> | Condition reaching 0, as for a fish. A unit shed to a speck lives while it has condition: it heals and regrows, or keeps losing condition and dies. |
+| Vigour | <Badge text="scaffolding" variant="caution" /> | Each unit draws its own offset on income at birth, but its budget carries none, so clones in like light grow and bud in step. |
+| Shedding | <Badge text="settled" variant="success" /> | A rate reading a stock — the square of the condition deficit, zero at full condition, with no threshold in it. The store a shed leaf held stays with the plant. |
+| Death | <Badge text="settled" variant="success" /> | Condition reaching 0, as for a fish. A unit shed to a speck lives while it has condition: it repairs and regrows, or keeps losing condition and dies. |
 | Epiphyte footprint | <Badge text="scaffolding" variant="caution" /> | A java fern or anubias on the rock claims floor like a rooted plant; there is no hardscape budget. |
 | Nitrate | <Badge text="settled" variant="success" /> | Log dose past the plant's own edge, the fish shape at an edge only a runaway doser reaches. |
-| Nutrition | <Badge text="settled" variant="success" /> | Every nutrient saturates on its own Monod curve against a per-species demand, in the water and in the bed. Tissue is drawn at one recipe where growth buys it, never at the fertilizer's ratio. |
-| Nitrogen form | <Badge text="settled" variant="success" /> | Ammonia first, at a fraction of nitrate's half-saturation, and nitrate for what ammonia leaves. Sufficiency counts both; each form is drawn on its own pooled Monod, so neither is overdrawn. |
-| Root feeding | <Badge text="settled" variant="success" /> | A fixed root share by growth form: a sword draws most of its need from the bed, a carpet half, an epiphyte none. No species is refused a bed — a rooted plant in untabbed gravel declines until it is tabbed. |
-| Carbon limitation | <Badge text="settled" variant="success" /> | Monod on dissolved CO₂, half rate at the species' carbon-need half-saturation. It scales photosynthesis and the CO₂ income channel, and never damages: a carbon-short plant earns and grows less. |
+| Uptake | <Badge text="settled" variant="success" /> | Each store asks what it lacks; every form meets it on its own Monod against a per-species demand, in the water and the bed. Growth answers the emptiest store, never a reading off the water. |
+| Nitrogen form | <Badge text="settled" variant="success" /> | Ammonia first, at a fraction of nitrate's half-saturation, and nitrate for what ammonia leaves. Each form is drawn on its own pooled Monod, so neither is overdrawn. |
+| Root feeding | <Badge text="settled" variant="success" /> | A fixed root share by growth form: a sword fills most of its stores from the bed, a carpet half, an epiphyte none. No species is refused a bed — a rooted plant in untabbed gravel runs its stores down until tabbed. |
+| Carbon limitation | <Badge text="settled" variant="success" /> | Monod on dissolved CO₂, half rate at the species' carbon-need half-saturation. It scales photosynthesis and the CO₂ income channel, and never damages: a carbon-short plant fixes and grows less. |
 | Tolerance bands | <Badge text="settled" variant="success" /> | Temperature and pH earn most at the band's centre and nothing at its edge, where damage starts from zero: net is continuous across every edge. |
-| Shaded by the blooms | <Badge text="settled" variant="success" /> | Through light alone: green water in the column darkens a leaf by the depth above it, film coats every leaf at its coverage ([Light](/subsystems/light/#the-blooms)). A bloom costs a plant income and, past its edge, starvation — never a damage of its own. |
-| Plant nutrient loop | <Badge text="settled" variant="success" /> | Tissue is the organic matter it rots into: growth draws food's recipe from the water and the bed, and shedding and death return it as waste. N, P, K and Fe are conserved by construction. |
-| Tissue recipe | <Badge text="scaffolding" variant="caution" /> | Food's: N:P ≈ 7 by mass is Redfield and fits, but 0.8 % K sits under the 2–4 % macrophyte tissue carries. |
-| General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small draw beside the nitrate that tissue never returns — waste carries no calcium. Calcium never enters sufficiency, so soft water stresses a plant but never starves it. |
+| Shaded by the blooms | <Badge text="settled" variant="success" /> | Through light alone: green water in the column darkens a leaf by the depth above it, film coats every leaf at its coverage ([Light](/subsystems/light/#the-blooms)). A bloom costs a plant photosynthate — never a damage of its own. |
+| Composition | <Badge text="settled" variant="success" /> | Tissue carries Q_min of each nutrient, the culture floors of the macrophyte literature, and its stores run to Q_max; every species shares one composition, far under food's recipe. |
+| Plant nutrient loop | <Badge text="settled" variant="success" /> | A plant holds what it took up, in tissue and stores; shed and dead tissue returns as waste at Q_min, and a dead plant's stores leach. N, P, K and Fe are conserved by construction. |
+| General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small draw beside the nitrate that tissue never returns — waste carries no calcium. Calcium has no store, so soft water stresses a plant but never starves it. |
 
 ## How it works
 
@@ -63,7 +65,7 @@ each grows, the light it lives on, and the water it tolerates.
 Anubias and java fern attach to the scape; the sword and the carpets root in
 the bed.
 
-| Species | Tolerable PAR | Saturates at, `Ik` | Starves under |
+| Species | Tolerable PAR | Saturates at, `Ik` | Rated day |
 |---|---|---|---|
 | Anubias | 8–70 | 16 | 0.23 |
 | Java Fern | 10–90 | 20 | 0.29 |
@@ -71,8 +73,9 @@ the bed.
 | Dwarf Hairgrass | 25–200 | 50 | 0.72 |
 | Monte Carlo | 30–200 | 60 | 0.86 |
 
-PAR is in µmol/m²/s and the starvation edge is a day's light, in mol/m²/d. Both
-derive from the band's low end — [saturation](/subsystems/light/#saturation) and
+PAR is in µmol/m²/s and the rated day — the day of light the species is rated
+to live on — in mol/m²/d. Both derive from the band's low end —
+[saturation](/subsystems/light/#saturation) and
 [the day's light](/subsystems/light/#the-days-light) on Light.
 
 | Species | Temperature | pH | GH |
@@ -88,7 +91,8 @@ pH and GH bands are the generous published ranges, wide enough for aqua soil und
 ### Growth forms
 
 A plant's `size` is how full one unit of its growth form is, in % — 100 is a
-grown patch, specimen or clump. The form fixes what that means.
+grown patch, specimen or clump — read off the tissue its budget holds. The form
+fixes what that means.
 
 | Form | Carpet | Rosette | Attached |
 |---|---|---|---|
@@ -99,32 +103,24 @@ grown patch, specimen or clump. The form fixes what that means.
 | Footprint | 100 cm² | 700 cm² | 200 cm² |
 | Leaf area index | 2.5 | 2.0 | 2.5 |
 | Rate units at full | 0.5 | 2.8 | 1.0 |
-| Offshoot | sends a runner | throws a plantlet | branches at the rhizome |
+| Plantlet | a runner rooting a tuft, 5 % of a patch | a runner plantlet, 10 % | a rhizome branch on three or four fronds, 25 % |
 | Root share `r` | 0.5 — half from each | 0.7 — feeds mostly from the bed | 0 — feeds from the water |
 
-```
-height    = min(depth, fullHeight × (size / 100)^exponent)
-leafArea  = leafAreaIndex × footprint × size / 100      cm²
-rateUnits = leafArea / 500
-```
-
-Size says how full the unit is: it drives growth's taper, the height and the
+Leaf area is the form's leaf area index over its footprint, in proportion to
+size, and a rate unit is 500 cm² of it, weighing 3 g of organic matter. Size
+says how full the unit is: it drives growth's taper, the height and the
 self-shading. Leaf area says how much plant there is: it drives every flux the
-tank sees, in rate units of 500 cm² of leaf, and the plant's metabolism runs
-them at its growth rate. No crown stands taller than the water.
+tank sees, and the plant's metabolism runs it at its growth rate. No crown
+stands taller than the water.
 
 ### Photosynthesis
 
-```
-// PAR_i at the plant's mean leaf; K_i by the species' CO₂ need
-lightResponse_i = tanh(PAR_i / Ik_i)
-carbon_i        = rateUnits_i × growthRate_i × lightResponse_i × sufficiency_i
-K               = Σ carbon_i × K_i / Σ carbon_i
-co2 drawn       = monodUptake(CO₂, Σ carbon_i × basePhotosynthesisRate × co2PerRateUnit, K)
-```
-
-Carbon saturates like every other limit in the engine. Species differ in how
-much carbon they need to run near their ceiling, not in a floor that kills:
+Each plant's carbon capacity is its leaf in rate units at its growth rate, times
+the light response at its mean leaf and its oxygen pace. The planting draws on
+the dissolved CO₂ together, through one Monod at the capacity-weighted mean of
+its half-saturations, so a dense planting slows its own draw and never takes
+the water's last milligram. Species differ in how much carbon they need to run
+near their ceiling, not in a floor that kills:
 
 | CO₂ need | On 4 mg/L | On 25 mg/L |
 |---|---|---|
@@ -135,79 +131,90 @@ much carbon they need to run near their ceiling, not in a floor that kills:
 So a carpet in an uninjected tank grows slowly on a thin carbon income, and a
 sword or an epiphyte hardly notices the injector.
 
-Photosynthesis moves the gases and nothing else. The carbon curve is applied
-once, as a draw: the planting takes CO₂ on an end-of-tick Monod at the
-carbon-weighted mean of its CO₂ half-saturations, so a dense planting slows
-its own draw and never takes the water's last milligram. The drive is summed
-across the planting and multiplied by `basePhotosynthesisRate` to give the
-tank's rate in rate units, where one rate unit is an hour of 500 cm² of leaf at
-growth rate 1, under saturating carbon and light.
-
-It never adds size: growth flows through the bank, and the nutrients new tissue
-needs come out of the water and the bed where the bank buys it
-([Nutrition](#nutrition)).
+What is offered fills the reserve, and only what the reserve takes is fixed:
+a plant with a full reserve takes only what it burns, so a plant whose stores
+can't pay for growth fills with carbon it cannot spend and draws little CO₂.
 
 ### The carbon–oxygen exchange
 
 | Direction | Carbon | Oxygen |
 |---|---|---|
-| Photosynthesis | the Monod draw on `rateUnits × growthRate × lightResponse × sufficiency × basePhotosynthesisRate × co2PerRateUnit`, read at the tick's closing CO₂ | derived from the carbon fixed, at `CO2_TO_O2_MASS_RATIO` |
-| Respiration | `baseRespirationRate × rateUnits × growthRate × warmth × air`, then `× co2PerRateUnit` | derived from the carbon released, same ratio |
+| Photosynthesis | the CO₂ fixed into what the reserve takes | derived from the carbon fixed, at `CO2_TO_O2_MASS_RATIO` |
+| Respiration | everything the budget burns — maintenance, the overhead of building, repair, tissue burned starving | derived from the carbon released, same ratio |
 
-One reaction run both ways, so one yield. The day/night asymmetry lives entirely
-in `baseRespirationRate`, and the oxygen partner is not a second knob. A
-carbon-starved tank stops producing oxygen because there was no carbon to pay
-for it.
+One reaction run both ways, so one yield, and the oxygen partner is not a
+second knob. A carbon-starved tank stops producing oxygen because there was no
+carbon to pay for it.
 
-Respiration is quoted against the rate at saturating light and carbon; on the
+Maintenance is quoted against the rate at saturating light and carbon; on the
 4 mg/L an uninjected tank holds it is 4–9 % of what a plant actually fixes, at
 or just below the bottom of the 5–15 % the macrophyte literature reports. A
-planting under a fixture too dim to clear that respires more than it fixes and
+planting under a fixture too dim to clear that burns more than it fixes and
 draws oxygen with the lamps on.
 
 ### Stocks and rates
 
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
-| Units | Planting; a full bank's offshoot | Death; removal | plants |
-| `size` | The bank, through the taper, at the species growth rate | Shedding at low condition; trimming | % of one full unit |
-| `condition` | Benefits; healing from the bank | Stressors | %, normal at 100 |
-| `surplus` | Income at full condition | Healing; an offshoot; growth | condition points, capped at `surplusCap` |
-| `oxygen` | Photosynthesis | Respiration | mg/L |
-| `co2` | Respiration | Photosynthesis, on its own Monod curve | mg/L |
-| `ammonia` | Fish and mineralized waste, elsewhere | New tissue's nitrogen, before nitrate's, from what the colony left; AOB oxidation, elsewhere | mg, as NH₃ |
-| `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; the bed's leak; nitrification for NO₃, and mineralized waste and fish excretion for the rest, elsewhere | New tissue — growth and offshoots — at the tissue recipe; nitrate only for the nitrogen ammonia leaves | mg |
-| The bed's `nutrients` | Aqua soil and root tabs ([Equipment](/subsystems/equipment/#the-bed)) | Root feeders' new tissue, at the same recipe; the leak | mg |
-| `waste` | Shed tissue and plant death, at the same grams growth drew for | Mineralization, elsewhere | g |
+| Units | Planting; a plantlet cut loose | Death; removal | plants |
+| `budget.structure` | Growth | Shedding; maintenance nothing else pays; trimming | g — `size` is it over a grown unit's |
+| `budget.reserve` | Photosynthesis, up to full | Maintenance, growth, the plantlet's buffer, repair | g |
+| `budget.offshootBuffer` | The reserve's other share | A plantlet cut loose; maintenance the release leaves unpaid | g of plantlet |
+| `budget.stores` | Uptake from the water and the bed | Growth and a plantlet cut loose, at Q_min; leaching at death | mg of each nutrient |
+| `condition` | Benefits; repair paid from the reserve | Stressors | %, normal at 100 |
+| `oxygen` · `co2` | Photosynthesis · respiration | Respiration · photosynthesis | mg/L |
+| `ammonia` | Fish and mineralized waste, elsewhere | The stores' nitrogen, before nitrate's, from what the colony left; AOB oxidation, elsewhere | mg, as NH₃ |
+| `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; the bed's leak; a dead plant's stores; nitrification for NO₃, and mineralized waste and fish excretion for the rest, elsewhere | The stores — nitrate only for the nitrogen ammonia leaves | mg |
+| The bed's `nutrients` | Aqua soil and root tabs ([Equipment](/subsystems/equipment/#the-bed)) | Root feeders' stores; the leak | mg |
+| `waste` | Shed tissue and plant death, at Q_min with its reserve | Mineralization, elsewhere | g, with its content |
 
-A bank unit is a condition point — the bank fills with the same %/h condition
-is measured in, which is what lets one number pay for both.
+A plant is planted fed and stocked, as a shop sells it: its reserve full, every
+store full, nothing toward a plantlet, at full condition.
 
-### Nutrition
+### The budget
+
+The plant's hour is a Dynamic Energy Budget (DEB, Kooijman) on Droop cell
+quotas, the same one [a fish's](/subsystems/livestock/#the-budget) is, with
+nutrient stores beside the carbon one, paced by the hour's Q10.
+
+| Step | What happens |
+|---|---|
+| Uptake | Each store asks what it lacks of full, closing first order at `storeFillDays` from saturating water; the pools deliver at their own Monod share ([Uptake](#uptake)) |
+| Photosynthesis | Fills the reserve, up to `reserveCapacity` grams a gram of tissue |
+| Mobilisation | The reserve releases at DEB's rate — a fuller reserve releases more — and the oxygen pace slows it in water short of air |
+| Soma | `somaShare`, κ, of the release pays maintenance first, then builds tissue at its price, `1 / growthEfficiency` grams of reserve a gram — through the taper and at the Droop limit, taking its Q_min out of the stores |
+| Plantlet | The other share builds the next unit in the offshoot buffer, at the same price and Droop limit |
+| Shortfall | Maintenance the soma's share cannot pay is drawn from the plantlet's share, then its buffer, then tissue burned — and the share left unpaid is a damage rate |
+| Repair | The reserve pays for the hour's repair at the plant's pace ([Vitality](/concepts/vitality/#one-hour)) |
+
+What growth and the plantlet can't use stays in the reserve, so a plant whose
+stores run low holds its photosynthate rather than spending it. The hour is
+integrated in slices, each reading its own reserve and stores, so the budget
+holds at any pace.
+
+The **Droop limit** is each store's density read as a Monod against Q_min, the
+emptiest store ruling. It never reaches 1: on full stores a plant runs at about
+0.73, nitrogen ruling. Growth runs at it, and income is earned on it.
+
+The **taper** is the room a unit has left: growth slows as it fills and stops at
+100, so size approaches full and nothing clamps it. Leaf area scales with
+tissue, so growth runs in proportion to the plant — DEB's V1-morph — and a
+young unit grows on a logistic toward full. A planting compounds by adding
+units.
+
+### Uptake
 
 A plant feeds on two pools: the water column and the bed's store. Its growth
-form's root share `r` fixes how much of its need it draws through its roots.
-Every form a pool holds saturates on its own Monod curve, the two pools weigh
-in by where the plant feeds, and sufficiency is the scarcest nutrient —
-Liebig's law over saturating shares. Sufficiency sets what a plant earns
-([Income and harm](#income-and-harm)).
+form's root share `r` fixes how much of its stores it fills through its roots.
+Every form a pool holds saturates on its own Monod curve, at the plant's demand
+tier times the form's half-saturation, and the two pools weigh in by where the
+plant feeds.
 
-Nitrogen comes in two forms. Ammonia goes straight into protein where nitrate
-has to be reduced first, so a plant takes ammonia first, half-saturating at a
-twentieth of nitrate's ppm, and asks nitrate only for what ammonia leaves: its
-nitrogen share in a pool is what the two meet between them. Water with ammonia
-and no nitrate still feeds a plant. The bed holds its nitrogen as nitrate.
-
-```
-share_p,f   = ppm_p,f / (demand_n × K_f + ppm_p,f)      p: the water, the bed; f: a form of n
-share_p,n   = 1 − Π over n's forms of (1 − share_p,f)   nitrogen: ammonia, then nitrate
-share_n     = r × share_bed,n + (1 − r) × share_water,n
-sufficiency = min over n of share_n
-```
-
-The bed's ppm reads its store against the tank's capacity. A rooted plant over a
-bare bed tops out at `1 − r` however rich the water, under the
-[deficiency edge](#income-and-harm). A dry tank feeds nothing from either pool.
+Ammonia goes straight into protein where nitrate has to be reduced first, so a
+plant takes ammonia first, half-saturating at a twentieth of nitrate's ppm, and
+asks nitrate only for what ammonia leaves, in the same hour. The bed holds its nitrogen as
+nitrate, and its ppm reads its store against the tank's capacity. A dry tank
+feeds nothing from either pool.
 
 | Demand tier | NH₃ and NO₃ · PO₄ | K · Fe |
 |---|---|---|
@@ -215,156 +222,92 @@ bare bed tops out at `1 − r` however rich the water, under the
 | Medium | 0.6 | 0.15 |
 | High | 1 | 1 |
 
-Demand scales how little a plant can make do with. An Anubias needs a twentieth
-of a carpet's potassium and iron, so the trace fish food leaves in an undosed
-tank goes a long way for it. No nutrient ever reads quite 100 %.
+Demand scales how little a plant can make do with. An Anubias fills its
+potassium and iron stores at half pace on a twentieth of the ppm a carpet
+needs, so the trace fish food leaves in an undosed tank goes a long way for it.
 
-### A plant is made of its nutrients
+The stores ask; the pools decide how much arrives. Each pool delivers each form
+through one Monod over every request on it, plants and blooms in the same call
+([Algae](/subsystems/algae/)), so nothing is served before anything else, every
+request is met at the same fraction of its share, and no pool goes below zero.
 
-Tissue is the organic matter it rots into. A plant is
-`rateUnits({species, size}) × tissuePerRateUnit` grams of it — a rate unit
-weighs `100 × tissuePerSize` — carrying food's recipe: the nitrogen of
-`foodNitrogenFraction`, as the nitrate it ends up as, and `foodMineralContent`
-of the rest. N:P ≈ 7 by mass is Redfield, so one recipe serves food, waste and
-tissue.
+A plant keeps taking up past need until its stores are full — luxury uptake.
+Between doses a high-tech planting draws 0.2–1 ppm of nitrate a day, and a
+lightly stocked planted tank runs its water down to no nitrate or phosphate.
 
-```
-grams_i       = rateUnits({species_i, size bought_i + offshoot_i}) × tissuePerRateUnit
-w_i,p         = 1 − r_i from the water, r_i from the bed
-left_i,p,f    = 1 for a nutrient's first form; for nitrate, 1 − reach_i,p,ammonia / w_i,p
-asked_p,f     = Σ w_i,p × grams_i × left_i,p,f
-requested_p,f = Σ w_i,p × grams_i × left_i,p,f × share_i,p,f
-K_eq,p,f      = pool_p,f × (asked_p,f / requested_p,f − 1)
-delivered_p,f = monodUptake(pool_p,f, asked_p,f × recipe_f, K_eq,p,f)
-met_p,f       = delivered_p,f / (requested_p,f × recipe_f)
-reach_i,p,f   = w_i,p × left_i,p,f × share_i,p,f × met_p,f
-supply_i,n    = Σ over p and n's forms of reach_i,p,f
-supply_i      = min over n of supply_i,n
-uptake_i,p,f  = grams_i × supply_i × recipe_f × reach_i,p,f / supply_i,n
-```
-
-The bank asks; the pools decide how much arrives. Each plant requests its
-tissue from each pool at the weight it feeds there and its share of each form
-in it — the readings its sufficiency is made of. Each pool delivers each form
-through `monodUptake` against the half-saturation `K_eq` at which one consumer
-would request, at the tick's start, what the planting requests. Nitrogen is
-asked of ammonia first and of nitrate only for what ammonia could not deliver,
-so a lump the ammonia can't cover is made up from nitrate in the same hour. In
-an ordinary hour a pool meets every request and a plant grows at its
-sufficiency; an offshoot's lump on thin water is met in part, and no pool goes
-below zero. A lean species holds on where a hungry one starves, and two plants
-short of the same nutrient are met at the same fraction of their shares. The
-blooms request beside the plants in the same call
-([Algae](/subsystems/algae/)), so nothing is served before anything else. What
-a plant takes splits between the pools and forms as they met it. The bank pays
-only for what arrived.
-
-`recipe_f` is the recipe in the form's own mass: ammonia carries the recipe's
-nitrogen at `MW_NH3 / MW_NO3`, so whichever form it arrives in, a gram of
-tissue holds the same nitrogen.
-
-Shedding and death hand the same grams back as waste, which mineralizes beside
-its ammonia ([Nitrogen cycle](/subsystems/nitrogen-cycle/)) — into the water,
-whichever pool the tissue came from. A tank that dies back releases exactly
-what its plants took. Calcium and magnesium are drawn from the water on their
-own Monod curve, off the nitrogen actually taken from either pool, counted as
-nitrate (under Key tunables), and are not returned. The nitrogen moves KH as it
-goes in: a proton out per ammonia, one in per nitrate
+Calcium and magnesium are drawn from the water on their own Monod curve, off
+the nitrogen actually taken from either pool, counted as nitrate (under Key
+tunables), and are not returned. The nitrogen moves KH as it goes in: a proton
+out per ammonia, one in per nitrate
 ([Water & gases](/subsystems/water-and-gases/#kh-and-ph)).
+
+### Composition
+
+Tissue is the organic matter it rots into, carrying Q_min of each nutrient —
+the subsistence quota, the culture floors of the macrophyte literature — and the
+stores hold what is taken up above it, up to Q_max. Food's 5 % nitrogen is a
+macrophyte's luxury top; a plant's floor is a fraction of it.
+
+| | N | P | K | Fe |
+|---|---|---|---|---|
+| Q_min, mg/g | 12 | 0.8 | 4 | 0.05 |
+| Q_max, mg/g | 45 | 6 | 25 | 0.25 |
+
+Every species shares one composition, its sources cited beside the values in
+the config; each kind of bloom carries its own
+([Algae](/subsystems/algae/#key-tunables-and-traits)).
 
 ### Income and harm
 
-Every benefit channel is realised *through* photosynthesis, so all three run on
-its drive — the light term at the plant's mean leaf times its sufficiency —
-rather than standing beside it: three peaks of `0.125` %/h make a budget of
-`0.375` %/h × `tanh(PAR / Ik)` × sufficiency, and the dark or a nutrient run dry
-takes the whole of it down together. Good water is worth nothing at midnight or
-to an unfed plant — and poor water costs nothing in the dark either: the
-deficiency stressor rides the light term, since a plant in the dark asks for
-nothing. A plant's vigour multiplies all three too: hardiness scales what harms
-a plant, vigour what it earns.
+Every benefit channel is earned on the plant's reserve density times its Droop
+limit: good water is worth nothing to a plant that has burned its reserve or
+run its stores dry. Three peaks of `0.125` %/h make a budget of `0.375` %/h on a
+full reserve, a Droop limit of 1 and band centre. Light reaches income through
+the reserve it fills, so a fed plant earns through the night. A plant's vigour
+multiplies all three: hardiness scales what harms a plant, vigour what it earns.
 
-| Channel | Earns when | At saturating light |
+| Channel | Earns when | At its best |
 |---|---|---|
-| CO₂ | scales with the species' `co2Factor` | `co2BenefitPeak × co2Factor` |
-| Temperature | inside `tolerableTemp`, most at its centre | `temperatureBenefitPeak × comfort` |
-| pH | inside `tolerablePH`, most at its centre | `phBenefitPeak × comfort` |
-
-```
-// a symmetric parabola: 1 at the centre, 0 at either edge
-comfort = 4 (x − lo)(hi − x) / (hi − lo)²
-earned  = channel × tanh(PAR_i / Ik) × sufficiency_i × (1 + vigour)
-```
+| CO₂ | scales with the species' carbon Monod | `co2BenefitPeak` |
+| Temperature | inside `tolerableTemp`, most at its centre, nothing at its edges | `temperatureBenefitPeak` |
+| pH | inside `tolerablePH`, most at its centre, nothing at its edges | `phBenefitPeak` |
 
 | Stressor | Charges | Per |
 |---|---|---|
-| Light starvation | the day's light at the mean leaf short of the species' edge | share of the edge |
+| Starvation | maintenance the hour left unpaid | share of the hour's upkeep |
 | Light high | PAR at the crown top over the band's high end, while the lamp is on | PAR |
 | Temperature · pH · GH | outside the species band | °C · pH unit · dGH |
-| Nutrient deficiency | sufficiency short of `sufficiencyEdge`, on the light term | share of the edge |
+| Nutrient deficiency | the Droop limit short of `droopEdge` | share of the edge |
 | Nitrate | past the plant's own edge | e-fold over |
 
-A Monod sufficiency never reaches 1, so deficiency starts under an edge rather
-than under full: `sufficiencyEdge`, where a plant has 90 % of its need met. The
-edge tops out at `MAX_SUFFICIENCY_EDGE`, 0.95: the ppm that meets it,
-`demand_n × K_n × edge / (1 − edge)`, runs away as it nears 1.
-Hardiness scales every stressor by `1 − hardiness` except nitrate, whose edge it
-carries out by the same factor a fish's is: `nitrateEdge × 2^hardiness`.
+A Droop limit never reaches 1, so deficiency starts under an edge rather than
+under full: `droopEdge`, where a plant's nitrogen store has fallen to a sixth of
+full, near the critical 1.3 % of Gerloff & Krombholz. The edge tops out at
+`MAX_DROOP_EDGE`, 0.55: film's full stores reach 0.575 on nitrogen, the lowest
+of any flora, and an edge past it would harm a bloom however full. Hardiness
+scales every stressor by `1 − hardiness` except nitrate, whose edge it carries
+out by the same factor a fish's is.
 
-### Starving on the day's light
+### Starving in the dark
 
-```
-shortfall = max(0, 1 − dli_i / edge)
-damage    = lightStarvationSeverity × growthRate × shortfall
-            × q10(temperature) × (1 − hardiness)
-```
+A plant starves on its reserve, not on the day: the reserve carries it through
+the night, and in the dark it pays maintenance as long as it can. As it runs
+low the soma's share stops covering maintenance: growth stops, and the share
+unpaid harms the plant at `starvationSeverity` while the plantlet's share pays
+it, then the plantlet's buffer, and last tissue burned for fuel. Budding stops
+next, and low condition sheds.
 
-`dli_i` is the day's light at the plant's mean leaf and `edge` the species'
-edge, both as [Light](/subsystems/light/#the-days-light) defines them.
+| Stocked, in total darkness | Reserve under a tenth | Condition starts to fall | Dead |
+|---|---|---|---|
+| Monte Carlo | 3.2 d | 4.2 d | 17 d |
+| Dwarf Hairgrass | 3.9 d | 5.0 d | 18 d |
+| Amazon Sword | 5.8 d | 7.5 d | 26 d |
+| Java Fern | 11.6 d | 15 d | 48 d |
+| Anubias | 19 d | 25 d | 68 d |
 
-A plant starves on the light it has had, not the light it has now, once that
-integral drops under its edge. The cost is respiration's, on the same Q10 and
-at the same growth rate, so a warm blackout bites harder than a cool one and a
-fast grower starves first.
-
-Starvation is damage like any other: the bank heals it first, then condition
-falls, then the plant sheds. In total darkness at 25 °C a monte carlo spends
-its bank in 2.3 days and is gone in two weeks, an amazon sword in a month; a
-java fern lasts some fourteen weeks, and an anubias outlasts five months. The
-hobby's three-day blackout costs a carpet its bank and some eight points of
-condition, and a java fern 68–80 % of its bank.
-
-### The bank
-
-| Flow | Per hour | When |
-|---|---|---|
-| Banking | income past full condition, up to `surplusCap` | condition at 100 |
-| Healing | `1 − e^−(healingDrawRate × growthRate)` of the bank, up to the deficit | condition under 100 |
-| Offshoot | what the new unit's size costs at the growth conversion | the bank full |
-| Growth | `(1 − e^−growthDrawRate) × (1 − size / 100)` of the bank, at the share the water and the bed supply | every hour, day and night |
-
-A plant arrives at full condition with an empty bank. It heals
-at the rate it grows: under heavy damage a carpet draws its bank down on repair
-in about half a day, an anubias in about three.
-
-### Growth and its taper
-
-```
-drawn = bank × (1 − e^−growthDrawRate) × (1 − size / 100) × supply
-size += drawn × growthRate × sizePerSurplus
-bank −= drawn
-```
-
-`supply` is the share of the hour's tissue the water and the bed deliver
-([A plant is made of its nutrients](#a-plant-is-made-of-its-nutrients)). The
-taper closes the draw as a unit fills. A young unit spends its bank on
-tissue; a nearly full one draws almost nothing, so size approaches 100 and never
-reaches it, and nothing clamps it. Only what becomes tissue leaves the bank, so
-a growing plant keeps a day or two of income banked against a bad spell, and a
-nearly full one banks to the cap, where the bank buys an offshoot instead.
-
-Growth is absolute — a share of one unit an hour, not a share of the plant. A
-planting compounds by adding units.
+Reserve turns over with growth rate and hardiness stretches the melt, so the
+slow growers outlast the fast. The hobby's three-day blackout leaves even a
+carpet's condition whole.
 
 ### Light at its own height
 
@@ -376,11 +319,11 @@ a leaf stands, so a carpet goes dark before a sword, and film the same share of
 every leaf, which costs a light-hungry plant more than one that lives on little.
 
 That gives a starved plant a size it can hold. A plant too big for its light
-drops under full condition and sheds; its crown thins, its leaves read more
-light, and it stops where a day's income meets a day's damage. A plant with
-light to spare banks, and the bank buys size that shades it again. Between the
-two it settles at condition 100 — smaller, not dead. Only light too dim for even
-a sparse unit to break even kills it.
+cannot pay its upkeep: its reserve drains, the shortfall harms it, and it
+sheds; its crown thins, its leaves read more light, and it stops where a day's
+photosynthate meets a day's maintenance. A plant with light to spare grows, and
+growth shades it again. Between the two it settles — smaller, not dead. Only
+light too dim for even a sparse unit to break even kills it.
 
 ### Crowding and carrying capacity
 
@@ -399,35 +342,31 @@ overgrown tank is dark, not dead.
 | Floor shade | the share of the substrate light the canopy takes before the floor ([Light](/subsystems/light/#the-canopy)) | trimming or thinning |
 | Floor light | the fixture's rating carried to the floor through the water, the green water and the canopy | trimming, thinning, or clearing green water |
 
-### Offshoots
+### The plantlet
 
-After vitality settles, a plant whose bank is full buys an offshoot, before the
-hour's growth.
+The reserve's other share, `1 − somaShare`, builds the next unit in the offshoot
+buffer as growth builds the parent. Once the buffer holds a unit at its growth
+form's plantlet size and the stores hold its Q_min, it is cut loose, after
+vitality and losses settle.
 
-```
-offshoot.size = min(100, bank × growthRate × sizePerSurplus) × supply
-bank         −= offshoot.size / (growthRate × sizePerSurplus)
-```
+- **A new unit of the family.** Its parent's species and family, at full condition, with its own vigour and its share of the parent's reserve and of the stores past Q_min, so parent and plantlet stand at one density of both. It acts from the next hour.
+- **Cadence is the budget's.** Grown and fed freely, a carpet patch sends a runner every two days, a sword throws a plantlet every six, a java fern branches every month and an anubias every fifty days. In the setup tanks a sword parent buds about every 19 days, a java fern every 59 and an anubias every 85.
+- **Propagation never tests space.** Plantlets land whatever the floor cover; crowding and the canopy decide which of them live.
 
-- **A new unit of the family.** Its parent's species and family, at full condition on an empty bank — only a full plant holds a full bank — with its own vigour. It acts from the next hour.
-- **Value is conserved** at the growth conversion: the parent pays for exactly the size it bought. At the shipped cap of 50, on full supply, a full bank buys an anubias of 6, a java fern of 10, a sword of 20, a hairgrass patch of 30 or a monte carlo patch of 36, and empties. On short water it buys a smaller one and keeps the change.
-- **Propagation never tests space.** Offshoots land whatever the floor cover; crowding and the canopy decide which of them live.
-
-The form sets the offshoot's shape and the words its `plant-propagated` log
-entry uses — "Amazon Sword threw a plantlet". Every form buys it the same way.
+The form sets the plantlet's shape and the words its `plant-propagated` log
+entry uses — "Amazon Sword threw a plantlet". Every form builds it the same way.
 
 ### Lineage, family, age and vigour
 
 | Field | Is |
 |---|---|
-| `parentId` | The unit whose offshoot this is; null for anything planted or seeded |
+| `parentId` | The unit whose plantlet this is; null for anything planted or seeded |
 | `familyId` | The founder's id, inherited down the line, so a family outlives its founder |
 | `age` | Hours in this tank. A seeded plant can start older. No rate reads it |
-| `vigour` | An offset on income, drawn once at birth within ±`VIGOUR_SPAN` (`0.15`) — clonal ramets differ in growth by 10–20 % |
+| `vigour` | An offset on income, drawn once at birth within ±`VIGOUR_SPAN` (`0.15`) |
 
-Vigour multiplies the three benefit channels, so a vigorous unit also heals
-faster; growth and the offshoot's size carry none, so the conversion stays
-exact.
+Vigour multiplies the three benefit channels, so a vigorous unit also recovers
+faster; its budget carries none.
 
 ### The floor budget and trim
 
@@ -437,28 +376,27 @@ size — the territory a keeper spaces for — so seedlings can't pack a tank. A
 epiphyte on the rock claims its plan view like any other.
 
 Trimming cuts units down to a size: one unit, one family, or every plant above
-the target. It lowers leaf area, and the height of anything but a carpet, and it
-reopens the taper — the bank goes back into regrowth and spreading pauses. Trim
-for light, or let the plant spread. Which units a thinning pulls is the keeper's
-choice. The verbs are on [Actions](/subsystems/actions/).
+the target. It takes the budget down in proportion — tissue, reserve, stores and
+the plantlet's buffer — lowers leaf area, and the height of anything but a
+carpet, and reopens the taper, so the soma's share goes back into regrowth.
+Trim for light, or let the plant spread. Which units a thinning pulls is the
+keeper's choice. The verbs are on [Actions](/subsystems/actions/).
 
 ### Shedding and death
 
-```
-deficit   = 1 − condition / 100
-sizeLost  = maxSheddingRate × deficit² × size
-waste    += rateUnits({species, sizeLost}) × tissuePerRateUnit
-```
+Shedding is what low condition does to a plant: a share of its tissue an hour,
+`maxSheddingRate` times the square of the condition deficit — 0.5 %/h at
+condition 50 and 0.08 %/h at 80, so a plant relit or cleaned up before its
+condition collapses keeps most of itself. The tissue leaves as waste at Q_min,
+with its share of the reserve; the store it held is resorbed and stays with the
+plant. A failing plant drops its oldest leaves, which is why melting plants foul
+the water.
 
-Shedding is what low condition does to a plant. Squared in the deficit it is
-0.5 %/h at condition 50 and 0.08 %/h at 80, so a plant relit or cleaned up before
-its condition collapses keeps most of itself. The tissue leaves as waste rather
-than as fuel — a failing plant drops its oldest leaves rather than digesting
-them, which is why melting plants foul the water.
-
-A plant dies at condition 0, as a fish does. What remains becomes waste, at
-`rateUnits({species, size}) × tissuePerRateUnit`, and it leaves the array, so a melting
-sword fouls the water more than a carpet patch of the same size.
+A plant dies at condition 0, as a fish does, and leaves the array. Its tissue,
+reserve and plantlet's buffer become waste, so a melting sword fouls the water
+more than a carpet patch of the same size; its stores leach straight to the
+water, nitrogen as nitrate, and KH falls by the proton per nitrogen that
+nitrate's uptake took.
 
 ## Key tunables
 
@@ -476,22 +414,22 @@ and the canopy's own constant, `leafAttenuationPerLai`, under
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Light](/subsystems/light/) | `light` and `lightByHour`, read at each plant's own height through the canopy: PAR at the mean leaf multiplies the photosynthetic rate, every benefit channel and the deficiency stressor; the day's light there is what starvation reads; PAR at the crown top charges the light-high stressor | Every unit's crown, which shades the plants below it |
-| [Water & gases](/subsystems/water-and-gases/) | `co2` for the carbon Monod, `oxygen` for the respiration Monod, pH and `gh` for the tolerance bands | `oxygen` and `co2`, both directions, on one carbon yield; `gh` drawn with the nutrients; `kh` by the form their nitrogen comes in |
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia` and `nitrate`, and the `phosphate`, `potassium` and `iron` mineralized beside the ammonia | `ammonia` first and `nitrate` for the rest, with the other three, drawn as tissue grows — the ammonia from what the colony left; `waste` from shedding and death |
-| [Environment](/subsystems/environment/) | `temperature` for the Q10 on respiration and starvation, `water` for every ppm, the box's depth and floor | — |
-| [Equipment](/subsystems/equipment/) | `substrate.nutrients` — the bed's store, for root feeders | The same store, drawn down as root feeders grow |
-| [Algae](/subsystems/algae/) | The light the blooms take at each leaf, as the hour starts — green water by the depth above it, film as a coat; each bloom's share of the pooled tissue draw and of the CO₂ | Plant power per litre, the blooms' allelopathy; the canopy over the floor, film's light there |
-| [Livestock](/subsystems/livestock/) | `foodNitrogenFraction` and `foodMineralContent`, the recipe tissue shares with food | Plant power again, saturating the fish shelter benefit |
-| [Actions](/subsystems/actions/) | — | Planting against the floor, removal and trimming write the array and `size` directly; dosing fills the four nutrient pools in the water, root tabs the bed's |
-| [Alerts & logging](/subsystems/alerts-and-logging/) | — | A `plant-died` entry per plant lost, a `plant-propagated` entry per offshoot |
-| [State & persistence](/subsystems/state-and-persistence/) | The tank's draw stream, for every unit's vigour and id; seeded plantings, at a named size and age, each founding its family | The advanced stream position |
+| [Light](/subsystems/light/) | `light` and `lightByHour`, read at each plant's own height through the canopy: PAR at the mean leaf drives photosynthesis, and the day's light there reads against its rated day; PAR at the crown top charges the light-high stressor | Every unit's crown, which shades the plants below it |
+| [Water & gases](/subsystems/water-and-gases/) | `co2` for the carbon Monod, `oxygen` for the oxygen pace, pH and `gh` for the tolerance bands | `oxygen` and `co2`, both directions, on one carbon yield; `gh` drawn with the nutrients; `kh` by the form their nitrogen comes in, and back as a dead plant's stores leach |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia` and `nitrate`, and the `phosphate`, `potassium` and `iron` mineralized beside the ammonia | `ammonia` first and `nitrate` for the rest, with the other three, into the stores — the ammonia from what the colony left; `waste` from shedding and death; a dead plant's stores back to the water |
+| [Environment](/subsystems/environment/) | `temperature` for the Q10 on every rate of the budget, `water` for every ppm, the box's depth and floor | — |
+| [Equipment](/subsystems/equipment/) | `substrate.nutrients` — the bed's store, for root feeders | The same store, drawn down as root feeders' stores fill |
+| [Algae](/subsystems/algae/) | The light the blooms take at each leaf, as the hour starts — green water by the depth above it, film as a coat; each bloom's share of the pooled uptake and of the CO₂ | Plant power per litre, whose exudates lower a bloom's assimilation ceiling; the canopy over the floor, film's light there |
+| [Livestock](/subsystems/livestock/) | — | Plant power, saturating the fish shelter benefit |
+| [Actions](/subsystems/actions/) | — | Planting against the floor, removal and trimming write the array and the budget directly; dosing fills the four nutrient pools in the water, root tabs the bed's |
+| [Alerts & logging](/subsystems/alerts-and-logging/) | — | A `plant-died` entry per plant lost, a `plant-propagated` entry per plantlet |
+| [State & persistence](/subsystems/state-and-persistence/) | The tank's draw stream, for every unit's vigour and id; seeded plantings, at a named size and age, stocked on the plants config, each founding its family | The advanced stream position |
 
 ## Source
 
 `src/simulation/plants/` — the roster, the growth forms, the canopy and
-construction; `src/simulation/flora/` — the hour's pass, beside the blooms;
-`src/simulation/systems/` — the flora law the blooms share, photosynthesis,
-respiration, nutrition and the tissue draw, vitality, growth, offshoots and
-lifecycle; `src/simulation/config/` — the tunables and their declared
-ranges.
+construction; `src/simulation/flora/` — the hour's pass, beside the blooms, and
+each kind's budget parameters; `src/simulation/systems/` — the flora law the
+blooms share, the budget and the reserve core it shares with the fish,
+photosynthesis, the pace, uptake, vitality and lifecycle;
+`src/simulation/config/` — the tunables and their declared ranges.
