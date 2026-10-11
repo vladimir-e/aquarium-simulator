@@ -71,7 +71,7 @@ import {
   vitalReading,
   type Status,
 } from './status.js';
-import { WATER_DECIMALS, type ReadingBand } from './water.js';
+import { TRACK_PAST_LINE, WATER_DECIMALS, type ReadingBand } from './water.js';
 
 /** What the ledger is open on. A bloom is a population, so it carries its kind rather than an id. */
 export type LedgerTarget =
@@ -125,8 +125,6 @@ export interface LedgerRow {
   note: string;
 }
 
-const EDGE_SCALE = 2;
-
 export interface Ledger {
   target: LedgerTarget;
   species: SpeciesId | AlgaeKind;
@@ -163,6 +161,7 @@ export interface Ledger {
   budget: BudgetRow[];
   /** A plant's or a bloom's nutrient stores, one row each. */
   stores: BudgetRow[];
+  /** A fish's toxin loads, one row each. */
   load: BudgetRow[];
   /** What the species asks of the tank; plants and blooms. */
   demand: string | null;
@@ -218,6 +217,12 @@ function reserveFills({ assimilated, mobilised, burned }: FloraFluxes): boolean 
 }
 
 const UNHELD = 0.99;
+
+/** What a stress held back of an organism's assimilation this hour, while it holds it back. */
+function heldBack(assimilation: number, row: Pick<BudgetRow, 'key' | 'label' | 'unit' | 'status'>): BudgetRow[] {
+  if (assimilation >= UNHELD) return [];
+  return [{ ...row, text: String(100 - sharePercent(assimilation)), at: null, band: null, note: '' }];
+}
 
 /**
  * A plant's or a bloom's reserve, then what draws on it past the hour's
@@ -330,12 +335,11 @@ function lightPathView(path: LightPath, lamp: Light): LightPathView {
   };
 }
 
-/** The track runs to twice the need, so the need sits mid-track. */
 function lightRow(needShare: number, status: Status, note: string): LedgerRow {
   return {
     text: String(sharePercent(needShare)),
-    at: Math.min(1, needShare / EDGE_SCALE),
-    band: { from: 1 / EDGE_SCALE, to: 1 },
+    at: Math.min(1, needShare / TRACK_PAST_LINE),
+    band: { from: 1 / TRACK_PAST_LINE, to: 1 },
     status,
     note,
   };
@@ -402,7 +406,7 @@ function fishLedger(
   };
 }
 
-const TOXIN_LABEL: Record<Toxin, string> = { ammonia: 'Free NH₃', nitrite: 'NO₂', nitrate: 'NO₃' };
+const TOXIN_LABEL: Record<Toxin, string> = { ammonia: 'Free NH₃', nitrite: 'Nitrite', nitrate: 'Nitrate' };
 
 function loadRows(fish: Fish, water: ToxinVector): BudgetRow[] {
   const edges = toxinEdges(fishHardiness(fish));
@@ -413,8 +417,8 @@ function loadRows(fish: Fish, water: ToxinVector): BudgetRow[] {
     label: TOXIN_LABEL[t],
     text: fish.load[t].toFixed(WATER_DECIMALS[t]),
     unit: 'ppm',
-    at: Math.min(1, fish.load[t] / (EDGE_SCALE * edges[t])),
-    band: { from: 0, to: 1 / EDGE_SCALE },
+    at: Math.min(1, fish.load[t] / (TRACK_PAST_LINE * edges[t])),
+    band: { from: 0, to: 1 / TRACK_PAST_LINE },
     status: fish.load[t] > edges[t] ? 'alert' : 'ok',
     note: `water ${water[t].toFixed(WATER_DECIMALS[t])}`,
   }));
@@ -513,12 +517,6 @@ const HABITAT: Record<AlgaeHabitat, { lies: string; lit: string; takes: string }
 /** The verb that takes a kind out of the tank, by where it lives. */
 export function bloomVerb(kind: AlgaeKind): BloomRemoval {
   return REMOVED_BY[ALGAE[kind].habitat];
-}
-
-/** What a stress held back of an organism's assimilation this hour, while it holds it back. */
-function heldBack(assimilation: number, row: Pick<BudgetRow, 'key' | 'label' | 'unit' | 'status'>): BudgetRow[] {
-  if (assimilation >= UNHELD) return [];
-  return [{ ...row, text: String(100 - sharePercent(assimilation)), at: null, band: null, note: '' }];
 }
 
 /**

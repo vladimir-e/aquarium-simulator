@@ -31,12 +31,12 @@ type Exposed = Pick<Fish, 'species' | 'hardinessOffset' | 'load'>;
 
 /**
  * DEBtox's assimilation mode for a fish carrying its load: every toxin's
- * e-folds past the fish's own edge, summed as toxic units, lower its
- * assimilation ceiling by hyperbolic inhibition at `loadAssimilationSeverity`.
+ * e-folds past the fish's own edge, summed, lower its assimilation ceiling by
+ * hyperbolic inhibition at `loadAssimilationSeverity`.
  */
 export function loadStress(fish: Exposed, config: LivestockConfig): DebStress {
-  const toxicUnits = sum(Object.values(toxinEFolds(fish.load, fishHardiness(fish))));
-  return { ...NO_STRESS, assimilation: 1 / (1 + config.loadAssimilationSeverity * toxicUnits) };
+  const folds = sum(Object.values(toxinEFolds(fish.load, fishHardiness(fish))));
+  return { ...NO_STRESS, assimilation: 1 / (1 + config.loadAssimilationSeverity * folds) };
 }
 
 /** The pace a fish runs at in this water, `saturation` the O2 it holds saturated. */

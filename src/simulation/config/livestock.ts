@@ -79,7 +79,7 @@ export interface LivestockConfig {
   /** Damage, %/h, per unit of DEB hazard (per hour): what age does to health. */
   hazardSeverity: number;
 
-  // Toxicokinetics
+  // Toxins
   /** Dominant rate constant, per hour at 20 °C, a fish of 1 cm structural length loads and clears each toxin at. */
   loadRate: ToxinVector;
   /** How hard a fish's load, in e-folds past its own edges summed, cuts its assimilation ceiling. */
@@ -178,7 +178,7 @@ export const livestockDefaults: LivestockConfig = {
     nitrite: 0.03, // half-time ~1 d at 1 cm: methaemoglobin's turnover sets it; 96 h LC50 under 24 h
     nitrate: 0.004, // half-time ~1 wk at 1 cm: the gill barely passes it; acute LC50 thousands of ppm, chronic tens over weeks
   },
-  // At one e-fold past the edge a fish eats a third less; build-first, Tune settles it.
+  // Tune's: at one e-fold past its edge a fish eats a third less.
   loadAssimilationSeverity: 0.5,
 
   // Benefit peaks (%/h), each scaled by reserve density. Sum at all-good in a
@@ -288,7 +288,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'waterLevelStressThreshold', label: 'Water Level Stress Threshold', unit: '%', min: 20, max: 80, step: 5 },
   { key: 'starvationSeverity', label: 'Starvation Severity', unit: '%/hr unpaid', min: 0, max: 5, step: 0.05 },
   { key: 'hazardSeverity', label: 'Hazard Severity', unit: '%/hr per hazard', min: 0, max: 50000, step: 500 },
-  // Toxicokinetics
+  // Toxins
   { key: 'loadAssimilationSeverity', label: 'Load Assimilation Severity', unit: '/e-fold', min: 0, max: 5, step: 0.05 },
   // Vitality benefit peaks
   { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },

@@ -130,7 +130,7 @@ export function waterStressors(
       ],
       hardiness
     ),
-    { key: 'ammonia', label: 'Free NH3', amount: config.ammoniaStressSeverity * folds.ammonia },
+    { key: 'ammonia', label: 'Free NH₃', amount: config.ammoniaStressSeverity * folds.ammonia },
     { key: 'nitrite', label: 'Nitrite', amount: config.nitriteStressSeverity * folds.nitrite },
     { key: 'nitrate', label: 'Nitrate', amount: config.nitrateStressSeverity * folds.nitrate },
     { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
@@ -249,8 +249,8 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
  * A fish's health over the hour its budget ran, without applying it —
  * `processHealth` applies it. A caller wanting the next tick's numbers reads it
  * on the hour that tick settles, with the fish as the hour found it, its load
- * stepped on the hour's water (`loadFish`), the hour its budget ran, and its
- * predator mass.
+ * stepped on the hour's water as `processLivestock`'s hours carry it, the hour
+ * its budget ran, and its predator mass.
  */
 export function computeFishVitality(
   fish: Fish,

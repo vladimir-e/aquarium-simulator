@@ -121,12 +121,16 @@ describe('toxin loads', () => {
     });
   const charge = (vitality: VitalityResult, toxin: Toxin): number =>
     vitality.breakdown.stressors.find((factor) => factor.key === toxin)!.amount;
+  const stepped = (state: SimulationState): Fish[] => {
+    const levels = waterToxins(state.resources);
+    return state.fish.map((fish) =>
+      loadFish(fish, levels, speciesTau(fish.species, state.resources.temperature), livestock.loadRate)
+    );
+  };
 
   it('loads every fish on the hour’s water first: its hour, its health and the survivors carry the load', () => {
     const state = spiked(makeState([makeFish({ id: 'a' }), makeFish({ id: 'b', size: 30 })]));
-    const paces = tankPaces(state, DEFAULT_CONFIG);
-    const levels = waterToxins(state.resources);
-    const loaded = state.fish.map((fish, i) => loadFish(fish, levels, paces[i].tau, livestock.loadRate));
+    const loaded = stepped(state);
     const result = processLivestock(state, DEFAULT_CONFIG);
 
     expect(result.hours.map((hour) => hour.fish.load)).toEqual(loaded.map((fish) => fish.load));
@@ -140,15 +144,13 @@ describe('toxin loads', () => {
     });
   });
 
-  it('paces every fish on the load it carries into the hour, so its budget runs on that stress', () => {
+  it('paces every fish on the load the hour steps it to, so its budget runs on that stress', () => {
     const state = carrying(makeState([makeFish({ id: 'a' }), makeFish({ id: 'b', size: 30 })]), {
       ammonia: 0.5,
       nitrite: 10,
       nitrate: 500,
     });
-    const levels = waterToxins(state.resources);
-    const tau = (fish: Fish): number => speciesTau(fish.species, state.resources.temperature);
-    const loaded = state.fish.map((fish) => loadFish(fish, levels, tau(fish), livestock.loadRate));
+    const loaded = stepped(state);
     const paces = processLivestock(state, DEFAULT_CONFIG).hours.map((hour) => hour.pace);
 
     expect(paces).toEqual(tankPaces({ ...state, fish: loaded }, DEFAULT_CONFIG));

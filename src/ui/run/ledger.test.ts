@@ -28,6 +28,7 @@ import { atSize, withBudget } from '../../simulation/tests/plant.js';
 import { LEDGER_DECIMALS, readLedger, type BudgetRow, type Ledger, type LedgerTarget } from './ledger.js';
 import { FED, atReserve, starving } from '../test/gut';
 import { projectedTrend } from './status.js';
+import { WATER_DECIMALS } from './water.js';
 import { fishRecord, holdingEggs } from '../../simulation/tests/fish.js';
 import { spawnsAt } from '../../simulation/systems/brood.js';
 import { fishHardiness, toxinEdges } from '../../simulation/livestock/tolerance.js';
@@ -127,24 +128,26 @@ describe('readLedger', () => {
 
   it('reads each toxin the fish carries beside its water’s level, on a track to twice its own edge, coral past it', () => {
     const edge = toxinEdges(fishHardiness(makeFish())).nitrite;
+    const level = 0.2;
+    const ppm = (value: number): string => value.toFixed(WATER_DECIMALS.nitrite);
     const carrying = (nitrite: number): SimulationState => {
       const state = tank([makeFish({ id: 'fish_a_1', load: { ammonia: 0, nitrite, nitrate: 0 } })]);
-      return { ...state, resources: { ...state.resources, nitrite: 0.2 * state.resources.water } };
+      return { ...state, resources: { ...state.resources, nitrite: level * state.resources.water } };
     };
 
     const past = fishLedger(carrying(1.5 * edge)).load;
     expect(past).toHaveLength(1);
     expect(past[0]).toMatchObject({
       key: 'nitrite',
-      text: (1.5 * edge).toFixed(3),
+      text: ppm(1.5 * edge),
       unit: 'ppm',
       band: { from: 0, to: 0.5 },
       status: 'alert',
-      note: 'water 0.200',
+      note: `water ${ppm(level)}`,
     });
     expect(past[0].at).toBeCloseTo(0.75, 12);
     expect(fishLedger(carrying(0.5 * edge)).load[0]).toMatchObject({ status: 'ok' });
-    expect(fishLedger(carrying(0)).load[0]).toMatchObject({ text: '0.000', note: 'water 0.200' });
+    expect(fishLedger(carrying(0)).load[0]).toMatchObject({ text: ppm(0), note: `water ${ppm(level)}` });
   });
 
   it('reads no load where neither the fish nor its water holds any toxin that prints', () => {

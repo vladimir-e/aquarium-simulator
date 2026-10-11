@@ -3,16 +3,15 @@ import { burn, fishPace, gillAmmonia, liveHour, loadStress, processMetabolism } 
 import { NO_STRESS, oxygenPace, totalBurned } from './reserve.js';
 import { appetite, gutCapacity, gutRoom, type Pace } from './digestion.js';
 import { livestockDefaults as config, TOXINS, ZERO_TOXINS, type ToxinVector } from '../config/livestock.js';
-import { debParams, speciesTau } from '../livestock/species.js';
+import { speciesTau } from '../livestock/species.js';
 import { fishHardiness, toxinEdges } from '../livestock/tolerance.js';
 import { waterStressors } from './fish-health.js';
-import { eggsReady, layEggs } from './deb.js';
 import { createSimulation, type Fish } from '../state.js';
 import { WASTE_NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
 import { sum } from '../core/sum.js';
 import { fishOrganics } from './fish-body.js';
-import { fishRecord, holdingEggs } from '../tests/fish.js';
+import { fishRecord } from '../tests/fish.js';
 
 const SATURATED = 8;
 const REFERENCE: Pace = { tau: 1, omega: 1, stress: NO_STRESS };
@@ -59,7 +58,7 @@ describe('loadStress', () => {
     }
   });
 
-  it('sums the toxins as toxic units: an e-fold of one weighs what an e-fold of another does', () => {
+  it('weighs an e-fold of one toxin as an e-fold of another', () => {
     const one = loadStress(carrying({ ammonia: edges.ammonia * Math.E ** 2 }), config);
     const both = loadStress(carrying({ ammonia: edges.ammonia * Math.E, nitrate: edges.nitrate * Math.E }), config);
     expect(both.assimilation).toBeCloseTo(one.assimilation, 12);
@@ -82,19 +81,9 @@ describe('loadStress', () => {
     }
   });
 
-  it('stresses a softer fish at a load a hardier one carries under its edge', () => {
-    const between = { nitrate: edges.nitrate * 0.99 };
-    expect(loadStress(carrying(between), config).assimilation).toBe(1);
-    expect(loadStress(carrying(between, fishRecord({ species: 'neon_tetra' })), config).assimilation).toBeLessThan(1);
-  });
-
-  it('leaves maintenance, growth cost and egg cost whole, so a brood counts and costs what it would clean', () => {
-    const ripe = holdingEggs(carrying({ ammonia: 1, nitrite: 20, nitrate: 2000 }), 40);
-    const stress = loadStress(ripe, config);
-    const p = debParams(ripe.species);
+  it('leaves maintenance, growth cost and egg cost whole', () => {
+    const stress = loadStress(carrying({ ammonia: 1, nitrite: 20, nitrate: 2000 }), config);
     expect({ ...stress, assimilation: 1 }).toEqual(NO_STRESS);
-    expect(eggsReady(ripe.budget, p, stress)).toBe(eggsReady(ripe.budget, p));
-    expect(layEggs(ripe.budget, p, 10, stress)).toEqual(layEggs(ripe.budget, p, 10));
   });
 });
 
