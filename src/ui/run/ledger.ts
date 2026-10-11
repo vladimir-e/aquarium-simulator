@@ -263,7 +263,7 @@ function storeRows(budget: FloraState, p: FloraParams, fluxes: FloraFluxes, droo
   const fill = storeFill(budget, p);
   const edge = fillAtDroop(p, droopEdge);
   const ruling = rulingNutrient(droopLimits(budget, p));
-  const growth = fluxes.growthLimit / fullDroopFactor(p);
+  const growth = fluxes.droopLimit / fullDroopFactor(p);
   return NUTRIENTS.map((n) => {
     const store = storesFigure(fill[n], edge[n]);
     return {

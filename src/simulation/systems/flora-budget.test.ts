@@ -114,10 +114,10 @@ const slicesOf = (state: FloraState, p: FloraParams, hour: FloraBudgetHour): Flo
 const last = <T,>(xs: readonly T[]): T => xs[xs.length - 1];
 const most = (xs: readonly number[]): number => xs.reduce((a, b) => Math.max(a, b), -Infinity);
 const falling = (xs: readonly number[]): boolean => xs.every((x, i) => i === 0 || x < xs[i - 1]);
-/** The fluxes an hour sums over its slices: all but its growth limit, which it reads at their mean. */
+/** The fluxes an hour sums over its slices: all but its Droop limit, which it reads at their mean. */
 const flat = ({ burned, ...flows }: FloraStep['fluxes']): number[] => [
   ...Object.entries(flows)
-    .filter(([key]) => key !== 'growthLimit')
+    .filter(([key]) => key !== 'droopLimit')
     .map(([, flux]) => flux),
   ...Object.values(burned),
 ];
@@ -272,8 +272,8 @@ describe('the hour', () => {
     flat(fluxes).forEach((flux, i) => expectNear(flux, sliced.reduce((sum, each) => sum + each[i], 0)));
 
     const starts = [from, ...slices.slice(0, -1).map((slice) => slice.state)];
-    slices.forEach((slice, i) => expectNear(slice.fluxes.growthLimit, droopFactor(starts[i], greenWater)));
-    expectNear(fluxes.growthLimit, slices.reduce((sum, slice) => sum + slice.fluxes.growthLimit, 0) / slices.length);
+    slices.forEach((slice, i) => expectNear(slice.fluxes.droopLimit, droopFactor(starts[i], greenWater)));
+    expectNear(fluxes.droopLimit, slices.reduce((sum, slice) => sum + slice.fluxes.droopLimit, 0) / slices.length);
   });
 
   it('grows in saturating light from its first hour of the day, a bloom whatever reserve the night left it', () => {
@@ -340,7 +340,7 @@ describe('the hour', () => {
     const two = flat(stepFlora(twice, sword, hour(twice)).fluxes);
     expect(one.some((flux) => flux > 0)).toBe(true);
     expect(one.every((flux, i) => Math.abs(two[i] - 2 * flux) <= 1e-9 * Math.max(Math.abs(flux), 1e-9))).toBe(true);
-    expectNear(stepFlora(twice, sword, hour(twice)).fluxes.growthLimit, stepFlora(s, sword, hour(s)).fluxes.growthLimit, 1e3);
+    expectNear(stepFlora(twice, sword, hour(twice)).fluxes.droopLimit, stepFlora(s, sword, hour(s)).fluxes.droopLimit, 1e3);
   });
 
   it('builds a gram of tissue, its own or the next offshoot’s, for [E_G] of reserve, burns the overhead, and takes its Q_min from every store', () => {

@@ -83,8 +83,8 @@ export interface FloraFluxes {
   owed: number;
   /** Maintenance its κ share could not pay. */
   shortfall: number;
-  /** Droop's growth limit, the least store ruling, mean over the hour's slices. */
-  growthLimit: number;
+  /** The Droop limit, the least store ruling, mean over the hour's slices. */
+  droopLimit: number;
 }
 
 export interface FloraStep {
@@ -164,7 +164,7 @@ function sliceFlora(
   room: number,
   released: number,
   { inflow, healing, tau }: Readonly<ReserveHour>,
-  growthLimit: number
+  droopLimit: number
 ): ReserveSlice<FloraState, FloraFluxes> {
   const { structure: V, reserve: E, offshootBuffer: B, stores } = state;
   const upkeep = p.pM * V * tau;
@@ -218,7 +218,7 @@ function sliceFlora(
       },
       owed: upkeep,
       shortfall: somaticUnpaid,
-      growthLimit,
+      droopLimit,
     },
     turnedBack: released - mobilised,
   };

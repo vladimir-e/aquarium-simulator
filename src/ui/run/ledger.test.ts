@@ -262,7 +262,7 @@ describe('readLedger', () => {
 
     it('notes on the store that rules the pace its Droop limit held growth to against full stores, only while it holds growth back', () => {
       const growth = (state: SimulationState): number =>
-        readHourAhead(state, DEFAULT_CONFIG).plants[0].fluxes.growthLimit / fullDroopFactor(fern);
+        readHourAhead(state, DEFAULT_CONFIG).plants[0].fluxes.droopLimit / fullDroopFactor(fern);
       const noted = (state: SimulationState): BudgetRow[] => plantLedger(state).stores.filter((row) => row.note !== '');
       const grown = { ...planted(10), plants: planted(10).plants.map((plant) => atSize(plant, 100)) };
 
@@ -395,7 +395,7 @@ describe('readLedger', () => {
     });
     const p = bloomParams(kind, DEFAULT_CONFIG.plants);
     const growth = (state: SimulationState): number =>
-      readHourAhead(state, DEFAULT_CONFIG).algae[kind].fluxes.growthLimit / fullDroopFactor(p);
+      readHourAhead(state, DEFAULT_CONFIG).algae[kind].fluxes.droopLimit / fullDroopFactor(p);
     const noted = (state: SimulationState): BudgetRow[] =>
       ledgerOf(state, { kind: 'algae', bloom: kind })!.stores.filter((row) => row.note !== '');
 
