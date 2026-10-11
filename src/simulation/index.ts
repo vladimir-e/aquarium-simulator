@@ -290,6 +290,7 @@ export {
   bloomLevel,
   waterLevelAlertLine,
   BLOOM_COVERAGE_LINE,
+  BLOOM_VISIBLE_LINE,
   PLANT_LIGHT_LINE,
 } from './alerts/index.js';
 

@@ -1,6 +1,6 @@
 import { produce } from 'immer';
-import { createSimulation, type Plant, type SimulationState } from '../state.js';
-import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
+import { createSimulation, type Plant, type Resources, type SimulationState } from '../state.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
 import { NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { processFlora, type FloraProcessingResult } from '../flora/index.js';
 import { ALGAE_KINDS, type AlgaeKind } from '../algae/index.js';
@@ -16,7 +16,7 @@ import {
 } from '../systems/flora-budget.js';
 import { bloomAt } from './blooms.js';
 
-const lampsOn = (hour: number): boolean => hour % 24 < CARE_SHEET_PHOTOPERIOD;
+export const lampsOn = (hour: number, photoperiod = CARE_SHEET_PHOTOPERIOD): boolean => hour % 24 < photoperiod;
 
 export interface Growth {
   states: FloraState[];
@@ -31,15 +31,16 @@ export interface GrowthTerms {
   offshoot?: number;
   /** False on lean water: nothing tops the stores up. */
   fed?: boolean;
+  until?: (growth: Growth) => boolean;
 }
 
 /**
  * A unit's hours under saturating light and carbon for the care-sheet
  * photoperiod, at the reference temperature in full oxygen, every store topped
- * up each hour unless the water is lean.
+ * up each hour unless the water is lean, for `hours` or until it passes.
  */
 export function grow(p: FloraParams, start: FloraState, hours: number, terms: GrowthTerms = {}): Growth {
-  const { room = (): number => 1, offshoot = Infinity, fed = true } = terms;
+  const { room = (): number => 1, offshoot = Infinity, fed = true, until = (): boolean => false } = terms;
   const growth: Growth = { states: [], fluxes: [], buds: [] };
   let state = start;
   for (let hour = 0; hour < hours; hour++) {
@@ -51,6 +52,7 @@ export function grow(p: FloraParams, start: FloraState, hours: number, terms: Gr
     state = bud?.parent ?? step.state;
     growth.states.push(state);
     growth.fluxes.push(step.fluxes);
+    if (until(growth)) break;
   }
   return growth;
 }
@@ -63,18 +65,22 @@ export function hoursUntil<T>(series: readonly T[], passes: (value: T) => boolea
 
 const RICH = 1000;
 
-export interface TankTerms {
+export type TankTerms = {
   plants?: Plant[];
   algae?: Partial<Record<AlgaeKind, number>>;
-}
+} & Partial<Pick<Resources, 'light' | 'lightByHour' | 'co2' | 'nitrate' | 'phosphate' | 'oxygen' | 'water'>>;
 
-/** A mid-band 100 L tank on water rich in carbon and every nutrient, with this planting and blooms at these coverages. */
-export function floraTank({ plants = [], algae = {} }: TankTerms = {}): SimulationState {
+/**
+ * A mid-band 100 L tank on water rich in carbon and every nutrient, with this
+ * planting, blooms at these coverages, and any resource it names.
+ */
+export function floraTank({ plants = [], algae = {}, ...resources }: TankTerms = {}): SimulationState {
   return produce(createSimulation({ tankCapacity: 100 }), (draft) => {
-    const { water } = draft.resources;
+    const water = resources.water ?? draft.resources.water;
     for (const n of NUTRIENTS) draft.resources[n] = nutrientsDefaults.halfSaturation[n] * RICH * water;
     draft.resources.nitrate = 20 * water;
     draft.resources.co2 = 30;
+    Object.assign(draft.resources, resources);
     for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, algae[kind] ?? 0);
     draft.plants = plants;
   });
@@ -99,26 +105,27 @@ export interface FloraRun {
   hours: FloraProcessingResult[];
 }
 
+export interface RunTerms {
+  keep?: (state: SimulationState, hour: number) => SimulationState;
+  until?: (run: FloraRun) => boolean;
+}
+
 /**
  * The flora pass hour by hour on water held as it stands, each hour's state
- * handed to `keep` before the next.
+ * handed to `keep` before the next, for `hours` or until it passes.
  */
-export function runFlora(
-  start: SimulationState,
-  hours: number,
-  lighting: Lighting,
-  keep: (state: SimulationState, hour: number) => SimulationState = (state) => state,
-  config: TunableConfig = DEFAULT_CONFIG
-): FloraRun {
+export function runFlora(start: SimulationState, hours: number, lighting: Lighting, terms: RunTerms = {}): FloraRun {
+  const { keep = (state): SimulationState => state, until = (): boolean => false } = terms;
   const run: FloraRun = { state: start, hours: [] };
   for (let hour = 0; hour < hours; hour++) {
     const lit = produce(run.state, (draft) => {
       draft.resources.light = lighting.par(hour);
       draft.resources.lightByHour = lighting.day;
     });
-    const result = processFlora(lit, config);
+    const result = processFlora(lit, DEFAULT_CONFIG);
     run.hours.push(result);
     run.state = keep(result.state, hour);
+    if (until(run)) break;
   }
   return run;
 }

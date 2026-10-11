@@ -446,6 +446,7 @@ describe('blooms and their crash', () => {
   let bloomed: SimulationState;
   let crashed: SimulationState;
   let peakAmmonia = 0;
+  let dieBacks = 0;
   beforeAll(() => {
     start = produce(cycledBareTank(), (draft) => {
       for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 1);
@@ -459,19 +460,20 @@ describe('blooms and their crash', () => {
       draft.equipment.light.enabled = false;
     });
     for (let hour = 0; hour < BLACKOUT_DAYS * 24; hour++) {
+      const before = crashed;
       crashed = tick(crashed);
       peakAmmonia = Math.max(peakAmmonia, crashed.resources.ammonia);
+      dieBacks += ALGAE_KINDS.filter((kind) => before.algae[kind].condition < 100 && crashed.algae[kind].condition === 100).length;
     }
   });
 
   it('grow on the water and fade in the dark, every kind, until one dies back, their tissue fouling the water', () => {
-    const dieBacks = crashed.logs.slice(bloomed.logs.length).filter((log) => log.event === 'algae-died');
     expect(bloomsTissue(bloomed)).toBeGreaterThan(bloomsTissue(start));
     expect(bloomed.resources.nitrate).toBeLessThan(start.resources.nitrate);
     for (const kind of ALGAE_KINDS) {
       expect(crashed.algae[kind].budget.structure).toBeLessThan(bloomed.algae[kind].budget.structure / 2);
     }
-    expect(dieBacks.length).toBeGreaterThan(0);
+    expect(dieBacks).toBeGreaterThan(0);
     expect(peakAmmonia).toBeGreaterThan(bloomed.resources.ammonia);
   });
 

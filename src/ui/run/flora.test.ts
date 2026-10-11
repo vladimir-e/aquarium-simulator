@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ALGAE_KINDS,
   BLOOM_COVERAGE_LINE,
+  BLOOM_VISIBLE_LINE,
   PLANT_LIGHT_LINE,
   applyAction,
   bloomAlert,
@@ -54,7 +55,7 @@ import { bloomMass } from '../../simulation/algae/index.js';
 import { offshootStructure } from '../../simulation/plants/create-plant.js';
 import { sizeOf } from '../../simulation/plants/canopy.js';
 import { COVERAGE_DECIMALS } from '../utils/units';
-import { conditionStatus, conditionWord, projectedTrend, type Reading } from './status';
+import { conditionStatus, conditionWord, printsAsZero, projectedTrend, type Reading } from './status';
 
 const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
 
@@ -102,10 +103,11 @@ describe('condition + algae words', () => {
   describe.each(ALGAE_KINDS)('%s', (kind) => {
     it('reads its word for none while the coverage prints as none', () => {
       const none = algaeReading(kind, 0, 0);
-      const printed = 0.5 / 10 ** COVERAGE_DECIMALS;
       expect(none.status).toBe('ok');
-      expect(algaeReading(kind, 0.9 * printed, 0).word).toBe(none.word);
-      expect(algaeReading(kind, printed, 0).word).not.toBe(none.word);
+      expect(algaeReading(kind, 0.9 * BLOOM_VISIBLE_LINE, 0).word).toBe(none.word);
+      expect(algaeReading(kind, BLOOM_VISIBLE_LINE, 0).word).not.toBe(none.word);
+      expect(printsAsZero(0.9 * BLOOM_VISIBLE_LINE, COVERAGE_DECIMALS)).toBe(true);
+      expect(printsAsZero(BLOOM_VISIBLE_LINE, COVERAGE_DECIMALS)).toBe(false);
     });
 
     it('maps its coverage to status (low is good)', () => {

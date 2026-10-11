@@ -130,7 +130,7 @@ export {
 } from './light.js';
 export {
   algaeReading,
-  isReported,
+  bloomShows,
   type PlantLabel,
   plantLabels,
   familyTitle,

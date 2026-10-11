@@ -129,10 +129,11 @@ export function sporesUptake(
 }
 
 /**
- * Spores are the bloom's immigration: starving cells, structure without
- * reserve, that join the bloom at its own condition, every pool of their
- * budget beside its own. Only an empty bloom — one that died back, or never
- * stood — starts afresh from them at condition 100.
+ * Spores are the bloom's immigration: structure without reserve, every pool of
+ * their budget joining the bloom's own. Condition is one number for the whole
+ * bloom, so they join at its condition: landing at 100 they would keep healing
+ * a bloom starving in the dark, and it could never die. Only an empty bloom —
+ * one that died back, or never stood — starts afresh from them at 100.
  */
 export function landSpores(bloom: AlgaeState | null, spores: FloraState): AlgaeState {
   const { budget, condition } = bloom ?? EMPTY_BLOOM;

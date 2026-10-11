@@ -21,7 +21,8 @@
  * 5. Condition: one vitality step for every organism.
  * 6. Shedding and death: low condition sheds structure as waste, and condition
  *    0 kills — its remains are waste and its stores leach to the water, KH
- *    moving back by the charge their uptake moved.
+ *    moving back by the charge their uptake moved. A bloom's die-back is logged
+ *    where there was any of it to see.
  * 7. Offshoots and spores: a buffer that holds a new unit cuts it loose, and
  *    the spores land into their bloom.
  * 8. Offshoots join at the end of the list at age 0, and surviving plants age
@@ -68,6 +69,7 @@ import {
   type AlgaeKind,
   type BloomLight,
 } from '../algae/index.js';
+import { BLOOM_VISIBLE_LINE } from '../alerts/bloom.js';
 import { computeAlgaeVitality } from '../systems/algae-vitality.js';
 import { carbonGases, offerCarbon, photosynthateOf, plantFixer } from '../systems/photosynthesis.js';
 import {
@@ -309,8 +311,8 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     blooms.forEach(({ kind, traits, habitat }, k) => {
       const { survivor } = bloomLosses[k];
       const condition = conditions[plantCount + k];
-      if (survivor === null) {
-        const mass = massOf(steps[plantCount + k].state.structure, habitat, traits);
+      const mass = massOf(steps[plantCount + k].state.structure, habitat, traits);
+      if (survivor === null && mass >= BLOOM_VISIBLE_LINE) {
         log('warning', measured`${traits.name} died back from ${coverage(mass)} coverage`, 'algae-died');
       }
       draft.algae[kind] = landSpores(survivor === null ? null : { budget: survivor, condition }, spores[k]);

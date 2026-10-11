@@ -37,6 +37,7 @@ import { plantsDefaults } from '../config/plants.js';
 import { mapNutrients, NUTRIENTS, ZERO_NUTRIENTS, type Nutrient, type NutrientVector } from '../config/nutrients.js';
 import { hourlyDraw, hourlyInflowDraw, monodFactor } from '../core/kinetics.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
+import { lampsOn } from '../tests/flora.js';
 
 const sword = plantParams('amazon_sword', plantsDefaults);
 const greenWater = bloomParams('greenWater', plantsDefaults);
@@ -79,7 +80,7 @@ const lit =
 const dark = (o: Partial<FloraBudgetHour> = {}): Supply => () => ({ offered: 0, tau: 1, omega: 1, room: 1, ...o });
 const photoperiod =
   (p: FloraParams, hours: number, o: Partial<FloraBudgetHour> = {}): Supply =>
-  (state, t) => ({ offered: t % DAY < hours ? p.pAm * state.structure : 0, tau: 1, omega: 1, room: 1, ...o });
+  (state, t) => ({ offered: lampsOn(t, hours) ? p.pAm * state.structure : 0, tau: 1, omega: 1, room: 1, ...o });
 
 interface Lived extends FloraStep {
   before: FloraState;
@@ -704,19 +705,6 @@ describe('a plant in lean water on full stores', () => {
 
   it('fills its reserve with the carbon it cannot spend', () => {
     expect(wellFed(last(hours).state, sword)).toBeGreaterThan(wellFed(hours[DAY].state, sword));
-  });
-});
-
-describe('a bloom on κ = 1', () => {
-  const hours = live(greenWater, flora(greenWater, 0.3, 0.5), 3 * DAY, photoperiod(greenWater, 10), true);
-
-  it('fills no buffer: everything it spends past maintenance buys structure', () => {
-    expect(hours.every(({ state }) => state.offshootBuffer === 0)).toBe(true);
-    const spent = hours.every(({ fluxes }) =>
-      near(fluxes.mobilised, fluxes.burned.maintenance + fluxes.toStructure + fluxes.burned.growth)
-    );
-    expect(spent).toBe(true);
-    expect(last(hours).state.structure).toBeGreaterThan(hours[0].before.structure);
   });
 });
 

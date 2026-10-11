@@ -31,7 +31,6 @@ import {
   PLANT_SPECIES_DATA,
   plantNitrateEdge,
   type AlgaeKind,
-  type LogEntry,
   type Plant,
   type PlantSpecies,
   type PoolDraw,
@@ -56,8 +55,7 @@ import {
   type TunableConfig,
 } from '../../simulation/config/index.js';
 import { NITRATE_EDGE } from '../../simulation/livestock/tolerance.js';
-import { BLOOM_COVERAGE_LINE, bloomLevel, PLANT_LIGHT_LINE } from '../../simulation/alerts/index.js';
-import { COVERAGE_DECIMALS } from '../utils/units.js';
+import { BLOOM_COVERAGE_LINE, BLOOM_VISIBLE_LINE, bloomLevel, PLANT_LIGHT_LINE } from '../../simulation/alerts/index.js';
 import type { HourAhead } from './ahead.js';
 import { groupBy, mean, numbered } from './fold.js';
 import { plantLightStatus } from './light.js';
@@ -77,9 +75,9 @@ import {
  */
 export const TRIM_TARGETS = [50, 75, 85];
 
-/** Whether there is any bloom to see: its coverage prints as more than none. */
-function bloomShows(mass: number): boolean {
-  return !printsAsZero(mass, COVERAGE_DECIMALS);
+/** Whether there is any bloom to see. */
+export function bloomShows(mass: number): boolean {
+  return mass >= BLOOM_VISIBLE_LINE;
 }
 
 /**
@@ -133,18 +131,6 @@ export function algaeReading(kind: AlgaeKind, mass: number, taken: number): Read
     status: lineStatus(bloomLevel(mass, taken).level),
     word: bloomShows(mass) ? words[rungOf(mass) + 1] : words[0],
   };
-}
-
-/**
- * Whether the console reports a log line. The engine logs every die-back,
- * spores that starved in a dark tank among them; the console reports one only
- * where it took a bloom there was any of to see.
- */
-export function isReported(log: LogEntry): boolean {
-  return (
-    log.event !== 'algae-died' ||
-    (log.quantities ?? []).some((quantity) => quantity.kind === 'coverage' && bloomShows(quantity.percent))
-  );
 }
 
 /** Where a plant stands among its kin, numbered the way a reader counts. */

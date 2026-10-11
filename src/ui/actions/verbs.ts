@@ -32,16 +32,16 @@ import { FoodResource, getPpm, NitrateResource } from '../../simulation/resource
 import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
 import {
   bedReading,
+  bloomShows,
   bloomVerb,
   doseToCover,
   nutrientReadings,
   plantLabels,
-  printsAsZero,
   sharePercent,
   TRIM_TARGETS,
   type HourAhead,
 } from '../run';
-import { COVERAGE_DECIMALS, formatVolume, logQuantityIn, type UnitSystem } from '../utils/units.js';
+import { formatVolume, logQuantityIn, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
 
 export type VerbId =
@@ -222,7 +222,7 @@ function blockedReason(
         ? null
         : `nothing above ${settings.trimPlants} %`;
     case 'scrubAlgae':
-      return glassKinds(state).some((kind) => !printsAsZero(bloomMass(state, kind), COVERAGE_DECIMALS))
+      return glassKinds(state).some((kind) => bloomShows(bloomMass(state, kind)))
         ? null
         : 'the glass is clean';
   }
