@@ -90,7 +90,6 @@ export function loseFlora(state: FloraState, p: FloraParams, condition: number, 
   return { survivor: null, shed: shedding.waste, died: left.waste, leachate: left.leachate };
 }
 
-
 /** One feeder's hour, as the channels a plant and a bloom share read it. */
 export interface FloraHour {
   traits: FloraTraits;

@@ -150,4 +150,3 @@ export function groupMember(members: readonly Member[]): Member {
   const { worst, reason } = tally(members);
   return { condition: worst.condition, reading: { status: worst.reading.status, word: reason } };
 }
-

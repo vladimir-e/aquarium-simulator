@@ -75,15 +75,11 @@ const sword = (o: Partial<Omit<Plant, 'budget'>> & { size?: number } = {}): Plan
 /** The plant with its budget changed. */
 const withBudget = (plant: Plant, budget: Partial<FloraState>): Plant => ({ ...plant, budget: { ...plant.budget, ...budget } });
 
-/** mg of each nutrient a budget holds: its structure at Q_min and its stores. */
-const held = (budget: FloraState, qMin: NutrientVector): NutrientVector =>
-  mapNutrients((n) => qMin[n] * budget.structure + budget.stores[n]);
-
 /** mg of each nutrient every plant and bloom holds. */
 function floraHeld(state: SimulationState): NutrientVector {
   const all = [
-    ...state.plants.map((p) => held(p.budget, plantParams(p.species, config.plants).qMin)),
-    ...ALGAE_KINDS.map((k) => held(state.algae[k].budget, bloomParams(k, config.plants).qMin)),
+    ...state.plants.map((p) => floraNutrients(p.budget, plantParams(p.species, config.plants))),
+    ...ALGAE_KINDS.map((k) => floraNutrients(state.algae[k].budget, bloomParams(k, config.plants))),
   ];
   return mapNutrients((n) => all.reduce((sum, h) => sum + h[n], 0));
 }

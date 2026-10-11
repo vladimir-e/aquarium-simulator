@@ -154,7 +154,6 @@ export const plantsDefaults: PlantsConfig = {
   // Under the planted preset's 90 PAR and 0.5 bps that tank admits 14–32.
   co2PerRateUnit: 30.0,
 
-
   // Energy budget. κ is DEB's usual 0.8, the generalised animal's (Kooijman
   // 2010, Table 8.1). κ_G, the full reserve and the stores' fill time are
   // Tune's: nothing checked against its source fixes them for a submerged

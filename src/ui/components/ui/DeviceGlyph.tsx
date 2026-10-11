@@ -70,7 +70,6 @@ const PATHS: Record<DeviceId, React.ReactNode> = {
   ),
 };
 
-
 export function DeviceGlyph({
   device,
   className = '',

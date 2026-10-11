@@ -241,7 +241,6 @@ export interface Co2Generator {
   schedule: DailySchedule;
 }
 
-
 export interface Equipment {
   /** Heater is always present, `enabled` property controls if active */
   heater: Heater;

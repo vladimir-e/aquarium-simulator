@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buyOffshoot,
   droopFactor,
+  floraNutrients,
   floraOrganics,
   offshootReady,
   remains,
@@ -61,9 +62,6 @@ function flora(
     ...o,
   };
 }
-
-const nutrientsHeld = (state: FloraState, p: FloraParams): NutrientVector =>
-  mapNutrients((n) => state.stores[n] + p.qMin[n] * state.structure);
 
 /** DEB's V1-morph mobilisation per gram of reserve, the turnover the hour starts on. */
 const turnover = (state: FloraState, p: FloraParams, tau: number): number =>
@@ -206,8 +204,8 @@ describe.each(lives)('thirty days of $name', ({ p, hours }) => {
 
   it('closes every nutrient’s ledger every hour: what the stores took up, the plant still holds', () => {
     const open = hours.findIndex(({ before, state, delivered }) => {
-      const held = nutrientsHeld(before, p);
-      const now = nutrientsHeld(state, p);
+      const held = floraNutrients(before, p);
+      const now = floraNutrients(state, p);
       return NUTRIENTS.some((n) => !near(now[n] - held[n], delivered[n], held[n]));
     });
     expect(open).toBe(-1);
@@ -580,10 +578,9 @@ describe('offshoots', () => {
     expect(after.structure).toBe(before.structure);
 
     expectNear(floraOrganics(before), floraOrganics(after) + floraOrganics(offshoot));
-    const held = [before, after, offshoot].map((s) => nutrientsHeld(s, sword));
+    const held = [before, after, offshoot].map((s) => floraNutrients(s, sword));
     expect(NUTRIENTS.every((n) => near(held[0][n], held[1][n] + held[2][n]))).toBe(true);
   });
-
 });
 
 describe('tissue as organics', () => {

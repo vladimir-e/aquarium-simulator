@@ -33,7 +33,6 @@ import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { shareOut, swallow, type Pace } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import { sum } from '../core/sum.js';
-
 import { pointsHealed, starvation, wellFed } from './reserve.js';
 import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
 import type { FishHour } from './metabolism.js';
@@ -189,7 +188,6 @@ export function predationStress(
   if (waterVolume <= 0) return 0;
   return ((config.predationRate * predatorMass) / waterVolume) * preyVulnerability(preySize, config);
 }
-
 
 /**
  * Build the hardened stressor list for a fish: the water's, then its own

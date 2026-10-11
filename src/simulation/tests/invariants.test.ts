@@ -9,7 +9,7 @@ import { mapNutrients, NUTRIENTS, WASTE_NUTRIENTS, type NutrientVector, type Was
 import { CACO3_PER_EQUIVALENT, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
 import { ALGAE_KINDS, bloomMass } from '../algae/index.js';
 import { bloomParams, plantParams } from '../flora/params.js';
-import type { FloraParams, FloraState } from '../systems/flora-budget.js';
+import { floraNutrients, type FloraState } from '../systems/flora-budget.js';
 import { offshootStructure } from '../plants/create-plant.js';
 import { sizeOf } from '../plants/canopy.js';
 import { fishOrganics, fishParams, fishSize, frySize } from '../systems/fish-body.js';
@@ -46,16 +46,11 @@ function organics(state: SimulationState): number {
   return state.resources.food + livestockOrganics(state);
 }
 
-/** mg of each nutrient a flora's budget holds: its structure at Q_min and its stores. */
-function budgetContent(budget: FloraState, p: FloraParams): NutrientVector {
-  return mapNutrients((n) => p.qMin[n] * budget.structure + budget.stores[n]);
-}
-
 /** mg of each nutrient the plants and the blooms hold. */
 function floraContent({ plants, algae }: SimulationState): NutrientVector {
   const held = [
-    ...plants.map((plant) => budgetContent(plant.budget, plantParams(plant.species, DEFAULT_CONFIG.plants))),
-    ...ALGAE_KINDS.map((kind) => budgetContent(algae[kind].budget, bloomParams(kind, DEFAULT_CONFIG.plants))),
+    ...plants.map((plant) => floraNutrients(plant.budget, plantParams(plant.species, DEFAULT_CONFIG.plants))),
+    ...ALGAE_KINDS.map((kind) => floraNutrients(algae[kind].budget, bloomParams(kind, DEFAULT_CONFIG.plants))),
   ];
   return mapNutrients((n) => held.reduce((sum, content) => sum + content[n], 0));
 }
@@ -574,9 +569,13 @@ describe('blooms at every tunable’s maximum', () => {
     for (const n of NUTRIENTS) draft.resources[n] = 1000 * DEFAULT_CONFIG.nutrients.halfSaturation[n] * draft.resources.water;
   });
   const planted = produce(crowded, (draft) => {
-    draft.plants = (['java_fern', 'amazon_sword', 'monte_carlo'] as const).map((species) =>
-      plantRecord({ id: species, species, size: 60 })
-    );
+    draft.plants = (
+      [
+        ['java_fern', 60],
+        ['amazon_sword', 99],
+        ['monte_carlo', 60],
+      ] as const
+    ).map(([species, size]) => plantRecord({ id: species, species, size }));
   });
 
   const expectBounded = (fill: number, { budget, condition }: { budget: FloraState; condition: number }): void => {
@@ -620,7 +619,7 @@ describe('the keeper’s hands on the blooms', () => {
     const share = 0.3;
     const changed = applyAction(coated, { type: 'waterChange', amount: share }).state;
     const greenWater =
-      (budgetContent(coated.algae.greenWater.budget, bloomParams('greenWater', DEFAULT_CONFIG.plants)).nitrate / MW_NO3) *
+      (floraNutrients(coated.algae.greenWater.budget, bloomParams('greenWater', DEFAULT_CONFIG.plants)).nitrate / MW_NO3) *
       MW_N;
     const exported = share * (dissolvedNitrogen(coated) + greenWater);
 

@@ -26,7 +26,7 @@ import {
 import { bloomParams } from '../flora/params.js';
 import { remains, scaleFlora } from '../systems/flora-budget.js';
 import { leach } from '../systems/nutrients.js';
-import { applyEffects } from '../core/effects.js';
+import { applyEffects, type Effect } from '../core/effects.js';
 import { createLog } from '../core/logging.js';
 import { addOrganics } from '../core/organics.js';
 import { sum } from '../core/sum.js';
@@ -50,7 +50,6 @@ export function scrubAlgae(state: SimulationState, config: PlantsConfig): Action
   );
   const newState = produce(state, (draft) => {
     draft.algae = clearPlace(state, 'walls');
-    draft.resources.waste = addOrganics(draft.resources.waste, ...scrubbed.map(({ waste }) => waste));
     for (const kind of scraped) {
       const traits = ALGAE[kind];
       draft.logs.push(
@@ -65,6 +64,10 @@ export function scrubAlgae(state: SimulationState, config: PlantsConfig): Action
   });
 
   const leachate = mapNutrients((n) => sum(scrubbed.map((left) => left.leachate[n])));
+  const effects: Effect[] = [
+    { tier: 'active', resource: 'waste', delta: addOrganics(...scrubbed.map(({ waste }) => waste)), source: 'scrub' },
+    ...leach(leachate),
+  ];
   const removed = scraped.map((kind) => `${glass[kind].toFixed(1)} ${ALGAE[kind].name.toLowerCase()}`);
-  return { state: applyEffects(newState, leach(leachate)), message: `Scrubbed the glass: removed ${removed.join(', ')}` };
+  return { state: applyEffects(newState, effects), message: `Scrubbed the glass: removed ${removed.join(', ')}` };
 }

@@ -103,7 +103,6 @@ describe('groupMember', () => {
   });
 });
 
-
 describe('worstMember', () => {
   it('is the most urgent member, and of those the lowest condition, wherever it stands', () => {
     const calm = members([100, thriving], [100, thriving], [65, good]);

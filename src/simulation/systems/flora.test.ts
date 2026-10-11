@@ -5,7 +5,6 @@ import {
   floraBenefits,
   floraStressors,
   growthTaper,
-
   loseFlora,
   metabolicRateUnits,
   saturationIrradiance,
@@ -73,7 +72,6 @@ describe('metabolicRateUnits', () => {
     }
   });
 });
-
 
 describe('shedShare', () => {
   it('is nothing at full condition and maxSheddingRate at 0', () => {
