@@ -2,7 +2,8 @@
  * The engine's constants as the drawer shows them: the config layer's own
  * sections, in its own order, each leaf carrying the range it declares and
  * whether it has been moved off stock. A nested formula is a group inside its
- * section, so the four fertiliser figures are reachable like any other.
+ * section, so the four fertiliser figures are reachable like any other; a
+ * long section's own fields are grouped by what they tune.
  */
 
 import {
@@ -49,7 +50,7 @@ export interface TunableField {
   modified: boolean;
 }
 
-/** A nested formula, rendered as a sub-group of the section that holds it. */
+/** A nested formula, or a run of the section's own fields, rendered as a sub-group of the section. */
 export interface TunableGroup {
   label: string;
   fields: TunableField[];
@@ -64,12 +65,66 @@ export interface TunableSection {
   modified: number;
 }
 
+interface GroupSpec {
+  label: string;
+  /** The nested formula it holds; absent, its fields are the section's own. */
+  path?: string;
+  meta: readonly FieldMeta[];
+}
+
 interface SectionSpec {
   key: keyof TunableConfig;
   label: string;
+  /** The section's own fields that sit in no group. */
   meta: readonly FieldMeta[];
-  groups?: { key: string; label: string; meta: readonly FieldMeta[] }[];
+  groups?: GroupSpec[];
 }
+
+/** A run of a section's own fields, by key. */
+interface FieldRun<K extends string> {
+  label: string;
+  keys: readonly K[];
+}
+
+/** A section's own fields split into the runs its groups name, in their order, and the rest. */
+function grouped<M extends FieldMeta>(
+  meta: readonly M[],
+  groups: readonly (FieldRun<M['key']> | GroupSpec)[]
+): Pick<SectionSpec, 'meta' | 'groups'> {
+  const runs = groups.filter((group): group is FieldRun<M['key']> => 'keys' in group);
+  const named = new Set<string>(runs.flatMap((run) => run.keys));
+  return {
+    meta: meta.filter((m) => !named.has(m.key)),
+    groups: groups.map((group) =>
+      'keys' in group ? { label: group.label, meta: group.keys.map((key) => meta.find((m) => m.key === key)!) } : group
+    ),
+  };
+}
+
+const PLANTS = grouped(plantsConfigMeta, [
+  { label: 'Energy budget', keys: ['somaShare', 'growthEfficiency', 'reserveCapacity', 'healingRate', 'healingCost'] },
+  { label: 'Nutrient stores', keys: ['storeFillDays', 'droopEdge', 'nutrientDeficiencySeverity'] },
+  { path: 'quotaMin', label: 'Tissue floor, Q_min', meta: quotaMinMeta },
+  { path: 'quotaMax', label: 'Tissue ceiling, Q_max', meta: quotaMaxMeta },
+  {
+    label: 'Harm',
+    keys: [
+      'starvationSeverity',
+      'lightExcessiveSeverity',
+      'temperatureStressSeverity',
+      'phStressSeverity',
+      'ghStressSeverity',
+      'nitrateStressSeverity',
+      'nitrateEdge',
+    ],
+  },
+  { label: 'Income', keys: ['co2BenefitPeak', 'temperatureBenefitPeak', 'phBenefitPeak'] },
+  { label: 'Shedding', keys: ['maxSheddingRate'] },
+]);
+
+const OPTICS = grouped(opticsConfigMeta, [
+  { label: 'Blooms', keys: ['algaeAttenuationPerCm', 'algaeCoatOpticalDepth'] },
+]);
 
 const SECTIONS: readonly SectionSpec[] = [
   { key: 'decay', label: 'Decay', meta: decayConfigMeta },
@@ -78,29 +133,21 @@ const SECTIONS: readonly SectionSpec[] = [
   { key: 'temperature', label: 'Temperature', meta: temperatureConfigMeta },
   { key: 'evaporation', label: 'Evaporation', meta: evaporationConfigMeta },
   { key: 'algae', label: 'Algae', meta: algaeConfigMeta },
-  { key: 'optics', label: 'Water optics', meta: opticsConfigMeta },
+  { key: 'optics', label: 'Water optics', ...OPTICS },
   { key: 'waterChemistry', label: 'Water chemistry', meta: waterChemistryConfigMeta },
-  {
-    key: 'plants',
-    label: 'Plants',
-    meta: plantsConfigMeta,
-    groups: [
-      { key: 'quotaMin', label: 'Tissue floor, Q_min', meta: quotaMinMeta },
-      { key: 'quotaMax', label: 'Tissue ceiling, Q_max', meta: quotaMaxMeta },
-    ],
-  },
+  { key: 'plants', label: 'Plants', ...PLANTS },
   {
     key: 'nutrients',
     label: 'Nutrients',
     meta: nutrientsConfigMeta,
     groups: [
-      { key: 'fertilizerFormula', label: 'Fertiliser formula', meta: fertilizerFormulaMeta },
-      { key: 'rootTab', label: 'Root tab', meta: rootTabMeta },
-      { key: 'halfSaturation', label: 'Half-saturation', meta: halfSaturationMeta },
-      { key: 'demand.low', label: 'Low-demand species', meta: demandMeta },
-      { key: 'demand.medium', label: 'Medium-demand species', meta: demandMeta },
-      { key: 'demand.high', label: 'High-demand species', meta: demandMeta },
-      { key: 'foodMineralContent', label: 'Minerals per gram of food and tissue', meta: foodMineralContentMeta },
+      { path: 'fertilizerFormula', label: 'Fertiliser formula', meta: fertilizerFormulaMeta },
+      { path: 'rootTab', label: 'Root tab', meta: rootTabMeta },
+      { path: 'halfSaturation', label: 'Half-saturation', meta: halfSaturationMeta },
+      { path: 'demand.low', label: 'Low-demand species', meta: demandMeta },
+      { path: 'demand.medium', label: 'Medium-demand species', meta: demandMeta },
+      { path: 'demand.high', label: 'High-demand species', meta: demandMeta },
+      { path: 'foodMineralContent', label: 'Minerals per gram of food and tissue', meta: foodMineralContentMeta },
     ],
   },
   { key: 'livestock', label: 'Livestock', meta: livestockConfigMeta },
@@ -124,7 +171,7 @@ export function tunableSections(config: TunableConfig): TunableSection[] {
     const fields = spec.meta.map((meta) => field(config, spec.key, meta));
     const groups = (spec.groups ?? []).map((group) => ({
       label: group.label,
-      fields: group.meta.map((meta) => field(config, `${spec.key}.${group.key}`, meta)),
+      fields: group.meta.map((meta) => field(config, group.path ? `${spec.key}.${group.path}` : spec.key, meta)),
     }));
     const modified = [...fields, ...groups.flatMap((group) => group.fields)].filter(
       (entry) => entry.modified

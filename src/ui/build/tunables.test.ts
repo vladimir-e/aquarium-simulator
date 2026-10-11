@@ -39,6 +39,42 @@ describe('tunableSections', () => {
     expect(nutrients.fields.every((field) => !field.modified)).toBe(true);
   });
 
+  it('groups the plants’ own fields by what they tune, the quotas beside the stores, and the blooms’ optics apart from the water’s', () => {
+    const list = sections();
+    const plants = list.find((section) => section.key === 'plants')!;
+    const optics = list.find((section) => section.key === 'optics')!;
+    const paths = (group: string): string[] =>
+      plants.groups.find((g) => g.label === group)!.fields.map((field) => field.path);
+
+    expect(plants.groups.map((group) => group.label)).toEqual([
+      'Energy budget',
+      'Nutrient stores',
+      'Tissue floor, Q_min',
+      'Tissue ceiling, Q_max',
+      'Harm',
+      'Income',
+      'Shedding',
+    ]);
+    expect(paths('Energy budget')).toEqual([
+      'plants.somaShare',
+      'plants.growthEfficiency',
+      'plants.reserveCapacity',
+      'plants.healingRate',
+      'plants.healingCost',
+    ]);
+    expect(paths('Nutrient stores')).toContain('plants.droopEdge');
+    expect(paths('Harm')).toContain('plants.starvationSeverity');
+    expect(plants.fields.map((field) => field.path)).toContain('plants.basePhotosynthesisRate');
+    expect(plants.groups[2].fields.map((field) => [field.unit, field.value])).toEqual(
+      Object.values(DEFAULT_CONFIG.plants.quotaMin).map((value) => [expect.stringMatching(/^mg \w+\/g$/), value])
+    );
+
+    expect(optics.fields.map((field) => field.path)).toEqual(['optics.waterAttenuationPerCm', 'optics.leafAttenuationPerLai']);
+    expect(optics.groups).toEqual([
+      { label: 'Blooms', fields: [expect.objectContaining({ path: 'optics.algaeAttenuationPerCm' }), expect.objectContaining({ path: 'optics.algaeCoatOpticalDepth' })] },
+    ]);
+  });
+
   it('carries the range a leaf declares, and none where the engine declares none', () => {
     const list = sections();
     const optics = list.find((section) => section.key === 'optics')!;
