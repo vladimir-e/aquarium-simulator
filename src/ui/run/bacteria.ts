@@ -120,9 +120,9 @@ export interface ConversionRates {
   gillsToAmmonia: number;
   /** NH₃ ppm the oxidised share of decaying food releases this hour. */
   foodToAmmonia: number;
-  /** NH₃ ppm the plants' new tissue takes up from the water this hour. */
+  /** NH₃ ppm the plants' stores take up from the water this hour. */
   plantAmmoniaUptake: number;
-  /** NH₃ ppm the blooms' new tissue takes up from the water this hour. */
+  /** NH₃ ppm the blooms' stores and spores take up from the water this hour. */
   algaeAmmoniaUptake: number;
   /** NH₃ ppm the AOB colony takes out of the water this hour. */
   ammoniaOxidised: number;
