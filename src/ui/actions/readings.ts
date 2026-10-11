@@ -13,7 +13,7 @@
 import {
   ALGAE,
   ALGAE_KINDS,
-  bloomMass,
+  bloomCoverage,
   floorLight,
   floorShade,
   plantLightTaken,
@@ -359,7 +359,7 @@ const READINGS: Reading[] = [
     (kind): Reading => ({
       key: kind,
       label: ALGAE[kind].name,
-      read: ({ state }) => bloomMass(state, kind),
+      read: ({ state }) => bloomCoverage(state, kind),
       unit: PERCENT,
       display: same,
       decimals: COVERAGE_DECIMALS,

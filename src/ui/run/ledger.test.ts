@@ -21,7 +21,7 @@ import { mapNutrients, NUTRIENTS } from '../../simulation/config/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
-import { bloomMass } from '../../simulation/algae/index.js';
+import { bloomCoverage } from '../../simulation/algae/index.js';
 import { offshootStructure } from '../../simulation/plants/create-plant.js';
 import { atSize } from '../../simulation/tests/plant.js';
 import { LEDGER_DECIMALS, readLedger, type BudgetRow, type Ledger, type LedgerTarget } from './ledger.js';
@@ -331,7 +331,7 @@ describe('readLedger', () => {
 
       expect(ledger.value).toBe(Math.floor(state.algae[kind].condition).toString());
       expect(ledger.trend).toBe(projectedTrend(next.algae[kind].condition - state.algae[kind].condition));
-      expect(ledger.coverage!.note).toBe(projectedTrend(bloomMass(next, kind) - bloomMass(state, kind)));
+      expect(ledger.coverage!.note).toBe(projectedTrend(bloomCoverage(next, kind) - bloomCoverage(state, kind)));
       expect(ledger.net).toBeCloseTo(vitality.breakdown.net * 24, 10);
       expect(ledger.helps - ledger.hurts).toBeCloseTo(ledger.net, 10);
       state = next;

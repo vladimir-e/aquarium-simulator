@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bloomMass } from '../../simulation/algae/index.js';
+import { bloomCoverage } from '../../simulation/algae/index.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
 import { atSize } from '../../simulation/tests/plant.js';
 import { produce } from 'immer';
@@ -195,7 +195,7 @@ describe('preview readings', () => {
     const state = fixture();
     const rows = detail(state, 'scrubAlgae').preview;
 
-    expect(row(rows, 'film').after).toBe((bloomMass(state, 'film') - onTheGlass(state).film).toFixed(0));
+    expect(row(rows, 'film').after).toBe((bloomCoverage(state, 'film') - onTheGlass(state).film).toFixed(0));
     expect(rows.map((r) => r.key)).toEqual(expect.arrayContaining(['waste', 'film']));
     for (const r of rows) expect(['nitrate', 'phosphate', 'potassium', 'iron', 'kh', 'ph', 'waste', 'film']).toContain(r.key);
   });
@@ -204,7 +204,7 @@ describe('preview readings', () => {
     const state = fixture();
     const rows = detail(state, 'waterChange').preview;
 
-    expect(row(rows, 'greenWater').before).toBe(bloomMass(state, 'greenWater').toFixed(0));
+    expect(row(rows, 'greenWater').before).toBe(bloomCoverage(state, 'greenWater').toFixed(0));
     expect(rows.map((r) => r.key)).not.toContain('film');
   });
 

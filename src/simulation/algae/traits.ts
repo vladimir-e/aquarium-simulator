@@ -25,7 +25,7 @@ export interface AlgaeTraits extends FloraTraits {
   phosphateHalfSaturation: number;
   /** Organic matter a full habitat holds, g per unit of it: a litre of column, a cm² of surface. */
   tissueDensity: number;
-  /** Mass that lands every hour through the crowding taper, whatever the bloom is doing, 0–100 scale. */
+  /** Coverage that lands every hour through the crowding taper, whatever the bloom is doing, 0–100 scale. */
   sporeRate: number;
   /** Q_min: mg of each nutrient's element — N, P, K, Fe — in a gram of its structure. */
   quotaMin: NutrientVector;

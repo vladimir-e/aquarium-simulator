@@ -66,7 +66,6 @@ export const TRACKS: TrackDef[] = [
   },
   {
     id: 'population',
-    // A bloom's mass (`bloomMass`) is a coverage percentage despite the name, as a plant's size is.
     title: 'Populations',
     shortLabel: 'pop.',
     alertKinds: ['algae'],

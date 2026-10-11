@@ -250,12 +250,12 @@ describe('readTank', () => {
 
   it('prints coverage as the log states it, in either system', () => {
     const { state, history } = stocked(1);
-    for (const mass of [0.4, 4.7, 12.5, 63.49]) {
+    for (const percent of [0.4, 4.7, 12.5, 63.49]) {
       for (const units of ['metric', 'imperial'] as const) {
         for (const kind of ALGAE_KINDS) {
-          const bloomed = { ...state, algae: { ...state.algae, [kind]: bloomAt(state, kind, mass) } };
+          const bloomed = { ...state, algae: { ...state.algae, [kind]: bloomAt(state, kind, percent) } };
           const reading = readTank({ state: bloomed, config: DEFAULT_CONFIG, history, units }).byId[kind];
-          expect(`${reading.value} ${reading.unit}`).toBe(logQuantityIn(units)(coverage(mass)));
+          expect(`${reading.value} ${reading.unit}`).toBe(logQuantityIn(units)(coverage(percent)));
         }
       }
     }

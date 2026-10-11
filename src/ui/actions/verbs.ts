@@ -12,7 +12,7 @@ import {
   ALGAE,
   ALGAE_KINDS,
   applyAction,
-  bloomMass,
+  bloomCoverage,
   canDose,
   canRootTab,
   coverage,
@@ -222,7 +222,7 @@ function blockedReason(
         ? null
         : `nothing above ${settings.trimPlants} %`;
     case 'scrubAlgae':
-      return glassKinds(state).some((kind) => bloomShows(bloomMass(state, kind)))
+      return glassKinds(state).some((kind) => bloomShows(bloomCoverage(state, kind)))
         ? null
         : 'the glass is clean';
   }
@@ -236,7 +236,7 @@ function glassKinds(state: SimulationState): AlgaeKind[] {
 /** Each kind a scrub reaches, named, with its coverage. */
 function onSurfaces(state: SimulationState, units: UnitSystem): string {
   return glassKinds(state)
-    .map((kind) => `${ALGAE[kind].name.toLowerCase()} ${logQuantityIn(units)(coverage(bloomMass(state, kind)))}`)
+    .map((kind) => `${ALGAE[kind].name.toLowerCase()} ${logQuantityIn(units)(coverage(bloomCoverage(state, kind)))}`)
     .join(' · ');
 }
 
@@ -262,7 +262,7 @@ function rowValue(
       return `to ${settings.trimPlants} %`;
     case 'scrubAlgae':
       return glassKinds(state)
-        .map((kind) => logQuantityIn(units)(coverage(bloomMass(state, kind))))
+        .map((kind) => logQuantityIn(units)(coverage(bloomCoverage(state, kind))))
         .join(' · ');
   }
 }

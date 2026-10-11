@@ -3,7 +3,7 @@ import { produce } from 'immer';
 import { onTheGlass, scrubAlgae } from './scrub-algae.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { calculateFloorArea, calculateTankGlassSurface } from '../core/geometry.js';
-import { bloomMass, habitatSize, placeShare } from '../algae/index.js';
+import { bloomCoverage, habitatSize, placeShare } from '../algae/index.js';
 import { bloomAt, bloomsTissue } from '../tests/blooms.js';
 import { createHardscapeItem } from '../equipment/hardscape.js';
 import { placeHardscape } from '../equipment/index.js';
@@ -35,7 +35,7 @@ describe('onTheGlass', () => {
     const bare = withAlgae(80);
     const rocked = placeHardscape(bare, createHardscapeItem('rock', 'neutral_rock'));
     expect(placeShare('surfaces', 'walls', rocked)).toBeLessThan(placeShare('surfaces', 'walls', bare));
-    expect(onTheGlass(rocked).film / bloomMass(rocked, 'film')).toBeCloseTo(placeShare('surfaces', 'walls', rocked), 12);
+    expect(onTheGlass(rocked).film / bloomCoverage(rocked, 'film')).toBeCloseTo(placeShare('surfaces', 'walls', rocked), 12);
   });
 });
 
@@ -44,7 +44,7 @@ describe('scrubAlgae', () => {
     const state = withAlgae(80, 40);
     const scrubbed = scrubAlgae(state, config).state;
 
-    expect(bloomMass(scrubbed, 'film')).toBeCloseTo(80 * (1 - placeShare('surfaces', 'walls', state)), 12);
+    expect(bloomCoverage(scrubbed, 'film')).toBeCloseTo(80 * (1 - placeShare('surfaces', 'walls', state)), 12);
     expect(scrubbed.algae.film.condition).toBe(state.algae.film.condition);
   });
 
@@ -74,7 +74,7 @@ describe('scrubAlgae', () => {
     const once = scrubAlgae(withAlgae(80), config).state;
     const twice = scrubAlgae(once, config).state;
     const kept = 1 - placeShare('surfaces', 'walls', once);
-    expect(bloomMass(twice, 'film')).toBeCloseTo(80 * kept * kept, 12);
+    expect(bloomCoverage(twice, 'film')).toBeCloseTo(80 * kept * kept, 12);
   });
 
   it('reports and logs what it removed and what is left', () => {
@@ -85,7 +85,7 @@ describe('scrubAlgae', () => {
     expect(result.message).toContain(onTheGlass(state).film.toFixed(1));
     expect(result.state.logs).toHaveLength(state.logs.length + 1);
     expect(log).toMatchObject({ source: 'scrub', severity: 'info' });
-    expect(log.message).toContain(bloomMass(result.state, 'film').toFixed(1));
+    expect(log.message).toContain(bloomCoverage(result.state, 'film').toFixed(1));
   });
 
   it('names where what is left lies: the places of the habitat off the glass', () => {
@@ -112,6 +112,6 @@ describe('scrubAlgae', () => {
   it('does not modify the state it was given', () => {
     const state = withAlgae(100);
     scrubAlgae(state, config);
-    expect(bloomMass(state, 'film')).toBeCloseTo(100, 12);
+    expect(bloomCoverage(state, 'film')).toBeCloseTo(100, 12);
   });
 });

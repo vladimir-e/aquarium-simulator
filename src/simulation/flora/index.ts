@@ -63,7 +63,7 @@ import {
   habitatSize,
   landSpores,
   mapKinds,
-  massOf,
+  coverageOf,
   sporesBuilt,
   sporesUptake,
   type AlgaeKind,
@@ -163,7 +163,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     const { budget, condition } = state.algae[kind];
     const habitat = habitatSize(traits.habitat, state);
     const lit = bloomLight(resources, habitatGain(traits.habitat, state, config.optics), traits);
-    const room = growthTaper(massOf(budget.structure, habitat, traits));
+    const room = growthTaper(coverageOf(budget.structure, habitat, traits));
     return {
       kind,
       traits,
@@ -311,9 +311,9 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     blooms.forEach(({ kind, traits, habitat }, k) => {
       const { survivor } = bloomLosses[k];
       const condition = conditions[plantCount + k];
-      const mass = massOf(steps[plantCount + k].state.structure, habitat, traits);
-      if (survivor === null && mass >= BLOOM_VISIBLE_LINE) {
-        log('warning', measured`${traits.name} died back from ${coverage(mass)} coverage`, 'algae-died');
+      const lost = coverageOf(steps[plantCount + k].state.structure, habitat, traits);
+      if (survivor === null && lost >= BLOOM_VISIBLE_LINE) {
+        log('warning', measured`${traits.name} died back from ${coverage(lost)} coverage`, 'algae-died');
       }
       draft.algae[kind] = landSpores(survivor === null ? null : { budget: survivor, condition }, spores[k]);
     });

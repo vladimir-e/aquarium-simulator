@@ -34,7 +34,7 @@ describe('lightLoss', () => {
   });
 
   it('grows linearly in green water, and shades nothing at zero attenuation', () => {
-    const k = (mass: number): number => waterExtinction(blooms(mass, 0), opticsDefaults) - opticsDefaults.waterAttenuationPerCm;
+    const k = (coverage: number): number => waterExtinction(blooms(coverage, 0), opticsDefaults) - opticsDefaults.waterAttenuationPerCm;
     expect(k(80)).toBeCloseTo(2 * k(40), 14);
     const clear = { ...opticsDefaults, algaeAttenuationPerCm: 0, algaeCoatOpticalDepth: 0 };
     expect(lightLoss(blooms(100, 100), clear)).toMatchObject({ extinction: clear.waterAttenuationPerCm, leafPass: 1 });

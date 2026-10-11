@@ -17,7 +17,7 @@ import {
   ALGAE,
   ALGAE_KINDS,
   allelopathy,
-  bloomMass,
+  bloomCoverage,
   bloomTissue,
   habitatGain,
   habitatSize,
@@ -330,7 +330,7 @@ describe.each(ALGAE_KINDS)('processFlora — %s', (kind) => {
   it('grows on its stores under the lamp, and reads the light over its own habitat', () => {
     const state = floraTank({ algae: { [kind]: 10 }, ...LIT });
     const result = processFlora(state, config);
-    expect(bloomMass(result.state, kind)).toBeGreaterThan(bloomMass(state, kind));
+    expect(bloomCoverage(result.state, kind)).toBeGreaterThan(bloomCoverage(state, kind));
     expect(result.algae[kind].light.par).toBeCloseTo(60 * habitatGain(traits.habitat, state, config.optics), 12);
   });
 
@@ -359,8 +359,8 @@ describe.each(ALGAE_KINDS)('processFlora — %s', (kind) => {
   });
 
   it('crowds out its own growth as it fills its habitat', () => {
-    const grown = (mass: number): number => {
-      const state = floraTank({ algae: { [kind]: mass }, ...LIT });
+    const grown = (coverage: number): number => {
+      const state = floraTank({ algae: { [kind]: coverage }, ...LIT });
       return processFlora(state, config).algae[kind].fluxes.toStructure / state.algae[kind].budget.structure;
     };
     expect(grown(90)).toBeLessThan(grown(10));

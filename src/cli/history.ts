@@ -6,7 +6,7 @@
  * and a hard cap keeps the session file size predictable.
  */
 
-import { bloomMass, bloomParams, mapKinds, wellFed, type AlgaeKind, type SimulationState } from '../simulation/index.js';
+import { bloomCoverage, bloomParams, mapKinds, wellFed, type AlgaeKind, type SimulationState } from '../simulation/index.js';
 import type { TunableConfig } from '../simulation/config/index.js';
 
 export const HISTORY_CAP = 720; // 30 days of hourly samples
@@ -42,7 +42,7 @@ export interface HistorySnapshot {
 
 /** A bloom as the trace reads it: its coverage, its condition and its reserve density. */
 export interface BloomTrace {
-  mass: number;
+  coverage: number;
   condition: number;
   reserve: number;
 }
@@ -87,7 +87,7 @@ export function snapshot(state: SimulationState, config: TunableConfig): History
       avgCondition: avg(state.plants.map((p) => p.condition)),
     },
     algae: mapKinds((kind) => ({
-      mass: bloomMass(state, kind),
+      coverage: bloomCoverage(state, kind),
       condition: state.algae[kind].condition,
       reserve: wellFed(state.algae[kind].budget, bloomParams(kind, config.plants)),
     })),

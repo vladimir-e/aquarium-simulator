@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { bloomMass, columnGain, habitatPlaces, habitatSize, massOf, namePlaces, placeShare, type HabitatPlace } from './habitat.js';
+import { bloomCoverage, columnGain, habitatPlaces, habitatSize, coverageOf, namePlaces, placeShare, type HabitatPlace } from './habitat.js';
 import { ALGAE, ALGAE_KINDS, clearPlace, coverageAt, EMPTY_BLOOM, habitatGain, waterExtinction } from './index.js';
 import { createSimulation } from '../state.js';
 import { calculateFloorArea, calculateTankGlassSurface, calculateTankHeight } from '../core/geometry.js';
@@ -44,8 +44,8 @@ describe('the column', () => {
 });
 
 describe('under green water', () => {
-  const green = (mass: number): typeof tank =>
-    produce(tank, (draft) => void (draft.algae.greenWater = bloomAt(draft, 'greenWater', mass)));
+  const green = (coverage: number): typeof tank =>
+    produce(tank, (draft) => void (draft.algae.greenWater = bloomAt(draft, 'greenWater', coverage)));
   const depth = calculateTankHeight(100);
   const ofLamp = (state: typeof tank, habitat: 'column' | 'surfaces'): number =>
     habitatGain(habitat, state, opticsDefaults) * Math.exp(-waterExtinction(state, opticsDefaults) * depth);
@@ -133,11 +133,11 @@ describe('a habitat that changes size', () => {
     for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 40);
   });
 
-  it('reads a bloom’s mass as its structure over what the full habitat holds', () => {
+  it('reads a bloom’s coverage as its structure over what the full habitat holds', () => {
     for (const kind of ALGAE_KINDS) {
       const { habitat } = ALGAE[kind];
-      expect(bloomMass(coated, kind)).toBeCloseTo(massOf(kindTissue(coated, kind), habitatSize(habitat, coated), ALGAE[kind]), 12);
-      expect(bloomMass(coated, kind)).toBeCloseTo(40, 12);
+      expect(bloomCoverage(coated, kind)).toBeCloseTo(coverageOf(kindTissue(coated, kind), habitatSize(habitat, coated), ALGAE[kind]), 12);
+      expect(bloomCoverage(coated, kind)).toBeCloseTo(40, 12);
     }
   });
 
@@ -147,7 +147,7 @@ describe('a habitat that changes size', () => {
       const { habitat } = ALGAE[kind];
       const grown = habitatSize(habitat, placed) / habitatSize(habitat, coated);
       expect(kindTissue(placed, kind)).toBeCloseTo(kindTissue(coated, kind), 12);
-      expect(bloomMass(placed, kind)).toBeCloseTo(40 / grown, 12);
+      expect(bloomCoverage(placed, kind)).toBeCloseTo(40 / grown, 12);
     }
     expect(placed.algae).toEqual(coated.algae);
   });
@@ -157,14 +157,14 @@ describe('a habitat that changes size', () => {
       for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 40);
     });
     const lifted = liftHardscape(withRock, 'rock');
-    for (const kind of ALGAE_KINDS) expect(bloomMass(lifted, kind)).toBeCloseTo(40, 12);
+    for (const kind of ALGAE_KINDS) expect(bloomCoverage(lifted, kind)).toBeCloseTo(40, 12);
     expect(kindTissue(lifted, 'film')).toBeLessThan(kindTissue(withRock, 'film'));
     expect(lifted.algae.greenWater).toEqual(withRock.algae.greenWater);
   });
 });
 
 describe('coverageAt', () => {
-  it('is each kind’s mass times the share of its habitat at the place', () => {
+  it('is each kind’s coverage times the share of its habitat at the place', () => {
     const blooms = produce(rocked, (draft) => {
       for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 60);
     });

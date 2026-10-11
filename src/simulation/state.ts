@@ -67,8 +67,8 @@ export interface Fish {
 /**
  * One kind of bloom: a population run on the plants' model, without a
  * position. Its budget is the bloom's as a whole, and how full its habitat is
- * — its mass, 0–100 — is its structure over what a full habitat holds
- * (`bloomMass`), so a habitat that changes size moves its coverage, not its
+ * — its coverage, 0–100 — is its structure over what a full habitat holds
+ * (`bloomCoverage`), so a habitat that changes size moves its coverage, not its
  * tissue.
  */
 export interface AlgaeState {

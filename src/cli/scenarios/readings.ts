@@ -7,7 +7,7 @@ import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
 import { BLOOM_COVERAGE_LINE } from '../../simulation/alerts/bloom.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/helpers.js';
 import { getPh } from '../../simulation/core/carbonate.js';
-import { ALGAE, ALGAE_KINDS, bloomMass, type AlgaeKind } from '../../simulation/algae/index.js';
+import { ALGAE, ALGAE_KINDS, bloomCoverage, type AlgaeKind } from '../../simulation/algae/index.js';
 import { toFahrenheit } from '../units.js';
 import { snakeCase, type SnakeCase } from '../names.js';
 
@@ -224,7 +224,7 @@ const DEFINITIONS = [
       label: ALGAE[kind].name.toLowerCase(),
       unit: '/100',
       digits: 0,
-      read: (s) => bloomMass(s, kind),
+      read: (s) => bloomCoverage(s, kind),
       band: { green: [0, BLOOM_COVERAGE_LINE], amber: [0, 2 * BLOOM_COVERAGE_LINE], why: BLOOM_WHY[kind] },
     })
   ),

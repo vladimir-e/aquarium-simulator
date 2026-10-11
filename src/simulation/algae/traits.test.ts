@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ALGAE_KINDS, bloomMass } from './index.js';
+import { ALGAE_KINDS, bloomCoverage } from './index.js';
 import { bloomParams } from '../flora/params.js';
 import { applyAction } from '../actions/index.js';
 import { BLOOM_VISIBLE_LINE } from '../alerts/bloom.js';
@@ -30,8 +30,8 @@ describe.each(ALGAE_KINDS)('%s on its energy budget', (kind) => {
     const dieBacks = dark.hours.filter((hour) => hour.algae[kind].vitality.newCondition <= 0);
     expect(dieBacks.length).toBeGreaterThan(1);
     expect(dark.state.logs.filter((log) => log.event === 'algae-died')).toHaveLength(1);
-    expect(bloomMass(dark.state, kind)).toBeLessThan(BLOOM_VISIBLE_LINE);
-    expect(bloomMass(runFlora(dark.state, 30 * HOURS_PER_DAY, litDay(60)).state, kind)).toBeGreaterThan(BLOOM_VISIBLE_LINE);
+    expect(bloomCoverage(dark.state, kind)).toBeLessThan(BLOOM_VISIBLE_LINE);
+    expect(bloomCoverage(runFlora(dark.state, 30 * HOURS_PER_DAY, litDay(60)).state, kind)).toBeGreaterThan(BLOOM_VISIBLE_LINE);
   });
 });
 
@@ -41,7 +41,7 @@ describe('film on the glass of a planted tank', () => {
     (hour + 1) % WEEK === 0 ? applyAction(state, { type: 'scrubAlgae' }, config).state : state;
   const coverage = (weeks: number, keep?: typeof scrubbedWeekly): number[] =>
     runFlora(floraTank({ plants: planting() }), weeks * WEEK, litDay(60), { keep }).hours.map(({ state }) =>
-      bloomMass(state, 'film')
+      bloomCoverage(state, 'film')
     );
 
   it('is held by weekly scrubbing under where it stands unscrubbed at two weeks, its weekly peaks cresting and falling back', () => {

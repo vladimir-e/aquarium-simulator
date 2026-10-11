@@ -15,10 +15,10 @@ export function bloomsTissue(state: SimulationState): number {
 }
 
 /** A kind's bloom at this coverage of its habitat in this tank, fed and stocked, at full condition unless it says otherwise. */
-export function bloomAt(tank: HabitatTank, kind: AlgaeKind, mass: number, condition = 100): AlgaeState {
+export function bloomAt(tank: HabitatTank, kind: AlgaeKind, coverage: number, condition = 100): AlgaeState {
   const traits = ALGAE[kind];
   return {
-    budget: stocked(bloomTissue(mass, habitatSize(traits.habitat, tank), traits), bloomParams(kind, plantsDefaults)),
+    budget: stocked(bloomTissue(coverage, habitatSize(traits.habitat, tank), traits), bloomParams(kind, plantsDefaults)),
     condition,
   };
 }

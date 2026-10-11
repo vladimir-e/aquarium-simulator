@@ -9,7 +9,7 @@
 import {
   addOrganics,
   applyEffects,
-  bloomMass,
+  bloomCoverage,
   calculateDecay,
   dailyLightIntegral,
   gillAmmonia,
@@ -59,7 +59,7 @@ export interface BloomAhead extends Omit<BloomHour, 'spores'> {
   /** Condition as the tick leaves the bloom, its spores landed. */
   condition: number;
   /** Coverage as the tick leaves the bloom. */
-  mass: number;
+  coverage: number;
 }
 
 export interface HourAhead {
@@ -129,7 +129,7 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
         waterUptake,
         exudates,
         condition: planted.algae[kind].condition,
-        mass: bloomMass(planted, kind),
+        coverage: bloomCoverage(planted, kind),
       };
     }),
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),

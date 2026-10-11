@@ -7,7 +7,7 @@
  */
 
 import {
-  bloomMass,
+  bloomCoverage,
   ALGAE,
   ALGAE_KINDS,
   mapKinds,
@@ -519,18 +519,18 @@ function lightTakenSentence(kind: AlgaeKind, state: SimulationState, taken: numb
 
 /** A bloom's coverage, on its kind's ladder, in the tone of its `bloomLevel`. */
 function bloomView(kind: AlgaeKind, state: SimulationState, ahead: HourAhead, taken: number, tape: Tape): ReadingView {
-  const mass = bloomMass(state, kind);
+  const coverage = bloomCoverage(state, kind);
   const { habitat } = ALGAE[kind];
   const at = scale(DISPLAY_CEILING.algae);
   return {
     id: kind,
     name: ALGAE[kind].name,
-    value: mass.toFixed(DECIMALS[kind]),
+    value: coverage.toFixed(DECIMALS[kind]),
     unit: '%',
-    at: at(mass),
+    at: at(coverage),
     band: { from: 0, to: at(BLOOM_COVERAGE_LINE) },
-    tone: toneOf(algaeReading(kind, mass, taken).status),
-    trend: projectedDrift(ahead.algae[kind].mass - mass),
+    tone: toneOf(algaeReading(kind, coverage, taken).status),
+    trend: projectedDrift(ahead.algae[kind].coverage - coverage),
     sentence: [
       COVERAGE_SENTENCE[habitat](namePlaces(habitatPlaces(habitat, state))),
       REMOVAL_SENTENCE[REMOVED_BY[habitat]],
@@ -766,10 +766,10 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
         name: byId[kind].name,
         figure: `${byId[kind].value} %`,
         caption: 'coverage',
-        trend: projectedDrift(ahead.algae[kind].mass - bloomMass(state, kind)),
+        trend: projectedDrift(ahead.algae[kind].coverage - bloomCoverage(state, kind)),
         at: byId[kind].at,
         band: byId[kind].band,
-        ...algaeReading(kind, bloomMass(state, kind), taken[kind]),
+        ...algaeReading(kind, bloomCoverage(state, kind), taken[kind]),
       })),
     },
     rack: {

@@ -3,7 +3,7 @@ import { produce } from 'immer';
 import {
   ALGAE_KINDS,
   applyEffects,
-  bloomMass,
+  bloomCoverage,
   createSimulation,
   dailyLightIntegral,
   getPresetById,
@@ -229,7 +229,7 @@ describe('readHourAhead', () => {
 
       for (const kind of ALGAE_KINDS) {
         expect(ahead.algae[kind].condition).toBe(next.algae[kind].condition);
-        expect(ahead.algae[kind].mass).toBe(bloomMass(next, kind));
+        expect(ahead.algae[kind].coverage).toBe(bloomCoverage(next, kind));
       }
     }
   });

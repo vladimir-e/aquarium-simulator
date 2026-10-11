@@ -55,7 +55,7 @@ describe('trace fields', () => {
       },
       DEFAULT_CONFIG
     );
-    const fields = ['green_water_mass', 'green_water_condition', 'green_water_reserve', 'film_mass'];
+    const fields = ['green_water_coverage', 'green_water_condition', 'green_water_reserve', 'film_coverage'];
     expect(renderTrace([bloom], { fields })).toBe(`tick,${fields.join(',')}\n${bloom.tick},12.5,90,1,40`);
   });
 });

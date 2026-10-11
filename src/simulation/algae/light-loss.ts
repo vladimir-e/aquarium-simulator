@@ -11,7 +11,7 @@ import type { SimulationState } from '../state.js';
 import type { OpticsConfig } from '../config/optics.js';
 import { ALGAE, ALGAE_KINDS, type AlgaeHabitat, type AlgaeKind } from './traits.js';
 import { mapKinds } from './blooms.js';
-import { bloomMass } from './habitat.js';
+import { bloomCoverage } from './habitat.js';
 
 /** What the blooms' light loss is read off: their tissue and the habitats it spreads over. */
 export type BloomTank = Pick<SimulationState, 'tank' | 'equipment' | 'algae'>;
@@ -38,7 +38,7 @@ export interface LightLoss {
 }
 
 export function lightLoss(tank: BloomTank, optics: OpticsConfig): LightLoss {
-  const loss = mapKinds((kind) => LOSS[ALGAE[kind].habitat](bloomMass(tank, kind) / 100, optics));
+  const loss = mapKinds((kind) => LOSS[ALGAE[kind].habitat](bloomCoverage(tank, kind) / 100, optics));
   return {
     extinction: ALGAE_KINDS.reduce((k, kind) => k + loss[kind].extinction, optics.waterAttenuationPerCm),
     leafPass: ALGAE_KINDS.reduce((passed, kind) => passed * (1 - loss[kind].coat), 1),

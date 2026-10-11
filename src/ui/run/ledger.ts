@@ -9,7 +9,7 @@
 import {
   ALGAE,
   ALGAE_KINDS,
-  bloomMass,
+  bloomCoverage,
   bloomParams,
   debParams,
   droopLimits,
@@ -505,14 +505,14 @@ function exudatesRow(exudates: number): BudgetRow[] {
  */
 function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourAhead, kind: AlgaeKind): Ledger {
   const { condition, budget } = state.algae[kind];
-  const mass = bloomMass(state, kind);
+  const coverage = bloomCoverage(state, kind);
   const next = ahead.algae[kind];
   const { breakdown } = next.vitality;
   const traits = ALGAE[kind];
   const p = bloomParams(kind, config.plants);
   const place = HABITAT[traits.habitat];
   const taken = plantLightTaken(state, config.optics)[kind] * 100;
-  const coverage = algaeReading(kind, mass, taken);
+  const reading = algaeReading(kind, coverage, taken);
   const { value, trend, sick } = vitalReading(condition, next.condition);
 
   return {
@@ -520,7 +520,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     species: kind,
     title: traits.name,
     subtitle: `${place.lies} ${namePlaces(habitatPlaces(traits.habitat, state))}`,
-    ...coverage,
+    ...reading,
     value,
     valueStatus: conditionStatus(condition),
     unit: '% condition',
@@ -531,11 +531,11 @@ function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourA
     light: lightRow(next.light.needShare, lightStatus(next.light.needShare), place.lit),
     lightPath: null,
     coverage: {
-      text: mass.toFixed(COVERAGE_DECIMALS),
-      at: mass / 100,
+      text: coverage.toFixed(COVERAGE_DECIMALS),
+      at: coverage / 100,
       band: { from: 0, to: BLOOM_COVERAGE_LINE / 100 },
-      status: coverage.status,
-      note: projectedTrend(next.mass - mass),
+      status: reading.status,
+      note: projectedTrend(next.coverage - coverage),
     },
     lightTaken:
       state.plants.length > 0

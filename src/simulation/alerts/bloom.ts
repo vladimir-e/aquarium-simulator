@@ -7,7 +7,7 @@
 import type { Alert, AlertResult } from './types.js';
 import type { SimulationState } from '../state.js';
 import type { TunableConfig } from '../config/index.js';
-import { ALGAE, ALGAE_KINDS, bloomMass, REMOVED_BY, type AlgaeKind, type BloomRemoval } from '../algae/index.js';
+import { ALGAE, ALGAE_KINDS, bloomCoverage, REMOVED_BY, type AlgaeKind, type BloomRemoval } from '../algae/index.js';
 import { plantLightTaken } from '../plants/canopy.js';
 import { ceiled, latch } from './latch.js';
 
@@ -30,10 +30,10 @@ export interface BloomLevel {
  * share of the plants' light it takes, %, each as a multiple of its line, and
  * which of the two that is. Past 1 it alerts.
  */
-export function bloomLevel(mass: number, taken: number): BloomLevel {
-  const coverage = mass / BLOOM_COVERAGE_LINE;
+export function bloomLevel(coverage: number, taken: number): BloomLevel {
+  const covered = coverage / BLOOM_COVERAGE_LINE;
   const light = taken / PLANT_LIGHT_LINE;
-  return light >= coverage ? { level: light, leads: 'light' } : { level: coverage, leads: 'coverage' };
+  return light >= covered ? { level: light, leads: 'light' } : { level: covered, leads: 'coverage' };
 }
 
 const ADVICE: Record<BloomRemoval, string> = {
@@ -48,9 +48,9 @@ export function bloomAlert(kind: AlgaeKind): Alert {
     id: `bloom-${kind}`,
 
     check(state: SimulationState, config: TunableConfig): AlertResult {
-      const mass = bloomMass(state, kind);
+      const coverage = bloomCoverage(state, kind);
       const taken = plantLightTaken(state, config.optics)[kind] * 100;
-      const { level, leads } = bloomLevel(mass, taken);
+      const { level, leads } = bloomLevel(coverage, taken);
       return latch(
         state,
         kind,
@@ -58,7 +58,7 @@ export function bloomAlert(kind: AlgaeKind): Alert {
         'algae',
         leads === 'light'
           ? `${name} taking ${ceiled(taken, 0)}% of the plants' light - ${advice}`
-          : `${name} bloom: ${ceiled(mass, 1)}% coverage - ${advice}`
+          : `${name} bloom: ${ceiled(coverage, 1)}% coverage - ${advice}`
       );
     },
   };

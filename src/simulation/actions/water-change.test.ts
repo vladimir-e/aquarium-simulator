@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bloomMass } from '../algae/index.js';
+import { bloomCoverage } from '../algae/index.js';
 import { bloomAt } from '../tests/blooms.js';
 import { produce } from 'immer';
 import { waterChange } from './water-change.js';
@@ -48,7 +48,7 @@ describe('waterChange', () => {
     });
     const after = change(before, amount).state;
 
-    expect(bloomMass(after, 'greenWater')).toBeCloseTo(60 * (1 - amount), 9);
+    expect(bloomCoverage(after, 'greenWater')).toBeCloseTo(60 * (1 - amount), 9);
     expect(after.algae.greenWater.condition).toBe(80);
     expect(after.algae.film).toEqual(before.algae.film);
   });

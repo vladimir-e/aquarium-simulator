@@ -57,7 +57,7 @@ diverge the moment their keepers act differently.
 | Water change | a fraction in `(0, 1]`, optionally a vacuum share in `[0, 1]` | see below | either non-finite or outside its range, or the tank is empty |
 | Dose | millilitres | the four nutrient pools, by the fertilizer ratio | non-finite, below the minimum or above the maximum |
 | Root tab | a whole number of tabs | the bed's nutrient store, by `rootTab` per tab | not a whole number from 1 to `MAX_ROOT_TABS`, or no bed |
-| Scrub algae | — | the film on the glass walls, into `waste`: the film's mass down by the walls' share of its habitat, what is left spread back over the glass; green water floats free of it | nothing on the glass |
+| Scrub algae | — | the film on the glass walls, into `waste`: the film's coverage down by the walls' share of its habitat, what is left spread back over the glass; green water floats free of it | nothing on the glass |
 | Trim plants | a target size, optionally one plant id or one family id | every plant above the target down to it — of that family, or just the named plant | target outside `[MIN_PLANTABLE_SIZE, 100]`, nothing above the target, plant not found |
 | Add plant | species, optional size | a unit founding its own family, fed and stocked, at condition 100 | unknown species, size outside `[MIN_PLANTABLE_SIZE, 100]`, not enough floor for its footprint |
 | Remove plant | plant id | the plant leaves the array; a rooted one disturbs its footprint's share of the bed | not found |
@@ -101,7 +101,7 @@ leaving every gram of the material still feeding it.
 |---|---|
 | Nutrients | milligrams, from a dose in millilitres or a count of root tabs |
 | Water | whole tank — top-off and water change both end at capacity, never in between |
-| A bloom's mass | a share of the standing mass — a scrub's the walls' share of its habitat, a water change's the share changed — never an absolute figure |
+| A bloom's coverage | a share of the standing coverage — a scrub's the walls' share of its habitat, a water change's the share changed — never an absolute figure |
 | Plant `size` | an absolute target, not a delta |
 | Organisms | one at a time, except selling fry, which is the whole cohort |
 
@@ -158,7 +158,7 @@ the ceiling and simply lock further stocking out.
 | [Environment](/subsystems/environment/) | `tapWaterTemperature` and `tapKh` as the thing being blended toward; `water` and `tank.capacity` for every refill | `water` and `temperature` |
 | [Plants](/subsystems/plants/) | `plants` for the floor budget, and the trim target and family | The array, and each budget directly |
 | [Livestock](/subsystems/livestock/) | `fish` for the mass ceiling and the fry count | The array; `food` for the fish to eat next tick |
-| [Algae](/subsystems/algae/) | Each bloom's mass, and the share of its habitat on the glass and in the column | The film's budget, down by the walls' share into `waste` and the water; green water's, by the share of water changed |
+| [Algae](/subsystems/algae/) | Each bloom's coverage, and the share of its habitat on the glass and in the column | The film's budget, down by the walls' share into `waste` and the water; green water's, by the share of water changed |
 | [Equipment](/subsystems/equipment/) | `substrate.type` — whether there is a bed to tab | `substrate.nutrients`, raised by a root tab; settings are written by the host |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Every applied action appends a `user` entry; a scrub files itself under `scrub`. A refusal logs nothing |
 | [State & persistence](/subsystems/state-and-persistence/) | The draw stream, for every new organism's id | The advanced stream position |

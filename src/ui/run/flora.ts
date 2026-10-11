@@ -76,8 +76,8 @@ import {
 export const TRIM_TARGETS = [50, 75, 85];
 
 /** Whether there is any bloom to see. */
-export function bloomShows(mass: number): boolean {
-  return mass >= BLOOM_VISIBLE_LINE;
+export function bloomShows(coverage: number): boolean {
+  return coverage >= BLOOM_VISIBLE_LINE;
 }
 
 /**
@@ -99,8 +99,8 @@ function lineStatus(multiple: number): Status {
 const ALGAE_LADDER = [0.5, TONE_TURNS.warn, TONE_TURNS.alert, Infinity] as const;
 
 /** The rung a coverage that shows stands on. */
-function rungOf(mass: number): number {
-  return ALGAE_LADDER.findIndex((upTo) => mass / BLOOM_COVERAGE_LINE <= upTo);
+function rungOf(coverage: number): number {
+  return ALGAE_LADDER.findIndex((upTo) => coverage / BLOOM_COVERAGE_LINE <= upTo);
 }
 
 type WordPer<T extends readonly unknown[]> = { [K in keyof T]: string };
@@ -125,11 +125,11 @@ export function lightTakenStatus(taken: number): Status {
  * none to see — in the tone of its `bloomLevel`, amber exactly where it
  * alerts. `taken` is the share of the plants' light it takes, %.
  */
-export function algaeReading(kind: AlgaeKind, mass: number, taken: number): Reading {
+export function algaeReading(kind: AlgaeKind, coverage: number, taken: number): Reading {
   const words = ALGAE_WORDS[kind];
   return {
-    status: lineStatus(bloomLevel(mass, taken).level),
-    word: bloomShows(mass) ? words[rungOf(mass) + 1] : words[0],
+    status: lineStatus(bloomLevel(coverage, taken).level),
+    word: bloomShows(coverage) ? words[rungOf(coverage) + 1] : words[0],
   };
 }
 

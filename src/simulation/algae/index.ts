@@ -1,6 +1,6 @@
 /**
  * A bloom — plant mechanics without a position. Its budget is the bloom's as
- * a whole and its mass is the share of its habitat that tissue fills, so the
+ * a whole and its coverage is the share of its habitat that tissue fills, so the
  * crowding its habitat leaves is the room its growth has.
  */
 
@@ -18,7 +18,7 @@ import { NO_STRESS, type DebStress } from '../systems/reserve.js';
 import { getPlantPower } from '../systems/plant-power.js';
 import { floorShade } from '../plants/canopy.js';
 import {
-  bloomMass,
+  bloomCoverage,
   columnGain,
   habitatMean,
   placeShare,
@@ -148,12 +148,12 @@ export function landSpores(bloom: AlgaeState | null, spores: FloraState): AlgaeS
   };
 }
 
-/** Each kind's coverage at a place: its mass times the share of its habitat that lies there. */
+/** Each kind's coverage at a place: its coverage times the share of its habitat that lies there. */
 export function coverageAt(
   tank: HabitatTank & Pick<SimulationState, 'algae'>,
   place: HabitatPlace
 ): Record<AlgaeKind, number> {
-  return mapKinds((kind) => bloomMass(tank, kind) * placeShare(ALGAE[kind].habitat, place, tank));
+  return mapKinds((kind) => bloomCoverage(tank, kind) * placeShare(ALGAE[kind].habitat, place, tank));
 }
 
 /**
@@ -177,13 +177,13 @@ export { EMPTY_BLOOM, emptyBlooms, isAlgaeKind, mapKinds } from './blooms.js';
 export type { AlgaeHabitat, AlgaeKind, AlgaeTraits } from './traits.js';
 export {
   bloomLight,
-  bloomMass,
+  bloomCoverage,
   bloomTissue,
   columnGain,
   habitatMean,
   habitatPlaces,
   habitatSize,
-  massOf,
+  coverageOf,
   namePlaces,
   placesKept,
   placeShare,

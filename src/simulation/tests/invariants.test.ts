@@ -7,7 +7,7 @@ import { DEFAULT_CONFIG, configRange, withTunable, type TunableConfig } from '..
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { mapNutrients, NUTRIENTS, WASTE_NUTRIENTS, type NutrientVector, type WasteNutrient } from '../config/nutrients.js';
 import { CACO3_PER_EQUIVALENT, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
-import { ALGAE_KINDS, bloomMass } from '../algae/index.js';
+import { ALGAE_KINDS, bloomCoverage } from '../algae/index.js';
 import { bloomParams, plantParams } from '../flora/params.js';
 import { floraNutrients, type FloraState } from '../systems/flora-budget.js';
 import { offshootStructure } from '../plants/create-plant.js';
@@ -594,13 +594,13 @@ describe('blooms at every tunable’s maximum', () => {
     let state = start;
     for (let hour = 0; hour < 48; hour++) {
       state = tick(state, config);
-      for (const kind of ALGAE_KINDS) expectBounded(bloomMass(state, kind), state.algae[kind]);
+      for (const kind of ALGAE_KINDS) expectBounded(bloomCoverage(state, kind), state.algae[kind]);
       for (const plant of state.plants) expectBounded(sizeOf(plant), plant);
     }
     return state;
   };
 
-  it.each(maxed)('keep mass within [0, 100], condition within [0, 100] and every pool of the budget ≥ 0 with %s at its max', (_path, config) => {
+  it.each(maxed)('keep coverage within [0, 100], condition within [0, 100] and every pool of the budget ≥ 0 with %s at its max', (_path, config) => {
     keepBounded(crowded, config);
   });
 
@@ -632,7 +632,7 @@ describe('the keeper’s hands on the blooms', () => {
 
   it('keep every gram of a scrub in the tank, as waste and leachate, KH moving back by the charge the leachate’s uptake moved', () => {
     const scrubbed = applyAction(coated, { type: 'scrubAlgae' }).state;
-    expect(bloomMass(scrubbed, 'film')).toBeLessThan(bloomMass(coated, 'film'));
+    expect(bloomCoverage(scrubbed, 'film')).toBeLessThan(bloomCoverage(coated, 'film'));
     expect(scrubbed.algae.greenWater).toEqual(coated.algae.greenWater);
     expect(scrubbed.resources.kh).toBeLessThan(coated.resources.kh);
     expect(nitrogenInPools(scrubbed) / nitrogenInPools(coated)).toBeCloseTo(1, 12);

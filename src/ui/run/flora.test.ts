@@ -51,7 +51,7 @@ import {
 import { readHourAhead } from './ahead';
 import { bloomAt } from '../../simulation/tests/blooms.js';
 import { plantRecord, withStores } from '../../simulation/tests/plant.js';
-import { bloomMass } from '../../simulation/algae/index.js';
+import { bloomCoverage } from '../../simulation/algae/index.js';
 import { offshootStructure } from '../../simulation/plants/create-plant.js';
 import { sizeOf } from '../../simulation/plants/canopy.js';
 import { COVERAGE_DECIMALS } from '../utils/units';
@@ -141,13 +141,13 @@ describe('condition + algae words', () => {
 
     it('turns amber exactly where the engine alerts, planted or not', () => {
       for (const bed of [tank(), planted(['monte_carlo', 'amazon_sword'])]) {
-        for (let mass = 0; mass <= 95; mass += 5) {
+        for (let coverage = 0; coverage <= 95; coverage += 5) {
           const state = produce(bed, (draft) => {
-            draft.algae[kind] = bloomAt(draft, kind, mass);
+            draft.algae[kind] = bloomAt(draft, kind, coverage);
           });
           const taken = plantLightTaken(state, DEFAULT_CONFIG.optics)[kind] * 100;
           const alerts = bloomAlert(kind).check(state, DEFAULT_CONFIG).log !== null;
-          expect(algaeReading(kind, bloomMass(state, kind), taken).status !== 'ok').toBe(alerts);
+          expect(algaeReading(kind, bloomCoverage(state, kind), taken).status !== 'ok').toBe(alerts);
         }
       }
     });

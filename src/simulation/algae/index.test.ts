@@ -10,7 +10,7 @@ import {
   bloomTissue,
   EMPTY_BLOOM,
   landSpores,
-  massOf,
+  coverageOf,
   sporesBuilt,
   sporesUptake,
   thrivingPlantDensity,
@@ -45,16 +45,16 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
   });
 
   describe('bloomTissue', () => {
-    it('scales with the mass and with the size of its habitat', () => {
+    it('scales with the coverage and with the size of its habitat', () => {
       expect(bloomTissue(100, 100, traits)).toBeCloseTo(2 * bloomTissue(50, 100, traits), 12);
       expect(bloomTissue(100, 284, traits)).toBeGreaterThan(bloomTissue(100, 38, traits));
       expect(bloomTissue(100, 1, traits)).toBe(traits.tissueDensity);
       expect(bloomTissue(0, 284, traits)).toBe(0);
     });
 
-    it('reads backwards as massOf, and no habitat holds any mass', () => {
-      for (const mass of [0, 0.3, 42, 100]) expect(massOf(bloomTissue(mass, 284, traits), 284, traits)).toBeCloseTo(mass, 12);
-      expect(massOf(1, 0, traits)).toBe(0);
+    it('reads backwards as coverageOf, and no habitat holds any coverage', () => {
+      for (const coverage of [0, 0.3, 42, 100]) expect(coverageOf(bloomTissue(coverage, 284, traits), 284, traits)).toBeCloseTo(coverage, 12);
+      expect(coverageOf(1, 0, traits)).toBe(0);
     });
   });
 

@@ -82,19 +82,19 @@ export function habitatSize(habitat: AlgaeHabitat, tank: HabitatTank): number {
 }
 
 /** Grams of organic matter in this much bloom, in a habitat of this size. */
-export function bloomTissue(mass: number, habitat: number, traits: AlgaeTraits): number {
-  return (mass / 100) * traits.tissueDensity * habitat;
+export function bloomTissue(coverage: number, habitat: number, traits: AlgaeTraits): number {
+  return (coverage / 100) * traits.tissueDensity * habitat;
 }
 
-/** Mass this much tissue makes of a bloom in a habitat of this size: `bloomTissue` read backwards. */
-export function massOf(structure: number, habitat: number, traits: AlgaeTraits): number {
+/** Coverage this much tissue makes of a bloom in a habitat of this size: `bloomTissue` read backwards. */
+export function coverageOf(structure: number, habitat: number, traits: AlgaeTraits): number {
   return habitat > 0 ? (100 * structure) / (traits.tissueDensity * habitat) : 0;
 }
 
 /** How full its habitat a kind's bloom stands, 0–100: its structure over what the full habitat holds. */
-export function bloomMass(tank: HabitatTank & Pick<SimulationState, 'algae'>, kind: AlgaeKind): number {
+export function bloomCoverage(tank: HabitatTank & Pick<SimulationState, 'algae'>, kind: AlgaeKind): number {
   const traits = ALGAE[kind];
-  return massOf(tank.algae[kind].budget.structure, habitatSize(traits.habitat, tank), traits);
+  return coverageOf(tank.algae[kind].budget.structure, habitatSize(traits.habitat, tank), traits);
 }
 
 /** The share of a habitat that lies at this place, 0–1: none where the habitat has no piece there. */

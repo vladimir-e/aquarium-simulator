@@ -15,7 +15,7 @@ import { mapNutrients } from '../config/nutrients.js';
 import {
   ALGAE,
   ALGAE_KINDS,
-  bloomMass,
+  bloomCoverage,
   clearPlace,
   coverageAt,
   namePlaces,
@@ -32,7 +32,7 @@ import { addOrganics } from '../core/organics.js';
 import { sum } from '../core/sum.js';
 import type { ActionResult } from './types.js';
 
-/** Each kind's mass times the walls' share of its habitat — what a scrub takes off. */
+/** Each kind's coverage times the walls' share of its habitat — what a scrub takes off. */
 export function onTheGlass(state: SimulationState): Record<AlgaeKind, number> {
   return coverageAt(state, 'walls');
 }
@@ -57,7 +57,7 @@ export function scrubAlgae(state: SimulationState, config: PlantsConfig): Action
           draft.tick,
           'scrub',
           'info',
-          `Scrubbed the glass: removed ${glass[kind].toFixed(1)} ${traits.name.toLowerCase()}, ${bloomMass(draft, kind).toFixed(1)} left on ${namePlaces(placesKept(traits.habitat, 'walls', state))}`
+          `Scrubbed the glass: removed ${glass[kind].toFixed(1)} ${traits.name.toLowerCase()}, ${bloomCoverage(draft, kind).toFixed(1)} left on ${namePlaces(placesKept(traits.habitat, 'walls', state))}`
         )
       );
     }

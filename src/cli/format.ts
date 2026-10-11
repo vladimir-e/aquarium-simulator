@@ -5,7 +5,7 @@
 import {
   ALGAE,
   ALGAE_KINDS,
-  bloomMass,
+  bloomCoverage,
   getDgh,
   getDkh,
   getPh,
@@ -135,7 +135,7 @@ export function renderObserve(session: Session): string {
     )} ppm${storesLine(state, session.config)}`,
     `**Other** waste ${round(r.waste.grams, 2)}g · ${ALGAE_KINDS.map(
       (kind) =>
-        `${ALGAE[kind].name.toLowerCase()} ${round(bloomMass(state, kind), 1)} (condition ${round(state.algae[kind].condition, 0)}%)`
+        `${ALGAE[kind].name.toLowerCase()} ${round(bloomCoverage(state, kind), 1)} (condition ${round(state.algae[kind].condition, 0)}%)`
     ).join(' · ')} · food ${round(r.food, 2)}g`,
     '',
     `**Fish (${state.fish.length})** ${
@@ -193,9 +193,9 @@ const DERIVED_FIELDS = [
   'dgh',
 ] as const;
 
-const BLOOM_KEYS = ['mass', 'condition', 'reserve'] as const satisfies readonly (keyof BloomTrace)[];
+const BLOOM_KEYS = ['coverage', 'condition', 'reserve'] as const satisfies readonly (keyof BloomTrace)[];
 
-/** Each kind's bloom, a column per figure: `green_water_mass`, `film_condition`… */
+/** Each kind's bloom, a column per figure: `green_water_coverage`, `film_condition`… */
 const BLOOM_FIELDS = new Map<string, [AlgaeKind, keyof BloomTrace]>(
   ALGAE_KINDS.flatMap((kind) =>
     BLOOM_KEYS.map((key): [string, [AlgaeKind, keyof BloomTrace]] => [
