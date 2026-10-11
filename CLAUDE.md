@@ -25,6 +25,11 @@ This project follows documentation-driven development:
 - When removing code, clean it up completely as if it never existed
 - No deprecated functions, no compatibility shims, no "kept for backward compatibility" comments
 
+**One word per idea** (the split is deliberate — don't unify it):
+- `offshoot` in identifiers; "plantlet" only as the reader's word in labels and prose
+- `allelopathy` in code; "exudates" in prose
+- a bloom has `coverage`; every organism has a `budget`
+
 ## One abstraction
 
 Every organism runs one vitality model. Condition is the buffer between dying and thriving, normal at 100: benefit rates raise it, damage rates lower it, so nothing dies or heals instantly. Every organism's reserve buys what it makes — a fish's growth and broods, a plant's growth and offshoots, a bloom's growth — and pays its repair. Any organism dies at 0; a plant or a bloom below 100 sheds tissue. An organism is sick while its damage outruns its healing.
