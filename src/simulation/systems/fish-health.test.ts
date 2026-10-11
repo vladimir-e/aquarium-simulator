@@ -107,7 +107,7 @@ const REFERENCE: Pace = { tau: 1, omega: 1, stress: NO_STRESS };
 
 /** Grams of reserve a fish asks to repair at this pace. */
 const asked = (fish: Fish, pace: Pace, config = livestockDefaults): number =>
-  repairAsked(fish.deb, fishParams(fish), fish.health, pace.tau, config);
+  repairAsked(fish.budget, fishParams(fish), fish.health, pace.tau, config);
 
 /** A fish's hour of budget on a full reserve and an empty gut, repairing what it asks. */
 const hourOf = (fish: Fish, config = AGELESS): FishHour =>
@@ -195,7 +195,7 @@ describe('stressors', () => {
   });
 
   it('isolates starvation stress to its own key', () => {
-    const v = vitality({ deb: { ...fishRecord().deb, reserve: 0 } });
+    const v = vitality({ budget: { ...fishRecord().budget, reserve: 0 } });
     expect(stressorAmount(v, 'starvation')).toBeGreaterThan(0);
     expect(totalStress(v)).toBeCloseTo(stressorAmount(v, 'starvation'), 10);
   });
@@ -228,7 +228,7 @@ describe('stressors', () => {
   it('sums every active stressor into the total', () => {
     const small = fishRecord({ size: 20 });
     const v = vitality(
-      { ...small, deb: { ...small.deb, reserve: 0, hazard: 1e-4 } },
+      { ...small, budget: { ...small.budget, reserve: 0, hazard: 1e-4 } },
       {
         temperature: 18,
         ph: 8.5,
@@ -502,7 +502,7 @@ describe('processHealth', () => {
   });
 
   it('kills a fish of old age when its survival falls below its draw, at any health', () => {
-    const fish = fishRecord({ survival: 0.5, survivalDraw: 0.5, deb: { ...fishRecord().deb, hazard: 1e-3 } });
+    const fish = fishRecord({ survival: 0.5, survivalDraw: 0.5, budget: { ...fishRecord().budget, hazard: 1e-3 } });
     const result = health([fish]);
     expect(result.survivingFish).toHaveLength(0);
     expect(result.vitalities[0].newCondition).toBeGreaterThan(0);
@@ -511,12 +511,12 @@ describe('processHealth', () => {
   });
 
   it('labels a death mostly of age damage as old age too', () => {
-    const frail = fishRecord({ health: 0.01, deb: { ...fishRecord().deb, hazard: 1e-3 } });
+    const frail = fishRecord({ health: 0.01, budget: { ...fishRecord().budget, hazard: 1e-3 } });
     expect(health([frail], {}, [], [0], livestockDefaults).deadFishNames).toEqual(['Neon Tetra (old age)']);
   });
 
   it('labels a death mostly of starvation as starved', () => {
-    const starving = fishRecord({ health: 0.01, deb: { ...fishRecord().deb, reserve: 0 } });
+    const starving = fishRecord({ health: 0.01, budget: { ...fishRecord().budget, reserve: 0 } });
     expect(health([starving]).deadFishNames).toEqual(['Neon Tetra (starved)']);
   });
 
@@ -537,7 +537,7 @@ describe('processHealth', () => {
 
   it('returns the whole of every dead body, its buffer, its gut and its brood', () => {
     const grown = fishRecord({ id: 'dying', health: 0.001, gut: 0.001, sex: 'female' });
-    const dying = { ...grown, deb: { ...grown.deb, broodBuffer: 0.002 } };
+    const dying = { ...grown, budget: { ...grown.budget, broodBuffer: 0.002 } };
     const result = health([dying], { oxygen: 0 }, [], [0.003]);
     expect(result.deathWaste).toBeCloseTo(remainsOf(dying) + 0.003, 15);
     expect(remainsOf(dying)).toBeGreaterThan(remainsOf(grown) + 0.0019);
@@ -662,20 +662,20 @@ describe('predation', () => {
 
 describe('starvation', () => {
   it('is the share of its upkeep the hour left unpaid', () => {
-    const empty = fishRecord({ deb: { ...fishRecord().deb, reserve: 0 } });
+    const empty = fishRecord({ budget: { ...fishRecord().budget, reserve: 0 } });
     expect(starvation(hourOf(empty))).toBeCloseTo(1, 12);
     expect(starvation(hourOf(fishRecord()))).toBe(0);
   });
 
   it('charges starvationSeverity at a wholly unpaid upkeep, before hardiness', () => {
-    const empty = { ...fishRecord(), deb: { ...fishRecord().deb, reserve: 0 } };
+    const empty = { ...fishRecord(), budget: { ...fishRecord().budget, reserve: 0 } };
     const charged = stressorAmount(vitality(empty), 'starvation');
     expect(charged).toBeCloseTo(livestockDefaults.starvationSeverity * (1 - speciesHardiness('neon_tetra')), 12);
   });
 
   it('earns its benefits on its reserve density: in full on a full reserve, none on an empty one', () => {
     const full = fishRecord();
-    const empty = { ...full, deb: { ...full.deb, reserve: 0 } };
+    const empty = { ...full, budget: { ...full.budget, reserve: 0 } };
     expect(vitality(full).breakdown.benefitRate).toBeGreaterThan(0);
     expect(vitality(empty).breakdown.benefitRate).toBe(0);
   });
@@ -684,8 +684,8 @@ describe('starvation', () => {
 describe('repair', () => {
   it('asks its deficit closing first order at healingRate × τ, at healingCost hours of its upkeep a point', () => {
     const fish = fishRecord({ health: 60 });
-    const price = repairPrice(fish.deb, fishParams(fish), livestockDefaults);
-    expect(price).toBeCloseTo(livestockDefaults.healingCost * debParams('neon_tetra').pM * fish.deb.structure, 15);
+    const price = repairPrice(fish.budget, fishParams(fish), livestockDefaults);
+    expect(price).toBeCloseTo(livestockDefaults.healingCost * debParams('neon_tetra').pM * fish.budget.structure, 15);
     expect(asked(fish, { ...REFERENCE, tau: 1.5 }, livestockDefaults)).toBeCloseTo(
       price * hourlyDraw(livestockDefaults.healingRate * 1.5) * 40,
       15
@@ -711,7 +711,7 @@ describe('repair', () => {
 
   it('heals nothing from an empty reserve, nor at no oxygen', () => {
     const fish = fishRecord({ health: 60 });
-    expect(vitality({ ...fish, deb: { ...fish.deb, reserve: 0 } }, {}, { config: HEALING }).breakdown.healed).toBe(0);
+    expect(vitality({ ...fish, budget: { ...fish.budget, reserve: 0 } }, {}, { config: HEALING }).breakdown.healed).toBe(0);
     const record = fishRecord(fish);
     const breathless = liveHour(record, { ...REFERENCE, omega: 0 }, asked(record, REFERENCE, HEALING), HEALING);
     const v = computeFishVitality(record, breathless, makeResources(), [], 100, 100, HEALING, 0);
@@ -721,7 +721,7 @@ describe('repair', () => {
 
 describe('age', () => {
   it('damages health at hazardSeverity times the hazard, shielded by no hardiness', () => {
-    const fish = fishRecord({ deb: { ...fishRecord().deb, hazard: 2e-5 } });
+    const fish = fishRecord({ budget: { ...fishRecord().budget, hazard: 2e-5 } });
     const v = vitality(fish, {}, { config: livestockDefaults });
     expect(stressorAmount(v, 'age')).toBeCloseTo(livestockDefaults.hazardSeverity * 2e-5, 15);
     const hardy = vitality({ ...fish, hardinessOffset: 0.3 }, {}, { config: livestockDefaults });

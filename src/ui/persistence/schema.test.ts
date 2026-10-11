@@ -499,7 +499,7 @@ describe('PersistedSimulationSchema', () => {
   it('rejects a fish missing hardinessOffset or its budget (strict mode)', () => {
     const without = (key: string): object => Object.fromEntries(Object.entries(fishRecord()).filter(([k]) => k !== key));
     expect(PersistedSimulationSchema.safeParse(withFish(without('hardinessOffset'))).success).toBe(false);
-    expect(PersistedSimulationSchema.safeParse(withFish(without('deb'))).success).toBe(false);
+    expect(PersistedSimulationSchema.safeParse(withFish(without('budget'))).success).toBe(false);
   });
 
   it('refuses a survival or threshold outside 0–1', () => {

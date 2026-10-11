@@ -21,7 +21,8 @@ import type { HistorySnapshot } from './history.js';
  * v21 gave the organic pools their content and the flora their energy
  *    budgets. `Resources.waste` and `Substrate.organicReserve` become
  *    `{ grams, nutrients }`; `Plant` trades `size` and `surplus`, and
- *    `AlgaeState` `mass` and `surplus`, for `budget`, and the trace's
+ *    `AlgaeState` `mass` and `surplus`, for `budget`, `Fish.deb` becomes
+ *    `Fish.budget`, and the trace's
  *    `*_mass` and `*_surplus` columns become `*_coverage` and `*_reserve`,
  *    the bloom's reserve density. A v20 session parses and its first tick
  *    adds organics to a number.

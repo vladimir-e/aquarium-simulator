@@ -74,7 +74,7 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
   const water = state.resources.water;
   const paces = tankPaces(state, config);
   const healing = state.fish.map((fish, i) =>
-    repairAsked(fish.deb, fishParams(fish), fish.health, paces[i].tau, livestock)
+    repairAsked(fish.budget, fishParams(fish), fish.health, paces[i].tau, livestock)
   );
   const metabolism = processMetabolism(state.fish, paces, healing, state.resources, livestock);
 

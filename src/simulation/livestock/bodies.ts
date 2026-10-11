@@ -149,10 +149,10 @@ function layBroods(draft: SimulationState): number {
     const result = brood(females, males);
 
     females.forEach((female, i) => {
-      female.deb = result.females[i];
+      female.budget = result.females[i];
     });
     males.forEach((male, i) => {
-      male.deb = result.males[i];
+      male.budget = result.males[i];
     });
     burned += result.burned;
 
@@ -173,8 +173,8 @@ function turnOverMaleBuffers(fish: Fish[], paces: readonly Pace[], config: Lives
   paces.forEach((pace, i) => {
     const male = fish[i];
     if (male.sex !== 'male') return;
-    const turned = male.deb.broodBuffer * hourlyDraw(config.maleBufferTurnover * pace.tau);
-    male.deb.broodBuffer -= turned;
+    const turned = male.budget.broodBuffer * hourlyDraw(config.maleBufferTurnover * pace.tau);
+    male.budget.broodBuffer -= turned;
     burned += turned;
   });
   return burned;

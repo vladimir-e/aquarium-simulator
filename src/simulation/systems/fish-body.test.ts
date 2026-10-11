@@ -21,9 +21,9 @@ describe.each(SPECIES)('a %s body', (species) => {
 
   it('reads its weight, size and organics off its budget', () => {
     const fish = fishRecord({ species, size: 60 });
-    expect(fishMass(fish)).toBe(wetMass(fish.deb, p));
-    expect(fishSize(fish)).toBe(size(fish.deb, p));
-    expect(fishOrganics(fish)).toBe(organics(fish.deb, p));
+    expect(fishMass(fish)).toBe(wetMass(fish.budget, p));
+    expect(fishSize(fish)).toBe(size(fish.budget, p));
+    expect(fishOrganics(fish)).toBe(organics(fish.budget, p));
   });
 
   it('lays an egg of E_0 that weighs what its hatchling does, and hatches at the hatchling size', () => {
@@ -37,9 +37,9 @@ describe.each(SPECIES)('a %s body', (species) => {
     const at = (sizePercent: number, maturity: number): ReturnType<typeof fishLifeStage> =>
       fishLifeStage({
         species,
-        deb: { ...fish.deb, structure: ((sizePercent / 100) * maxStructuralLength(p)) ** 3, maturity },
+        budget: { ...fish.budget, structure: ((sizePercent / 100) * maxStructuralLength(p)) ** 3, maturity },
       });
-    expect(fishLifeStage({ species, deb: hatchling(p) })).toBe('fry');
+    expect(fishLifeStage({ species, budget: hatchling(p) })).toBe('fry');
     expect(at(FRY_UNTIL_SIZE - 0.1, 0.99 * p.EHp)).toBe('fry');
     expect(at(FRY_UNTIL_SIZE + 0.1, 0.99 * p.EHp)).toBe('juvenile');
     expect(at(FRY_UNTIL_SIZE - 0.1, p.EHp)).toBe('adult');
@@ -51,7 +51,7 @@ describe('countFry', () => {
   it('counts the fish that read as fry, not the juveniles nor the adults', () => {
     const adult = fishRecord({ species: 'guppy' });
     const juvenile = fishRecord({ species: 'angelfish' });
-    const fry = { ...adult, deb: hatchling(debParams('guppy')) };
+    const fry = { ...adult, budget: hatchling(debParams('guppy')) };
     expect([adult, juvenile, fry].map(fishLifeStage)).toEqual(['adult', 'juvenile', 'fry']);
     expect(countFry([adult, juvenile, fry, fry])).toBe(2);
     expect(countFry([])).toBe(0);

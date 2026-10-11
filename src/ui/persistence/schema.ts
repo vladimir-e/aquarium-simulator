@@ -292,7 +292,7 @@ const FishSchema = z
     gut: z.number().min(0),
     sex: z.enum(['male', 'female']),
     hardinessOffset: z.number(),
-    deb: DebStateSchema,
+    budget: DebStateSchema,
     survival: z.number().min(0).max(1),
     survivalDraw: z.number().min(0).max(1),
   })

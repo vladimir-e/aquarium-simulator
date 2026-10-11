@@ -238,7 +238,7 @@ describe('LifeSection', () => {
       ...run.state.fish[0],
       id,
       species,
-      deb: hatchling(debParams(species)),
+      budget: hatchling(debParams(species)),
     });
     const state: SimulationState = {
       ...run.state,

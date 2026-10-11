@@ -76,14 +76,14 @@ export interface FishHour {
 export function liveHour(fish: Fish, pace: Pace, healing: number, config: LivestockConfig): FishHour {
   const p = fishParams(fish);
   const digested = digest(fish.gut, pace.tau, config);
-  const { state, fluxes } = stepDeb(fish.deb, p, { fromGut: digested, ...pace, healing });
+  const { state, fluxes } = stepDeb(fish.budget, p, { fromGut: digested, ...pace, healing });
   return {
     fish: {
       ...fish,
       gut: fish.gut - digested + fluxes.returned,
-      deb: state,
+      budget: state,
       age: fish.age + 1,
-      survival: fish.survival * Math.exp(-fish.deb.hazard),
+      survival: fish.survival * Math.exp(-fish.budget.hazard),
     },
     pace,
     digested,

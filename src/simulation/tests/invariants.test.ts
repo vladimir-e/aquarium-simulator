@@ -268,9 +268,9 @@ describe('a lone female fasting to her death', () => {
     });
     fasted = start;
     for (let hour = 0; hour < 25 * 24; hour++) {
-      const before = fasted.fish[0].deb.broodBuffer;
+      const before = fasted.fish[0].budget.broodBuffer;
       fasted = tick(fasted);
-      if (hour === 0) resorbed = before - fasted.fish[0].deb.broodBuffer;
+      if (hour === 0) resorbed = before - fasted.fish[0].budget.broodBuffer;
     }
     end = tick(
       produce(fasted, (draft) => {
@@ -285,7 +285,7 @@ describe('a lone female fasting to her death', () => {
     expect(start.clutches).toHaveLength(0);
     expect(fasted.clutches).toHaveLength(0);
     expect(fasted.fish).toHaveLength(1);
-    expect(fasted.fish[0].deb.structure).toBeLessThan(start.fish[0].deb.structure);
+    expect(fasted.fish[0].budget.structure).toBeLessThan(start.fish[0].budget.structure);
     expect(end.fish).toHaveLength(0);
     expect(end.logs.filter((log) => log.event === 'fish-died').map((log) => log.message)).toEqual(['Neon Tetra (old age) died']);
   });
@@ -319,7 +319,7 @@ describe('the fish as ledger entries', () => {
     expect(stocked.fish).toHaveLength(tank.fish.length + 1);
     expect(nitrogenInPools(stocked) - nitrogenInPools(tank)).toBeCloseTo(nitrogenOf({ fish: [arrived], clutches: [] }), 15);
     const body = stockedBody('angelfish', 40);
-    expect(nitrogenOf({ fish: [arrived], clutches: [] })).toBeCloseTo(fishOrganics({ species: 'angelfish', deb: body.deb }) * n, 15);
+    expect(nitrogenOf({ fish: [arrived], clutches: [] })).toBeCloseTo(fishOrganics({ species: 'angelfish', budget: body.budget }) * n, 15);
   });
 
   it('take a removed fish’s body, brood buffer, gut and carried brood out as an output, exactly', () => {
@@ -738,7 +738,7 @@ describe('a guppy stocked as a fry, among the fish that hunt her', () => {
         const she = state.fish.find((f) => f.id === id);
         if (she) {
           sizes.push(fishSize(she));
-          grown.push(mature(she.deb, fishParams(she)));
+          grown.push(mature(she.budget, fishParams(she)));
         }
         const laid = state.logs.slice(logsRead).some((log) => log.event === 'eggs-laid');
         if (firstBrood < 0 && laid) firstBrood = sizes.length - 1;

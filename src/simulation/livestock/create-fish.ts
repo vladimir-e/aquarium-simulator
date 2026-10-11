@@ -39,7 +39,7 @@ export function unstockableSizeMessage(species: FishSpecies): string {
 }
 
 export interface Upbringing {
-  deb: DebState;
+  budget: DebState;
   survival: number;
   hours: number;
 }
@@ -49,14 +49,14 @@ export function raise(species: FishSpecies, target: number, temperatureC: number
   if (!isStockableSize(species, target)) throw new RangeError(unstockableSizeMessage(species));
   const p = debParams(species);
   const pace = { tau: speciesTau(species, temperatureC), omega: 1 };
-  let [deb, survival, hours] = [hatchling(p), 1, 0];
-  while (size(deb, p) < target) {
-    const fromGut = appetite({ species, deb }, pace);
-    survival *= Math.exp(-deb.hazard);
-    deb = { ...stepDeb(deb, p, { fromGut, ...pace }).state, broodBuffer: 0 };
+  let [budget, survival, hours] = [hatchling(p), 1, 0];
+  while (size(budget, p) < target) {
+    const fromGut = appetite({ species, budget }, pace);
+    survival *= Math.exp(-budget.hazard);
+    budget = { ...stepDeb(budget, p, { fromGut, ...pace }).state, broodBuffer: 0 };
     hours++;
   }
-  return { deb, survival, hours };
+  return { budget, survival, hours };
 }
 
 const shop = new Map<string, Upbringing>();
@@ -65,14 +65,14 @@ const shop = new Map<string, Upbringing>();
  * The body a stocked fish arrives with, raised at its species' mid-range temperature to `target` % of its grown
  * length, before any individual variation.
  */
-export function stockedBody(species: FishSpecies, target: number): Pick<Fish, 'deb' | 'survival' | 'age'> {
+export function stockedBody(species: FishSpecies, target: number): Pick<Fish, 'budget' | 'survival' | 'age'> {
   const key = `${species}:${target}`;
   let raised = shop.get(key);
   if (raised === undefined) {
     raised = raise(species, target, midRangeTemperature(species));
     shop.set(key, raised);
   }
-  return { deb: raised.deb, survival: raised.survival, age: raised.hours };
+  return { budget: raised.budget, survival: raised.survival, age: raised.hours };
 }
 
 interface Individual {
@@ -85,7 +85,7 @@ interface Individual {
 
 function individual(
   { species, sex, rng }: Individual,
-  body: Pick<Fish, 'deb' | 'survival' | 'age'>
+  body: Pick<Fish, 'budget' | 'survival' | 'age'>
 ): Fish {
   // Drawn even when the caller named a sex: a seed that names one and a seed
   // that doesn't must otherwise hand every later organism a different stream.
@@ -101,7 +101,7 @@ function individual(
     gut: 0,
     sex: sex ?? sampledSex,
     hardinessOffset,
-    deb: body.deb,
+    budget: body.budget,
     survival: body.survival,
     survivalDraw,
   };
@@ -114,5 +114,5 @@ export function stockFish(params: Individual & { size: number }): Fish {
 
 /** A fry out of its egg. */
 export function hatchFish(params: Individual): Fish {
-  return individual(params, { deb: hatchling(debParams(params.species)), survival: 1, age: 0 });
+  return individual(params, { budget: hatchling(debParams(params.species)), survival: 1, age: 0 });
 }

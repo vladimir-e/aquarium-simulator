@@ -354,7 +354,7 @@ function fishLedger(
   const vital = vitalReading(fish.health, vitality.newCondition);
   const gut = fishGut(fish, hour, vital.sick, config.livestock);
   const reading = fishReading(vital.reading, gut);
-  const reserve = wellFed(fish.deb, debParams(fish.species));
+  const reserve = wellFed(fish.budget, debParams(fish.species));
 
   return {
     target: { kind: 'fish', id },
@@ -392,7 +392,7 @@ function reserveNote(fish: Fish, hour: FishHour, healed: number, broods: boolean
   if (starvation(hour) > 0) return 'short of upkeep';
   if (healed > 0) return 'healing from reserve';
   if (broods) return 'spawning';
-  return hour.fish.deb.reserve >= fish.deb.reserve ? 'filling' : 'drawing down';
+  return hour.fish.budget.reserve >= fish.budget.reserve ? 'filling' : 'drawing down';
 }
 
 function plantLedger(

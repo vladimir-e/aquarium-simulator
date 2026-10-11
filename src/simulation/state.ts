@@ -38,7 +38,7 @@ import type { FloraState } from './systems/flora-budget.js';
 
 /**
  * Individual fish in the tank. Its body is its energy budget: mass, size and
- * whether it is grown are read off `deb` against its species' parameters.
+ * whether it is grown are read off `budget` against its species' parameters.
  */
 export interface Fish {
   id: string;
@@ -57,7 +57,7 @@ export interface Fish {
    * synchronized mass die-offs. Range: ±15 % of species baseline.
    */
   hardinessOffset: number;
-  deb: DebState;
+  budget: DebState;
   /** exp(−∫h dt): the share of its cohort its hazard so far would leave alive. */
   survival: number;
   /** 0–1, drawn once at creation: the fish dies of old age when its survival falls below it. */

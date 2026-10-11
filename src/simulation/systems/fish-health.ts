@@ -227,7 +227,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
       ],
       ctx.hardiness
     ),
-    { key: 'age', label: 'Age', amount: config.hazardSeverity * fish.deb.hazard },
+    { key: 'age', label: 'Age', amount: config.hazardSeverity * fish.budget.hazard },
   ];
 }
 
@@ -239,7 +239,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
 function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
   const { fish, resources, plants, config } = ctx;
   const speciesData = FISH_SPECIES_DATA[fish.species];
-  const earning = wellFed(fish.deb, fishParams(fish));
+  const earning = wellFed(fish.budget, fishParams(fish));
 
   return [
     {
@@ -294,7 +294,7 @@ export function computeFishVitality(
     stressors: buildStressors(ctx),
     benefits: buildBenefits(ctx),
     condition: fish.health,
-    healed: pointsHealed(hour.fluxes.burned.healing, fish.deb, fishParams(fish), config),
+    healed: pointsHealed(hour.fluxes.burned.healing, fish.budget, fishParams(fish), config),
   });
 }
 

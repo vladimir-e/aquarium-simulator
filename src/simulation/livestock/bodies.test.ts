@@ -64,7 +64,7 @@ describe('processBodies', () => {
       const [clutch] = out.state.clutches;
       expect(clutch.eggs).toBe(bout + 3);
       expect(clutch.development).toBe(0);
-      expect(out.state.fish[0].deb.broodBuffer).toBeLessThan(debParams(species).E0 / debParams(species).kappaR);
+      expect(out.state.fish[0].budget.broodBuffer).toBeLessThan(debParams(species).E0 / debParams(species).kappaR);
     });
   }
 
@@ -72,8 +72,8 @@ describe('processBodies', () => {
     const she = holdingEggs(mkFish({ species: 'neon_tetra' }), spawnsAt('neon_tetra') + 0.5);
     const out = breed(withTank([she]));
     expect(out.state.clutches).toHaveLength(0);
-    expect(out.state.fish[0].deb.broodBuffer).toBeLessThan(she.deb.broodBuffer);
-    expect(out.burned).toBeCloseTo(she.deb.broodBuffer - out.state.fish[0].deb.broodBuffer, 15);
+    expect(out.state.fish[0].budget.broodBuffer).toBeLessThan(she.budget.broodBuffer);
+    expect(out.burned).toBeCloseTo(she.budget.broodBuffer - out.state.fish[0].budget.broodBuffer, 15);
   });
 
   it('hatches a clutch when its development completes, not before', () => {
@@ -152,7 +152,7 @@ describe('processBodies', () => {
     const out = breed(withTank([], [clutch]));
     expect(out.state.fish).toHaveLength(7);
     for (const fry of out.state.fish) {
-      expect(fry.deb).toEqual(hatchling(p));
+      expect(fry.budget).toEqual(hatchling(p));
       expect(fry.gut).toBe(0);
       expect(fry.age).toBe(0);
       expect(fry.survival).toBe(1);
@@ -242,9 +242,9 @@ describe('processBodies', () => {
     const tank = withTank([he, she]);
     const out = breed(tank);
     const tau = speciesTau('guppy', tank.resources.temperature);
-    const turned = he.deb.broodBuffer * hourlyDraw(DEFAULT_CONFIG.livestock.maleBufferTurnover * tau);
-    expect(out.state.fish[0].deb.broodBuffer).toBeCloseTo(he.deb.broodBuffer - turned, 15);
-    expect(out.state.fish[1].deb.broodBuffer).toBe(she.deb.broodBuffer);
+    const turned = he.budget.broodBuffer * hourlyDraw(DEFAULT_CONFIG.livestock.maleBufferTurnover * tau);
+    expect(out.state.fish[0].budget.broodBuffer).toBeCloseTo(he.budget.broodBuffer - turned, 15);
+    expect(out.state.fish[1].budget.broodBuffer).toBe(she.budget.broodBuffer);
     expect(out.burned).toBeCloseTo(turned, 15);
   });
 });

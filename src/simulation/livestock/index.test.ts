@@ -86,7 +86,7 @@ describe('processLivestock', () => {
 
     expect(result.state.fish[0].age).toBe(101);
     expect(result.state.fish[0].gut).toBeGreaterThan(fish.gut);
-    expect(result.state.fish[0].deb).not.toEqual(fish.deb);
+    expect(result.state.fish[0].budget).not.toEqual(fish.budget);
   });
 
   it('removes dead fish, logs the death and leaves their remains as waste', () => {

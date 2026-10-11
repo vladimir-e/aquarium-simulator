@@ -27,7 +27,7 @@ import { offshootStructure } from '../../simulation/plants/create-plant.js';
 const config = DEFAULT_CONFIG;
 
 function ripe(fish: Fish, eggs: number): void {
-  fish.deb = holdingEggs(fish, eggs).deb;
+  fish.budget = holdingEggs(fish, eggs).budget;
 }
 
 /**
@@ -154,8 +154,8 @@ describe('readHourAhead', () => {
       expect(ahead.fish.map((fish) => fish.vitality.newCondition)).toEqual(
         after.map((fish) => fish.health)
       );
-      expect(ahead.fish.map(({ hour }) => hour.fish.deb.structure)).toEqual(after.map((fish) => fish.deb.structure));
-      expect(ahead.fish.map(({ hour }) => hour.fish.deb.reserve)).toEqual(after.map((fish) => fish.deb.reserve));
+      expect(ahead.fish.map(({ hour }) => hour.fish.budget.structure)).toEqual(after.map((fish) => fish.budget.structure));
+      expect(ahead.fish.map(({ hour }) => hour.fish.budget.reserve)).toEqual(after.map((fish) => fish.budget.reserve));
     }
   });
 

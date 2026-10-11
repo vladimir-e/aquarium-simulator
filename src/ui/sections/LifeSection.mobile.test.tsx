@@ -26,7 +26,7 @@ function busy(): Run {
     ...run.state.fish[0],
     id,
     species,
-    deb: hatchling(debParams(species)),
+    budget: hatchling(debParams(species)),
   });
   const clutch: Clutch = {
     id: 'clutch_a_1',

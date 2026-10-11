@@ -26,7 +26,7 @@ import { fishRecord } from '../../simulation/tests/fish.js';
 /** A resident weighing `mass` grams of bare structure. */
 function whale(mass: number): Fish {
   const fish = fishRecord({ id: 'whale', species: 'angelfish' });
-  return { ...fish, deb: { ...fish.deb, structure: mass, reserve: 0 } };
+  return { ...fish, budget: { ...fish.budget, structure: mass, reserve: 0 } };
 }
 
 function tank(capacity = 200): SimulationState {

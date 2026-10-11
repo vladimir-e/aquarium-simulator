@@ -403,7 +403,7 @@ describe('createSimulation seeding', () => {
       const state = createSimulation(TANK, { fish: [{ species: 'neon_tetra' }] });
 
       expect(state.fish).toHaveLength(1);
-      expect(state.fish[0].deb).toEqual(stockedBody('neon_tetra', STOCKED_FISH_SIZE).deb);
+      expect(state.fish[0].budget).toEqual(stockedBody('neon_tetra', STOCKED_FISH_SIZE).budget);
     });
 
     it('builds fish at the size the roster names, as the shop raised them', () => {
@@ -412,7 +412,7 @@ describe('createSimulation seeding', () => {
       expect(state.fish).toHaveLength(2);
       const body = stockedBody('guppy', 30);
       for (const fish of state.fish) {
-        expect(fish.deb).toEqual(body.deb);
+        expect(fish.budget).toEqual(body.budget);
         expect(fish.age).toBe(body.age);
       }
     });

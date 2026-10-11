@@ -73,7 +73,7 @@ describe('liveHour', () => {
   });
 
   it('ages an hour and keeps exp(−h) of its survival', () => {
-    const old = { ...fed, deb: { ...fed.deb, hazard: 1e-3 }, survival: 0.8 };
+    const old = { ...fed, budget: { ...fed.budget, hazard: 1e-3 }, survival: 0.8 };
     const hour = liveHour(old, REFERENCE, 0, config);
     expect(hour.fish.age).toBe(101);
     expect(hour.fish.survival).toBeCloseTo(0.8 * Math.exp(-1e-3), 15);

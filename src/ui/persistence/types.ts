@@ -30,7 +30,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      `{ grams, nutrients }` — the grams and the mg of each nutrient inside
  *      them. `Plant` trades `size` and `surplus`, and `AlgaeState` `mass` and
  *      `surplus`, for `budget` — structure, reserve, offshoot buffer and
- *      stores. `PlantsConfig` drops the bank's `growthDrawRate`,
+ *      stores, and `Fish.deb` becomes `Fish.budget`. `PlantsConfig` drops the bank's `growthDrawRate`,
  *      `healingDrawRate`, `sizePerSurplus` and `surplusCap`, and
  *      `tissuePerSize`; gains `somaShare`, `growthEfficiency`,
  *      `reserveCapacity`, `storeFillDays`, `quotaMin`, `quotaMax`,

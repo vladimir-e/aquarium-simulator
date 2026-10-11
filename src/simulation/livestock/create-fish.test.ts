@@ -23,18 +23,18 @@ describe('a fish raised in the shop', () => {
   it.each(SPECIES)('arrives as a %s at the size named, on a full reserve and with no brood', (species) => {
     const p = debParams(species);
     for (const target of [frySize(species), frySize(species) + 1, 40, MAX_STOCKED_SIZE]) {
-      const { deb } = stockedBody(species, target);
-      expect(size(deb, p)).toBeGreaterThanOrEqual(target);
-      expect(size(deb, p) - target).toBeLessThan(0.1);
-      expect(wellFed(deb, p)).toBeGreaterThan(0.99);
-      expect(deb.broodBuffer).toBe(0);
+      const { budget } = stockedBody(species, target);
+      expect(size(budget, p)).toBeGreaterThanOrEqual(target);
+      expect(size(budget, p) - target).toBeLessThan(0.1);
+      expect(wellFed(budget, p)).toBeGreaterThan(0.99);
+      expect(budget.broodBuffer).toBe(0);
     }
   });
 
   it.each(SPECIES)('arrives as a %s larger, older and worn further the larger it is named', (species) => {
     const bodies = [frySize(species) + 1, 30, 55, 80, MAX_STOCKED_SIZE].map((target) => stockedBody(species, target));
     for (let i = 1; i < bodies.length; i++) {
-      expect(bodies[i].deb.structure).toBeGreaterThan(bodies[i - 1].deb.structure);
+      expect(bodies[i].budget.structure).toBeGreaterThan(bodies[i - 1].budget.structure);
       expect(bodies[i].age).toBeGreaterThan(bodies[i - 1].age);
       expect(bodies[i].survival).toBeLessThan(bodies[i - 1].survival);
     }
@@ -43,18 +43,18 @@ describe('a fish raised in the shop', () => {
   it.each(SPECIES)('reaches a %s’s size younger raised warmer', (species) => {
     const p = debParams(species);
     const [cool, warm] = [22, 28].map((temperature) => raise(species, 60, temperature));
-    expect(size(warm.deb, p)).toBeCloseTo(size(cool.deb, p), 1);
+    expect(size(warm.budget, p)).toBeCloseTo(size(cool.budget, p), 1);
     expect(warm.hours).toBeLessThan(cool.hours);
   });
 
   it('is the one raised at its species’ mid-range temperature, whatever tank buys it', () => {
     const raised = raise('neon_tetra', 55, midRangeTemperature('neon_tetra'));
-    expect(stockedBody('neon_tetra', 55)).toEqual({ deb: raised.deb, survival: raised.survival, age: raised.hours });
+    expect(stockedBody('neon_tetra', 55)).toEqual({ budget: raised.budget, survival: raised.survival, age: raised.hours });
   });
 
   it('is grown past puberty at the stocking size for a fast grower, short of it for a slow one', () => {
-    expect(mature(stockedBody('guppy', 80).deb, debParams('guppy'))).toBe(true);
-    expect(mature(stockedBody('angelfish', 80).deb, debParams('angelfish'))).toBe(false);
+    expect(mature(stockedBody('guppy', 80).budget, debParams('guppy'))).toBe(true);
+    expect(mature(stockedBody('angelfish', 80).budget, debParams('angelfish'))).toBe(false);
   });
 
   it('draws its survival threshold under the survival it arrives with, so the shop’s dead are never sold', () => {
@@ -85,7 +85,7 @@ describe('a fish raised in the shop', () => {
 describe('a hatched fish', () => {
   it('is its species’ hatchling, aged 0 with its whole cohort alive and an empty gut', () => {
     const fry = hatchFish({ species: 'corydoras', rng: createRng(2) });
-    expect(fry.deb).toEqual(hatchling(debParams('corydoras')));
+    expect(fry.budget).toEqual(hatchling(debParams('corydoras')));
     expect([fry.age, fry.survival, fry.gut]).toEqual([0, 1, 0]);
   });
 });

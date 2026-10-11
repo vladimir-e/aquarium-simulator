@@ -16,14 +16,14 @@ describe('appetite', () => {
   it('is the assimilation ceiling in food: {p_Am}·L² over κ_X', () => {
     const fish = guppy(50);
     const p = debParams('guppy');
-    expect(appetite(fish, REFERENCE)).toBeCloseTo(assimilationCeiling(fish.deb, p, REFERENCE) / p.kappaX, 15);
+    expect(appetite(fish, REFERENCE)).toBeCloseTo(assimilationCeiling(fish.budget, p, REFERENCE) / p.kappaX, 15);
   });
 
   it('rises with its surface, so a fry eats more for its weight than its parents', () => {
     const [fry, adult] = [guppy(20), guppy(80)];
-    const surfaces = (adult.deb.structure / fry.deb.structure) ** (2 / 3);
+    const surfaces = (adult.budget.structure / fry.budget.structure) ** (2 / 3);
     expect(appetite(adult, REFERENCE) / appetite(fry, REFERENCE)).toBeCloseTo(surfaces, 12);
-    expect(appetite(fry, REFERENCE) / fry.deb.structure).toBeGreaterThan(appetite(adult, REFERENCE) / adult.deb.structure);
+    expect(appetite(fry, REFERENCE) / fry.budget.structure).toBeGreaterThan(appetite(adult, REFERENCE) / adult.budget.structure);
   });
 
   it('runs at τ·ω and falls with assimilation stress', () => {
@@ -38,8 +38,8 @@ describe('ration', () => {
   it('is the food whose assimilation pays the upkeep it owes, gram for gram', () => {
     const fish = guppy(50);
     const p = debParams('guppy');
-    const { owed } = stepDeb(fish.deb, p, { fromGut: 0, ...REFERENCE }).fluxes;
-    const fed = stepDeb(fish.deb, p, { fromGut: ration(fish, owed), ...REFERENCE }).fluxes;
+    const { owed } = stepDeb(fish.budget, p, { fromGut: 0, ...REFERENCE }).fluxes;
+    const fed = stepDeb(fish.budget, p, { fromGut: ration(fish, owed), ...REFERENCE }).fluxes;
     expect(fed.assimilated).toBeCloseTo(owed, 15);
     expect(fed.returned).toBe(0);
   });

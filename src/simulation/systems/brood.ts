@@ -13,7 +13,7 @@ import { sum } from '../core/sum.js';
 import { drawBroodBuffer, eggsReady, layEggs, type DebState } from './deb.js';
 import { fishParams } from './fish-body.js';
 
-type Parent = Pick<Fish, 'id' | 'species' | 'sex' | 'deb'>;
+type Parent = Pick<Fish, 'id' | 'species' | 'sex' | 'budget'>;
 
 /** Eggs ready at which a female spawns: an egg-layer's clutch, a livebearer's first whole egg. */
 export function spawnsAt(species: FishSpecies): number {
@@ -25,7 +25,7 @@ export function spawnsAt(species: FishSpecies): number {
 export function readyToBrood(fish: Parent, clutches: readonly Pick<Clutch, 'motherId'>[]): boolean {
   return (
     fish.sex === 'female' &&
-    eggsReady(fish.deb, fishParams(fish)) >= spawnsAt(fish.species) &&
+    eggsReady(fish.budget, fishParams(fish)) >= spawnsAt(fish.species) &&
     !clutches.some((clutch) => clutch.motherId === fish.id)
   );
 }
@@ -37,12 +37,12 @@ function fatheringCost(male: Pick<Fish, 'species'>): number {
 }
 
 /** Eggs a male's buffer can father. */
-export function offspringFathered(male: Pick<Fish, 'species' | 'deb'>): number {
-  return male.deb.broodBuffer / fatheringCost(male);
+export function offspringFathered(male: Pick<Fish, 'species' | 'budget'>): number {
+  return male.budget.broodBuffer / fatheringCost(male);
 }
 
 /** Whether a male has a buffer to pay his share of a brood from. */
-export function paysTowardBrood(male: Pick<Fish, 'sex' | 'species' | 'deb'>): boolean {
+export function paysTowardBrood(male: Pick<Fish, 'sex' | 'species' | 'budget'>): boolean {
   return male.sex === 'male' && offspringFathered(male) > 0;
 }
 
@@ -80,13 +80,13 @@ function apportion(females: readonly Parent[], eggs: readonly number[], fathered
 export function brood(females: readonly Parent[], males: readonly Parent[]): Brood {
   const spawns = females.map((female) => {
     const p = fishParams(female);
-    return layEggs(female.deb, p, eggsReady(female.deb, p));
+    return layEggs(female.budget, p, eggsReady(female.budget, p));
   });
   const eggs = spawns.map((spawn) => spawn.eggs);
   const fathering = sum(males.map(offspringFathered));
   const offspring = apportion(females, eggs, Math.min(sum(eggs), fathering));
   const paidShare = fathering > 0 ? sum(offspring) / fathering : 0;
-  const paid = males.map((male) => drawBroodBuffer(male.deb, paidShare * male.deb.broodBuffer));
+  const paid = males.map((male) => drawBroodBuffer(male.budget, paidShare * male.budget.broodBuffer));
   const resorbed = spawns.map((spawn, i) => (spawn.eggs - offspring[i]) * fishParams(females[i]).E0);
 
   return {

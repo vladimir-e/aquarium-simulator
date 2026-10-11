@@ -143,7 +143,7 @@ function restingAmmoniaSupply(state: StockedTank): number {
   const { temperature } = state.resources;
   const resting = state.fish.map((fish) => {
     const pace = { tau: speciesTau(fish.species, temperature), omega: 1 };
-    const { owed } = stepDeb(fish.deb, fishParams(fish), { fromGut: 0, ...pace }).fluxes;
+    const { owed } = stepDeb(fish.budget, fishParams(fish), { fromGut: 0, ...pace }).fluxes;
     return { owed, feces: ration(fish, owed) - owed };
   });
   const gills = gillAmmonia(sum(resting.map((fish) => fish.owed)), livestockDefaults);
