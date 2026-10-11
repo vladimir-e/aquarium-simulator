@@ -54,6 +54,7 @@ import {
   groupFry,
   groupPlantsBySpecies,
   nutrientReadings,
+  NUTRIENT_LABEL,
   plantingStores,
   plantRows,
   projectedDrift,
@@ -430,14 +431,19 @@ function storesGauge(asked: boolean, { fill, edge, status }: StoresFigure): Stor
 }
 
 /**
- * What the plants' stores of a nutrient say, and what the water does for them.
- * The edge is printed on the side of its line, so a store that prints under it
- * is under it.
+ * A store's Droop edge, % full, printed on the side of it the store is on, so a
+ * store just past its edge never reads as sitting on it; never past full.
  */
+function edgePercent(fill: number, edge: number): number {
+  const percent = edge * 100;
+  return Math.min(100, fill < edge ? Math.ceil(percent) : Math.floor(percent));
+}
+
+/** What the plants' stores of a nutrient say, and what the water does for them. */
 function storesSentence(reading: NutrientReading): string {
   if (!reading.asked) return 'Nothing here feeds on it, so nothing stores it';
   const { fill, edge } = reading.stores;
-  const held = `The plants store it, the emptiest store ${sharePercent(fill)} % full; under ${Math.ceil(edge * 100)} % a plant takes harm`;
+  const held = `The plants store it, the store running lowest ${sharePercent(fill)} % full; under ${edgePercent(fill, edge)} % a plant takes harm`;
   return reading.depleted
     ? `${held}, and the water holds none to refill them`
     : `${held}, and the water refills them faster the more it holds`;
@@ -482,7 +488,7 @@ function bedView(bed: BedReading): FoodView {
         ? 'A bare bottom holds nothing for roots, and takes no tab — its root feeders fill their stores from the water alone.'
         : 'A bare bottom holds nothing for roots, and takes no tab.'
       : bed.asked
-        ? `Root tabs' worth of the nutrient the bed holds least of. Root feeders fill their stores from it through their roots, the emptiest store ${sharePercent(bed.stores.fill)} % full.`
+        ? `Root tabs' worth of the nutrient the bed holds least of. Root feeders fill their stores from it through their roots, the store running lowest, its ${NUTRIENT_LABEL[bed.ruling]}, ${sharePercent(bed.stores.fill)} % full.`
         : "Root tabs' worth of the nutrient the bed holds least of. Nothing here feeds through its roots, so it only leaks into the water.",
     net: null,
     fills: [],

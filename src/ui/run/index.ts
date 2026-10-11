@@ -143,6 +143,7 @@ export {
   groupPlantsBySpecies,
   floorPlanted,
   sharePercent,
+  NUTRIENT_LABEL,
   type StoresFigure,
   type PoolStores,
   type PlantingStores,

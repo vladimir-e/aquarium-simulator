@@ -142,12 +142,37 @@ describe('readTank', () => {
       expect(food.tone).toBe('ink');
       expect(food.stores).toMatchObject({ value: '2', band: { from: edge[n], to: 1 }, tone: 'alert' });
       expect(food.stores!.at).toBeCloseTo(0.02, 12);
-      expect(food.sentence).toContain(`under ${Math.ceil(edge[n] * 100)} % a plant takes harm`);
+      expect(food.sentence).toContain(`the store running lowest 2 % full; under ${Math.ceil(edge[n] * 100)} % a plant takes harm`);
     }
     expect(book.byId.bed).toMatchObject({ band: null, tone: 'ink', stores: { value: '2', tone: 'alert' } });
 
     const fed = { ...sword, plants: sword.plants.map((plant) => withStores(plant, 0.5)) };
     expect(read({ state: fed, history: [snapshotFromState(fed)] }).byId.iron.stores).toMatchObject({ value: '50', tone: 'ink' });
+  });
+
+  it('prints a store’s edge on the side of it the store is on, and never past full', () => {
+    const fern = applyAction(createSimulation({ tankCapacity: 200 }), { type: 'addPlant', species: 'java_fern' }).state;
+    const ironAt = (fill: number, config = DEFAULT_CONFIG): string => {
+      const state = { ...fern, plants: fern.plants.map((plant) => withStores(plant, { iron: fill })) };
+      return readTank({ state, config, history: [snapshotFromState(state)], units: 'metric' }).byId.iron.sentence;
+    };
+    const p = plantParams('java_fern', DEFAULT_CONFIG.plants);
+    const edge = fillAtDroop(p, DEFAULT_CONFIG.plants.droopEdge).iron * 100;
+
+    expect(ironAt((0.99 * edge) / 100)).toContain(`under ${Math.ceil(edge)} % a plant takes harm`);
+    expect(ironAt((1.01 * edge) / 100)).toContain(`under ${Math.floor(edge)} % a plant takes harm`);
+
+    const steep = { ...DEFAULT_CONFIG, plants: { ...DEFAULT_CONFIG.plants, droopEdge: 0.95 } };
+    expect(fillAtDroop(p, steep.plants.droopEdge).iron).toBeGreaterThan(1);
+    expect(ironAt(1, steep)).toContain('under 100 % a plant takes harm');
+  });
+
+  it('names the nutrient of the root feeders’ store running lowest in the bed’s words', () => {
+    const sword = applyAction(createSimulation({ tankCapacity: 200, substrate: { type: 'gravel' } }), { type: 'addPlant', species: 'amazon_sword' }).state;
+    const lean = { ...sword, plants: sword.plants.map((plant) => withStores(plant, { nitrate: 0.6, phosphate: 0.04, potassium: 0.6, iron: 0.6 })) };
+    const { bed } = read({ state: lean, history: [snapshotFromState(lean)] }).byId;
+
+    expect(bed.sentence).toContain('the store running lowest, its PO₄, 4 % full.');
   });
 
   it('balances ammonia against what makes it and what clears it', () => {

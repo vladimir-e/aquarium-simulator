@@ -83,8 +83,9 @@ interface ReadingDrawerProps {
 /**
  * One reading, inspected: the number at hero size, the band it is judged
  * against stated in words, a plant food's stores on their own strip, the week
- * behind it, and what fills and drains the stock. Keyed by id rather than handed a body, so every surface that shows a
- * reading opens the same inspector for it.
+ * behind it, and what fills and drains the stock. Keyed by id rather than
+ * handed a body, so every surface that shows a reading opens the same
+ * inspector for it.
  */
 export function ReadingDrawer({
   id,

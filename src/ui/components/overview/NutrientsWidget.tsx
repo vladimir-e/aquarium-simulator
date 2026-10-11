@@ -35,6 +35,7 @@ export function NutrientsWidget({
   const { bed } = book;
   const alert = nutrientAlert(book.nutrients, bed);
   const refilling = [...book.demand, book.byId.bed].some((reading) => reading.stores?.tone === 'alert');
+  const short = book.nutrients.some((reading) => reading.short);
   const ml = advisedAmount('dose', advice?.ml ?? null) ?? undefined;
   const tabs = advisedAmount('rootTab', bed.advice) ?? undefined;
 
@@ -53,7 +54,7 @@ export function NutrientsWidget({
           <div className="flex flex-wrap items-center gap-1.5">
             <VerbButton
               label={actLabel('dose', ml)}
-              hot={ml !== undefined}
+              hot={short && ml !== undefined}
               onClick={() => onAct('dose', ml)}
             />
             <p className="text-[12px] text-ink-3">1 ml moves {perMl}</p>
@@ -61,7 +62,7 @@ export function NutrientsWidget({
           {!bed.bare && (
             <VerbButton
               label={actLabel('rootTab', tabs)}
-              hot={tabs !== undefined}
+              hot={bed.short && tabs !== undefined}
               onClick={() => onAct('rootTab', tabs)}
             />
           )}

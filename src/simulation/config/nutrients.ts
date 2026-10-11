@@ -13,7 +13,7 @@ export type Nutrient = (typeof NUTRIENTS)[number];
 
 export type NutrientVector = Record<Nutrient, number>;
 
-export function mapNutrients<T = number>(value: (n: Nutrient) => T): Record<Nutrient, T> {
+export function mapNutrients<T>(value: (n: Nutrient) => T): Record<Nutrient, T> {
   return Object.fromEntries(NUTRIENTS.map((n) => [n, value(n)])) as Record<Nutrient, T>;
 }
 

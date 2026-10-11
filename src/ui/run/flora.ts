@@ -361,9 +361,7 @@ const NO_STORES: StoresFigure = { fill: 0, edge: 0, status: 'neutral' };
 /**
  * What one pool's feeders hold in their stores, per nutrient: the store that
  * runs its feeder's Droop limit lowest, and what their stores lack of full at
- * their weight on the pool past what it holds. The pool is short of a
- * nutrient where that store has fallen under its Droop edge and the pool
- * holds less than they lack.
+ * their weight on the pool past what it holds.
  */
 export interface PoolStores {
   /** Some plant feeds from the pool. */
@@ -374,7 +372,7 @@ export interface PoolStores {
   limit: NutrientVector;
   /** mg the feeders' stores lack of full, at their weight on the pool, past what it holds. */
   unmet: NutrientVector;
-  /** Under the edge, with the pool holding less than the stores lack. */
+  /** Short, on the rule this file opens with. */
   short: Nutrient[];
 }
 
@@ -441,7 +439,7 @@ export interface NutrientReading {
   asked: boolean;
   /** The water feeders' lowest-running store of it. */
   stores: StoresFigure;
-  /** That store has fallen under its Droop edge, and the water holds less than the stores lack. */
+  /** Short, on the rule this file opens with. */
   short: boolean;
   /** The water holds none of it, in any of its forms. */
   depleted: boolean;
@@ -466,6 +464,11 @@ function ceilingPpm(state: SimulationState, key: Nutrient, config: PlantsConfig)
     NITRATE_EDGE,
     ...state.plants.map((plant) => plantNitrateEdge(plant.species, config))
   );
+}
+
+/** The nutrient whose store runs its Droop limit lowest — the one that rules growth. */
+export function rulingNutrient(limits: Readonly<NutrientVector>): Nutrient {
+  return NUTRIENTS.reduce((least, n) => (limits[n] < limits[least] ? n : least));
 }
 
 /** Whether a species feeds, at least in part, through its roots from the bed. */
@@ -519,7 +522,9 @@ export interface BedReading {
   asked: boolean;
   /** The root feeders' store that runs its Droop limit lowest, over every nutrient. */
   stores: StoresFigure;
-  /** A root feeder's store has fallen under its Droop edge on a nutrient the bed holds less of than their stores lack. */
+  /** That store's nutrient. */
+  ruling: Nutrient;
+  /** Short of some nutrient, on the rule this file opens with. */
   short: boolean;
   /** A bare bottom: nothing for roots, and no tab goes in. */
   bare: boolean;
@@ -557,7 +562,7 @@ export function bedReading(
   const lacking = NUTRIENTS.filter((n) => unmet[n] > 0);
   const tabsCover = !bare && lacking.every((n) => tab[n] > 0);
   const lack = Math.max(0, ...lacking.map((n) => unmet[n] / tab[n]));
-  const ruling = NUTRIENTS.reduce((least, n) => (limit[n] < limit[least] ? n : least));
+  const ruling = rulingNutrient(limit);
 
   return {
     nutrient,
@@ -566,6 +571,7 @@ export function bedReading(
     scale: tabsOf(getSubstrateNutrients('aqua_soil', capacity)),
     asked,
     stores: stores.bed.stores[ruling],
+    ruling,
     short: short.length > 0,
     bare,
     empty: printsAsZero(tabs, TAB_DECIMALS),

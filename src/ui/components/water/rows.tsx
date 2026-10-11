@@ -42,15 +42,23 @@ export function ReadingRows({
 
 /**
  * The feeders' stores beside what a pool holds: a reading of their own, figure
- * and strip, so the tone sits on the stores' band and never on the pool's.
+ * and strip, so the tone sits on the stores' band and never on the pool's. A
+ * narrow row gives up the word, then the strip, so the figure always fits
+ * beside NO₃'s trend.
  */
 function StoresNote({ stores }: { stores: StoresGauge }): React.JSX.Element {
   return (
     <span className="flex items-center gap-1.5">
       <span className={`min-w-0 truncate tabular-nums ${stores.tone === 'ink' ? 'text-ink-3' : TONE_TEXT[stores.tone]}`}>
-        stores {stores.value} %
+        <span className="@max-[24rem]:hidden">stores </span>
+        {stores.value} %
       </span>
-      <RangeStrip className="w-10 shrink-0" at={stores.at} band={stores.band} tone={stores.tone} />
+      <RangeStrip
+        className="w-10 shrink-0 @max-[22rem]:hidden"
+        at={stores.at}
+        band={stores.band}
+        tone={stores.tone}
+      />
     </span>
   );
 }

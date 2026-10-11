@@ -260,7 +260,7 @@ describe('the hour', () => {
     expect(Math.abs(once / fine - 1)).toBeLessThan(0.05);
   });
 
-  it('runs the hour as its slices, each a step of its own, at the mean of the growth limits they ran at', () => {
+  it('runs the hour as its slices, each a step of its own, at the mean of the Droop limits they ran at', () => {
     const from = flora(greenWater, 1, 0.4, 0.3);
     const hour = { offered: greenWater.pAm, tau: 3, omega: 1, room: 0.8, healing: 1e-3 };
     const slices = slicesOf(from, greenWater, hour);
@@ -271,7 +271,7 @@ describe('the hour', () => {
     flat(fluxes).forEach((flux, i) => expectNear(flux, sliced.reduce((sum, each) => sum + each[i], 0)));
 
     const starts = [from, ...slices.slice(0, -1).map((slice) => slice.state)];
-    slices.forEach((slice, i) => expectNear(slice.fluxes.growthLimit, hour.room * droopFactor(starts[i], greenWater)));
+    slices.forEach((slice, i) => expectNear(slice.fluxes.growthLimit, droopFactor(starts[i], greenWater)));
     expectNear(fluxes.growthLimit, slices.reduce((sum, slice) => sum + slice.fluxes.growthLimit, 0) / slices.length);
   });
 

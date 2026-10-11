@@ -65,15 +65,16 @@ function meanReserve(state: SimulationState, config: TunableConfig): number {
   return reserve / state.plants.length;
 }
 
-/** The plants' lowest-running store over both pools, and what the tank's nutrients say, where anything is planted. */
+/** The plants' store that runs its Droop limit lowest over both pools, and what the tank's nutrients say, where anything is planted. */
 function storesLine(state: SimulationState, config: TunableConfig): string {
   if (state.plants.length === 0) return '';
   const pools = plantingStores(state, config);
-  const fills = [pools.water, pools.bed]
+  const [lowest] = [pools.water, pools.bed]
     .filter((pool) => pool.asked)
-    .flatMap((pool) => NUTRIENTS.map((n) => pool.stores[n].fill));
+    .flatMap((pool) => NUTRIENTS.map((n) => ({ limit: pool.limit[n], fill: pool.stores[n].fill })))
+    .sort((a, b) => a.limit - b.limit);
   const alert = nutrientAlert(nutrientReadings(state, config, pools), bedReading(state, config, pools));
-  const stores = fills.length > 0 ? ` · stores ${sharePercent(Math.min(...fills))}%` : '';
+  const stores = lowest ? ` · stores ${sharePercent(lowest.fill)}%` : '';
   return alert ? `${stores} · ${alert.text}${marker(alert.status)}` : stores;
 }
 
