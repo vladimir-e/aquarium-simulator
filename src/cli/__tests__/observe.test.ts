@@ -11,6 +11,7 @@ import {
 } from '../../ui/run/index.js';
 import { renderObserve } from '../format.js';
 import { SESSION_VERSION } from '../session.js';
+import { withStores } from '../../simulation/tests/plant.js';
 
 function observe(state: SimulationState): string {
   return renderObserve({
@@ -65,6 +66,16 @@ describe('renderObserve', () => {
     const healthy = observe(stocked);
     expect(line(healthy, '**Fish')).not.toContain(' sick');
     expect(line(healthy, '**Plants')).not.toContain(' sick');
+  });
+
+  it('prints the planting’s reserve and its emptiest store, and what the nutrients say where the console flags them', () => {
+    const planted = applyAction(createSimulation({ tankCapacity: 100 }), { type: 'addPlant', species: 'java_fern' }).state;
+    const drained = { ...planted, plants: planted.plants.map((plant) => withStores(plant, { iron: 0.05 })) };
+
+    expect(line(observe(planted), '**Plants')).toBe('**Plants (1)** avg condition 100% · reserve 100%');
+    expect(line(observe(planted), '**Nutrients**')).toMatch(/ppm · stores 100% · nothing dosed !$/);
+    expect(line(observe(drained), '**Nutrients**')).toMatch(/ppm · stores 5% · nothing dosed !$/);
+    expect(line(observe(createSimulation({ tankCapacity: 100 })), '**Nutrients**')).toMatch(/ ppm$/);
   });
 
   it('prints the day of light the plants starve on, marked where the console tints it', () => {

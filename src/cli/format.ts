@@ -9,9 +9,12 @@ import {
   getDgh,
   getDkh,
   getPh,
+  plantParams,
+  wellFed,
   type AlgaeKind,
   type SimulationState,
 } from '../simulation/index.js';
+import { NUTRIENTS, type TunableConfig } from '../simulation/config/index.js';
 import { ammoniaAlertLine } from '../simulation/alerts/index.js';
 import {
   bacteriaReadout,
@@ -20,9 +23,14 @@ import {
   colonyCount,
   cycleWord,
   dailyLightReading,
+  bedReading,
+  nutrientAlert,
+  nutrientReadings,
+  plantingStores,
   plantRows,
   readFish,
   readHourAhead,
+  sharePercent,
   DAILY_LIGHT_UNIT,
   type Colony,
   type Status,
@@ -49,6 +57,22 @@ function marker(...statuses: Status[]): string {
 function sick(readings: { sick: boolean }[]): string {
   const count = readings.filter((reading) => reading.sick).length;
   return count > 0 ? ` · ${count} sick` : '';
+}
+
+/** The planting's mean reserve, and its emptiest store, as the console reads them. */
+function plantBudget(state: SimulationState, config: TunableConfig): { reserve: number; stores: number } {
+  const reserve = state.plants.reduce((sum, plant) => sum + wellFed(plant.budget, plantParams(plant.species, config.plants)), 0);
+  const { water, bed } = plantingStores(state, config);
+  const fills = [water, bed].filter((pool) => pool.asked).flatMap((pool) => NUTRIENTS.map((n) => pool.fill[n]));
+  return { reserve: reserve / state.plants.length, stores: Math.min(...fills) };
+}
+
+/** What the plants' stores hold and what the tank's nutrients say, where anything is planted. */
+function storesLine(state: SimulationState, config: TunableConfig): string {
+  if (state.plants.length === 0) return '';
+  const alert = nutrientAlert(nutrientReadings(state, config), bedReading(state, config));
+  const stores = ` · stores ${sharePercent(plantBudget(state, config).stores)}%`;
+  return alert ? `${stores} · ${alert.text}${marker(alert.status)}` : stores;
 }
 
 /** Render a compact markdown snapshot of the current session. */
@@ -105,7 +129,7 @@ export function renderObserve(session: Session): string {
     `**Nutrients** PO4 ${po4} · K ${round(toPpm(r.potassium, r.water), 2)} · Fe ${round(
       toPpm(r.iron, r.water),
       3
-    )} ppm`,
+    )} ppm${storesLine(state, session.config)}`,
     `**Other** waste ${round(r.waste.grams, 2)}g · ${ALGAE_KINDS.map(
       (kind) =>
         `${ALGAE[kind].name.toLowerCase()} ${round(bloomMass(state, kind), 1)} (condition ${round(state.algae[kind].condition, 0)}%)`
@@ -115,7 +139,9 @@ export function renderObserve(session: Session): string {
       state.fish.length ? `avg health ${avgFishHealth}%` : '—'
     }${sick(readFish(state, session.config, ahead))}`,
     `**Plants (${state.plants.length})** ${
-      state.plants.length ? `avg condition ${avgPlantCondition}%` : '—'
+      state.plants.length
+        ? `avg condition ${avgPlantCondition}% · reserve ${sharePercent(plantBudget(state, session.config).reserve)}%`
+        : '—'
     }${sick(plantRows(state, ahead))}`,
   ];
 
