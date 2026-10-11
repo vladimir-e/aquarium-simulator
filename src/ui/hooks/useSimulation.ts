@@ -263,7 +263,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     if (!preset) {
       throw new Error(`Unknown preset: ${initialPreset}`);
     }
-    return settlePassiveResources(createPresetSimulation(preset), config.optics);
+    return settlePassiveResources(createPresetSimulation(preset, config), config.optics);
   });
 
   const [tankId, setTankId] = useState(0);
@@ -431,7 +431,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       resetRun();
       replaceTank();
 
-      const fresh = createPresetSimulation(preset);
+      const fresh = createPresetSimulation(preset, configRef.current);
       fresh.logs.push(createLog(0, 'user', 'info', `Loaded preset: ${preset.name}`));
       setState(settlePassiveResources(fresh, configRef.current.optics));
     },

@@ -575,7 +575,7 @@ describe('useSimulation', () => {
       });
 
       const after = result.current.state;
-      const fresh = createPresetSimulation(getPresetById('community')!, after.rng.seed);
+      const fresh = createPresetSimulation(getPresetById('community')!, DEFAULT_CONFIG, after.rng.seed);
       expect({ ...after, logs: [] }).toEqual({ ...fresh, logs: [] });
       expect(after.rng.seed).not.toBe(before.rng.seed);
       expect(result.current.currentPreset).toBe('community');
