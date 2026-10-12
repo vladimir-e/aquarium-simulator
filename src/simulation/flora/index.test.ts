@@ -104,8 +104,10 @@ describe('processFlora — the gases', () => {
   });
 
   describe('the compensation point', () => {
-    const netOxygen = (species: PlantSpecies, light: number): number =>
-      total(processFlora(floraTank({ plants: [plantRecord({ id: 'p', species, size: 50 })], light, co2: 30 }), config).effects, 'oxygen');
+    const netOxygen = (species: PlantSpecies, light: number): number => {
+      const { effects } = processFlora(floraTank({ plants: [plantRecord({ id: 'p', species, size: 50 })], light, co2: 30 }), config);
+      return total(effects, 'oxygen', 'photosynthesis') + total(effects, 'oxygen', 'respiration');
+    };
 
     const crossover = (species: PlantSpecies): number => {
       let dark = 0;

@@ -6,9 +6,7 @@
  */
 
 export {
-  ORGANIC_POOLS,
   mapPools,
-  type PoolVector,
   type DecompositionConfig,
   decompositionDefaults,
   decompositionConfigMeta,

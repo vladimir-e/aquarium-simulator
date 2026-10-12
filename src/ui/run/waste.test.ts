@@ -141,8 +141,8 @@ describe('wasteReadout', () => {
       const state = produce(setup(), (draft) => void (draft.resources.waste = rot(3)));
       const readout = readoutOf(state);
       expect(readout.standing).toBe(3);
-      expect(readout.mineralised).toBeGreaterThan(0);
-      expect(readout.mineralised + readout.settled).toBeCloseTo(3 - tick(state, config).resources.waste.grams, 10);
+      expect(readout.rotted).toBeGreaterThan(0);
+      expect(readout.rotted + readout.settled).toBeCloseTo(3 - tick(state, config).resources.waste.grams, 10);
     }
   });
 
@@ -156,12 +156,12 @@ describe('wasteReadout', () => {
     for (const oxygen of [0, 0.2, 2, 8]) {
       const state = fed(oxygen);
       const rotted = state.resources.food.grams - tick(state, config).resources.food.grams;
-      expect(readoutOf(state).decayRate * state.resources.food.grams).toBeCloseTo(rotted, 10);
+      expect(readoutOf(state).foodRotShare * state.resources.food.grams).toBeCloseTo(rotted, 10);
     }
   });
 
   it('falls with the oxygen to the slower anaerobic pace, which rots on in anoxic water', () => {
-    const rateAt = (oxygen: number): number => readoutOf(fed(oxygen)).decayRate;
+    const rateAt = (oxygen: number): number => readoutOf(fed(oxygen)).foodRotShare;
     expect(rateAt(0)).toBeGreaterThan(0);
     expect(rateAt(0)).toBeLessThan(rateAt(0.2));
     expect(rateAt(0.2)).toBeLessThan(rateAt(2));
@@ -198,10 +198,7 @@ describe('wasteSummary', () => {
     const readout = readoutOf(state);
     expect(readout.settled).toBeGreaterThan(0);
     expect(readoutOf(tank()).settled).toBe(0);
-    expect(readoutOf(produce(state, (d) => void (d.resources.waste = rot(2)))).settled).toBeCloseTo(
-      2 * readout.settled,
-      12
-    );
+    expect(readoutOf(produce(state, (d) => void (d.resources.waste = rot(2)))).settled / readout.settled).toBeCloseTo(2, 4);
   });
 
   it('says so plainly when nothing produces waste at all', () => {

@@ -21,10 +21,10 @@ import {
   MAX_WATER_ATTENUATION_PER_CM,
   NUTRIENT_FORMS,
   NUTRIENTS,
-  ORGANIC_POOLS,
   TOXINS,
   WASTE_NUTRIENTS,
 } from '../../simulation/config/index.js';
+import { ORGANIC_POOLS } from '../../simulation/resources/index.js';
 import { VERB_IDS, type VerbId } from '../actions/verbs.js';
 import { PERSISTENCE_VERSION } from './types.js';
 import { SPEED_PRESETS, type SpeedPreset } from '../run/speed.js';

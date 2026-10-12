@@ -250,11 +250,11 @@ describe('bacteriaReadout', () => {
     expect(rates.netNitrite).toBeCloseTo(rates.ammoniaToNitrite - rates.nitriteToNitrate, 12);
   });
 
-  it('separates gill excretion from mineralised waste', () => {
+  it('separates gill excretion from rotting waste', () => {
     expect(readBiofilter(stocked()).rates.gillsToAmmonia).toBeGreaterThan(0);
   });
 
-  it('nets ammonia the way the next tick moves it, decaying food and all', () => {
+  it('nets ammonia the way the next tick moves it, rotting food and all', () => {
     const overfed = produce(createSimulation({ tankCapacity: 100 }, undefined, RNG_SEED), (draft) => {
       draft.resources.food = ofFood(2);
     });

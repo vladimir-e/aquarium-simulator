@@ -2,7 +2,6 @@ import { beforeAll, describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { createSimulation, type Fish, type SimulationState } from '../state.js';
 import { settleEnvironment, tick } from '../tick.js';
-import { processFlora } from '../flora/index.js';
 import { gasExchangeSystem } from '../systems/gas-exchange.js';
 import { CO2_MASS_RATE } from '../equipment/co2-generator.js';
 import { deltaOf } from './effects.js';
@@ -393,7 +392,6 @@ describe('mineral mass', () => {
 });
 
 describe('carbon mass', () => {
-  /** Grams of carbon dissolved as CO2. */
   const dissolvedCarbon = ({ resources }: SimulationState): number => (resources.co2 * resources.water) / C_TO_CO2_MASS_RATIO / 1000;
   const carbonIn = (state: SimulationState): number => carbonInPools(state) + dissolvedCarbon(state);
 
@@ -404,16 +402,10 @@ describe('carbon mass', () => {
       draft.equipment.lid.type = 'sealed';
     });
 
-  /** Real ticks in a sealed tank, and the grams of carbon the hours' spores carried in from outside it. */
-  function sealedHours(start: SimulationState, hours: number): { state: SimulationState; spores: number } {
+  function sealedHours(start: SimulationState, hours: number): SimulationState {
     let state = start;
-    let spores = 0;
-    for (let hour = 0; hour < hours; hour++) {
-      const { algae } = processFlora(settleEnvironment(state, SEALED), SEALED);
-      spores += CH2O_TO_C_MASS_RATIO * sum(ALGAE_KINDS.map((kind) => algae[kind].spores));
-      state = tick(state, SEALED);
-    }
-    return { state, spores };
+    for (let hour = 0; hour < hours; hour++) state = tick(state, SEALED);
+    return state;
   }
 
   const starved = (fish: Fish): Fish => ({ ...fish, budget: { ...fish.budget, reserve: 0 } });
@@ -453,18 +445,17 @@ describe('carbon mass', () => {
     ['aerated', 8],
     ['anoxic', 0],
   ])(
-    'is conserved across whole ticks in a sealed %s tank — fish eating, burning, breeding and dying, the flora fixing, respiring, shedding and dying, every pool rotting and settling — but for the carbon the spores bring in',
+    'is conserved across whole ticks in a sealed %s tank — fish eating, burning, breeding and dying, the flora fixing, respiring, shedding and dying, spores landing, every pool rotting and settling',
     (_name, oxygen) => {
       const start = living(oxygen);
-      const { state: end, spores } = sealedHours(start, 48);
+      const end = sealedHours(start, 48);
 
       expect(end.fish.map((f) => f.id)).not.toContain('fry');
       expect(end.plants.map((p) => p.id)).not.toContain('doomed');
       expect(end.clutches.find((clutch) => clutch.id === 'laid')!.eggs).toBeLessThan(60);
       expect(end.resources.food.grams).toBeLessThan(start.resources.food.grams);
       expect(end.equipment.substrate.organicReserve.grams).toBeGreaterThan(start.equipment.substrate.organicReserve.grams);
-      expect(spores).toBeGreaterThan(0);
-      expect((carbonIn(end) - spores) / carbonIn(start)).toBeCloseTo(1, 10);
+      expect(carbonIn(end) / carbonIn(start)).toBeCloseTo(1, 10);
     }
   );
 
@@ -481,7 +472,7 @@ describe('carbon mass', () => {
   });
 
   it('stays in the tank as the bed is stirred up', () => {
-    const { state: settled } = sealedHours(
+    const settled = sealedHours(
       sealed(
         produce(cycledBareTank(), (draft) => {
           draft.equipment.substrate = freshSubstrate('gravel', draft.tank.capacity);

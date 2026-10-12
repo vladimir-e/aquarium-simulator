@@ -11,6 +11,8 @@ export interface System {
   id: string;
   /** Which tier this system runs in */
   tier: EffectTier;
-  /** Generate effects based on current state and config */
-  update(state: SimulationState, config: TunableConfig): Effect[];
+  /** mg of O2 it draws over the hour on water the hour leaves at `oxygen` mg/L. */
+  oxygenDraw?: (state: SimulationState, oxygen: number, config: TunableConfig) => number;
+  /** Generate effects based on current state and config, on the oxygen its tier's draws leave */
+  update(state: SimulationState, config: TunableConfig, oxygen: number): Effect[];
 }

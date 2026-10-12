@@ -7,7 +7,6 @@ import {
   MW_O2,
   MW_CO2,
   MW_CH2O,
-  MW_C,
   MW_RESERVE,
   MW_P,
   MW_PO4,
@@ -37,8 +36,6 @@ describe('a mass ratio is one mole of the named compound to one mole of the othe
     expect(N_TO_NO3_MASS_RATIO).toBeCloseTo(MW_NO3 / MW_N, 12);
     expect(P_TO_PO4_MASS_RATIO).toBeCloseTo(MW_PO4 / MW_P, 12);
     expect(CO2_TO_CH2O_MASS_RATIO).toBeCloseTo(MW_CH2O / MW_CO2, 12);
-    expect(C_TO_CO2_MASS_RATIO).toBeCloseTo(MW_CO2 / MW_C, 12);
-    expect(C_TO_O2_MASS_RATIO).toBeCloseTo(MW_O2 / MW_C, 12);
   });
 
   it('oxidises a carbohydrate’s carbon on one mole of oxygen to each mole of CO2 it leaves as', () => {

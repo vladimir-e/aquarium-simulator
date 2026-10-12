@@ -7,11 +7,11 @@ import {
   bloomCoverage,
   createSimulation,
   dailyLightIntegral,
-  decompose,
   getPresetById,
   processBodies,
   processFlora,
   processLivestock,
+  rotShare,
   tick,
   type Fish,
   type SimulationState,
@@ -182,16 +182,16 @@ describe('readHourAhead', () => {
 
   it('reads the waste the fish pass, the ammonia they breathe out and the pools they leave to rot off the hour the plants and bloom leave them', () => {
     const fed = hours.map(({ state }) => readHourAhead(state, config));
-    expect(fed.some((ahead) => ahead.fishWaste.grams > 0 && ahead.gillAmmonia > 0 && ahead.pools.food.grams > 0)).toBe(true);
+    expect(fed.some((ahead) => ahead.fishWaste.grams > 0 && ahead.gillAmmonia > 0 && ahead.rot.food.rotted.grams > 0)).toBe(true);
 
     const readsTheRot = (state: SimulationState, next: SimulationState): void => {
-      const { pools, decomposition } = readHourAhead(state, config);
-      const hour = mapPools((pool) => decompose(pools[pool], decomposition[pool]));
-      const left = mapPools((pool) => pools[pool].grams - hour[pool].rotted.grams - hour[pool].settled.grams);
+      const { rot } = readHourAhead(state, config);
+      const met = mapPools((pool) => rot[pool].rotted.grams / rotShare(rot[pool].shares));
+      const left = mapPools((pool) => met[pool] - rot[pool].rotted.grams - rot[pool].settled.grams);
       expect(next.resources.food.grams).toBeCloseTo(left.food, 12);
       expect(next.resources.waste.grams).toBeCloseTo(left.waste, 12);
       expect(next.equipment.substrate.organicReserve.grams).toBeCloseTo(
-        left.mulm + hour.food.settled.grams + hour.waste.settled.grams,
+        left.mulm + rot.food.settled.grams + rot.waste.settled.grams,
         12
       );
     };

@@ -39,7 +39,7 @@ export function WasteWidget({
           <span className="text-ink-3">g/h</span>
         </dl>
         <p className="pt-1.5 text-[11px] leading-[14px] text-ink-3">
-          {waste.food.toFixed(2)} g food · {(waste.decayRate * 100).toFixed(1)} %/h rot · Q10{' '}
+          {waste.food.toFixed(2)} g food · {(waste.foodRotShare * 100).toFixed(1)} %/h rot · Q10{' '}
           {waste.q10.toFixed(2)}×
         </p>
       </div>

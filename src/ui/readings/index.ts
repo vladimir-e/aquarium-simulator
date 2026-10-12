@@ -596,13 +596,13 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       tone: 'ink',
       trend: '',
       sentence:
-        'A pool with no safe line: it levels off where what mineralises and settles out matches what falls in.',
-      net: netPerHour(waste.perHour - waste.mineralised - waste.settled, 'g'),
+        'A pool with no safe line: it levels off where what rots and settles out matches what falls in.',
+      net: netPerHour(waste.perHour - waste.rotted - waste.settled, 'g'),
       fills: waste.sources
         .filter((source) => source.gramsPerHour > 0)
         .map((source) => ({ label: source.label, rate: ratePerHour(source.gramsPerHour, 'g') })),
       drains: [
-        { label: 'Mineralising to NH₃', rate: ratePerHour(-waste.mineralised, 'g') },
+        { label: 'Rotting', rate: ratePerHour(-waste.rotted, 'g') },
         { label: 'Settling into the bed', rate: ratePerHour(-waste.settled, 'g') },
       ],
       series: null,
@@ -612,9 +612,9 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       sentence: `Safe at or under ${said('ammonia', ammoniaAlertLine(state.resources))} ppm at this pH and temperature — where free NH₃ reaches the ${FREE_AMMONIA_EDGE} ppm the engine alerts on.`,
       net: netPerHour(rates.netAmmonia, 'ppm'),
       fills: [
-        { label: 'Waste mineralising', rate: ratePerHour(rates.wasteToAmmonia, 'ppm') },
+        { label: 'Waste and mulm rotting', rate: ratePerHour(rates.wasteToAmmonia, 'ppm') },
         { label: 'Fish gills', rate: ratePerHour(rates.gillsToAmmonia, 'ppm') },
-        { label: 'Food decaying', rate: ratePerHour(rates.foodToAmmonia, 'ppm') },
+        { label: 'Food rotting', rate: ratePerHour(rates.foodToAmmonia, 'ppm') },
       ],
       drains: [
         { label: 'AOB oxidising', rate: ratePerHour(-rates.ammoniaOxidised, 'ppm') },

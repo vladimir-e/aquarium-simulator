@@ -20,7 +20,7 @@ import {
   type NutrientForm,
   type TunableConfig,
 } from '../config/index.js';
-import { getPpm } from '../resources/index.js';
+import { getMassFromPpm, getPpm } from '../resources/index.js';
 import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
 import type { PlantLight } from '../plants/canopy.js';
 import { sizeOf } from '../plants/canopy.js';
@@ -156,7 +156,19 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const plantCount = plants.length;
   const kinds = blooms.length;
 
-  // 2. The water and the bed fill every store, and build the spores, at once.
+  // 2. What light and carbon offer every fixer, all drawn on the one CO₂ stock;
+  // the spores build on what they leave of it.
+  const offeredCo2 = offerCarbon(
+    flora.map(({ fixer }) => fixer),
+    resources.co2,
+    waterVolume,
+    plantsConfig
+  );
+  const offered = offeredCo2.map(photosynthateOf);
+  const leftOver = photosynthateOf(getMassFromPpm(resources.co2, waterVolume) - sum(offeredCo2));
+  const sporesAsked = sum(blooms.map(({ spores }) => spores));
+
+  // 3. The water and the bed fill every store, and build the spores, at once.
   const delivery = drawNutrients(
     [
       ...flora.map(({ budget, p, draws }) => ({ asked: storeRequest(budget, p, tau), draws })),
@@ -165,7 +177,9 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     pools
   );
   const sporesFrom = plantCount + kinds;
-  const spores = blooms.map(({ spores, p }, k) => sporesBuilt(spores, delivery.delivered[sporesFrom + k], p));
+  const spores = blooms.map(({ spores, p }, k) =>
+    sporesBuilt(spores, delivery.delivered[sporesFrom + k], sporesAsked > 0 ? (leftOver * spores) / sporesAsked : 0, p)
+  );
   const taken = delivery.uptake.map((byPool, i) => {
     if (i < sporesFrom) return byPool;
     const k = i - sporesFrom;
@@ -180,13 +194,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   pushDelta('gh', -ghDrawn(nutrientsIn(uptake).nitrate, resources), 'uptake');
   pushDelta('kh', uptakeAlkalinity(uptake), 'uptake');
 
-  // 3–4. What light, carbon and oxygen offer, and each budget's hour on it.
-  const offered = offerCarbon(
-    flora.map(({ fixer }) => fixer),
-    resources.co2,
-    waterVolume,
-    plantsConfig
-  ).map(photosynthateOf);
+  // 4. Each budget's hour on what it is offered.
   const steps = flora.map(({ budget, condition, p, room, stress }, i) => {
     const fed = takeUp(budget, delivery.delivered[i]);
     return stepFlora(fed, p, {
@@ -202,9 +210,12 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const assimilated = sum(steps.map(({ fluxes }) => fluxes.assimilated));
   const burned = sum(steps.map(({ fluxes }) => totalBurned(fluxes)));
   const fixed = carbonGases(assimilated);
+  const landed = carbonGases(sum(spores.map(({ structure }) => structure)));
   const respired = carbonGases(burned);
   pushDelta('co2', -getPpm(fixed.co2, waterVolume), 'photosynthesis');
   pushDelta('oxygen', getPpm(fixed.oxygen, waterVolume), 'photosynthesis');
+  pushDelta('co2', -getPpm(landed.co2, waterVolume), 'spores');
+  pushDelta('oxygen', getPpm(landed.oxygen, waterVolume), 'spores');
   pushDelta('co2', getPpm(respired.co2, waterVolume), 'respiration');
   pushDelta('oxygen', -getPpm(respired.oxygen, waterVolume), 'respiration');
 

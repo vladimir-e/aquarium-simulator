@@ -20,7 +20,9 @@ import {
   ALGAE_KINDS,
   addOrganics,
   decompose,
+  poolShares,
   scaleOrganics,
+  type PoolShares,
   type Resources,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -212,8 +214,7 @@ export function bacteriaReadout(
   // after them in the active tier. Rot lands in the passive pass beside it, so
   // the colony meets what the rotting pools release next hour.
   const gills = ahead.gillAmmonia;
-  const rotAmmonia = (pool: OrganicResourceKey): number =>
-    ammoniaIn(decompose(ahead.pools[pool], ahead.decomposition[pool]).rotted);
+  const rotAmmonia = (pool: OrganicResourceKey): number => ammoniaIn(ahead.rot[pool].rotted);
   const food = rotAmmonia('food');
   const algae = ALGAE_KINDS.reduce((sum, kind) => sum + ahead.algae[kind].waterUptake.ammonia, 0);
   const flora = ahead.waterUptake.ammonia + algae;
@@ -223,7 +224,7 @@ export function bacteriaReadout(
     water,
     r.aob,
     r.temperature,
-    r.oxygen,
+    ahead.oxygen,
     nc
   );
   const { nitriteConsumed } = calculateNitriteToNitrate(
@@ -231,7 +232,7 @@ export function bacteriaReadout(
     water,
     r.nob,
     r.temperature,
-    r.oxygen,
+    ahead.oxygen,
     nc
   );
   const aobThroughput = getPpm(aobCapacity(r.aob, r.temperature, r.oxygen, nc), water);
@@ -330,13 +331,13 @@ export function projectNitritePeak(
   const nc = config.nitrogenCycle;
   const ceiling = calculateMaxBacteria(r.surface, nc);
   if (r.water <= 0 || ceiling <= 0) return null;
-  const aobRates = colonyRates('aob', r.temperature, r.oxygen, nc);
-  const nobRates = colonyRates('nob', r.temperature, r.oxygen, nc);
+  const { oxygen } = ahead;
+  const aobRates = colonyRates('aob', r.temperature, oxygen, nc);
+  const nobRates = colonyRates('nob', r.temperature, oxygen, nc);
 
   const steadyInflow = addOrganics(...wasteInflow(ahead).sources.map((source) => source.inflow));
   const gills = ahead.gillAmmonia;
-  const shares = ahead.decomposition;
-  const food = decompose(ahead.pools.food, shares.food);
+  const food = ahead.rot.food;
 
   let reserve = state.equipment.substrate.organicReserve;
   let water = r.water;
@@ -352,19 +353,21 @@ export function projectNitritePeak(
   for (let hour = 1; hour <= horizon; hour++) {
     const seeding = calculateSeeding(water, nc);
     water = nextVolume(water, state, config);
+    const tank = { ...state, resources: { ...r, water } };
+    const shares = (pool: OrganicResourceKey): PoolShares => poolShares(pool, tank, oxygen, config.decomposition);
 
     waste = addOrganics(waste, steadyInflow);
-    const wasteHour = decompose(waste, shares.waste);
-    const mulmHour = decompose(reserve, shares.mulm);
+    const wasteHour = decompose(waste, shares('waste'));
+    const mulmHour = decompose(reserve, shares('mulm'));
     waste = addOrganics(waste, scaleOrganics(wasteHour.rotted, -1), scaleOrganics(wasteHour.settled, -1));
     reserve = addOrganics(reserve, wasteHour.settled, food.settled, scaleOrganics(mulmHour.rotted, -1));
 
     const seen = ammonia + gills;
-    const oxidised = calculateAmmoniaToNitrite(seen, water, aob, r.temperature, r.oxygen, nc);
+    const oxidised = calculateAmmoniaToNitrite(seen, water, aob, r.temperature, oxygen, nc);
     ammonia = seen + ammoniaIn(addOrganics(food.rotted, wasteHour.rotted, mulmHour.rotted)) - oxidised.ammoniaConsumed;
     nitrite += oxidised.nitriteProduced;
 
-    const cleared = calculateNitriteToNitrate(nitrite, water, nob, r.temperature, r.oxygen, nc);
+    const cleared = calculateNitriteToNitrate(nitrite, water, nob, r.temperature, oxygen, nc);
     nitrite -= cleared.nitriteConsumed;
 
     const nitritePpm = getPpm(nitrite, water);

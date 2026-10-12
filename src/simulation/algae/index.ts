@@ -97,13 +97,20 @@ export function habitatGain(
 
 /**
  * The spores the water built over the hour, out of `structure` grams of spore
- * asked at Q_min: as much as the scarcest nutrient delivered built, their
- * stores what the rest delivered past that, up to full. A spore lands unfed:
- * its reserve is what it fixes once it lands.
+ * asked at Q_min: as much as the scarcest nutrient delivered, or the grams of
+ * `photosynthate` the water's CO2 left them, built, their stores what the rest
+ * delivered past that, up to full. A spore lands unfed: its reserve is what it
+ * fixes once it lands.
  */
-export function sporesBuilt(structure: number, delivered: Readonly<NutrientVector>, p: FloraParams): FloraState {
+export function sporesBuilt(
+  structure: number,
+  delivered: Readonly<NutrientVector>,
+  photosynthate: number,
+  p: FloraParams
+): FloraState {
   const built = Math.min(
     structure,
+    photosynthate,
     ...NUTRIENTS.map((n) => (p.qMin[n] > 0 ? delivered[n] / p.qMin[n] : structure))
   );
   return {

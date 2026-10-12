@@ -9,10 +9,9 @@
 import {
   ALGAE_KINDS,
   addOrganics,
-  decompose,
   rotPace,
+  rotShare,
   type Organics,
-  type PoolShares,
   type SimulationState,
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
@@ -39,7 +38,7 @@ export interface WasteReadout extends WasteInflowReadout {
   /** Waste standing in the tank, grams. */
   standing: number;
   /** Grams rotting this hour. */
-  mineralised: number;
+  rotted: number;
   /** Grams settling into the bed this hour — the pool's other outflow. */
   settled: number;
   /** Share of the pool the hour's rot and settling take together. */
@@ -47,7 +46,7 @@ export interface WasteReadout extends WasteInflowReadout {
   /** Food waiting to rot, grams. */
   food: number;
   /** Fraction of standing food that rots this hour, at this temperature and oxygen. */
-  decayRate: number;
+  foodRotShare: number;
   /** Q10 temperature multiplier on rot. */
   q10: number;
 }
@@ -77,24 +76,21 @@ export function wasteInflow(ahead: HourAhead): WasteInflowReadout {
   return { perHour, sources };
 }
 
-const rotShare = (shares: PoolShares): number => shares.aerobic + shares.anaerobic;
-
 export function wasteReadout(
   state: SimulationState,
   config: TunableConfig,
   ahead: HourAhead
 ): WasteReadout {
   const r = state.resources;
-  const shares = ahead.decomposition.waste;
-  const hour = decompose(ahead.pools.waste, shares);
+  const { waste, food } = ahead.rot;
   return {
     ...wasteInflow(ahead),
     standing: r.waste.grams,
-    mineralised: hour.rotted.grams,
-    settled: hour.settled.grams,
-    lost: rotShare(shares) + shares.settling,
+    rotted: waste.rotted.grams,
+    settled: waste.settled.grams,
+    lost: rotShare(waste.shares) + waste.shares.settling,
     food: r.food.grams,
-    decayRate: rotShare(ahead.decomposition.food),
+    foodRotShare: rotShare(food.shares),
     q10: rotPace(r.temperature, config.decomposition),
   };
 }
@@ -119,5 +115,5 @@ export function wasteSummary(readout: WasteReadout): string {
         ? 'falling to'
         : 'holding at';
 
-  return `Producing ${readout.perHour.toFixed(3)} g/h against ${readout.mineralised.toFixed(3)} g/h mineralised — standing waste is ${drift} ${level.toFixed(3)} g.`;
+  return `Producing ${readout.perHour.toFixed(3)} g/h against ${readout.rotted.toFixed(3)} g/h rotting — standing waste is ${drift} ${level.toFixed(3)} g.`;
 }

@@ -22,9 +22,12 @@ export {
   decompositionSystem,
   rotPace,
   poolShares,
+  rotShare,
   decompose,
+  decomposePools,
   organicPool,
   type PoolShares,
+  type PoolHour,
 } from './decomposition.js';
 
 export { offerCarbon } from './photosynthesis.js';
@@ -72,6 +75,12 @@ export {
 } from './vitality.js';
 
 import type { System } from './types.js';
+import type { EffectTier } from '../core/effects.js';
+import type { SimulationState } from '../state.js';
+import type { TunableConfig } from '../config/index.js';
+import { stockLeft } from '../core/kinetics.js';
+import { sum } from '../core/sum.js';
+import { getMassFromPpm, getPpm } from '../resources/helpers.js';
 import { temperatureDriftSystem } from './temperature-drift.js';
 import { evaporationSystem } from './evaporation.js';
 import { decompositionSystem } from './decomposition.js';
@@ -86,3 +95,18 @@ export const coreSystems: System[] = [
   nitrogenCycleSystem,
   gasExchangeSystem,
 ];
+
+/**
+ * The oxygen, mg/L, a tier's systems run on: the level their draws on the one
+ * stock leave the water at as the hour ends, so together they never take more
+ * than it holds.
+ */
+export function tierOxygen(state: SimulationState, tier: EffectTier, config: TunableConfig): number {
+  const { oxygen, water } = state.resources;
+  const draws = coreSystems.flatMap((system) => (system.tier === tier && system.oxygenDraw ? [system.oxygenDraw] : []));
+  if (draws.length === 0 || water <= 0) return oxygen;
+  const left = stockLeft(getMassFromPpm(oxygen, water), (mg) =>
+    sum(draws.map((draw) => draw(state, getPpm(mg, water), config)))
+  );
+  return getPpm(left, water);
+}

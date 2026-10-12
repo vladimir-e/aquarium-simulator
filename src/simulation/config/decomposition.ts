@@ -7,12 +7,10 @@
 import type { OrganicResourceKey } from '../resources/types.js';
 import type { VectorMeta } from './nutrients.js';
 
-export const ORGANIC_POOLS = ['food', 'waste', 'mulm'] as const satisfies readonly OrganicResourceKey[];
-
 export type PoolVector = Record<OrganicResourceKey, number>;
 
 export function mapPools<T>(value: (pool: OrganicResourceKey) => T): Record<OrganicResourceKey, T> {
-  return Object.fromEntries(ORGANIC_POOLS.map((pool) => [pool, value(pool)])) as Record<OrganicResourceKey, T>;
+  return { food: value('food'), waste: value('waste'), mulm: value('mulm') };
 }
 
 export interface DecompositionConfig {

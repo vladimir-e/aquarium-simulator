@@ -91,7 +91,7 @@ export function calculateAerationFactor(aeration: boolean, multiplier: number): 
   return aeration ? multiplier : 1.0;
 }
 
-export const gasExchangeSystem: System = {
+export const gasExchangeSystem = {
   id: 'gas-exchange',
   tier: 'passive',
 
@@ -174,4 +174,4 @@ export const gasExchangeSystem: System = {
 
     return effects;
   },
-};
+} satisfies System;

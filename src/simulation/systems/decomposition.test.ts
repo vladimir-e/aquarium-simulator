@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { createSimulation, type Resources, type SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { decompositionDefaults, ORGANIC_POOLS, type DecompositionConfig } from '../config/decomposition.js';
+import { decompositionDefaults, type DecompositionConfig } from '../config/decomposition.js';
+import { ORGANIC_POOLS } from '../resources/types.js';
 import { C_TO_CO2_MASS_RATIO, C_TO_O2_MASS_RATIO, MW_N, MW_NH3, MW_NO3 } from '../core/chemistry.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { addOrganics, NO_ORGANICS, portion, scaleOrganics, type Organics } from '../core/organics.js';
@@ -19,6 +20,7 @@ import {
   settlingRate,
 } from './decomposition.js';
 import { nitrogenCycleSystem } from './nitrogen-cycle.js';
+import { tierOxygen } from './index.js';
 
 const config = decompositionDefaults;
 const REF = config.referenceTemp;
@@ -112,7 +114,7 @@ describe('poolShares', () => {
     for (const pool of ORGANIC_POOLS) {
       const rates = rotRates(pool, tank.resources);
       const settling = pool === 'mulm' ? 0 : settlingRate(tank);
-      const shares = poolShares(pool, tank);
+      const shares = poolShares(pool, tank, tank.resources.oxygen);
       const total = rates.aerobic + rates.anaerobic + settling;
       const perRate = (1 - Math.exp(-total)) / total;
       expect(shares.aerobic).toBeCloseTo(rates.aerobic * perRate, 12);
@@ -124,14 +126,14 @@ describe('poolShares', () => {
   it('never takes more than the pool, however fast its paths are set', () => {
     const fierce: DecompositionConfig = { ...config, rate: { food: 50, waste: 50, mulm: 50 }, settlingRate: 50 };
     for (const pool of ORGANIC_POOLS) {
-      const shares = poolShares(pool, tank, fierce);
+      const shares = poolShares(pool, tank, tank.resources.oxygen, fierce);
       expect(shares.aerobic + shares.anaerobic + shares.settling).toBeLessThanOrEqual(1);
     }
   });
 
   it('settles food and waste on one law, and leaves the bed’s own mulm where it lies', () => {
     const settling = (pool: (typeof ORGANIC_POOLS)[number]): number =>
-      poolShares(pool, tank, { ...config, rate: { food: 0, waste: 0, mulm: 0 } }).settling;
+      poolShares(pool, tank, tank.resources.oxygen, { ...config, rate: { food: 0, waste: 0, mulm: 0 } }).settling;
     expect(settling('food')).toBeGreaterThan(0);
     expect(settling('food')).toBe(settling('waste'));
     expect(settling('mulm')).toBe(0);
@@ -139,7 +141,7 @@ describe('poolShares', () => {
 });
 
 describe('decompose', () => {
-  const shares = poolShares('waste', graveled());
+  const shares = poolShares('waste', graveled(), 8);
 
   it('takes the pool pro-rata, so what rots and what settles keep its composition', () => {
     const pool = portion(LEAN, 3);
@@ -157,7 +159,7 @@ describe('decompose', () => {
   });
 
   it('makes CO2 and draws no oxygen in anoxic water', () => {
-    const anoxic = poolShares('waste', graveled((draft) => void (draft.resources.oxygen = 0)));
+    const anoxic = poolShares('waste', graveled(), 0);
     const hour = decompose(ofFood(1), anoxic);
     expect(hour.oxygen).toBe(0);
     expect(hour.co2).toBeGreaterThan(0);
@@ -178,13 +180,13 @@ describe('decompositionSystem', () => {
     draft.resources.waste = portion(LEAN, 3);
     draft.equipment.substrate.organicReserve = addOrganics(draft.equipment.substrate.organicReserve, portion(LEAN, 1));
   });
-  const effects = decompositionSystem.update(tank, DEFAULT_CONFIG);
+  const effects = decompositionSystem.update(tank, DEFAULT_CONFIG, tierOxygen(tank, 'passive', DEFAULT_CONFIG));
   const after = applyEffects(tank, effects);
   const pools = (state: SimulationState): Organics => addOrganics(...ORGANIC_POOLS.map((pool) => organicPool(state, pool)));
   const total = (resource: Effect['resource']): number =>
     sum(effects.filter((effect) => effect.resource === resource).map((effect) => effect.delta as number));
 
-  it('runs in the passive tier, on the oxygen the shared snapshot holds', () => {
+  it('runs in the passive tier', () => {
     expect(decompositionSystem.tier).toBe('passive');
     expect(effects.every((effect) => effect.tier === 'passive')).toBe(true);
   });
@@ -209,13 +211,11 @@ describe('decompositionSystem', () => {
   });
 
   it('returns KH on the ammonia it mints, so rot carried on to nitrate nets the 3.57 mg CaCO3 per mg N the wastewater texts quote', () => {
-    const nitrified = nitrogenCycleSystem.update(
-      produce(tank, (draft) => {
-        draft.resources.ammonia = 40;
-        draft.resources.aob = 100;
-      }),
-      DEFAULT_CONFIG
-    );
+    const nitrifying = produce(tank, (draft) => {
+      draft.resources.ammonia = 40;
+      draft.resources.aob = 100;
+    });
+    const nitrified = nitrogenCycleSystem.update(nitrifying, DEFAULT_CONFIG, tierOxygen(nitrifying, 'passive', DEFAULT_CONFIG));
     const perNitrogen = (from: readonly Effect[], source: string): number => {
       const delta = (resource: 'kh' | 'ammonia'): number =>
         sum(from.filter((e) => e.resource === resource && e.source === source).map((e) => e.delta as number));
@@ -238,6 +238,61 @@ describe('decompositionSystem', () => {
       draft.resources.food = NO_ORGANICS;
       draft.resources.waste = NO_ORGANICS;
     });
-    expect(decompositionSystem.update(empty, DEFAULT_CONFIG)).toEqual([]);
+    expect(decompositionSystem.update(empty, DEFAULT_CONFIG, empty.resources.oxygen)).toEqual([]);
+  });
+});
+
+describe('the passive tier’s one oxygen draw', () => {
+  const fouled = (food: number, oxygen: number): SimulationState =>
+    graveled((draft) => {
+      draft.resources.food = ofFood(food);
+      draft.resources.waste = portion(LEAN, food);
+      draft.resources.ammonia = 20 * draft.resources.water;
+      draft.resources.nitrite = 5 * draft.resources.water;
+      draft.resources.aob = 5000;
+      draft.resources.nob = 5000;
+      draft.resources.oxygen = oxygen;
+    });
+  const drawn = (tank: SimulationState): number => {
+    const oxygen = tierOxygen(tank, 'passive', DEFAULT_CONFIG);
+    return -sum(
+      [decompositionSystem, nitrogenCycleSystem]
+        .flatMap((system) => system.update(tank, DEFAULT_CONFIG, oxygen))
+        .filter((effect) => effect.resource === 'oxygen')
+        .map((effect) => effect.delta as number)
+    );
+  };
+
+  it('leaves the water where what rot and both guilds draw at that level meets the stock', () => {
+    const tank = fouled(5, 4);
+    const oxygen = tierOxygen(tank, 'passive', DEFAULT_CONFIG);
+    const draws = [decompositionSystem, nitrogenCycleSystem].map((system) => system.oxygenDraw(tank, oxygen, DEFAULT_CONFIG));
+    expect(oxygen).toBeLessThan(tank.resources.oxygen);
+    expect(oxygen + sum(draws) / tank.resources.water).toBeCloseTo(tank.resources.oxygen, 9);
+  });
+
+  it('never draws more than the water holds, however much there is to rot', () => {
+    for (const food of [1, 20, 500]) {
+      for (const oxygen of [0.05, 1, 8]) {
+        expect(drawn(fouled(food, oxygen))).toBeLessThanOrEqual(oxygen);
+      }
+    }
+  });
+
+  it('rots on what it could not get aerobically at the anaerobic share, more of it the harder the pools press on the oxygen', () => {
+    const anaerobicPart = (tank: SimulationState): number => {
+      const shares = poolShares('food', tank, tierOxygen(tank, 'passive', DEFAULT_CONFIG));
+      return shares.anaerobic / (shares.aerobic + shares.anaerobic);
+    };
+    expect(anaerobicPart(fouled(500, 8))).toBeGreaterThan(anaerobicPart(fouled(20, 8)));
+    expect(anaerobicPart(fouled(20, 8))).toBeGreaterThan(anaerobicPart(fouled(1, 8)));
+  });
+
+  it('reads the water as it stands where nothing draws on it', () => {
+    const still = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
+      draft.resources.food = NO_ORGANICS;
+      draft.resources.waste = NO_ORGANICS;
+    });
+    expect(tierOxygen(still, 'passive', DEFAULT_CONFIG)).toBe(still.resources.oxygen);
   });
 });

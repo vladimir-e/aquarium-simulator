@@ -1,30 +1,23 @@
 /**
- * Decomposition — one law for every organic pool. Food, standing waste and the
- * bed's mulm each rot first order on what they hold, paced by temperature and
- * by oxygen, and food and waste settle into the bed beside it.
- * Runs in PASSIVE tier.
- *
- * Rot runs two paths. The aerobic one saturates on dissolved oxygen; the
- * anaerobic one runs on the share oxygen leaves, slower by `anaerobicShare`,
- * so a pool rots on in anoxic water but holds its carbon longer. Rot takes a
- * pool pro-rata, so the pool keeps its composition as it goes: its carbon
- * leaves as CO2, the aerobic share drawing the oxygen a carbohydrate's carbon
- * takes, and its nitrogen comes out as ammonia and its minerals to the water.
+ * Decomposition. Rot's aerobic path draws the oxygen a carbohydrate's carbon
+ * takes, whatever the pool's composition.
  */
 
-import type { Effect } from '../core/effects.js';
+import type { Effect, EffectTier } from '../core/effects.js';
 import type { Resources, SimulationState } from '../state.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
-import type { OrganicResourceKey } from '../resources/types.js';
-import { ORGANIC_POOLS, decompositionDefaults, type DecompositionConfig } from '../config/decomposition.js';
+import { ORGANIC_POOLS, type OrganicResourceKey } from '../resources/types.js';
+import { decompositionDefaults, mapPools, type DecompositionConfig } from '../config/decomposition.js';
+import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { hourlyDraws, monodFactor, q10Factor } from '../core/kinetics.js';
-import { C_TO_CO2_MASS_RATIO, C_TO_O2_MASS_RATIO } from '../core/chemistry.js';
+import { C_TO_CO2_MASS_RATIO, C_TO_O2_MASS_RATIO, MG_PER_G } from '../core/chemistry.js';
 import { scaleOrganics, sumOrganics, type Organics } from '../core/organics.js';
+import { sum } from '../core/sum.js';
 import { getPpm } from '../resources/helpers.js';
-import { mineralise } from './nitrogen-cycle.js';
+import { ammoniaIn, mintAmmonia } from './nitrogen-cycle.js';
 
-export type DecomposingTank = Pick<SimulationState, 'resources' | 'equipment'>;
+type DecomposingTank = Pick<SimulationState, 'resources' | 'equipment'>;
 
 /** How fast rot runs at this temperature, against the reference its rates are quoted at. */
 export function rotPace(temperature: number, config: DecompositionConfig = decompositionDefaults): number {
@@ -60,40 +53,64 @@ export interface PoolShares {
   settling: number;
 }
 
+/** A pool's shares on water the hour leaves at `oxygen` mg/L. */
 export function poolShares(
   pool: OrganicResourceKey,
   tank: DecomposingTank,
+  oxygen: number,
   config: DecompositionConfig = decompositionDefaults
 ): PoolShares {
-  const { aerobic, anaerobic } = rotRates(pool, tank.resources, config);
+  const { aerobic, anaerobic } = rotRates(pool, { temperature: tank.resources.temperature, oxygen }, config);
   const settling = pool === 'mulm' ? 0 : settlingRate(tank, config);
   const [oxic, anoxic, settled] = hourlyDraws([aerobic, anaerobic, settling]);
   return { aerobic: oxic, anaerobic: anoxic, settling: settled };
 }
 
-/** What a pool loses over the hour: what rots and what settles into the bed, and the mg of oxygen and CO2 the rot trades. */
+export const rotShare = (shares: PoolShares): number => shares.aerobic + shares.anaerobic;
+
+/** What a pool loses over the hour at its shares: what rots and what settles into the bed, and the mg of oxygen and CO2 the rot trades. */
 export interface PoolHour {
+  shares: PoolShares;
   rotted: Organics;
   settled: Organics;
   oxygen: number;
   co2: number;
 }
 
+const rotOxygen = (organics: Organics, shares: PoolShares): number =>
+  organics.carbon * MG_PER_G * shares.aerobic * C_TO_O2_MASS_RATIO;
+
 /** A pool's hour at these shares, pro-rata on everything it holds. */
 export function decompose(organics: Organics, shares: PoolShares): PoolHour {
-  const rot = shares.aerobic + shares.anaerobic;
-  const carbon = organics.carbon * 1000;
+  const rot = rotShare(shares);
   return {
+    shares,
     rotted: scaleOrganics(organics, rot),
     settled: scaleOrganics(organics, shares.settling),
-    oxygen: carbon * shares.aerobic * C_TO_O2_MASS_RATIO,
-    co2: carbon * rot * C_TO_CO2_MASS_RATIO,
+    oxygen: rotOxygen(organics, shares),
+    co2: organics.carbon * MG_PER_G * rot * C_TO_CO2_MASS_RATIO,
   };
 }
 
 /** A pool as the tank holds it: food and waste in the water, mulm in the bed. */
 export function organicPool(tank: DecomposingTank, pool: OrganicResourceKey): Organics {
   return pool === 'mulm' ? tank.equipment.substrate.organicReserve : tank.resources[pool];
+}
+
+/** Every pool's hour on water the hour leaves at `oxygen` mg/L. */
+export function decomposePools(
+  tank: DecomposingTank,
+  oxygen: number,
+  config: DecompositionConfig = decompositionDefaults
+): Record<OrganicResourceKey, PoolHour> {
+  return mapPools((pool) => decompose(organicPool(tank, pool), poolShares(pool, tank, oxygen, config)));
+}
+
+function mineralise(organics: Organics, tier: EffectTier, source: string): Effect[] {
+  return [
+    ...mintAmmonia(ammoniaIn(organics), tier, source),
+    ...WASTE_NUTRIENTS.map((nutrient): Effect => ({ tier, resource: nutrient, delta: organics.nutrients[nutrient], source })),
+  ];
 }
 
 function poolEffects(pool: OrganicResourceKey, hour: PoolHour, water: number): Effect[] {
@@ -112,15 +129,22 @@ function poolEffects(pool: OrganicResourceKey, hour: PoolHour, water: number): E
   return effects;
 }
 
-export const decompositionSystem: System = {
+export const decompositionSystem = {
   id: 'decomposition',
   tier: 'passive',
 
-  update(state: SimulationState, config: TunableConfig): Effect[] {
-    return ORGANIC_POOLS.flatMap((pool) => {
-      const organics = organicPool(state, pool);
-      if (organics.grams <= 0) return [];
-      return poolEffects(pool, decompose(organics, poolShares(pool, state, config.decomposition)), state.resources.water);
-    });
+  oxygenDraw(state: SimulationState, oxygen: number, config: TunableConfig): number {
+    return sum(
+      ORGANIC_POOLS.map((pool) =>
+        rotOxygen(organicPool(state, pool), poolShares(pool, state, oxygen, config.decomposition))
+      )
+    );
   },
-};
+
+  update(state: SimulationState, config: TunableConfig, oxygen: number): Effect[] {
+    const hours = decomposePools(state, oxygen, config.decomposition);
+    return ORGANIC_POOLS.flatMap((pool) =>
+      organicPool(state, pool).grams > 0 ? poolEffects(pool, hours[pool], state.resources.water) : []
+    );
+  },
+} satisfies System;

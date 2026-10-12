@@ -84,6 +84,45 @@ export function monodUptake(stock: number, capacity: number, halfSaturation: num
   return Math.min(stock, capacity, root);
 }
 
+const ROOT_TOLERANCE = 1e-12;
+
+/**
+ * The stock several consumers leave over one tick, each drawing on it with
+ * its own curve read where the tick ends, the way `monodUptake` reads one:
+ * the root of `left = stock − draw(left)`, `draw` their total at that level.
+ *
+ * Every draw has to rise with the stock and take nothing from an empty one.
+ * Then the stock less the draw at any level lies across the root from that
+ * level, so each reading bounds the root on both sides. The search steps by
+ * secant while the bracket closes fast and halves it when it doesn't, and
+ * returns its lower edge, where the draws never sum past the stock.
+ */
+export function stockLeft(stock: number, draw: (left: number) => number): number {
+  let low = 0;
+  let high = stock;
+  let probe = stock;
+  let last: { probe: number; excess: number } | null = null;
+  while (high - low > stock * ROOT_TOLERANCE) {
+    const width = high - low;
+    const excess = stock - probe - draw(probe);
+    const mirror = probe + excess;
+    if (excess >= 0) {
+      low = probe;
+      high = Math.min(high, mirror);
+    } else {
+      high = probe;
+      low = Math.max(low, mirror);
+    }
+    const secant =
+      last === null || last.excess === excess
+        ? mirror
+        : probe - (excess * (probe - last.probe)) / (excess - last.excess);
+    last = { probe, excess };
+    probe = high - low < width / 2 && secant >= low && secant <= high ? secant : (low + high) / 2;
+  }
+  return low;
+}
+
 /**
  * Irradiance scaling for photosynthesis — `tanh(I / Ik)`, the Jassby–Platt
  * photosynthesis–irradiance curve.

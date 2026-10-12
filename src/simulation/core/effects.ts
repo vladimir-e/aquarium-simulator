@@ -38,6 +38,16 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+/** Adds organics to a pool where the tank holds it: food and waste in the water, mulm in the bed. */
+function addToPool(draft: SimulationState, pool: OrganicResourceKey, delta: Organics): void {
+  if (pool === 'mulm') {
+    const bed = draft.equipment.substrate;
+    bed.organicReserve = addOrganics(bed.organicReserve, delta);
+  } else {
+    draft.resources[pool] = addOrganics(draft.resources[pool], delta);
+  }
+}
+
 /**
  * Applies a list of effects to the simulation state.
  * Returns a new state object (immutable).
@@ -59,13 +69,8 @@ export function applyEffects(
 
   return produce(state, (draft) => {
     for (const effect of effects) {
-      if (effect.resource === 'mulm') {
-        const bed = draft.equipment.substrate;
-        bed.organicReserve = addOrganics(bed.organicReserve, effect.delta);
-        continue;
-      }
-      if (effect.resource === 'food' || effect.resource === 'waste') {
-        draft.resources[effect.resource] = addOrganics(draft.resources[effect.resource], effect.delta);
+      if (effect.resource === 'food' || effect.resource === 'waste' || effect.resource === 'mulm') {
+        addToPool(draft, effect.resource, effect.delta);
         continue;
       }
       const resource = ResourceRegistry[effect.resource];

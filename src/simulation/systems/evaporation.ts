@@ -81,7 +81,7 @@ export function calculateEvaporation(
   return evapAmount;
 }
 
-export const evaporationSystem: System = {
+export const evaporationSystem = {
   id: 'evaporation',
   tier: 'immediate',
 
@@ -112,4 +112,4 @@ export const evaporationSystem: System = {
       },
     ];
   },
-};
+} satisfies System;

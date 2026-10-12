@@ -51,5 +51,7 @@ export type ResourceKey =
   | 'aob'
   | 'nob';
 
+export const ORGANIC_POOLS = ['food', 'waste', 'mulm'] as const;
+
 /** The organic pools, the bed's mulm among them: they move by organics, so their grams never move without their content. */
-export type OrganicResourceKey = 'food' | 'waste' | 'mulm';
+export type OrganicResourceKey = (typeof ORGANIC_POOLS)[number];

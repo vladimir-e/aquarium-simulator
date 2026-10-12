@@ -10,6 +10,8 @@
  * reaction that carries one mole of X to one mole of Y.
  */
 
+export const MG_PER_G = 1000;
+
 /** Elemental carbon (g/mol). */
 export const MW_C = 12.01;
 /** Elemental nitrogen (g/mol). */

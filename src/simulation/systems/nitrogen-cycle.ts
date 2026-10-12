@@ -42,7 +42,6 @@ import {
   O2_PER_NO2_OXIDIZED,
   PROTONS_PER_N,
 } from '../core/chemistry.js';
-import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import type { Organics } from '../core/organics.js';
 import { getPpm } from '../resources/index.js';
 import { getPh } from '../core/carbonate.js';
@@ -216,13 +215,6 @@ export function mintAmmonia(ammonia: number, tier: EffectTier, source: string): 
 /** mg of NH₃ the nitrogen in these organics mints. */
 export function ammoniaIn(organics: Organics): number {
   return organics.nutrients.nitrate * NO3_TO_NH3_MASS_RATIO;
-}
-
-export function mineralise(organics: Organics, tier: EffectTier, source: string): Effect[] {
-  return [
-    ...mintAmmonia(ammoniaIn(organics), tier, source),
-    ...WASTE_NUTRIENTS.map((nutrient): Effect => ({ tier, resource: nutrient, delta: organics.nutrients[nutrient], source })),
-  ];
 }
 
 /**
@@ -425,61 +417,81 @@ function colonyEffects(
   return effects;
 }
 
-export const nitrogenCycleSystem: System = {
+/**
+ * The hour's two oxidations on water the hour leaves at `oxygen` mg/L: AOB on
+ * the ammonia there is, NOB on the nitrite there is and what AOB make of it,
+ * each colony held to its surface.
+ */
+function nitrify(
+  resources: Resources,
+  oxygen: number,
+  config: NitrogenCycleConfig
+): { aob: ReturnType<typeof calculateAmmoniaToNitrite>; nob: ReturnType<typeof calculateNitriteToNitrate> } {
+  const maxBacteria = calculateMaxBacteria(resources.surface, config);
+  const { water, temperature } = resources;
+  const aob = calculateAmmoniaToNitrite(
+    resources.ammonia,
+    water,
+    Math.min(resources.aob, maxBacteria),
+    temperature,
+    oxygen,
+    config
+  );
+  const nob = calculateNitriteToNitrate(
+    resources.nitrite + aob.nitriteProduced,
+    water,
+    Math.min(resources.nob, maxBacteria),
+    temperature,
+    oxygen,
+    config
+  );
+  return { aob, nob };
+}
+
+export const nitrogenCycleSystem = {
   id: 'nitrogen-cycle',
   tier: 'passive',
 
-  update(state: SimulationState, config: TunableConfig): Effect[] {
+  oxygenDraw(state: SimulationState, oxygen: number, config: TunableConfig): number {
+    const { aob, nob } = nitrify(state.resources, oxygen, config.nitrogenCycle);
+    return aob.oxygenConsumedMg + nob.oxygenConsumedMg;
+  },
+
+  update(state: SimulationState, config: TunableConfig, oxygen: number): Effect[] {
     const effects: Effect[] = [];
     const { resources } = state;
     const ncConfig = config.nitrogenCycle;
     const maxBacteria = calculateMaxBacteria(resources.surface, ncConfig);
     const waterVolume = resources.water;
     const temperature = resources.temperature;
-    const oxygen = resources.oxygen;
-
-    // Track current values for calculations (effects accumulate)
-    // Nitrogen compounds are stored as mass (mg)
-    let currentAmmonia = resources.ammonia; // mg
-    let currentNitrite = resources.nitrite; // mg
-    let currentAob = resources.aob;
-    let currentNob = resources.nob;
 
     // ========================================================================
     // Step 0: Cap bacteria to current surface area (handle surface reduction)
     // ========================================================================
-    if (currentAob > maxBacteria) {
+    if (resources.aob > maxBacteria) {
       effects.push({
         tier: 'passive',
         resource: 'aob',
-        delta: maxBacteria - currentAob,
+        delta: maxBacteria - resources.aob,
         source: 'nitrogen-cycle-surface-cap',
       });
-      currentAob = maxBacteria;
     }
-    if (currentNob > maxBacteria) {
+    if (resources.nob > maxBacteria) {
       effects.push({
         tier: 'passive',
         resource: 'nob',
-        delta: maxBacteria - currentNob,
+        delta: maxBacteria - resources.nob,
         source: 'nitrogen-cycle-surface-cap',
       });
-      currentNob = maxBacteria;
     }
+
+    const { aob: aobStage, nob: nobStage } = nitrify(resources, oxygen, ncConfig);
 
     // ========================================================================
     // Stage 1: Ammonia → Nitrite (AOB Bacteria)
     // Processes ammonia mass (mg), produces nitrite mass (mg).
     // N-mass is conserved; compound mass grows by MW_NO2 / MW_NH3 ≈ 2.702.
     // ========================================================================
-    const aobStage = calculateAmmoniaToNitrite(
-      currentAmmonia,
-      waterVolume,
-      currentAob,
-      temperature,
-      oxygen,
-      ncConfig
-    );
     if (aobStage.ammoniaConsumed > 0) {
       effects.push({
         tier: 'passive',
@@ -487,7 +499,6 @@ export const nitrogenCycleSystem: System = {
         delta: -aobStage.ammoniaConsumed, // mg
         source: 'nitrogen-cycle-aob',
       });
-      currentAmmonia -= aobStage.ammoniaConsumed;
 
       effects.push({
         tier: 'passive',
@@ -495,7 +506,6 @@ export const nitrogenCycleSystem: System = {
         delta: aobStage.nitriteProduced, // mg, scaled by MW ratio
         source: 'nitrogen-cycle-aob',
       });
-      currentNitrite += aobStage.nitriteProduced;
 
       // Oxygen is the one resource here stored as a concentration.
       effects.push({
@@ -518,14 +528,6 @@ export const nitrogenCycleSystem: System = {
     // Processes nitrite mass (mg), produces nitrate mass (mg).
     // N-mass is conserved; compound mass grows by MW_NO3 / MW_NO2 ≈ 1.348.
     // ========================================================================
-    const nobStage = calculateNitriteToNitrate(
-      currentNitrite,
-      waterVolume,
-      currentNob,
-      temperature,
-      oxygen,
-      ncConfig
-    );
     if (nobStage.nitriteConsumed > 0) {
       effects.push({
         tier: 'passive',
@@ -533,7 +535,6 @@ export const nitrogenCycleSystem: System = {
         delta: -nobStage.nitriteConsumed, // mg
         source: 'nitrogen-cycle-nob',
       });
-      currentNitrite -= nobStage.nitriteConsumed;
 
       effects.push({
         tier: 'passive',
@@ -557,7 +558,7 @@ export const nitrogenCycleSystem: System = {
     effects.push(
       ...colonyEffects(
         'aob',
-        currentAob,
+        Math.min(resources.aob, maxBacteria),
         aobStage.utilization,
         temperature,
         oxygen,
@@ -567,7 +568,7 @@ export const nitrogenCycleSystem: System = {
       ),
       ...colonyEffects(
         'nob',
-        currentNob,
+        Math.min(resources.nob, maxBacteria),
         nobStage.utilization,
         temperature,
         oxygen,
@@ -579,4 +580,4 @@ export const nitrogenCycleSystem: System = {
 
     return effects;
   },
-};
+} satisfies System;

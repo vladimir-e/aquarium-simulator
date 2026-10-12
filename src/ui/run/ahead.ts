@@ -11,17 +11,17 @@ import {
   applyEffects,
   bloomCoverage,
   dailyLightIntegral,
+  decomposePools,
   fishComposition,
   gillAmmonia,
   mapKinds,
-  organicPool,
-  poolShares,
   processBodies,
   processFlora,
   paysTowardBrood,
   processLivestock,
   ration,
   readyToBrood,
+  tierOxygen,
   type AlgaeKind,
   type BloomHour,
   type FishHour,
@@ -29,12 +29,12 @@ import {
   type FloraState,
   type Organics,
   type PlantLight,
-  type PoolShares,
+  type PoolHour,
   type SimulationState,
   type VitalityResult,
 } from '../../simulation/index.js';
 import { settleEnvironment } from '../../simulation/tick.js';
-import { mapPools, type FormVector, type TunableConfig } from '../../simulation/config/index.js';
+import type { FormVector, TunableConfig } from '../../simulation/config/index.js';
 import type { OrganicResourceKey } from '../../simulation/resources/types.js';
 import { sum } from '../../simulation/core/sum.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
@@ -81,10 +81,10 @@ export interface HourAhead {
   gillAmmonia: number;
   /** Grams of food a day that would pay the fish's upkeep at the hour's pace. */
   ration: number;
-  /** Each organic pool as the hour's decomposition meets it, the fish fed and the hour's waste shed. */
-  pools: Record<OrganicResourceKey, Organics>;
-  /** The shares of each pool that hour's decomposition rots and settles. */
-  decomposition: Record<OrganicResourceKey, PoolShares>;
+  /** Dissolved O₂, mg/L, the hour's rot and nitrifiers run on. */
+  oxygen: number;
+  /** What the hour's decomposition does to each organic pool as it meets it, the fish fed and the hour's waste shed. */
+  rot: Record<OrganicResourceKey, PoolHour>;
   /** mg of each form the plants' stores take up from the water. */
   waterUptake: FormVector;
 }
@@ -106,6 +106,7 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     planted.plants.filter((plant) => !standing.has(plant.id)).map((plant) => plant.parentId)
   );
   const passive = applyEffects(bodies.state, bodies.effects, config);
+  const oxygen = tierOxygen(passive, 'passive', config);
 
   return {
     plants: state.plants.map((plant, i) => ({
@@ -138,8 +139,8 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     fishWaste: addOrganics(livestock.feces, bodies.waste),
     gillAmmonia: gillAmmonia(livestock.burned + bodies.burned, fishComposition(config)),
     ration: TICKS_PER_DAY * sum(livestock.hours.map((hour) => ration(hour.fish, hour.fluxes.owed))),
-    pools: mapPools((pool) => organicPool(passive, pool)),
-    decomposition: mapPools((pool) => poolShares(pool, passive, config.decomposition)),
+    oxygen,
+    rot: decomposePools(passive, oxygen, config.decomposition),
     waterUptake: flora.waterUptake,
   };
 }

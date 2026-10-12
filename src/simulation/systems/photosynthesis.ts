@@ -11,14 +11,12 @@
 import type { Plant } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
-import { CO2_TO_CH2O_MASS_RATIO, CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
+import { CO2_TO_CH2O_MASS_RATIO, CO2_TO_O2_MASS_RATIO, MG_PER_G } from '../core/chemistry.js';
 import { lightSaturationFactor, monodUptake } from '../core/kinetics.js';
 import { getCo2HalfSaturation, plantTraits } from '../plants/species.js';
 import { metabolicRateUnits, saturationIrradiance } from './flora.js';
 import { getMassFromPpm } from '../resources/index.js';
 import { rateUnits, sizeOf } from '../plants/canopy.js';
-
-const MG_PER_G = 1000;
 
 /** One photosynthesiser's hour, as the carbon it can fix reads it. */
 export interface CarbonFixer {
