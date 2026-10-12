@@ -15,7 +15,7 @@ import { debParams, FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig, ToxinVector } from '../config/livestock.js';
 import type { TunableConfig } from '../config/index.js';
 import { createLog } from '../core/logging.js';
-import { addOrganics, NO_ORGANICS, ofComposition, type Composition, type Organics } from '../core/organics.js';
+import { addOrganics, NO_ORGANICS, portion, type Organics } from '../core/organics.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { drawId } from '../core/rng.js';
 import { sum } from '../core/sum.js';
@@ -55,20 +55,17 @@ export function processBodies(state: SimulationState, config: TunableConfig): Bo
   });
 
   const effects: Effect[] = burnEffects(burned, newState.resources.water, livestock, body, 'fish-broods');
-  const eggs = ofComposition(waste, body);
+  const eggs = portion(body, waste);
   if (waste > 0) effects.push({ tier: 'active', resource: 'waste', delta: eggs, source: 'dead-eggs' });
   return { state: newState, effects, burned, waste: eggs };
 }
 
-/**
- * One hour of every clutch, hatching those developed, its eggs made of `body`:
- * the grams of egg left as waste, and burned hatching.
- */
+/** One hour of every clutch, hatching those developed: the grams of egg left as waste, and burned hatching. */
 function tendClutches(
   draft: SimulationState,
   config: LivestockConfig,
   paces: readonly Pace[],
-  body: Composition
+  body: Organics
 ): { waste: number; burned: number } {
   if (draft.clutches.length === 0) return { waste: 0, burned: 0 };
 
@@ -107,7 +104,7 @@ function tendClutches(
   }
   const swallowed = swallow(draft.fish, paces, shares);
   draft.fish.forEach((fish, i) => {
-    fish.gut = addOrganics(fish.gut, ofComposition(swallowed.taken[i], body));
+    fish.gut = addOrganics(fish.gut, portion(body, swallowed.taken[i]));
   });
   waste += swallowed.overflow;
 

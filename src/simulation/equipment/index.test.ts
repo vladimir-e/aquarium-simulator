@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { bloomAt } from '../tests/blooms.js';
-import { addOrganics, NO_ORGANICS, ofComposition, scaleOrganics } from '../core/organics.js';
+import { addOrganics, NO_ORGANICS, portion, scaleOrganics } from '../core/organics.js';
 import { LEAN, organicsCloseTo } from '../tests/organics.js';
 import { produce } from 'immer';
 import {
@@ -240,7 +240,7 @@ describe('disturbBed', () => {
       draft.resources.aob = 1000;
       draft.resources.nob = 500;
       draft.resources.waste = NO_ORGANICS;
-      draft.equipment.substrate.organicReserve = ofComposition(2, LEAN);
+      draft.equipment.substrate.organicReserve = portion(LEAN, 2);
     });
   const disturbed = (state: SimulationState, share: number): SimulationState =>
     produce(state, (draft) => disturbBed(draft, share));

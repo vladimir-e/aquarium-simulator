@@ -34,7 +34,7 @@ import { TOXIN_LABEL, type LivestockConfig, type ToxinVector } from '../config/l
 import { shareOut, swallow, type Pace } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import { sum } from '../core/sum.js';
-import { addOrganics, NO_ORGANICS, ofComposition, portion, type Composition, type Organics } from '../core/organics.js';
+import { addOrganics, NO_ORGANICS, portion, type Organics } from '../core/organics.js';
 import { pointsHealed, starvation, wellFed } from './reserve.js';
 import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
 import type { FishHour } from './metabolism.js';
@@ -56,6 +56,18 @@ import {
   type VitalityFactor,
   type VitalityResult,
 } from './vitality.js';
+
+export interface HealthInput {
+  fish: readonly Fish[];
+  hours: readonly FishHour[];
+  fed: readonly Fish[];
+  resources: Resources;
+  plants: Plant[];
+  tankCapacity: number;
+  config: LivestockConfig;
+  body: Organics;
+  carried: readonly number[];
+}
 
 export interface HealthResult {
   survivingFish: Fish[];
@@ -298,17 +310,17 @@ function damageShare(vitality: VitalityResult, key: string): number {
  * it and as far as their guts have room; the rest is waste. `carried` is the
  * grams of brood each carries.
  */
-export function processHealth(
-  fish: readonly Fish[],
-  hours: readonly FishHour[],
-  fed: readonly Fish[],
-  resources: Resources,
-  plants: Plant[],
-  tankCapacity: number,
-  config: LivestockConfig,
-  body: Composition,
-  carried: readonly number[]
-): HealthResult {
+export function processHealth({
+  fish,
+  hours,
+  fed,
+  resources,
+  plants,
+  tankCapacity,
+  config,
+  body,
+  carried,
+}: HealthInput): HealthResult {
   const deadFishNames: string[] = [];
   let deathWaste: Organics = NO_ORGANICS;
   const waterVolume = resources.water;
@@ -326,7 +338,7 @@ export function processHealth(
 
   fed.forEach((f, i) => {
     if (!dies[i]) return;
-    const remains = addOrganics(ofComposition(fishOrganics(f) + carried[i], body), f.gut);
+    const remains = addOrganics(portion(body, fishOrganics(f) + carried[i]), f.gut);
     const weights = living.map((j) => predatorWeight(masses[j], masses[i]));
     const surviving = predatorMass[i] > 0 ? Math.min(1, sum(weights) / predatorMass[i]) : 0;
     const share = damageShare(vitalities[i], 'hunted') * surviving;

@@ -49,3 +49,6 @@ export type ResourceKey =
   | 'gh'
   | 'aob'
   | 'nob';
+
+/** The organic pools: they move by organics, so their grams never move without their content. */
+export type OrganicResourceKey = 'food' | 'waste';

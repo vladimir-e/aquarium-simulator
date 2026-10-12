@@ -9,7 +9,6 @@ import { FoodResource } from '../resources/index.js';
 import { addOrganics, atRecipe, type RecipeConfig } from '../core/organics.js';
 import type { ActionResult, FeedAction } from './types.js';
 
-/** Feed: drop food into the tank, at the recipe food has now. */
 export function feed(state: SimulationState, action: FeedAction, config: RecipeConfig): ActionResult {
   const { amount } = action;
 

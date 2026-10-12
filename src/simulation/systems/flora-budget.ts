@@ -10,7 +10,7 @@
 
 import { hourlyDraw, monodFactor, monodUptake } from '../core/kinetics.js';
 import { CH2O_TO_C_MASS_RATIO } from '../core/chemistry.js';
-import { addOrganics, ofComposition, type Composition, type Organics } from '../core/organics.js';
+import { addOrganics, portion, type Organics } from '../core/organics.js';
 import { mapNutrients, NUTRIENTS, ZERO_NUTRIENTS, type Nutrient, type NutrientVector } from '../config/nutrients.js';
 import {
   hourSlices,
@@ -317,10 +317,10 @@ export function buyOffshoot(state: FloraState, p: FloraParams, structure: number
   };
 }
 
-const PHOTOSYNTHATE: Composition = { carbon: CH2O_TO_C_MASS_RATIO, nutrients: ZERO_NUTRIENTS };
+const PHOTOSYNTHATE: Organics = { grams: 1, carbon: CH2O_TO_C_MASS_RATIO, nutrients: ZERO_NUTRIENTS };
 
 const tissueOrganics = (p: FloraParams, structure: number, reserve: number): Organics =>
-  addOrganics(ofComposition(structure, { ...PHOTOSYNTHATE, nutrients: p.qMin }), ofComposition(reserve, PHOTOSYNTHATE));
+  addOrganics(portion({ ...PHOTOSYNTHATE, nutrients: p.qMin }, structure), portion(PHOTOSYNTHATE, reserve));
 
 /**
  * `structure` shed as waste at Q_min, with its reserve at the unit's density;

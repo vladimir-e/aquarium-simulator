@@ -8,7 +8,7 @@ import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { type WaterChemistryConfig, waterChemistryDefaults } from '../config/water-chemistry.js';
-import { livestockDefaults } from '../config/livestock.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
 import {
   mapNutrients,
   NUTRIENTS,
@@ -21,9 +21,8 @@ import {
   addOrganics,
   foodRecipe,
   NO_ORGANICS,
-  ofComposition,
+  portion,
   scaleOrganics,
-  type Composition,
   type Organics,
 } from '../core/organics.js';
 
@@ -69,10 +68,7 @@ export const SUBSTRATE_ORGANIC_PER_LITER: Record<SubstrateType, number> = {
 };
 
 /** What a gram of a fresh bag's organic matter is made of — its own, whatever the keeper feeds. */
-export const SUBSTRATE_ORGANIC_COMPOSITION: Composition = foodRecipe({
-  livestock: livestockDefaults,
-  nutrients: nutrientsDefaults,
-});
+export const SUBSTRATE_ORGANIC_COMPOSITION: Organics = foodRecipe(DEFAULT_CONFIG);
 
 /**
  * Alkalinity a fresh bed can take up per liter of tank (mg CaCO3/L). Only
@@ -109,7 +105,7 @@ export function getSubstrateSurface(type: SubstrateType, tankCapacity: number): 
  * Scales with tank capacity, so concentration is volume-independent.
  */
 export function getSubstrateOrganicReserve(type: SubstrateType, tankCapacity: number): Organics {
-  return ofComposition(SUBSTRATE_ORGANIC_PER_LITER[type] * tankCapacity, SUBSTRATE_ORGANIC_COMPOSITION);
+  return portion(SUBSTRATE_ORGANIC_COMPOSITION, SUBSTRATE_ORGANIC_PER_LITER[type] * tankCapacity);
 }
 
 /** Gets the alkalinity a fresh bed of this type can take up (mg CaCO3). */

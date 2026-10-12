@@ -8,7 +8,7 @@ import { NO_STRESS } from './reserve.js';
 import { debParams } from '../livestock/species.js';
 import { fishRecord } from '../tests/fish.js';
 import { LEAN, ofFood, organicsCloseTo } from '../tests/organics.js';
-import { NO_ORGANICS, ofComposition, scaleOrganics } from '../core/organics.js';
+import { NO_ORGANICS, portion, scaleOrganics } from '../core/organics.js';
 import type { Fish } from '../state.js';
 
 const REFERENCE: Pace = { tau: 1, omega: 1, stress: NO_STRESS };
@@ -61,7 +61,7 @@ describe('the gut', () => {
     expect(digest(ofFood(2), 1.5, config).grams).toBeCloseTo(2 * hourlyDraw(1.5 * config.digestionRate), 12);
     expect(digest(ofFood(1), 0, config)).toEqual(NO_ORGANICS);
     expect(digest(ofFood(1), 1e6, config).grams).toBeLessThanOrEqual(1);
-    const mixed = ofComposition(2, LEAN);
+    const mixed = portion(LEAN, 2);
     expect(digest(mixed, 1, config)).toEqual(organicsCloseTo(scaleOrganics(mixed, hourlyDraw(config.digestionRate)), 15));
   });
 

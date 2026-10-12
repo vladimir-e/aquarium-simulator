@@ -25,7 +25,6 @@ export const FEED_AMOUNT_OPTIONS = [0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 2.0] as const
 export const MIN_FEED_G = 0.05;
 export const MAX_FEED_G = 2.0;
 
-/** The food effect of this hour's feeding, at the recipe food has now, if the feeder is on and it is the hour. */
 export function autoFeederUpdate(state: SimulationState, config: RecipeConfig): Effect[] {
   const { autoFeeder } = state.equipment;
   if (!autoFeeder.enabled || state.tick % 24 !== autoFeeder.startHour) return [];

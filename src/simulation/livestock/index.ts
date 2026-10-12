@@ -22,7 +22,7 @@ import type { Pace } from '../systems/digestion.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { mintAmmonia } from '../systems/nitrogen-cycle.js';
 import { createLog } from '../core/logging.js';
-import { NO_ORGANICS, scaleOrganics, type Composition, type Organics } from '../core/organics.js';
+import { NO_ORGANICS, scaleOrganics, type Organics } from '../core/organics.js';
 import { clutchOrganics, clutchesWithMothers } from '../systems/clutch.js';
 import { loadFish, waterToxins } from '../systems/toxicokinetics.js';
 import { getPpm } from '../resources/index.js';
@@ -37,7 +37,6 @@ export interface LivestockProcessingResult {
   hours: FishHour[];
   /** Each fish's vitality this tick, in `state.fish` order, the dead included */
   vitalities: VitalityResult[];
-  /** The feces the fish passed. */
   feces: Organics;
   /** Grams of organics their budgets burned. */
   burned: number;
@@ -49,12 +48,12 @@ export function tankPaces(state: Pick<SimulationState, 'fish' | 'resources'>, co
   return state.fish.map((fish) => fishPace(fish, state.resources, saturation, config.livestock));
 }
 
-/** What burning `grams` of fish organics, made of `body`, does to the water: gill NH3 and minerals in, O2 out, CO2 in. */
+/** What burning `grams` of fish organics does to the water: gill NH3 and minerals in, O2 out, CO2 in. */
 export function burnEffects(
   grams: number,
   water: number,
   config: LivestockConfig,
-  body: Composition,
+  body: Organics,
   source: string
 ): Effect[] {
   if (grams <= 0) return [];
@@ -88,17 +87,17 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
     const mother = clutch.motherId;
     if (mother !== undefined) carried.set(mother, (carried.get(mother) ?? 0) + clutchOrganics(clutch));
   }
-  const health = processHealth(
-    state.fish,
-    metabolism.hours,
-    metabolism.updatedFish,
-    state.resources,
-    state.plants,
-    state.tank.capacity,
-    livestock,
+  const health = processHealth({
+    fish: state.fish,
+    hours: metabolism.hours,
+    fed: metabolism.updatedFish,
+    resources: state.resources,
+    plants: state.plants,
+    tankCapacity: state.tank.capacity,
+    config: livestock,
     body,
-    state.fish.map((f) => carried.get(f.id) ?? 0)
-  );
+    carried: state.fish.map((f) => carried.get(f.id) ?? 0),
+  });
 
   const organic = (resource: 'food' | 'waste', organics: Organics, source: string): Effect[] =>
     organics.grams !== 0 ? [{ tier: 'active', resource, delta: organics, source }] : [];

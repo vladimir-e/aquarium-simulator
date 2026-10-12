@@ -17,7 +17,7 @@ import type { Fish, Resources } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
 import { WASTE_NUTRIENTS, type MineralVector } from '../config/nutrients.js';
-import { addOrganics, ofComposition, portion, scaleOrganics, type Composition, type Organics } from '../core/organics.js';
+import { addOrganics, portion, scaleOrganics, sumOrganics, type Organics } from '../core/organics.js';
 import { sum } from '../core/sum.js';
 import { speciesTau } from '../livestock/species.js';
 import { fishHardiness, toxinEFolds } from '../livestock/tolerance.js';
@@ -61,16 +61,17 @@ export interface Burn {
   co2: number;
 }
 
-/** mg of NH3 burning grams of a fish's organics, made of `body`, excretes through its gills. */
-export function gillAmmonia(grams: number, body: Composition): number {
-  return ammoniaIn(ofComposition(grams, body));
+/** mg of NH3 burning grams of a fish's organics excretes through its gills. */
+export function gillAmmonia(grams: number, body: Organics): number {
+  return ammoniaIn(portion(body, grams));
 }
 
-export function burn(grams: number, body: Composition, config: LivestockConfig): Burn {
+export function burn(grams: number, body: Organics, config: LivestockConfig): Burn {
+  const burnt = portion(body, grams);
   const oxygen = grams * config.oxygenPerGramBurned;
   return {
-    ammonia: gillAmmonia(grams, body),
-    minerals: Object.fromEntries(WASTE_NUTRIENTS.map((n) => [n, grams * body.nutrients[n]])) as MineralVector,
+    ammonia: ammoniaIn(burnt),
+    minerals: Object.fromEntries(WASTE_NUTRIENTS.map((n) => [n, burnt.nutrients[n]])) as MineralVector,
     oxygen,
     co2: oxygen * config.respiratoryQuotient * O2_TO_CO2_MASS_RATIO,
   };
@@ -86,27 +87,24 @@ export interface FishHour {
   fluxes: DebFluxes;
 }
 
-/**
- * An hour of one fish's budget on what its gut digests, `healing` the grams of
- * repair it asks of its reserve, `body` what its reserve is made of.
- */
-export function liveHour(fish: Fish, pace: Pace, healing: number, config: LivestockConfig, body: Composition): FishHour {
+/** An hour of one fish's budget on what its gut digests, `healing` the grams of repair it asks of its reserve. */
+export function liveHour(fish: Fish, pace: Pace, healing: number, config: LivestockConfig, body: Organics): FishHour {
   const p = fishParams(fish);
   const digested = digest(fish.gut, pace.tau, config);
   const { state, fluxes } = stepDeb(fish.budget, p, { fromGut: digested.grams, ...pace, healing });
   const returned = portion(digested, fluxes.returned);
-  const taken = addOrganics(digested, scaleOrganics(returned, -1));
+  const taken = sumOrganics(digested, scaleOrganics(returned, -1));
   return {
     fish: {
       ...fish,
-      gut: addOrganics(fish.gut, scaleOrganics(digested, -1), returned),
+      gut: addOrganics(fish.gut, scaleOrganics(taken, -1)),
       budget: state,
       age: fish.age + 1,
       survival: fish.survival * Math.exp(-fish.budget.hazard),
     },
     pace,
     digested,
-    feces: addOrganics(taken, scaleOrganics(ofComposition(fluxes.assimilated, body), -1)),
+    feces: sumOrganics(taken, scaleOrganics(portion(body, fluxes.assimilated), -1)),
     fluxes,
   };
 }
@@ -134,7 +132,7 @@ export function processMetabolism(
   healing: readonly number[],
   water: Pick<Resources, 'food'>,
   config: LivestockConfig,
-  body: Composition
+  body: Organics
 ): MetabolismResult {
   const hours = fish.map((f, i) => liveHour(f, paces[i], healing[i], config, body));
   const rooms = hours.map((hour) => gutRoom(hour.fish, hour.pace));
@@ -143,7 +141,7 @@ export function processMetabolism(
     hours,
     updatedFish: hours.map((hour, i) => ({ ...hour.fish, gut: addOrganics(hour.fish.gut, eaten[i]) })),
     foodConsumed: addOrganics(...eaten),
-    feces: addOrganics(...hours.map((hour) => hour.feces)),
+    feces: sumOrganics(...hours.map((hour) => hour.feces)),
     burned: sum(hours.map((hour) => totalBurned(hour.fluxes))),
   };
 }

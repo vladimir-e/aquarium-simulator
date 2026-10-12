@@ -261,6 +261,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     key: 'foodCarbonFraction',
     label: 'Food C Fraction',
     unit: 'g C/g food',
+    // Above κ_X × reserve carbon (0.8 × 0.503 ≈ 0.40), under which a fish's feces would carry negative carbon.
     min: 0.42,
     max: 0.52,
     step: 0.01,

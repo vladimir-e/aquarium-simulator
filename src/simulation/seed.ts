@@ -21,10 +21,10 @@ import { ration } from './systems/digestion.js';
 import { fishParams } from './systems/fish-body.js';
 import { speciesTau } from './livestock/species.js';
 import { sum } from './core/sum.js';
-import { livestockDefaults } from './config/livestock.js';
+import { DEFAULT_CONFIG } from './config/index.js';
 import { decayDefaults } from './config/decay.js';
 import type { PlantsConfig } from './config/plants.js';
-import { mapNutrients, nutrientsDefaults, type NutrientVector } from './config/nutrients.js';
+import { mapNutrients, type NutrientVector } from './config/nutrients.js';
 import { addOrganics, atRecipe, scaleOrganics, type Organics } from './core/organics.js';
 import { alkalinityMoved, MW_NO3, NH3_TO_NO2_MASS_RATIO, PROTONS_PER_N } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
@@ -149,7 +149,7 @@ function restingAmmoniaSupply(state: StockedTank): number {
     })
   );
   const leached = calculateSubstrateLeach(state.equipment.substrate.organicReserve, decayDefaults);
-  return ammoniaIn(addOrganics(atRecipe(eaten, { livestock: livestockDefaults, nutrients: nutrientsDefaults }), leached));
+  return ammoniaIn(addOrganics(atRecipe(eaten, DEFAULT_CONFIG), leached));
 }
 
 /**

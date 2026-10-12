@@ -10,12 +10,6 @@ import { nitratePerGramOfFood, type LivestockConfig } from '../config/livestock.
 import { mapNutrients, ZERO_NUTRIENTS, type NutrientsConfig, type NutrientVector } from '../config/nutrients.js';
 import { sum } from './sum.js';
 
-/** What a gram of dry mass is made of: grams of carbon, and mg of each nutrient. */
-export interface Composition {
-  carbon: number;
-  nutrients: NutrientVector;
-}
-
 export interface Organics {
   grams: number;
   carbon: number;
@@ -29,19 +23,16 @@ export interface RecipeConfig {
   nutrients: NutrientsConfig;
 }
 
-export function foodRecipe({ livestock, nutrients }: RecipeConfig): Composition {
+export function foodRecipe({ livestock, nutrients }: RecipeConfig): Organics {
   return {
+    grams: 1,
     carbon: livestock.foodCarbonFraction,
     nutrients: { nitrate: nitratePerGramOfFood(livestock), ...nutrients.foodMineralContent },
   };
 }
 
-export function ofComposition(grams: number, perGram: Composition): Organics {
-  return { grams, carbon: grams * perGram.carbon, nutrients: mapNutrients((n) => grams * perGram.nutrients[n]) };
-}
-
 export function atRecipe(grams: number, config: RecipeConfig): Organics {
-  return ofComposition(grams, foodRecipe(config));
+  return portion(foodRecipe(config), grams);
 }
 
 export function scaleOrganics(pool: Organics, factor: number): Organics {
@@ -52,16 +43,24 @@ export function scaleOrganics(pool: Organics, factor: number): Organics {
   };
 }
 
-/** `grams` of the pool, at its composition. */
 export function portion(pool: Organics, grams: number): Organics {
   return scaleOrganics(pool, pool.grams > 0 ? grams / pool.grams : 0);
 }
 
-/** The pools together, every part never below empty. */
-export function addOrganics(...pools: readonly Organics[]): Organics {
+export function sumOrganics(...flows: readonly Organics[]): Organics {
   return {
-    grams: Math.max(0, sum(pools.map((pool) => pool.grams))),
-    carbon: Math.max(0, sum(pools.map((pool) => pool.carbon))),
-    nutrients: mapNutrients((n) => Math.max(0, sum(pools.map((pool) => pool.nutrients[n])))),
+    grams: sum(flows.map((flow) => flow.grams)),
+    carbon: sum(flows.map((flow) => flow.carbon)),
+    nutrients: mapNutrients((n) => sum(flows.map((flow) => flow.nutrients[n]))),
+  };
+}
+
+export function addOrganics(...pools: readonly Organics[]): Organics {
+  const total = sumOrganics(...pools);
+  if (total.grams <= 0) return NO_ORGANICS;
+  return {
+    grams: total.grams,
+    carbon: Math.max(0, total.carbon),
+    nutrients: mapNutrients((n) => Math.max(0, total.nutrients[n])),
   };
 }

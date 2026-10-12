@@ -8,10 +8,11 @@ import { group, query, renderStage } from '../test/stage';
 import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { LEDGER_DECIMALS, readHourAhead } from '../run';
-import { NO_ORGANICS,
+import {
   applyAction,
   debParams,
   fishLifeStage,
+  NO_ORGANICS,
   STOCKED_FISH_SIZE,
   stockedMass,
   type Action,

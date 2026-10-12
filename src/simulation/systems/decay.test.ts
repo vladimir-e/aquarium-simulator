@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { deltaOf } from '../tests/effects.js';
-import { NO_ORGANICS, atRecipe, ofComposition, scaleOrganics, type Organics } from '../core/organics.js';
+import { NO_ORGANICS, atRecipe, portion, scaleOrganics, type Organics } from '../core/organics.js';
 import { LEAN, ofFood, organicsCloseTo } from '../tests/organics.js';
 import {
   decaySystem,
@@ -53,7 +53,7 @@ describe('calculateDecay', () => {
   });
 
   it('takes every part of the food in proportion, carbon and nutrients with the grams', () => {
-    const food: Organics = ofComposition(1, LEAN);
+    const food: Organics = portion(LEAN, 1);
     const decay = calculateDecay(food, 25, SATURATED_O2);
     expect(decay).toEqual(organicsCloseTo(scaleOrganics(food, decay.grams), 15));
   });
@@ -120,14 +120,14 @@ describe('decaySystem', () => {
 
   it('rots food at the composition it was fed at, not at the recipe food has now', () => {
     const state = produce(createTestState(), (draft) => {
-      draft.resources.food = ofComposition(1, LEAN);
+      draft.resources.food = portion(LEAN, 1);
     });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
     const food = effects.find((e) => e.resource === 'food')!;
     const waste = effects.find((e) => e.resource === 'waste')!;
 
     expect(waste.delta).toEqual(
-      organicsCloseTo(ofComposition(-deltaOf(food) * decayDefaults.wasteConversionRatio, LEAN), 12)
+      organicsCloseTo(portion(LEAN, -deltaOf(food) * decayDefaults.wasteConversionRatio), 12)
     );
   });
 

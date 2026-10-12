@@ -10,12 +10,12 @@ import { createSimulation, type Fish } from '../state.js';
 import { NUTRIENTS, WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { DEFAULT_CONFIG, configRange, withTunable } from '../config/index.js';
 import { MW_CO2, MW_NH3, MW_NO3, MW_O2 } from '../core/chemistry.js';
-import { NO_ORGANICS, addOrganics, atRecipe, ofComposition, type Organics } from '../core/organics.js';
+import { NO_ORGANICS, addOrganics, atRecipe, portion, type Organics } from '../core/organics.js';
 import { sum } from '../core/sum.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { fishComposition, fishOrganics } from './fish-body.js';
 import { fishRecord } from '../tests/fish.js';
-import { ofFood, organicsCloseTo } from '../tests/organics.js';
+import { LEAN, ofFood, organicsCloseTo } from '../tests/organics.js';
 
 const SATURATED = 8;
 const REFERENCE: Pace = { tau: 1, omega: 1, stress: NO_STRESS };
@@ -131,14 +131,15 @@ describe('burn', () => {
 
 describe('liveHour', () => {
   const fed = fishRecord({ species: 'guppy', gut: ofFood(0.003), age: 100 });
-  const preyed = { ...fed, gut: addOrganics(ofFood(0.001), ofComposition(0.002, body)) };
-  const held = (fish: Fish): Organics => addOrganics(fish.gut, ofComposition(fishOrganics(fish), body));
+  const preyed = { ...fed, gut: addOrganics(ofFood(0.001), portion(body, 0.002)) };
+  const lean = { ...fed, gut: portion(LEAN, 0.003) };
+  const held = (fish: Fish): Organics => addOrganics(fish.gut, portion(body, fishOrganics(fish)));
 
   it('closes its ledger in grams, carbon and every nutrient: gut and body before are gut and body after, feces and burn', () => {
-    for (const fish of [fed, preyed, { ...fed, gut: NO_ORGANICS }, { ...fed, health: 40 }]) {
+    for (const fish of [fed, preyed, lean, { ...fed, gut: NO_ORGANICS }, { ...fed, health: 40 }]) {
       const hour = liveHour(fish, REFERENCE, 1e-5, config, body);
       expect(hour.feces.grams).toBeCloseTo(hour.fluxes.feces, 15);
-      expect(addOrganics(held(hour.fish), hour.feces, ofComposition(totalBurned(hour.fluxes), body))).toEqual(
+      expect(addOrganics(held(hour.fish), hour.feces, portion(body, totalBurned(hour.fluxes)))).toEqual(
         organicsCloseTo(held(fish), 12)
       );
     }

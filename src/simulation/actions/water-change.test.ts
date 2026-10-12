@@ -7,7 +7,7 @@ import { logText } from '../core/logging.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { getDgh, getDkh, getGhMass, getKhMass } from '../resources/helpers.js';
 import type { ActionResult, WaterChangeAction } from './types.js';
-import { NO_ORGANICS, ofComposition, scaleOrganics } from '../core/organics.js';
+import { NO_ORGANICS, portion, scaleOrganics } from '../core/organics.js';
 import { LEAN, organicsCloseTo } from '../tests/organics.js';
 
 const DISSOLVED = ['ammonia', 'nitrite', 'nitrate', 'phosphate', 'potassium', 'iron'] as const;
@@ -108,7 +108,7 @@ describe('waterChange', () => {
   });
 
   it('leaves the bed alone unless asked to vacuum it, and vacuums its content pro rata', () => {
-    const mulm = ofComposition(2, LEAN);
+    const mulm = portion(LEAN, 2);
     const before = produce(tank(), (draft) => {
       draft.equipment.substrate.type = 'gravel';
       draft.equipment.substrate.organicReserve = mulm;

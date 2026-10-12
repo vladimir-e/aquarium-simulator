@@ -157,10 +157,7 @@ export {
   addOrganics,
   atRecipe,
   foodRecipe,
-  ofComposition,
-  portion,
   scaleOrganics,
-  type Composition,
   type Organics,
   type RecipeConfig,
 } from './core/organics.js';

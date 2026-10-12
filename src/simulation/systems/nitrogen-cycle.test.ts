@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { deltaOf } from '../tests/effects.js';
-import { addOrganics, atRecipe, NO_ORGANICS, ofComposition, scaleOrganics, type Organics } from '../core/organics.js';
+import { addOrganics, atRecipe, NO_ORGANICS, portion, scaleOrganics, type Organics } from '../core/organics.js';
 import { LEAN, organicsCloseTo } from '../tests/organics.js';
 import { produce } from 'immer';
 import {
@@ -247,7 +247,7 @@ describe('wasteMineralised', () => {
   });
 
   it('takes the waste-conversion share of the pool each tick, its content in proportion', () => {
-    const waste = addOrganics(atRecipe(6, DEFAULT_CONFIG), ofComposition(4, LEAN));
+    const waste = addOrganics(atRecipe(6, DEFAULT_CONFIG), portion(LEAN, 4));
     expect(wasteMineralised(waste)).toEqual(
       organicsCloseTo(scaleOrganics(waste, nitrogenCycleDefaults.wasteConversionRate))
     );
@@ -700,7 +700,7 @@ describe('nitrogenCycleSystem', () => {
     });
 
     it('releases what the mineralised share of the pool holds, whatever it was made of', () => {
-      const waste = ofComposition(10, LEAN);
+      const waste = portion(LEAN, 10);
       const effects = nitrogenCycleSystem.update(createTestState({ waste, water: 40 }), DEFAULT_CONFIG);
       const released = (resource: 'ammonia' | WasteNutrient): number =>
         deltaOf(effects.find((e) => e.resource === resource && e.source === 'nitrogen-cycle-mineralization')!);

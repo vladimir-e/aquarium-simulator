@@ -7,7 +7,7 @@
 
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
-import { ResourceRegistry, type ResourceKey } from '../resources/index.js';
+import { ResourceRegistry, type OrganicResourceKey, type ResourceKey } from '../resources/index.js';
 import type { TunableConfig } from '../config/index.js';
 import { addOrganics, type Organics } from './organics.js';
 
@@ -27,10 +27,9 @@ interface EffectOn<R extends ResourceKey, D> {
   source: string;
 }
 
-/** The organic pools: they move by organics, so their grams never move without their content. */
-type OrganicResource = 'food' | 'waste';
-
-export type Effect = EffectOn<Exclude<ResourceKey, OrganicResource>, number> | EffectOn<OrganicResource, Organics>;
+export type Effect =
+  | EffectOn<Exclude<ResourceKey, OrganicResourceKey>, number>
+  | EffectOn<OrganicResourceKey, Organics>;
 
 /**
  * Clamps a value between min and max (inclusive).
@@ -60,6 +59,10 @@ export function applyEffects(
 
   return produce(state, (draft) => {
     for (const effect of effects) {
+      if (effect.resource === 'food' || effect.resource === 'waste') {
+        draft.resources[effect.resource] = addOrganics(draft.resources[effect.resource], effect.delta);
+        continue;
+      }
       const resource = ResourceRegistry[effect.resource];
 
       switch (effect.resource) {
@@ -76,10 +79,6 @@ export function applyEffects(
             resource.bounds.min,
             resource.bounds.max
           );
-          break;
-        case 'food':
-        case 'waste':
-          draft.resources[effect.resource] = addOrganics(draft.resources[effect.resource], effect.delta);
           break;
         case 'ammonia':
           draft.resources.ammonia = clamp(

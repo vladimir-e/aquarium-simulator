@@ -24,7 +24,7 @@ import { mapNutrients, NUTRIENTS, nutrientsDefaults } from '../config/nutrients.
 import { DEFAULT_CONFIG } from '../config/index.js';
 import type { Effect } from '../core/effects.js';
 import { deltaOf } from '../tests/effects.js';
-import { addOrganics, atRecipe, NO_ORGANICS, ofComposition, scaleOrganics, type Organics } from '../core/organics.js';
+import { addOrganics, atRecipe, NO_ORGANICS, portion, scaleOrganics, type Organics } from '../core/organics.js';
 import { LEAN, organicsCloseTo } from '../tests/organics.js';
 
 const wasteDeltas = (effects: readonly Effect[]): Organics[] =>
@@ -57,7 +57,7 @@ describe('getSubstrateOrganicReserve', () => {
   it('comes out of the bag at the bag’s own composition', () => {
     for (const type of SUBSTRATES) {
       const reserve = getSubstrateOrganicReserve(type, 100);
-      expect(reserve).toEqual(organicsCloseTo(ofComposition(reserve.grams, SUBSTRATE_ORGANIC_COMPOSITION)));
+      expect(reserve).toEqual(organicsCloseTo(portion(SUBSTRATE_ORGANIC_COMPOSITION, reserve.grams)));
     }
   });
 });
@@ -103,7 +103,7 @@ describe('replaceSubstrate', () => {
 });
 
 describe('calculateSubstrateLeach', () => {
-  const reserve = ofComposition(2, LEAN);
+  const reserve = portion(LEAN, 2);
 
   it('takes a fixed fraction of what is left, its content in proportion', () => {
     expect(calculateSubstrateLeach(reserve, decayDefaults)).toEqual(
@@ -128,7 +128,7 @@ describe('substrateUpdate', () => {
   }
 
   it('moves organics out of the bed and into the waste pool, its content pro rata', () => {
-    const reserve = ofComposition(2, LEAN);
+    const reserve = portion(LEAN, 2);
     const state = produce(soilTank(), (draft) => {
       draft.equipment.substrate.organicReserve = reserve;
     });
@@ -154,7 +154,7 @@ describe('substrateUpdate', () => {
   });
 
   it('settles its share of standing waste into the bed, its content pro rata', () => {
-    const waste = ofComposition(2, LEAN);
+    const waste = portion(LEAN, 2);
     const state = produce(soilTank(), (draft) => {
       draft.resources.waste = waste;
     });

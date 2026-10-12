@@ -22,7 +22,7 @@ import { stockedBody } from '../livestock/create-fish.js';
 import { mature } from '../systems/deb.js';
 import { spawnsAt } from '../systems/brood.js';
 import { clutchOrganics } from '../systems/clutch.js';
-import { addOrganics, atRecipe, ofComposition, type Organics } from '../core/organics.js';
+import { addOrganics, atRecipe, portion, type Organics } from '../core/organics.js';
 import { sum } from '../core/sum.js';
 import { LEAN, ofFood } from './organics.js';
 import { freshSubstrate } from '../equipment/substrate.js';
@@ -46,7 +46,7 @@ const BODY = fishComposition(DEFAULT_CONFIG);
 /** The organic matter the fish hold: their budgets and every clutch, laid or carried, at their composition, and their guts. */
 function livestockOrganics({ fish, clutches }: Pick<SimulationState, 'fish' | 'clutches'>): Organics {
   const bodies = sum(fish.map(fishOrganics)) + sum(clutches.map(clutchOrganics));
-  return addOrganics(ofComposition(bodies, BODY), ...fish.map((f) => f.gut));
+  return addOrganics(portion(BODY, bodies), ...fish.map((f) => f.gut));
 }
 
 /** Every organic pool, whatever it was made of: food, the livestock's, the standing waste and the bed's mulm. */
@@ -169,7 +169,7 @@ describe('nitrogen mass', () => {
     const start = produce(cycledBareTank(), (draft) => {
       draft.equipment.substrate.type = 'gravel';
       draft.equipment.light.enabled = false;
-      draft.resources.waste = ofComposition(10, LEAN);
+      draft.resources.waste = portion(LEAN, 10);
     });
     const mid = run(start, 24);
     const end = run(mid, 2000);
@@ -449,7 +449,7 @@ describe('carbon mass', () => {
   it('travels intact as waste settles into the bed, leaches back out and is stirred up, and leaves with the vacuum in its share', () => {
     const start = produce(cycledBareTank(), (draft) => {
       draft.equipment.substrate = freshSubstrate('gravel', draft.tank.capacity);
-      draft.resources.waste = addOrganics(ofComposition(5, LEAN), ofFood(5));
+      draft.resources.waste = addOrganics(portion(LEAN, 5), ofFood(5));
     });
     let settled = start;
     for (let hour = 0; hour < 48; hour++) settled = settleEnvironment(settled);

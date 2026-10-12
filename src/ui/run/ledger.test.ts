@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { NO_ORGANICS,
+import {
   ALGAE_KINDS,
   applyAction,
   bloomParams,
@@ -8,6 +8,7 @@ import { NO_ORGANICS,
   fillAtDroop,
   fullDroopFactor,
   getPresetById,
+  NO_ORGANICS,
   plantLightTaken,
   plantParams,
   starvation,
