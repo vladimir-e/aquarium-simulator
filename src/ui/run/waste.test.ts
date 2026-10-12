@@ -195,10 +195,11 @@ describe('wasteSummary', () => {
   it('counts what settles into the bed as an outflow of the pool', () => {
     const state = soilTank();
     state.resources.waste = rot(1);
-    const readout = readoutOf(state);
+    const ahead = readHourAhead(state, config);
+    const readout = wasteReadout(state, config, ahead);
     expect(readout.settled).toBeGreaterThan(0);
+    expect(readout.settled).toBeCloseTo((readout.standing + readout.perHour) * ahead.rot.waste.shares.settling, 12);
     expect(readoutOf(tank()).settled).toBe(0);
-    expect(readoutOf(produce(state, (d) => void (d.resources.waste = rot(2)))).settled / readout.settled).toBeCloseTo(2, 4);
   });
 
   it('says so plainly when nothing produces waste at all', () => {

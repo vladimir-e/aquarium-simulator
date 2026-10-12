@@ -100,7 +100,7 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
     const asked = (structure: number): Record<(typeof NUTRIENTS)[number], number> => mapNutrients((n) => p.qMin[n] * structure);
 
     it('builds every gram asked for when the water delivers it all, unfed, with no stores', () => {
-      const built = sporesBuilt(0.01, asked(0.01), Infinity, p);
+      const built = sporesBuilt(0.01, asked(0.01), p);
       expect(built.structure).toBeCloseTo(0.01, 15);
       expect(built.reserve).toBe(0);
       for (const n of NUTRIENTS) expect(built.stores[n]).toBeCloseTo(0, 15);
@@ -113,7 +113,7 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
         phosphate: asked(0.004).phosphate,
         iron: asked(0.0041).iron,
       };
-      const built = sporesBuilt(0.01, delivered, Infinity, p);
+      const built = sporesBuilt(0.01, delivered, p);
       expect(built.structure).toBeCloseTo(0.004, 15);
       expect(built.stores.phosphate).toBeCloseTo(0, 15);
       expect(built.stores.iron).toBeCloseTo(delivered.iron - p.qMin.iron * built.structure, 15);
@@ -121,14 +121,13 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
       expect(built.stores.nitrate).toBeCloseTo((p.qMax.nitrate - p.qMin.nitrate) * built.structure, 15);
     });
 
-    it('builds no more than the photosynthate the water’s CO2 left it', () => {
-      const built = sporesBuilt(0.01, asked(0.01), 0.003, p);
-      expect(built.structure).toBeCloseTo(0.003, 15);
-      expect(sporesBuilt(0.01, asked(0.01), 0, p).structure).toBe(0);
+    it('builds no more than the structure the CO2 offered them', () => {
+      expect(sporesBuilt(0.003, asked(0.01), p).structure).toBeCloseTo(0.003, 15);
+      expect(sporesBuilt(0, asked(0.01), p).structure).toBe(0);
     });
 
     it('builds nothing, and holds nothing, with a nutrient absent', () => {
-      const built = sporesBuilt(0.01, { ...asked(0.01), iron: 0 }, Infinity, p);
+      const built = sporesBuilt(0.01, { ...asked(0.01), iron: 0 }, p);
       expect(built.structure).toBe(0);
       for (const n of NUTRIENTS) expect(built.stores[n]).toBe(0);
     });
@@ -137,7 +136,7 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
   describe('sporesUptake', () => {
     it('takes up each form at the share of its nutrient the spores hold, so the water keeps what they could not', () => {
       const delivered = mapNutrients((n) => p.qMax[n] * 0.01);
-      const built = sporesBuilt(0.01, { ...delivered, phosphate: p.qMin.phosphate * 0.005 }, Infinity, p);
+      const built = sporesBuilt(0.01, { ...delivered, phosphate: p.qMin.phosphate * 0.005 }, p);
       const uptake = { ammonia: 0.3, nitrate: 0.7, phosphate: p.qMin.phosphate * 0.005, potassium: delivered.potassium, iron: delivered.iron };
       const taken = sporesUptake(uptake, { ...delivered, phosphate: uptake.phosphate }, built, p);
       const held = floraNutrients(built, p);
@@ -145,7 +144,7 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
       expect(taken.ammonia / uptake.ammonia).toBeCloseTo(held.nitrate / delivered.nitrate, 12);
       expect(taken.nitrate / uptake.nitrate).toBeCloseTo(held.nitrate / delivered.nitrate, 12);
       expect(taken.iron).toBeCloseTo(held.iron, 15);
-      expect(sporesUptake(uptake, delivered, sporesBuilt(0.01, { ...delivered, iron: 0 }, Infinity, p), p)).toEqual(ZERO_FORMS);
+      expect(sporesUptake(uptake, delivered, sporesBuilt(0.01, { ...delivered, iron: 0 }, p), p)).toEqual(ZERO_FORMS);
     });
   });
 
@@ -155,8 +154,8 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
       const light = { par: 30, dailyLight: 1, needShare: 1 };
       const fixer = (assimilation: number): CarbonFixer =>
         bloomFixer(bloom, light, 1, { ...NO_STRESS, assimilation }, traits, config.plants);
-      expect(fixer(0.4).metabolicRateUnits).toBeCloseTo(0.4 * fixer(1).metabolicRateUnits, 15);
-      expect({ ...fixer(0.4), metabolicRateUnits: 0 }).toEqual({ ...fixer(1), metabolicRateUnits: 0 });
+      expect(fixer(0.4).capacity / fixer(1).capacity).toBeCloseTo(0.4, 12);
+      expect(fixer(0.4).co2HalfSaturation).toBe(fixer(1).co2HalfSaturation);
     });
   });
 

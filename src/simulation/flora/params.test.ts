@@ -4,7 +4,7 @@ import { plantsDefaults, quotaMaxMeta, quotaMinMeta, type PlantsConfig } from '.
 import { NUTRIENTS, type Nutrient, type VectorMeta } from '../config/nutrients.js';
 import { CO2_TO_CH2O_MASS_RATIO } from '../core/chemistry.js';
 import { maxReserveDensity, structureOrganics } from '../systems/reserve.js';
-import { offerCarbon, photosynthateOf, plantFixer } from '../systems/photosynthesis.js';
+import { carbonCapacity, offerCarbon, photosynthateOf, plantFixer } from '../systems/photosynthesis.js';
 import { floraStressors, metabolicRateUnits } from '../systems/flora.js';
 import { rateUnits, tissueMass } from '../plants/canopy.js';
 import { PLANT_SPECIES_DATA, plantTraits, type PlantSpecies } from '../plants/species.js';
@@ -36,12 +36,7 @@ const close = (a: number, b: number): boolean => Math.abs(a - b) <= 1e-9 * Math.
 
 describe.each(units)('$name', ({ p, grams, rated }) => {
   it('assimilates at saturation the photosynthate its rate units fix', () => {
-    const [offered] = offerCarbon(
-      [{ metabolicRateUnits: rated, lightResponse: 1, omega: 1, co2HalfSaturation: 0 }],
-      1e9,
-      100,
-      config
-    );
+    const [offered] = offerCarbon([{ capacity: carbonCapacity(rated, 1, 1, config), co2HalfSaturation: 0 }], 1e9, 100);
     expect(close(p.pAm * grams, photosynthateOf(offered))).toBe(true);
   });
 
@@ -98,7 +93,7 @@ describe('vigour', () => {
 
   it('is offered at saturation the photosynthate its own ceiling holds', () => {
     const unit = plantRecord({ id: 'sword', species: 'amazon_sword', size: 60, vigour });
-    const [offered] = offerCarbon([{ ...plantFixer(unit, 1e9, 1, config), co2HalfSaturation: 0 }], 1e9, 100, config);
+    const [offered] = offerCarbon([{ ...plantFixer(unit, 1e9, 1, config), co2HalfSaturation: 0 }], 1e9, 100);
     expect(close(own.pAm * unit.budget.structure, photosynthateOf(offered))).toBe(true);
   });
 });

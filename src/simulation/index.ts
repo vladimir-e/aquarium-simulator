@@ -182,7 +182,6 @@ export {
   rotShare,
   decompose,
   decomposePools,
-  organicPool,
   type PoolShares,
   type PoolHour,
   LID_MULTIPLIERS,

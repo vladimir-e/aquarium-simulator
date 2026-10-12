@@ -167,7 +167,7 @@ const DEFINITIONS = [
     read: (s): number | null =>
       s.equipment.substrate.type === 'none'
         ? null
-        : getPpm(s.equipment.substrate.organicReserve.grams * MG_PER_G, s.resources.water),
+        : getPpm(s.equipment.substrate.organicReserve.grams * MG_PER_G, s.tank.capacity),
     band: {
       green: [0, 100],
       amber: [0, 500],

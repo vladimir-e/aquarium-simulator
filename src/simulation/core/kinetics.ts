@@ -85,24 +85,30 @@ export function monodUptake(stock: number, capacity: number, halfSaturation: num
 }
 
 const ROOT_TOLERANCE = 1e-12;
+const ROOT_STEPS = 100;
 
 /**
  * The stock several consumers leave over one tick, each drawing on it with
  * its own curve read where the tick ends, the way `monodUptake` reads one:
  * the root of `left = stock − draw(left)`, `draw` their total at that level.
  *
- * Every draw has to rise with the stock and take nothing from an empty one.
- * Then the stock less the draw at any level lies across the root from that
- * level, so each reading bounds the root on both sides. The search steps by
- * secant while the bracket closes fast and halves it when it doesn't, and
- * returns its lower edge, where the draws never sum past the stock.
+ * Every draw has to rise with the stock, take nothing from an empty one, and
+ * run continuous down to it. Then the stock less the draw at any level lies
+ * across the root from that level, so each reading bounds the root on both
+ * sides. A draw that jumps at zero — a Monod curve at K = 0 — has no root once
+ * it asks more than the stock holds, and the search lands on the empty stock,
+ * where nobody draws anything.
+ *
+ * The search steps by secant while the bracket closes fast and halves it when
+ * it doesn't, and returns its lower edge, where the draws never sum past the
+ * stock.
  */
 export function stockLeft(stock: number, draw: (left: number) => number): number {
   let low = 0;
   let high = stock;
   let probe = stock;
   let last: { probe: number; excess: number } | null = null;
-  while (high - low > stock * ROOT_TOLERANCE) {
+  for (let step = 0; step < ROOT_STEPS && high - low > stock * ROOT_TOLERANCE; step++) {
     const width = high - low;
     const excess = stock - probe - draw(probe);
     const mirror = probe + excess;
@@ -118,7 +124,7 @@ export function stockLeft(stock: number, draw: (left: number) => number): number
         ? mirror
         : probe - (excess * (probe - last.probe)) / (excess - last.excess);
     last = { probe, excess };
-    probe = high - low < width / 2 && secant >= low && secant <= high ? secant : (low + high) / 2;
+    probe = high - low <= width / 2 && secant >= low && secant <= high ? secant : (low + high) / 2;
   }
   return low;
 }

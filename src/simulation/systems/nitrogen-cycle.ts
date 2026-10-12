@@ -426,26 +426,25 @@ function nitrify(
   resources: Resources,
   oxygen: number,
   config: NitrogenCycleConfig
-): { aob: ReturnType<typeof calculateAmmoniaToNitrite>; nob: ReturnType<typeof calculateNitriteToNitrate> } {
-  const maxBacteria = calculateMaxBacteria(resources.surface, config);
+): {
+  ceiling: number;
+  colonies: Record<'aob' | 'nob', number>;
+  aob: ReturnType<typeof calculateAmmoniaToNitrite>;
+  nob: ReturnType<typeof calculateNitriteToNitrate>;
+} {
+  const ceiling = calculateMaxBacteria(resources.surface, config);
+  const colonies = { aob: Math.min(resources.aob, ceiling), nob: Math.min(resources.nob, ceiling) };
   const { water, temperature } = resources;
-  const aob = calculateAmmoniaToNitrite(
-    resources.ammonia,
-    water,
-    Math.min(resources.aob, maxBacteria),
-    temperature,
-    oxygen,
-    config
-  );
+  const aob = calculateAmmoniaToNitrite(resources.ammonia, water, colonies.aob, temperature, oxygen, config);
   const nob = calculateNitriteToNitrate(
     resources.nitrite + aob.nitriteProduced,
     water,
-    Math.min(resources.nob, maxBacteria),
+    colonies.nob,
     temperature,
     oxygen,
     config
   );
-  return { aob, nob };
+  return { ceiling, colonies, aob, nob };
 }
 
 export const nitrogenCycleSystem = {
@@ -454,38 +453,30 @@ export const nitrogenCycleSystem = {
 
   oxygenDraw(state: SimulationState, oxygen: number, config: TunableConfig): number {
     const { aob, nob } = nitrify(state.resources, oxygen, config.nitrogenCycle);
-    return aob.oxygenConsumedMg + nob.oxygenConsumedMg;
+    return getPpm(aob.oxygenConsumedMg + nob.oxygenConsumedMg, state.resources.water);
   },
 
   update(state: SimulationState, config: TunableConfig, oxygen: number): Effect[] {
     const effects: Effect[] = [];
     const { resources } = state;
     const ncConfig = config.nitrogenCycle;
-    const maxBacteria = calculateMaxBacteria(resources.surface, ncConfig);
     const waterVolume = resources.water;
     const temperature = resources.temperature;
+    const { ceiling, colonies, aob: aobStage, nob: nobStage } = nitrify(resources, oxygen, ncConfig);
 
     // ========================================================================
     // Step 0: Cap bacteria to current surface area (handle surface reduction)
     // ========================================================================
-    if (resources.aob > maxBacteria) {
-      effects.push({
-        tier: 'passive',
-        resource: 'aob',
-        delta: maxBacteria - resources.aob,
-        source: 'nitrogen-cycle-surface-cap',
-      });
+    for (const stage of ['aob', 'nob'] as const) {
+      if (colonies[stage] < resources[stage]) {
+        effects.push({
+          tier: 'passive',
+          resource: stage,
+          delta: colonies[stage] - resources[stage],
+          source: 'nitrogen-cycle-surface-cap',
+        });
+      }
     }
-    if (resources.nob > maxBacteria) {
-      effects.push({
-        tier: 'passive',
-        resource: 'nob',
-        delta: maxBacteria - resources.nob,
-        source: 'nitrogen-cycle-surface-cap',
-      });
-    }
-
-    const { aob: aobStage, nob: nobStage } = nitrify(resources, oxygen, ncConfig);
 
     // ========================================================================
     // Stage 1: Ammonia → Nitrite (AOB Bacteria)
@@ -556,26 +547,8 @@ export const nitrogenCycleSystem = {
     // ========================================================================
     const seeding = calculateSeeding(waterVolume, ncConfig);
     effects.push(
-      ...colonyEffects(
-        'aob',
-        Math.min(resources.aob, maxBacteria),
-        aobStage.utilization,
-        temperature,
-        oxygen,
-        maxBacteria,
-        seeding,
-        ncConfig
-      ),
-      ...colonyEffects(
-        'nob',
-        Math.min(resources.nob, maxBacteria),
-        nobStage.utilization,
-        temperature,
-        oxygen,
-        maxBacteria,
-        seeding,
-        ncConfig
-      )
+      ...colonyEffects('aob', colonies.aob, aobStage.utilization, temperature, oxygen, ceiling, seeding, ncConfig),
+      ...colonyEffects('nob', colonies.nob, nobStage.utilization, temperature, oxygen, ceiling, seeding, ncConfig)
     );
 
     return effects;

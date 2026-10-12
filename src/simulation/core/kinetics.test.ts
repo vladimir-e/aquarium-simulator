@@ -210,6 +210,14 @@ describe('stockLeft', () => {
   it('leaves an empty stock empty', () => {
     expect(stockLeft(0, monod(5, 0.2))).toBe(0);
   });
+
+  it('settles on a stock too small for its tolerance to resolve', () => {
+    for (const stock of [Number.MIN_VALUE, 1e-310]) {
+      const left = stockLeft(stock, monod(1e6, 0.3));
+      expect(left).toBeGreaterThanOrEqual(0);
+      expect(left).toBeLessThanOrEqual(stock);
+    }
+  });
 });
 
 describe('lightSaturationFactor', () => {

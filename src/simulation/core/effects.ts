@@ -7,7 +7,7 @@
 
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
-import { ResourceRegistry, type OrganicResourceKey, type ResourceKey } from '../resources/index.js';
+import { isOrganicPool, ResourceRegistry, type OrganicResourceKey, type ResourceKey } from '../resources/index.js';
 import type { TunableConfig } from '../config/index.js';
 import { addOrganics, type Organics } from './organics.js';
 
@@ -27,9 +27,11 @@ interface EffectOn<R extends ResourceKey, D> {
   source: string;
 }
 
-export type Effect =
-  | EffectOn<Exclude<ResourceKey, OrganicResourceKey>, number>
-  | EffectOn<OrganicResourceKey, Organics>;
+type OrganicEffect = EffectOn<OrganicResourceKey, Organics>;
+
+export type Effect = EffectOn<Exclude<ResourceKey, OrganicResourceKey>, number> | OrganicEffect;
+
+const isOrganicEffect = (effect: Effect): effect is OrganicEffect => isOrganicPool(effect.resource);
 
 /**
  * Clamps a value between min and max (inclusive).
@@ -69,7 +71,7 @@ export function applyEffects(
 
   return produce(state, (draft) => {
     for (const effect of effects) {
-      if (effect.resource === 'food' || effect.resource === 'waste' || effect.resource === 'mulm') {
+      if (isOrganicEffect(effect)) {
         addToPool(draft, effect.resource, effect.delta);
         continue;
       }

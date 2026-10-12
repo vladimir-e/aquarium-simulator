@@ -537,8 +537,9 @@ describe('carbon mass', () => {
     });
 
     it('trades with the air exactly the CO2 gas exchange moves', () => {
+      const settled = settleEnvironment(inert);
       const exchanged = gasExchangeSystem
-        .update(settleEnvironment(inert), DEFAULT_CONFIG)
+        .update(settled, DEFAULT_CONFIG, settled.resources.oxygen)
         .filter((effect) => effect.resource === 'co2')
         .map((effect) => deltaOf(effect));
       expect(exchanged).toHaveLength(1);

@@ -235,8 +235,8 @@ export function bacteriaReadout(
     ahead.oxygen,
     nc
   );
-  const aobThroughput = getPpm(aobCapacity(r.aob, r.temperature, r.oxygen, nc), water);
-  const nobThroughput = getPpm(nobCapacity(r.nob, r.temperature, r.oxygen, nc), water);
+  const aobThroughput = getPpm(aobCapacity(r.aob, r.temperature, ahead.oxygen, nc), water);
+  const nobThroughput = getPpm(nobCapacity(r.nob, r.temperature, ahead.oxygen, nc), water);
 
   const rates: ConversionRates = {
     wasteToAmmonia: getPpm(ammoniaProduced, water),
@@ -354,7 +354,8 @@ export function projectNitritePeak(
     const seeding = calculateSeeding(water, nc);
     water = nextVolume(water, state, config);
     const tank = { ...state, resources: { ...r, water } };
-    const shares = (pool: OrganicResourceKey): PoolShares => poolShares(pool, tank, oxygen, config.decomposition);
+    const shares = (pool: OrganicResourceKey): PoolShares =>
+      poolShares(pool, { temperature: r.temperature, oxygen }, tank, config.decomposition);
 
     waste = addOrganics(waste, steadyInflow);
     const wasteHour = decompose(waste, shares('waste'));

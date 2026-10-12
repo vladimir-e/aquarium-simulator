@@ -20,7 +20,7 @@ import {
   type NutrientForm,
   type TunableConfig,
 } from '../config/index.js';
-import { getMassFromPpm, getPpm } from '../resources/index.js';
+import { getPpm } from '../resources/index.js';
 import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
 import type { PlantLight } from '../plants/canopy.js';
 import { sizeOf } from '../plants/canopy.js';
@@ -39,6 +39,7 @@ import {
   landSpores,
   mapKinds,
   coverageOf,
+  sporeFixer,
   sporesBuilt,
   sporesUptake,
   type AlgaeKind,
@@ -156,17 +157,13 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const plantCount = plants.length;
   const kinds = blooms.length;
 
-  // 2. What light and carbon offer every fixer, all drawn on the one CO₂ stock;
-  // the spores build on what they leave of it.
-  const offeredCo2 = offerCarbon(
-    flora.map(({ fixer }) => fixer),
+  // 2. What light and carbon offer every fixer, and every kind's spores, all
+  // drawn on the one CO₂ stock.
+  const offered = offerCarbon(
+    [...flora.map(({ fixer }) => fixer), ...blooms.map(({ spores, traits }) => sporeFixer(spores, traits))],
     resources.co2,
-    waterVolume,
-    plantsConfig
-  );
-  const offered = offeredCo2.map(photosynthateOf);
-  const leftOver = photosynthateOf(getMassFromPpm(resources.co2, waterVolume) - sum(offeredCo2));
-  const sporesAsked = sum(blooms.map(({ spores }) => spores));
+    waterVolume
+  ).map(photosynthateOf);
 
   // 3. The water and the bed fill every store, and build the spores, at once.
   const delivery = drawNutrients(
@@ -177,9 +174,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     pools
   );
   const sporesFrom = plantCount + kinds;
-  const spores = blooms.map(({ spores, p }, k) =>
-    sporesBuilt(spores, delivery.delivered[sporesFrom + k], sporesAsked > 0 ? (leftOver * spores) / sporesAsked : 0, p)
-  );
+  const spores = blooms.map(({ p }, k) => sporesBuilt(offered[sporesFrom + k], delivery.delivered[sporesFrom + k], p));
   const taken = delivery.uptake.map((byPool, i) => {
     if (i < sporesFrom) return byPool;
     const k = i - sporesFrom;

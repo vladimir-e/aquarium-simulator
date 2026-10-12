@@ -5,6 +5,7 @@
 
 import type { Effect, EffectTier } from '../core/effects.js';
 import type { Resources, SimulationState } from '../state.js';
+import type { Substrate } from '../equipment/substrate.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { ORGANIC_POOLS, type OrganicResourceKey } from '../resources/types.js';
@@ -18,6 +19,7 @@ import { getPpm } from '../resources/helpers.js';
 import { ammoniaIn, mintAmmonia } from './nitrogen-cycle.js';
 
 type DecomposingTank = Pick<SimulationState, 'resources' | 'equipment'>;
+type SettlingTank = { resources: Pick<Resources, 'water' | 'flow'>; equipment: { substrate: Pick<Substrate, 'type'> } };
 
 /** How fast rot runs at this temperature, against the reference its rates are quoted at. */
 export function rotPace(temperature: number, config: DecompositionConfig = decompositionDefaults): number {
@@ -40,7 +42,7 @@ export function rotRates(
  * particles in suspension, so it halves at `settlingHalfTurnover` tank
  * turnovers an hour. Nothing settles without a bed, or without water.
  */
-export function settlingRate(tank: DecomposingTank, config: DecompositionConfig = decompositionDefaults): number {
+export function settlingRate(tank: SettlingTank, config: DecompositionConfig = decompositionDefaults): number {
   const { water, flow } = tank.resources;
   if (tank.equipment.substrate.type === 'none' || water <= 0) return 0;
   return config.settlingRate / (1 + flow / water / config.settlingHalfTurnover);
@@ -53,14 +55,14 @@ export interface PoolShares {
   settling: number;
 }
 
-/** A pool's shares on water the hour leaves at `oxygen` mg/L. */
+/** A pool's shares in this water, at the oxygen the hour leaves it at, settling into this tank's bed. */
 export function poolShares(
   pool: OrganicResourceKey,
-  tank: DecomposingTank,
-  oxygen: number,
+  water: Pick<Resources, 'temperature' | 'oxygen'>,
+  tank: SettlingTank,
   config: DecompositionConfig = decompositionDefaults
 ): PoolShares {
-  const { aerobic, anaerobic } = rotRates(pool, { temperature: tank.resources.temperature, oxygen }, config);
+  const { aerobic, anaerobic } = rotRates(pool, water, config);
   const settling = pool === 'mulm' ? 0 : settlingRate(tank, config);
   const [oxic, anoxic, settled] = hourlyDraws([aerobic, anaerobic, settling]);
   return { aerobic: oxic, anaerobic: anoxic, settling: settled };
@@ -77,9 +79,6 @@ export interface PoolHour {
   co2: number;
 }
 
-const rotOxygen = (organics: Organics, shares: PoolShares): number =>
-  organics.carbon * MG_PER_G * shares.aerobic * C_TO_O2_MASS_RATIO;
-
 /** A pool's hour at these shares, pro-rata on everything it holds. */
 export function decompose(organics: Organics, shares: PoolShares): PoolHour {
   const rot = rotShare(shares);
@@ -87,7 +86,7 @@ export function decompose(organics: Organics, shares: PoolShares): PoolHour {
     shares,
     rotted: scaleOrganics(organics, rot),
     settled: scaleOrganics(organics, shares.settling),
-    oxygen: rotOxygen(organics, shares),
+    oxygen: organics.carbon * MG_PER_G * shares.aerobic * C_TO_O2_MASS_RATIO,
     co2: organics.carbon * MG_PER_G * rot * C_TO_CO2_MASS_RATIO,
   };
 }
@@ -103,7 +102,8 @@ export function decomposePools(
   oxygen: number,
   config: DecompositionConfig = decompositionDefaults
 ): Record<OrganicResourceKey, PoolHour> {
-  return mapPools((pool) => decompose(organicPool(tank, pool), poolShares(pool, tank, oxygen, config)));
+  const water = { temperature: tank.resources.temperature, oxygen };
+  return mapPools((pool) => decompose(organicPool(tank, pool), poolShares(pool, water, tank, config)));
 }
 
 function mineralise(organics: Organics, tier: EffectTier, source: string): Effect[] {
@@ -134,11 +134,8 @@ export const decompositionSystem = {
   tier: 'passive',
 
   oxygenDraw(state: SimulationState, oxygen: number, config: TunableConfig): number {
-    return sum(
-      ORGANIC_POOLS.map((pool) =>
-        rotOxygen(organicPool(state, pool), poolShares(pool, state, oxygen, config.decomposition))
-      )
-    );
+    const hours = decomposePools(state, oxygen, config.decomposition);
+    return getPpm(sum(ORGANIC_POOLS.map((pool) => hours[pool].oxygen)), state.resources.water);
   },
 
   update(state: SimulationState, config: TunableConfig, oxygen: number): Effect[] {

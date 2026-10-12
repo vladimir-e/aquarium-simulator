@@ -147,7 +147,7 @@ function restingAmmoniaSupply(state: StockedTank): number {
       return ration(fish, stepDeb(fish.budget, fishParams(fish), { fromGut: 0, ...pace }).fluxes.owed);
     })
   );
-  const { rotted } = decompose(state.equipment.substrate.organicReserve, poolShares('mulm', state, state.resources.oxygen));
+  const { rotted } = decompose(state.equipment.substrate.organicReserve, poolShares('mulm', state.resources, state));
   return ammoniaIn(addOrganics(atRecipe(eaten, DEFAULT_CONFIG), rotted));
 }
 

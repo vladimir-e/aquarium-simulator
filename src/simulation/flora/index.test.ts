@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { processFlora, type BloomHour } from './index.js';
+import { processFlora, type BloomHour, type FloraProcessingResult } from './index.js';
 import { bloomParams, plantParams } from './params.js';
 import { readPlantLight } from '../plants/index.js';
 import { floorCover, sizeOf } from '../plants/canopy.js';
@@ -33,6 +33,7 @@ import { nonFinitePaths } from '../tests/leaves.js';
 import { floraTank, hoursUntil, litDay, runFlora } from '../tests/flora.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
 import type { Effect } from '../core/effects.js';
+import { C_TO_CO2_MASS_RATIO, CH2O_TO_C_MASS_RATIO, MG_PER_G } from '../core/chemistry.js';
 
 const config = DEFAULT_CONFIG;
 const LITRES = 100;
@@ -408,6 +409,35 @@ describe.each(ALGAE_KINDS)('processFlora — %s', (kind) => {
     expect(ceiling(1)).toBeCloseTo(allelopathy(planting(1), floraTank().resources.water, config.algae).assimilation, 5);
     expect(ceiling(2)).toBeLessThan(ceiling(1));
     for (const count of [0, 1, 2]) expect(hour(count).allelopathy).toBeCloseTo(ceiling(count), 5);
+  });
+});
+
+describe('processFlora — the spores’ carbon', () => {
+  const landed = (result: FloraProcessingResult): number => ALGAE_KINDS.reduce((sum, k) => sum + result.algae[k].spores, 0);
+  const everyKind = (coverage: number): Partial<Record<AlgaeKind, number>> =>
+    Object.fromEntries(ALGAE_KINDS.map((kind) => [kind, coverage]));
+
+  it('never lets the fixers and the spores draw more CO2 than the water holds', () => {
+    const swords = Array.from({ length: 6 }, (_, i) => sword({ id: `s${i}`, size: 100 }));
+    for (const co2 of [0.05, 1, 30]) {
+      const { effects } = processFlora(floraTank({ plants: swords, algae: everyKind(40), ...LIT, co2 }), config);
+      const drawn = -(total(effects, 'co2', 'photosynthesis') + total(effects, 'co2', 'spores'));
+      expect(drawn).toBeGreaterThan(0);
+      expect(drawn).toBeLessThanOrEqual(co2);
+    }
+  });
+
+  it('lands no spores in water without CO2', () => {
+    const result = processFlora(floraTank({ ...LIT, co2: 0 }), config);
+    expect(landed(result)).toBe(0);
+    expect(total(result.effects, 'co2', 'spores')).toBe(0);
+  });
+
+  it('books under the spores the CO2 the carbon of the structure they landed was', () => {
+    const result = processFlora(floraTank({ ...UNLIT }), config);
+    const carbon = landed(result) * CH2O_TO_C_MASS_RATIO * MG_PER_G;
+    expect(carbon).toBeGreaterThan(0);
+    expect(total(result.effects, 'co2', 'spores')).toBeCloseTo(-getPpm(carbon * C_TO_CO2_MASS_RATIO, LITRES), 12);
   });
 });
 
