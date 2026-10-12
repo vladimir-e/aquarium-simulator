@@ -14,7 +14,7 @@ import {
   WATER_CHANGE_AMOUNTS,
   type SimulationState,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG, mapNutrients, type TunableConfig } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, mapNutrients, withTunable, type TunableConfig } from '../../simulation/config/index.js';
 import { FoodResource } from '../../simulation/resources/index.js';
 import { produce } from 'immer';
 import { bedReading, doseToCover, nutrientReadings, readHourAhead, TRIM_TARGETS } from '../run';
@@ -426,6 +426,17 @@ describe('the seven verbs', () => {
     const tiny = { ...fry, fish: fry.fish.map((fish) => ({ ...fish, mass: 0.001 })) };
 
     expect(detail(tiny, 'feed').meta).toBe('1 fish needs under 0.01 g a day');
+  });
+
+  it('asks for a richer food when no amount of the recipe pays the upkeep', () => {
+    const stocked = applyAction(tank(), { type: 'addFish', species: 'neon_tetra' }).state;
+    const config = withTunable(DEFAULT_CONFIG, 'nutrients.foodMineralContent.phosphate', 0);
+    const ahead = readHourAhead(stocked, config);
+
+    expect(ahead.ration).toBe(Infinity);
+    expect(verbDetail('feed', { state: stocked, settings: DEFAULT_SETTINGS, units: 'metric', config, ahead }).meta).toBe(
+      '1 fish needs a richer food'
+    );
   });
 
   it('names the food already standing in the water, which left Livestock with the verb', () => {

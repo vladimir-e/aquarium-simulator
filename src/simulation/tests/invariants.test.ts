@@ -26,7 +26,7 @@ import { bloomParams, plantParams } from '../flora/params.js';
 import { floraNutrients, floraOrganics, type FloraState } from '../systems/flora-budget.js';
 import { offshootStructure } from '../plants/create-plant.js';
 import { sizeOf } from '../plants/canopy.js';
-import { fishComposition, fishOrganics, fishParams, fishSize, frySize } from '../systems/fish-body.js';
+import { FISH_COMPOSITION, fishOrganics, fishParams, fishSize, frySize } from '../systems/fish-body.js';
 import { stockedBody } from '../livestock/create-fish.js';
 import { mature } from '../systems/deb.js';
 import { spawnsAt } from '../systems/brood.js';
@@ -50,12 +50,11 @@ function run(state: SimulationState, hours: number, config = DEFAULT_CONFIG): Si
   return running;
 }
 
-const BODY = fishComposition(DEFAULT_CONFIG);
 
 /** The organic matter the fish hold: their budgets and every clutch, laid or carried, at their composition, and their guts. */
 function livestockOrganics({ fish, clutches }: Pick<SimulationState, 'fish' | 'clutches'>): Organics {
   const bodies = sum(fish.map(fishOrganics)) + sum(clutches.map(clutchOrganics));
-  return addOrganics(portion(BODY, bodies), ...fish.map((f) => f.gut));
+  return addOrganics(portion(FISH_COMPOSITION, bodies), ...fish.map((f) => f.gut));
 }
 
 /** Every organic pool, whatever it was made of: food, the livestock's, the standing waste and the bed's mulm. */

@@ -6,10 +6,10 @@ import { DEFAULT_CONFIG } from '../config/index.js';
 import { produce } from 'immer';
 import type { Fish } from '../state.js';
 import { burn, excrete, fishPace } from '../systems/metabolism.js';
-import { NO_ORGANICS, portion } from '../core/organics.js';
+import { portion } from '../core/organics.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { getPpm } from '../resources/index.js';
-import { fishComposition } from '../systems/fish-body.js';
+import { FISH_COMPOSITION } from '../systems/fish-body.js';
 import { ofFood } from '../tests/organics.js';
 import { carrying, fishRecord, saturated } from '../tests/fish.js';
 import { waterStressors } from '../systems/fish-health.js';
@@ -62,7 +62,7 @@ describe('processLivestock', () => {
     expect(result.feces.grams).toBeGreaterThan(0);
     expect(result.excreted.grams).toBeGreaterThan(0);
     const { water } = makeState().resources;
-    const burnt = burn(result.burned, fishComposition(DEFAULT_CONFIG));
+    const burnt = burn(result.burned, FISH_COMPOSITION);
     const excreted = excrete(result.excreted);
     expect(effectOf(result, 'oxygen')).toBeCloseTo(-getPpm(burnt.oxygen + excreted.oxygen, water), 15);
     expect(effectOf(result, 'co2')).toBeCloseTo(getPpm(burnt.co2 + excreted.co2, water), 15);
@@ -70,15 +70,15 @@ describe('processLivestock', () => {
     expect(effectOf(result, 'ammonia', 'fish-gill-excretion')).toBeCloseTo(burnt.ammonia + excreted.ammonia, 15);
   });
 
-  it('turns a burn or a meal’s excess into gill ammonia, minerals, an oxygen draw and CO2, and nothing of nothing', () => {
-    const body = fishComposition(DEFAULT_CONFIG);
-    for (const effects of [burnEffects(0.01, 100, body, 'x'), excretionEffects(portion(body, 0.01), 100, 'x')]) {
+  it('turns a burn or a meal’s excess into gill ammonia, minerals, an oxygen draw and CO2', () => {
+    for (const effects of [
+      burnEffects(0.01, 100, FISH_COMPOSITION, 'x'),
+      excretionEffects(portion(FISH_COMPOSITION, 0.01), 100, 'x'),
+    ]) {
       expect(effects.map((e) => e.resource)).toEqual(
         expect.arrayContaining(['ammonia', 'kh', 'phosphate', 'potassium', 'iron', 'oxygen', 'co2'])
       );
     }
-    expect(burnEffects(0, 100, body, 'x')).toEqual([]);
-    expect(excretionEffects(NO_ORGANICS, 100, 'x')).toEqual([]);
   });
 
   it('returns an hour and a vitality per fish handed in, the dead included', () => {

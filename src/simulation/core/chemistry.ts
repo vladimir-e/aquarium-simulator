@@ -69,13 +69,19 @@ export const C_TO_O2_MASS_RATIO = MW_O2 / MW_C;
 export const CO2_TO_CH2O_MASS_RATIO = MW_CH2O / MW_CO2;
 /** ≈ 0.400. The carbon in a gram of plant or algal tissue, reserve or buffer. */
 export const CH2O_TO_C_MASS_RATIO = MW_C / MW_CH2O;
-/** Moles of nitrogen a C-mole of the reserve carries. */
 const RESERVE_N_PER_C = 0.15;
+/**
+ * N:P 15, soft tissue's. A whole fish runs 2.5–3 % P dry, most of it in a
+ * skeleton the reserve does not build.
+ */
+const RESERVE_P_PER_C = 0.01;
 
 /** ≈ 0.503. The carbon in a gram of a fish's organics. */
 export const RESERVE_TO_C_MASS_RATIO = MW_C / MW_RESERVE;
 /** ≈ 0.088. The nitrogen in a gram of a fish's organics. */
 export const RESERVE_TO_N_MASS_RATIO = (RESERVE_N_PER_C * MW_N) / MW_RESERVE;
+/** ≈ 0.013. The phosphorus in a gram of a fish's organics. */
+export const RESERVE_TO_P_MASS_RATIO = (RESERVE_P_PER_C * MW_P) / MW_RESERVE;
 /**
  * ≈ 1.456. CH1.8O0.5N0.15 + 1.0875 O2 → CO2 + 0.15 NH3 + 0.675 H2O: the oxygen
  * burning a gram of a fish's organics takes, C + (H − 3N)/4 − O/2 moles a C-mole.

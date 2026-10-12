@@ -55,13 +55,19 @@ export function sumOrganics(...flows: readonly Organics[]): Organics {
   };
 }
 
+export const ELEMENTS = ['carbon', ...NUTRIENTS] as const;
+
+export type Element = (typeof ELEMENTS)[number];
+
+export function elements(pool: Organics): Record<Element, number> {
+  return { carbon: pool.carbon, ...pool.nutrients };
+}
+
 /** Grams of `of`'s composition the carbon and nutrients `pool` holds can build, its scarcest element ruling. */
 export function buildable(pool: Organics, of: Organics): number {
-  const shares = [
-    [pool.carbon, of.carbon],
-    ...NUTRIENTS.map((n) => [pool.nutrients[n], of.nutrients[n]]),
-  ].map(([held, needed]) => (needed > 0 ? held / needed : Infinity));
-  return of.grams * Math.min(...shares);
+  const held = elements(pool);
+  const needed = elements(of);
+  return of.grams * Math.min(...ELEMENTS.map((e) => (needed[e] > 0 ? held[e] / needed[e] : Infinity)));
 }
 
 export function addOrganics(...pools: readonly Organics[]): Organics {

@@ -23,6 +23,7 @@ import {
   O2_PER_RESERVE_BURNED,
   RESERVE_TO_C_MASS_RATIO,
   RESERVE_TO_N_MASS_RATIO,
+  RESERVE_TO_P_MASS_RATIO,
   O2_PER_NH3_OXIDIZED,
   O2_PER_NO2_OXIDIZED,
 } from './chemistry.js';
@@ -102,5 +103,9 @@ describe('burning a fish’s organics, CH1.8O0.5N0.15 to CO2, NH3 and water', ()
 
   it('carries 0.15 moles of nitrogen to each of carbon', () => {
     expect(RESERVE_TO_N_MASS_RATIO / MW_N / (RESERVE_TO_C_MASS_RATIO / MW_C)).toBeCloseTo(0.15, 12);
+  });
+
+  it('carries 0.01 moles of phosphorus to each of carbon', () => {
+    expect(RESERVE_TO_P_MASS_RATIO / MW_P / (RESERVE_TO_C_MASS_RATIO / MW_C)).toBeCloseTo(0.01, 12);
   });
 });

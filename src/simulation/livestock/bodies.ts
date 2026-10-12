@@ -22,7 +22,7 @@ import { sum } from '../core/sum.js';
 import { hatchling, organics } from '../systems/deb.js';
 import { brood, readyToBrood } from '../systems/brood.js';
 import { shareOut, swallow, type Pace } from '../systems/digestion.js';
-import { eggMass, eggOrganics, fishComposition, fishMass } from '../systems/fish-body.js';
+import { eggMass, eggOrganics, FISH_COMPOSITION, fishMass } from '../systems/fish-body.js';
 import { predatorWeight } from '../systems/fish-health.js';
 import { fishHardiness, speciesHardiness } from './tolerance.js';
 import { developmentRate, eggHarmRate, eggPredationRate, settleClutch } from '../systems/clutch.js';
@@ -44,18 +44,17 @@ export function processBodies(state: SimulationState, config: TunableConfig): Bo
   if (state.fish.length === 0 && state.clutches.length === 0) return { state, effects: [], burned: 0, waste: NO_ORGANICS };
 
   const livestock = config.livestock;
-  const body = fishComposition(config);
   let waste = 0;
   let burned = 0;
   const newState = produce(state, (draft) => {
     const paces = tankPaces(draft, config);
-    const clutches = tendClutches(draft, livestock, paces, body);
+    const clutches = tendClutches(draft, livestock, paces, FISH_COMPOSITION);
     waste = clutches.waste;
     burned = clutches.burned + layBroods(draft) + turnOverMaleBuffers(draft.fish, paces, livestock);
   });
 
-  const effects: Effect[] = burnEffects(burned, newState.resources.water, body, 'fish-broods');
-  const eggs = portion(body, waste);
+  const effects: Effect[] = burnEffects(burned, newState.resources.water, FISH_COMPOSITION, 'fish-broods');
+  const eggs = portion(FISH_COMPOSITION, waste);
   if (waste > 0) effects.push({ tier: 'active', resource: 'waste', delta: eggs, source: 'dead-eggs' });
   return { state: newState, effects, burned, waste: eggs };
 }

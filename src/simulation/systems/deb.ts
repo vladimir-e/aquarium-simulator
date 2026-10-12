@@ -73,14 +73,10 @@ export const organics = (state: DebState, p: DebParams): number =>
 export const wetMass = (state: DebState, p: DebParams): number =>
   state.structure + (state.reserve + state.broodBuffer) / p.dV;
 
-/**
- * An hour's inputs: ω in [0, 1]; quality in [0, 1], the share of κ_X its meal's
- * scarcest element lets it build; healing ≥ 0, grams of reserve to spend on
- * repair at full oxygen.
- */
+/** An hour's inputs: ω in [0, 1]; healing ≥ 0, grams of reserve to spend on repair at full oxygen. */
 export interface DebHour {
   fromGut: number;
-  quality?: number;
+  reserveYield?: number;
   tau: number;
   omega: number;
   stress?: Readonly<DebStress>;
@@ -127,7 +123,7 @@ export function assimilationCeiling(
 
 /** One hour of the budget: τ paces every rate; ω scales {p_Am}, v and healing. */
 export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
-  const { fromGut, quality = 1, tau, omega, stress = NO_STRESS, healing = 0 } = hour;
+  const { fromGut, reserveYield = p.kappaX, tau, omega, stress = NO_STRESS, healing = 0 } = hour;
   const { structure: V, reserve: E, maturity: EH, broodBuffer: ER, wearLoad: q, hazard: h } = state;
   const pMStressed = p.pM * stress.maintenance;
   const EGStressed = p.EG * stress.growthCost;
@@ -136,7 +132,7 @@ export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
   const adult = mature(state, p);
 
   const intake = Math.min(fromGut, assimilationCeiling(state, p, hour) / p.kappaX);
-  const assimilated = quality * p.kappaX * intake;
+  const assimilated = reserveYield * intake;
   const feces = p.kappaP * intake;
   const conductance = omega * p.v;
   const mobilised =

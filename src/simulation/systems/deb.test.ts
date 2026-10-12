@@ -83,7 +83,7 @@ const starvingJuvenile = fish(0.3 * Lm, 0.5, { maturity: animal.EHp / 2 });
 
 const regimes: { name: string; from: DebState; hour: DebHour }[] = [
   { name: 'feasting', from: hatchling(animal), hour: atReference(FEAST) },
-  { name: 'feasting on a lean meal', from: hatchling(animal), hour: { ...atReference(FEAST), quality: 0.4 } },
+  { name: 'feasting on a lean meal', from: hatchling(animal), hour: { ...atReference(FEAST), reserveYield: 0.4 * animal.kappaX } },
   { name: 'fasting', from: stateAt(3 * YEAR), hour: atReference(0) },
   {
     name: 'stressed, paced and healing',
@@ -168,10 +168,10 @@ describe('the hour', () => {
     expectNear(plenty.returned, 99 * taken);
   });
 
-  it('assimilates a meal’s quality of κ_X, eats and passes as much, and excretes what it does not build', () => {
+  it('builds at its meal’s reserve yield, eats and passes as much, and excretes what it does not build', () => {
     const s = fish(0.5, 0.6);
     const whole = stepDeb(s, animal, atReference(FEAST)).fluxes;
-    const lean = stepDeb(s, animal, { ...atReference(FEAST), quality: 0.3 }).fluxes;
+    const lean = stepDeb(s, animal, { ...atReference(FEAST), reserveYield: 0.3 * animal.kappaX }).fluxes;
     expectNear(lean.assimilated, 0.3 * whole.assimilated);
     expect(lean.returned).toBe(whole.returned);
     expect(lean.feces).toBe(whole.feces);
@@ -220,10 +220,10 @@ describe('the hour', () => {
 
   it('burns nothing negative anywhere in the domain, so no input mints mass', () => {
     const s = fish(0.6, 0.9, { broodBuffer: 20 * E0 });
-    const domain = product([0, 1], [1, 3], [1, 3], [1, 3], [0, 1], [0, 1e-6], [0, 1]).map(
-      ([assimilation, maintenance, growthCost, eggCost, omega, healing, quality]): DebHour => ({
+    const domain = product([0, 1], [1, 3], [1, 3], [1, 3], [0, 1], [0, 1e-6], [0, animal.kappaX]).map(
+      ([assimilation, maintenance, growthCost, eggCost, omega, healing, reserveYield]): DebHour => ({
         fromGut: FEAST,
-        quality,
+        reserveYield,
         tau: 1,
         omega,
         healing,

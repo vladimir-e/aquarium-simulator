@@ -24,7 +24,7 @@ import { sum } from './core/sum.js';
 import { DEFAULT_CONFIG } from './config/index.js';
 import type { PlantsConfig } from './config/plants.js';
 import { mapNutrients, type NutrientVector } from './config/nutrients.js';
-import { addOrganics, atRecipe, scaleOrganics, type Organics } from './core/organics.js';
+import { addOrganics, foodRecipe, portion, scaleOrganics, type Organics } from './core/organics.js';
 import { alkalinityMoved, MW_NO3, NH3_TO_NO2_MASS_RATIO, PROTONS_PER_N } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import { KhResource } from './resources/kh.js';
@@ -141,14 +141,15 @@ type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
  */
 function restingAmmoniaSupply(state: StockedTank): number {
   const { temperature } = state.resources;
+  const food = foodRecipe(DEFAULT_CONFIG);
   const eaten = sum(
     state.fish.map((fish) => {
       const pace = { tau: speciesTau(fish.species, temperature), omega: 1 };
-      return ration(fish, stepDeb(fish.budget, fishParams(fish), { fromGut: 0, ...pace }).fluxes.owed);
+      return ration(fish, stepDeb(fish.budget, fishParams(fish), { fromGut: 0, ...pace }).fluxes.owed, food);
     })
   );
   const { rotted } = decompose(state.equipment.substrate.organicReserve, poolShares('mulm', state.resources, state));
-  return ammoniaIn(addOrganics(atRecipe(eaten, DEFAULT_CONFIG), rotted));
+  return ammoniaIn(addOrganics(portion(food, eaten), rotted));
 }
 
 /**

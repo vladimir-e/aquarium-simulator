@@ -13,10 +13,10 @@ import type { SimulationState } from '../state.js';
 import type { Effect } from '../core/effects.js';
 import type { TunableConfig } from '../config/index.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
-import { burn, excrete, fishPace, processMetabolism, type Burn, type FishHour } from '../systems/metabolism.js';
+import { burn, excrete, fishPace, processMetabolism, type FishHour, type Release } from '../systems/metabolism.js';
 import { processHealth } from '../systems/fish-health.js';
 import { repairAsked } from '../systems/reserve.js';
-import { fishComposition, fishParams } from '../systems/fish-body.js';
+import { FISH_COMPOSITION, fishParams } from '../systems/fish-body.js';
 import type { VitalityResult } from '../systems/vitality.js';
 import type { Pace } from '../systems/digestion.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
@@ -49,7 +49,7 @@ export function tankPaces(state: Pick<SimulationState, 'fish' | 'resources'>, co
 }
 
 /** What a fish's burn or excretion does to the water: gill NH3 and minerals in, O2 out, CO2 in. */
-function releaseEffects(released: Burn, water: number, source: string): Effect[] {
+function releaseEffects(released: Release, water: number, source: string): Effect[] {
   return [
     ...mintAmmonia(released.ammonia, 'active', 'fish-gill-excretion'),
     ...WASTE_NUTRIENTS.map(
@@ -60,14 +60,12 @@ function releaseEffects(released: Burn, water: number, source: string): Effect[]
   ];
 }
 
-/** What burning `grams` of fish organics does to the water. */
 export function burnEffects(grams: number, water: number, body: Organics, source: string): Effect[] {
-  return grams > 0 ? releaseEffects(burn(grams, body), water, source) : [];
+  return releaseEffects(burn(grams, body), water, source);
 }
 
-/** What a meal's excess does to the water as it is assimilated. */
 export function excretionEffects(excess: Organics, water: number, source: string): Effect[] {
-  return excess.grams > 0 ? releaseEffects(excrete(excess), water, source) : [];
+  return releaseEffects(excrete(excess), water, source);
 }
 
 export function processLivestock(state: SimulationState, config: TunableConfig): LivestockProcessingResult {
@@ -83,8 +81,7 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
   );
   const paces = tankPaces({ ...state, fish }, config);
   const healing = fish.map((f, i) => repairAsked(f.budget, fishParams(f), f.health, paces[i].tau, livestock));
-  const body = fishComposition(config);
-  const metabolism = processMetabolism(fish, paces, healing, state.resources, livestock, body);
+  const metabolism = processMetabolism(fish, paces, healing, state.resources, livestock, FISH_COMPOSITION);
 
   const carried = new Map<string, number>();
   for (const clutch of state.clutches) {
@@ -99,7 +96,7 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
     plants: state.plants,
     tankCapacity: state.tank.capacity,
     config: livestock,
-    body,
+    body: FISH_COMPOSITION,
     carried: state.fish.map((f) => carried.get(f.id) ?? 0),
   });
 
@@ -109,7 +106,7 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
     ...organic('food', scaleOrganics(metabolism.foodConsumed, -1), 'fish-metabolism'),
     ...organic('waste', metabolism.feces, 'fish-metabolism'),
     ...excretionEffects(metabolism.excreted, water, 'fish-digestion'),
-    ...burnEffects(metabolism.burned, water, body, 'fish-respiration'),
+    ...burnEffects(metabolism.burned, water, FISH_COMPOSITION, 'fish-respiration'),
     ...organic('waste', health.deathWaste, 'fish-death'),
   ];
 

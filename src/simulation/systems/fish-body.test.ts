@@ -3,7 +3,7 @@ import {
   countFry,
   eggMass,
   eggOrganics,
-  fishComposition,
+  FISH_COMPOSITION,
   FRY_UNTIL_SIZE,
   fishLifeStage,
   fishMass,
@@ -14,7 +14,6 @@ import {
 import { hatchling, maxStructuralLength, organics, size, wetMass } from './deb.js';
 import { debParams, FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { fishRecord } from '../tests/fish.js';
-import { DEFAULT_CONFIG, withTunable } from '../config/index.js';
 import { MW_NO3, MW_PO4, MW_RESERVE, RESERVE_TO_C_MASS_RATIO } from '../core/chemistry.js';
 
 const SPECIES = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
@@ -61,24 +60,11 @@ describe('countFry', () => {
   });
 });
 
-describe('fishComposition', () => {
-  const body = fishComposition(DEFAULT_CONFIG);
-
+describe('FISH_COMPOSITION', () => {
   it('is a gram of reserve: its carbon, N0.15 and P0.01 a C-mole', () => {
-    expect(body.grams).toBe(1);
-    expect(body.carbon).toBe(RESERVE_TO_C_MASS_RATIO);
-    expect((body.nutrients.nitrate * MW_RESERVE) / MW_NO3 / 1000).toBeCloseTo(0.15, 12);
-    expect((body.nutrients.phosphate * MW_RESERVE) / MW_PO4 / 1000).toBeCloseTo(0.01, 12);
-  });
-
-  it('carries food’s potassium and iron, and none of food’s nitrogen, phosphorus or carbon', () => {
-    const tuned = withTunable(
-      withTunable(withTunable(DEFAULT_CONFIG, 'livestock.foodNitrogenFraction', 0.04), 'livestock.foodCarbonFraction', 0.5),
-      'nutrients.foodMineralContent.phosphate',
-      10
-    );
-    const leaner = withTunable(withTunable(tuned, 'nutrients.foodMineralContent.potassium', 3), 'nutrients.foodMineralContent.iron', 0.1);
-    expect(fishComposition(tuned)).toEqual(body);
-    expect(fishComposition(leaner).nutrients).toEqual({ ...body.nutrients, potassium: 3, iron: 0.1 });
+    expect(FISH_COMPOSITION.grams).toBe(1);
+    expect(FISH_COMPOSITION.carbon).toBe(RESERVE_TO_C_MASS_RATIO);
+    expect((FISH_COMPOSITION.nutrients.nitrate * MW_RESERVE) / MW_NO3 / 1000).toBeCloseTo(0.15, 12);
+    expect((FISH_COMPOSITION.nutrients.phosphate * MW_RESERVE) / MW_PO4 / 1000).toBeCloseTo(0.01, 12);
   });
 });

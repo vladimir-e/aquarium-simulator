@@ -23,7 +23,7 @@ import {
 import { DEFAULT_CONFIG, configRange, type TunableConfig } from '../config/index.js';
 import { computeFishVitality } from '../systems/fish-health.js';
 import { fishRecord } from '../tests/fish.js';
-import { fishComposition } from '../systems/fish-body.js';
+import { FISH_COMPOSITION } from '../systems/fish-body.js';
 import { liveHour } from '../systems/metabolism.js';
 import { NO_STRESS } from '../systems/reserve.js';
 import { plantLightTaken } from '../plants/canopy.js';
@@ -203,7 +203,7 @@ describe('waterLevelAlert', () => {
       for (const percent of [line - 5, line, line + 5]) {
         const state = tank(CASES[0]!, percent);
         const fish = fishRecord();
-        const hour = liveHour(fish, { tau: 1, omega: 1, stress: NO_STRESS }, 0, at.livestock, fishComposition(at));
+        const hour = liveHour(fish, { tau: 1, omega: 1, stress: NO_STRESS }, 0, at.livestock, FISH_COMPOSITION);
         const { stressors } = computeFishVitality(
           fish,
           hour,

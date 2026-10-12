@@ -11,10 +11,10 @@ import type { Fish } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
 import { hourlyDraw } from '../core/kinetics.js';
-import { scaleOrganics, type Organics } from '../core/organics.js';
+import { buildable, portion, scaleOrganics, type Organics } from '../core/organics.js';
 import { sum } from '../core/sum.js';
-import { assimilationCeiling, type DebHour } from './deb.js';
-import { fishParams } from './fish-body.js';
+import { assimilationCeiling, type DebHour, type DebParams } from './deb.js';
+import { FISH_COMPOSITION, fishParams } from './fish-body.js';
 
 /** The pace a fish's budget runs at this hour: τ, ω and its load's stress on it. */
 export type Pace = Required<Pick<DebHour, 'tau' | 'omega' | 'stress'>>;
@@ -27,9 +27,14 @@ export function appetite(fish: Body, pace: Pace): number {
   return assimilationCeiling(fish.budget, p, pace) / p.kappaX;
 }
 
-/** Grams of food an hour whose assimilation pays `owed` grams of its upkeep. */
-export function ration(fish: Pick<Fish, 'species'>, owed: number): number {
-  return owed / fishParams(fish).kappaX;
+/** Grams of reserve at `body`'s composition a gram of `food` builds. */
+export function reserveYield(food: Organics, body: Organics, p: Pick<DebParams, 'kappaX' | 'kappaP'>): number {
+  return Math.min(p.kappaX, (1 - p.kappaP) * buildable(portion(food, 1), body));
+}
+
+/** Grams of `food` an hour whose assimilation pays `owed` grams of its upkeep. */
+export function ration(fish: Pick<Fish, 'species'>, owed: number, food: Organics): number {
+  return owed / reserveYield(food, FISH_COMPOSITION, fishParams(fish));
 }
 
 /** Grams of food a full gut holds: a day of its appetite. */

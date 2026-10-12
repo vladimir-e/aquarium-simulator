@@ -1,14 +1,27 @@
 import { describe, it, expect } from 'vitest';
-import { appetite, digest, fullPaceLine, gutCapacity, gutRoom, ration, shareCapped, swallow, type Pace } from './digestion.js';
+import {
+  appetite,
+  digest,
+  fullPaceLine,
+  gutCapacity,
+  gutRoom,
+  ration,
+  reserveYield,
+  shareCapped,
+  swallow,
+  type Pace,
+} from './digestion.js';
 import { livestockDefaults as config } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
 import { assimilationCeiling, stepDeb } from './deb.js';
 import { NO_STRESS } from './reserve.js';
-import { debParams } from '../livestock/species.js';
+import { debParams, FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
+import { DEFAULT_CONFIG, withTunable } from '../config/index.js';
+import { FISH_COMPOSITION } from './fish-body.js';
 import { fishRecord } from '../tests/fish.js';
-import { LEAN, ofFood, organicsCloseTo } from '../tests/organics.js';
-import { NO_ORGANICS, portion, scaleOrganics } from '../core/organics.js';
+import { LEAN, meal, ofFood, organicsCloseTo } from '../tests/organics.js';
+import { ELEMENTS, foodRecipe, NO_ORGANICS, portion, scaleOrganics } from '../core/organics.js';
 import type { Fish } from '../state.js';
 
 const REFERENCE: Pace = { tau: 1, omega: 1, stress: NO_STRESS };
@@ -36,14 +49,56 @@ describe('appetite', () => {
   });
 });
 
+describe('reserveYield', () => {
+  const p = debParams('guppy');
+
+  it('builds at κ_X on a meal as rich as the body, so a fish eating fish is never short', () => {
+    expect(reserveYield(FISH_COMPOSITION, FISH_COMPOSITION, p)).toBe(p.kappaX);
+    expect(reserveYield(portion(FISH_COMPOSITION, 0.003), FISH_COMPOSITION, p)).toBe(p.kappaX);
+    expect(reserveYield(meal(2, 'carbon', 1.2), FISH_COMPOSITION, p)).toBe(p.kappaX);
+  });
+
+  it('builds what its scarcest element allows of all but the κ_P passed, whichever element, whatever the meal weighs', () => {
+    for (const e of ELEMENTS) {
+      const lean = meal(1.5, e, 0.5);
+      expect(reserveYield(lean, FISH_COMPOSITION, p)).toBeCloseTo((1 - p.kappaP) * 0.5, 12);
+      expect(reserveYield(scaleOrganics(lean, 0.002), FISH_COMPOSITION, p)).toBeCloseTo(
+        reserveYield(lean, FISH_COMPOSITION, p),
+        12
+      );
+    }
+  });
+
+  it('builds nothing of nothing', () => {
+    expect(reserveYield(NO_ORGANICS, FISH_COMPOSITION, p)).toBe(0);
+  });
+
+  it.each(Object.keys(FISH_SPECIES_DATA) as FishSpecies[])('builds a %s at κ_X on the default flake', (species) => {
+    const params = debParams(species);
+    expect(reserveYield(foodRecipe(DEFAULT_CONFIG), FISH_COMPOSITION, params)).toBe(params.kappaX);
+  });
+});
+
 describe('ration', () => {
-  it('is the food whose assimilation pays the upkeep it owes, gram for gram', () => {
-    const fish = guppy(50);
-    const p = debParams('guppy');
-    const { owed } = stepDeb(fish.budget, p, { fromGut: 0, ...REFERENCE }).fluxes;
-    const fed = stepDeb(fish.budget, p, { fromGut: ration(fish, owed), ...REFERENCE }).fluxes;
-    expect(fed.assimilated).toBeCloseTo(owed, 15);
-    expect(fed.returned).toBe(0);
+  const fish = guppy(50);
+  const p = debParams('guppy');
+  const { owed } = stepDeb(fish.budget, p, { fromGut: 0, ...REFERENCE }).fluxes;
+  const flake = foodRecipe(DEFAULT_CONFIG);
+  const lean = foodRecipe(withTunable(DEFAULT_CONFIG, 'livestock.foodCarbonFraction', 0.4));
+
+  it('is the food whose assimilation pays the upkeep it owes, gram for gram, on any recipe', () => {
+    for (const food of [flake, lean]) {
+      const fromGut = ration(fish, owed, food);
+      const fed = stepDeb(fish.budget, p, { fromGut, reserveYield: reserveYield(food, FISH_COMPOSITION, p), ...REFERENCE });
+      expect(fed.fluxes.assimilated).toBeCloseTo(owed, 15);
+      expect(fed.fluxes.returned).toBe(0);
+    }
+  });
+
+  it('takes more of a leaner recipe, and no amount of one that builds nothing', () => {
+    expect(ration(fish, owed, lean)).toBeGreaterThan(ration(fish, owed, flake));
+    const unbuildable = foodRecipe(withTunable(DEFAULT_CONFIG, 'nutrients.foodMineralContent.phosphate', 0));
+    expect(ration(fish, owed, unbuildable)).toBe(Infinity);
   });
 });
 

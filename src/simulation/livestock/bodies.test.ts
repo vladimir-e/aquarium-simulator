@@ -9,7 +9,7 @@ import type { LogEntry } from '../core/logging.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { hatchling, organics } from '../systems/deb.js';
-import { eggMass, eggOrganics, fishComposition, fishMass, fishOrganics } from '../systems/fish-body.js';
+import { eggMass, eggOrganics, FISH_COMPOSITION, fishMass, fishOrganics } from '../systems/fish-body.js';
 import { gutCapacity } from '../systems/digestion.js';
 import { spawnsAt } from '../systems/brood.js';
 import { clutchOrganics } from '../systems/clutch.js';
@@ -42,7 +42,6 @@ const egg = eggOrganics;
 const wasteOf = (out: ReturnType<typeof processBodies>): number =>
   out.effects.reduce((sum, e) => (e.resource === 'waste' ? sum + e.delta.grams : sum), 0);
 
-const BODY = fishComposition(DEFAULT_CONFIG);
 
 /** Grams of organics the fish and their clutches hold, guts included. */
 const held = ({ fish, clutches }: SimulationState): number =>
@@ -50,8 +49,8 @@ const held = ({ fish, clutches }: SimulationState): number =>
 
 /** Grams of carbon the same hold. */
 const heldCarbon = ({ fish, clutches }: SimulationState): number =>
-  fish.reduce((sum, f) => sum + fishOrganics(f) * BODY.carbon + f.gut.carbon, 0) +
-  clutches.reduce((sum, c) => sum + clutchOrganics(c) * BODY.carbon, 0);
+  fish.reduce((sum, f) => sum + fishOrganics(f) * FISH_COMPOSITION.carbon + f.gut.carbon, 0) +
+  clutches.reduce((sum, c) => sum + clutchOrganics(c) * FISH_COMPOSITION.carbon, 0);
 
 describe('processBodies', () => {
   it('no-ops an empty tank', () => {
@@ -241,7 +240,7 @@ describe('processBodies', () => {
     for (const tank of tanks) {
       const out = breed(tank);
       expect(held(tank) - held(out.state)).toBeCloseTo(out.waste.grams + out.burned, 15);
-      expect(heldCarbon(tank) - heldCarbon(out.state)).toBeCloseTo(out.waste.carbon + out.burned * BODY.carbon, 15);
+      expect(heldCarbon(tank) - heldCarbon(out.state)).toBeCloseTo(out.waste.carbon + out.burned * FISH_COMPOSITION.carbon, 15);
       expect(wasteOf(out)).toBeCloseTo(out.waste.grams, 15);
     }
   });
@@ -268,7 +267,7 @@ describe('processBodies', () => {
     const [bigAfter, smallAfter] = out.state.fish;
     const eaten = (clutch.eggs - out.state.clutches[0].eggs) * egg('neon_tetra');
     expect(bigAfter.gut.grams + smallAfter.gut.grams + wasteOf(out)).toBeCloseTo(eaten, 12);
-    expect(bigAfter.gut.carbon + smallAfter.gut.carbon + out.waste.carbon).toBeCloseTo(eaten * BODY.carbon, 12);
+    expect(bigAfter.gut.carbon + smallAfter.gut.carbon + out.waste.carbon).toBeCloseTo(eaten * FISH_COMPOSITION.carbon, 12);
     const outweighs = (fish: Fish): number => fishMass(fish) - eggMass('neon_tetra');
     expect(bigAfter.gut.grams / smallAfter.gut.grams).toBeCloseTo(outweighs(big) / outweighs(small), 8);
   });

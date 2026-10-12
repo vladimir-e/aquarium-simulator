@@ -7,7 +7,6 @@ import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { type WaterChemistryConfig, waterChemistryDefaults } from '../config/water-chemistry.js';
-import { DEFAULT_CONFIG } from '../config/index.js';
 import {
   mapNutrients,
   NUTRIENTS,
@@ -16,7 +15,8 @@ import {
   type NutrientsConfig,
   type NutrientVector,
 } from '../config/nutrients.js';
-import { foodRecipe, NO_ORGANICS, portion, type Organics } from '../core/organics.js';
+import { MG_PER_G, N_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
+import { NO_ORGANICS, portion, type Organics } from '../core/organics.js';
 
 export type SubstrateType = 'none' | 'sand' | 'gravel' | 'aqua_soil';
 
@@ -59,8 +59,15 @@ export const SUBSTRATE_ORGANIC_PER_LITER: Record<SubstrateType, number> = {
   aqua_soil: 0.05,
 };
 
-/** What a gram of a fresh bag's organic matter is made of — its own, whatever the keeper feeds. */
-export const SUBSTRATE_ORGANIC_COMPOSITION: Organics = foodRecipe(DEFAULT_CONFIG);
+/**
+ * What a gram of a fresh bag's organic matter is made of, whatever the keeper
+ * feeds: a lean food's 5 % N at Redfield's N:P, the bed's rot calibrated on it.
+ */
+export const SUBSTRATE_ORGANIC_COMPOSITION: Organics = {
+  grams: 1,
+  carbon: 0.45,
+  nutrients: { nitrate: 0.05 * N_TO_NO3_MASS_RATIO * MG_PER_G, phosphate: 20, potassium: 8, iron: 0.2 },
+};
 
 /**
  * Alkalinity a fresh bed can take up per liter of tank (mg CaCO3/L). Only

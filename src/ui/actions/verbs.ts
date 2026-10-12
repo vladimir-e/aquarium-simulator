@@ -465,10 +465,11 @@ function meta(
 
   switch (id) {
     case 'feed': {
+      const need = Number.isFinite(ahead.ration) ? `${grams(ahead.ration)} a day` : 'a richer food';
       const mouths =
         state.fish.length === 0
           ? 'no fish to feed'
-          : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'needs' : 'need'} ${grams(ahead.ration)} a day`;
+          : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'needs' : 'need'} ${need}`;
       return state.resources.food.grams > 0
         ? `${mouths} · ${grams(state.resources.food.grams)} still in the water`
         : mouths;
