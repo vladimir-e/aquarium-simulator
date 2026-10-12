@@ -110,10 +110,10 @@ describe('searchTunables', () => {
   });
 
   it('keeps a section’s own modified count whatever the search hides', () => {
-    const tuned = withTunable(DEFAULT_CONFIG, 'decay.q10', 2.5);
+    const tuned = withTunable(DEFAULT_CONFIG, 'decomposition.q10', 2.5);
     const found = searchTunables(sections(tuned), 'reference temperature');
 
-    expect(found[0].fields.map((field) => field.path)).toEqual(['decay.referenceTemp']);
+    expect(found[0].fields.map((field) => field.path)).toEqual(['decomposition.referenceTemp']);
     expect(found[0].modified).toBe(1);
   });
 });

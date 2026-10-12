@@ -35,8 +35,6 @@ const AOB_AT_AIR_SATURATION = monodFactor(AIR_SATURATED_O2, AOB_OXYGEN_HALF_SATU
 const NOB_AT_AIR_SATURATION = monodFactor(AIR_SATURATED_O2, NOB_OXYGEN_HALF_SATURATION);
 
 export interface NitrogenCycleConfig {
-  /** Fraction of waste converted to ammonia per tick */
-  wasteConversionRate: number;
   /** mg NH₃ processed per bacteria unit per tick */
   bacteriaProcessingRate: number;
   /** Bacteria units settling into the tank per litre of water per tick, each guild */
@@ -64,7 +62,6 @@ export interface NitrogenCycleConfig {
 }
 
 export const nitrogenCycleDefaults: NitrogenCycleConfig = {
-  wasteConversionRate: 0.3,
   // mg NH₃ one bacteria unit (10⁶ cells) oxidises per tick, and a tick is an
   // hour: 2×10⁻¹³ g/cell/h in air-saturated water, inside the 10⁻¹⁴–10⁻¹³
   // g/cell/h measured for Nitrosomonas. That is the independent check on the
@@ -166,7 +163,6 @@ export interface NitrogenCycleConfigMeta {
 // from doubling times, so no decimal grid contains them: each step is fine
 // enough that a click nudges its value instead of snapping it to a round one.
 export const nitrogenCycleConfigMeta: NitrogenCycleConfigMeta[] = [
-  { key: 'wasteConversionRate', label: 'Waste Conversion Rate', unit: '/tick', step: 0.05 },
   { key: 'bacteriaProcessingRate', label: 'Bacteria Processing Rate', unit: 'mg/unit/tick', step: 0.00005 },
   { key: 'seedingRate', label: 'Seeding Rate', unit: 'units/L/tick', step: 0.00001 },
   { key: 'aobGrowthRate', label: 'AOB Growth Rate', unit: '/tick', step: 0.0001 },

@@ -18,6 +18,11 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v24 put every organic pool on one decomposition law. `TunableConfig` trades
+ *    `decay` for `decomposition`, `NitrogenCycleConfig` drops
+ *    `wasteConversionRate` and `LivestockConfig` drops `oxygenPerGramBurned`
+ *    and `respiratoryQuotient`. A v23 session parses and its first tick reads
+ *    rot rates its config does not carry.
  * v23 gave organic matter its carbon. `Organics` gains `carbon`;
  *    `Resources.food` and `Fish.gut` become organics; `LivestockConfig` gains
  *    `foodCarbonFraction`. A v22 session parses and its first tick adds
@@ -178,7 +183,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 23;
+export const SESSION_VERSION = 24;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

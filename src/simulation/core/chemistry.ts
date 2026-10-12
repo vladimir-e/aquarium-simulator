@@ -52,12 +52,14 @@ export const NO3_TO_NH3_MASS_RATIO = MW_NH3 / MW_NO3;
 
 /**
  * ≈ 0.727. 6CO2 + 6H2O → C6H12O6 + 6O2 is 1:1 in moles, so a gram of CO2 fixed
- * releases 32/44 of a gram of oxygen. Aerobic respiration and decay run the same
- * reaction backwards at the same ratio.
+ * releases 32/44 of a gram of oxygen. Respiration runs the same reaction
+ * backwards at the same ratio.
  */
 export const CO2_TO_O2_MASS_RATIO = MW_O2 / MW_CO2;
-/** ≈ 1.375 — the same 1:1 reaction read from the oxygen side. */
-export const O2_TO_CO2_MASS_RATIO = MW_CO2 / MW_O2;
+/** ≈ 3.664. The CO2 a gram of organic carbon leaves as once oxidised. */
+export const C_TO_CO2_MASS_RATIO = MW_CO2 / MW_C;
+/** ≈ 2.664. The oxygen oxidising a gram of carbohydrate's carbon takes, CH2O + O2 → CO2 + H2O. */
+export const C_TO_O2_MASS_RATIO = MW_O2 / MW_C;
 /**
  * ≈ 0.682. CO2 + H2O → CH2O + O2, per gram of CO2: the photosynthate it fixes
  * into, and respiration burns back out of.
@@ -67,6 +69,11 @@ export const CO2_TO_CH2O_MASS_RATIO = MW_CH2O / MW_CO2;
 export const CH2O_TO_C_MASS_RATIO = MW_C / MW_CH2O;
 /** ≈ 0.503. The carbon in a gram of a fish's organics. */
 export const RESERVE_TO_C_MASS_RATIO = MW_C / MW_RESERVE;
+/**
+ * ≈ 1.456. CH1.8O0.5N0.15 + 1.0875 O2 → CO2 + 0.15 NH3 + 0.675 H2O: the oxygen
+ * burning a gram of a fish's organics takes, C + (H − 3N)/4 − O/2 moles a C-mole.
+ */
+export const O2_PER_RESERVE_BURNED = ((1 + (1.8 - 3 * 0.15) / 4 - 0.5 / 2) * MW_O2) / MW_RESERVE;
 
 /**
  * ≈ 2.819. NH4⁺ + 1.5 O2 → NO2⁻ + 2H⁺ + H2O, read per gram of ammonia. Per

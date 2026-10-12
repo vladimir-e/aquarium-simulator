@@ -19,11 +19,13 @@ export {
 } from './evaporation.js';
 
 export {
-  decaySystem,
-  getTemperatureFactor,
-  decayFraction,
-  calculateDecay,
-} from './decay.js';
+  decompositionSystem,
+  rotPace,
+  poolShares,
+  decompose,
+  organicPool,
+  type PoolShares,
+} from './decomposition.js';
 
 export { offerCarbon } from './photosynthesis.js';
 
@@ -46,7 +48,6 @@ export {
   calculateSeeding,
   calculateColonyFlows,
   ammoniaIn,
-  wasteMineralised,
   calculateAmmoniaToNitrite,
   calculateNitriteToNitrate,
   aobCapacity,
@@ -73,7 +74,7 @@ export {
 import type { System } from './types.js';
 import { temperatureDriftSystem } from './temperature-drift.js';
 import { evaporationSystem } from './evaporation.js';
-import { decaySystem } from './decay.js';
+import { decompositionSystem } from './decomposition.js';
 import { nitrogenCycleSystem } from './nitrogen-cycle.js';
 import { gasExchangeSystem } from './gas-exchange.js';
 
@@ -81,7 +82,7 @@ import { gasExchangeSystem } from './gas-exchange.js';
 export const coreSystems: System[] = [
   temperatureDriftSystem,
   evaporationSystem,
-  decaySystem,
+  decompositionSystem,
   nitrogenCycleSystem,
   gasExchangeSystem,
 ];

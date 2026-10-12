@@ -124,13 +124,13 @@ describe('loseFlora', () => {
     expect(loss.survivor!.structure).toBeCloseTo(2 * (1 - shedShare(50, config)), 15);
   });
 
-  it('kills at condition 0, leaving every gram as waste and the stores in the water', () => {
+  it('kills at condition 0, leaving every gram and every store as waste', () => {
     const loss = loseFlora(budget, p, 0, config);
     const lost = addOrganics(loss.shed, loss.died);
     expect(loss.survivor).toBeNull();
     expect(lost.grams).toBeCloseTo(budget.structure + budget.reserve + budget.offshootBuffer, 12);
     for (const n of ['nitrate', 'phosphate', 'potassium', 'iron'] as const) {
-      expect(lost.nutrients[n] + loss.leachate[n]).toBeCloseTo(p.qMin[n] * budget.structure + budget.stores[n], 9);
+      expect(lost.nutrients[n]).toBeCloseTo(p.qMin[n] * budget.structure + budget.stores[n], 9);
     }
   });
 });

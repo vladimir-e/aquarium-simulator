@@ -7,6 +7,7 @@ import {
   bloomCoverage,
   createSimulation,
   dailyLightIntegral,
+  decompose,
   getPresetById,
   processBodies,
   processFlora,
@@ -18,8 +19,7 @@ import {
 import { settleEnvironment } from '../../simulation/tick.js';
 import { deltaOf } from '../../simulation/tests/effects.js';
 import { spawnsAt } from '../../simulation/systems/brood.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { ammoniaIn } from '../../simulation/systems/index.js';
+import { DEFAULT_CONFIG, mapPools } from '../../simulation/config/index.js';
 import { holdingEggs } from '../../simulation/tests/fish.js';
 import { readHourAhead } from './ahead.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
@@ -180,16 +180,20 @@ describe('readHourAhead', () => {
     expect(next.logs.filter((log) => log.event === 'algae-died')).toHaveLength(ALGAE_KINDS.length);
   });
 
-  it('reads the waste the fish pass, the ammonia they breathe out and the food they leave to rot off the hour the plants and bloom leave them', () => {
+  it('reads the waste the fish pass, the ammonia they breathe out and the pools they leave to rot off the hour the plants and bloom leave them', () => {
     const fed = hours.map(({ state }) => readHourAhead(state, config));
-    expect(fed.some((ahead) => ahead.fishWaste.grams > 0 && ahead.gillAmmonia > 0 && ahead.foodWaste.grams > 0)).toBe(true);
+    expect(fed.some((ahead) => ahead.fishWaste.grams > 0 && ahead.gillAmmonia > 0 && ahead.pools.food.grams > 0)).toBe(true);
 
     const readsTheRot = (state: SimulationState, next: SimulationState): void => {
-      const ahead = readHourAhead(state, config);
-      const rotted = bodiesOf(state).bodies.state.resources.food.grams - next.resources.food.grams;
-      const share = config.decay.wasteConversionRatio;
-      expect(ahead.foodWaste.grams).toBeCloseTo(rotted * share, 12);
-      expect(ahead.foodAmmonia).toBeCloseTo(ammoniaIn(ofFood(rotted * (1 - share))), 12);
+      const { pools, decomposition } = readHourAhead(state, config);
+      const hour = mapPools((pool) => decompose(pools[pool], decomposition[pool]));
+      const left = mapPools((pool) => pools[pool].grams - hour[pool].rotted.grams - hour[pool].settled.grams);
+      expect(next.resources.food.grams).toBeCloseTo(left.food, 12);
+      expect(next.resources.waste.grams).toBeCloseTo(left.waste, 12);
+      expect(next.equipment.substrate.organicReserve.grams).toBeCloseTo(
+        left.mulm + hour.food.settled.grams + hour.waste.settled.grams,
+        12
+      );
     };
 
     for (const { state, next } of hours) {

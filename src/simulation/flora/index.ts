@@ -50,7 +50,6 @@ import { carbonGases, offerCarbon, photosynthateOf, plantFixer } from '../system
 import {
   drawNutrients,
   ghDrawn,
-  leach,
   nutrientsIn,
   plantFeeder,
   poolDraws,
@@ -242,7 +241,6 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   pushWaste(addOrganics(...plantLosses.map((loss) => loss.died)), 'plant-death');
   pushWaste(addOrganics(...bloomLosses.map((loss) => loss.shed)), 'algae-shedding');
   pushWaste(addOrganics(...bloomLosses.map((loss) => loss.died)), 'algae-death');
-  effects.push(...leach(mapNutrients((n) => sum(losses.map((loss) => loss.leachate[n])))));
 
   // 7. A buffer that holds a unit cuts it loose.
   const offshoots = state.plants.map((plant, i) => {

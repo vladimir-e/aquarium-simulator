@@ -124,15 +124,15 @@ describe('TunableConfigSchema', () => {
   });
 
   it('rejects missing sections', () => {
-    const partial = { decay: DEFAULT_CONFIG.decay };
+    const partial = { decomposition: DEFAULT_CONFIG.decomposition };
     expect(TunableConfigSchema.safeParse(partial).success).toBe(false);
   });
 
   it('rejects extra keys in sections', () => {
     const withExtra = {
       ...DEFAULT_CONFIG,
-      decay: {
-        ...DEFAULT_CONFIG.decay,
+      decomposition: {
+        ...DEFAULT_CONFIG.decomposition,
         unknownField: 42,
       },
     };
@@ -641,6 +641,7 @@ describe('PersistedStateSchema', () => {
     [31, 'the size death threshold'],
     [33, 'satiation, before the gut'],
     [37, 'organics without their carbon'],
+    [38, 'decay before the decomposition law'],
   ];
 
   it('rejects every prior version, so no save survives a breaking bump', () => {

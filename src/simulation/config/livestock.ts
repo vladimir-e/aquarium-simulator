@@ -47,14 +47,6 @@ export interface LivestockConfig {
   foodNitrogenFraction: number;
   /** Grams of carbon in a gram of food (g C / g food). */
   foodCarbonFraction: number;
-  /** mg of O2 a gram of organics a fish burns takes. */
-  oxygenPerGramBurned: number;
-  /**
-   * Moles of CO2 exhaled per mole of O2 consumed. A *molar* ratio, as the
-   * literature defines it — converting it to a mass takes the molar step
-   * through `O2_TO_CO2_MASS_RATIO`.
-   */
-  respiratoryQuotient: number;
 
   // Stressor severities (damage per hour per unit deviation)
   /** Health damage per °C outside safe temperature range */
@@ -146,10 +138,6 @@ export const livestockDefaults: LivestockConfig = {
   // A flake on a dry basis: about half protein, a tenth fat, a quarter
   // carbohydrate and a tenth ash comes to 0.45–0.47 g C/g.
   foodCarbonFraction: 0.45,
-  // Burning AmP's reserve, CH1.8O0.5N0.15 at 23.9 g/mol, to CO2, water and
-  // ammonia takes 1.09 mol O2 a C-mole.
-  oxygenPerGramBurned: 1450,
-  respiratoryQuotient: 0.8, // textbook mixed-diet value
 
   // Stressor severities
   // Per °C outside the species' temperatureRange, scaled by (1 − hardiness).
@@ -266,8 +254,6 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     max: 0.52,
     step: 0.01,
   },
-  { key: 'oxygenPerGramBurned', label: 'O2 per Gram Burned', unit: 'mg O2/g', min: 500, max: 2500, step: 50 },
-  { key: 'respiratoryQuotient', label: 'Respiratory Quotient', unit: '', min: 0.5, max: 1.2, step: 0.1 },
   // Stressor severities
   {
     key: 'temperatureStressSeverity',

@@ -2,16 +2,17 @@ import { beforeAll, describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { createSimulation, type Fish, type SimulationState } from '../state.js';
 import { settleEnvironment, tick } from '../tick.js';
-import { applyEffects } from '../core/effects.js';
-import { processLivestock } from '../livestock/index.js';
-import { processBodies } from '../livestock/bodies.js';
+import { processFlora } from '../flora/index.js';
+import { gasExchangeSystem } from '../systems/gas-exchange.js';
+import { CO2_MASS_RATE } from '../equipment/co2-generator.js';
+import { deltaOf } from './effects.js';
 import { loseFlora } from '../systems/flora.js';
 import { disturbBed } from '../equipment/index.js';
 import { applyAction } from '../actions/index.js';
 import { DEFAULT_CONFIG, configRange, withTunable, type TunableConfig } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { mapNutrients, NUTRIENTS, WASTE_NUTRIENTS, type NutrientVector, type WasteNutrient } from '../config/nutrients.js';
-import { CACO3_PER_EQUIVALENT, CH2O_TO_C_MASS_RATIO, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
+import { CACO3_PER_EQUIVALENT, CH2O_TO_C_MASS_RATIO, C_TO_CO2_MASS_RATIO, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
 import { ALGAE_KINDS, bloomCoverage } from '../algae/index.js';
 import { bloomParams, plantParams } from '../flora/params.js';
 import { floraNutrients, floraOrganics, type FloraState } from '../systems/flora-budget.js';
@@ -132,7 +133,7 @@ describe('nitrogen mass', () => {
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 2);
   });
 
-  it('is conserved through waste mineralization and the chain', () => {
+  it('is conserved through waste rot and the chain', () => {
     const start = produce(cycledBareTank(), (draft) => {
       draft.resources.waste = atRecipe(10, DEFAULT_CONFIG);
     });
@@ -142,17 +143,17 @@ describe('nitrogen mass', () => {
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 2);
   });
 
-  it('is conserved as uneaten food decays and its waste mineralizes', () => {
+  it('is conserved as uneaten food rots', () => {
     const start = produce(cycledBareTank(), (draft) => {
       draft.resources.food = ofFood(5);
     });
     const end = run(start, 2000);
 
-    expect(end.resources.food.grams + end.resources.waste.grams).toBeLessThan(0.05);
+    expect(end.resources.food.grams).toBeLessThan(0.05);
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 10);
   });
 
-  it('is conserved through the bed, as waste settles in and leaches back out', () => {
+  it('is conserved through the bed, as waste settles in and rots there', () => {
     const start = produce(cycledBareTank(), (draft) => {
       draft.equipment.substrate.type = 'gravel';
       draft.resources.waste = atRecipe(10, DEFAULT_CONFIG);
@@ -356,17 +357,17 @@ describe('mineral mass', () => {
     }
   }
 
-  it('is conserved as uneaten food decays and its waste mineralizes', () => {
+  it('is conserved as uneaten food rots', () => {
     const start = produce(cycledBareTank(), (draft) => {
       draft.resources.food = ofFood(5);
     });
     const end = run(start, 2000);
 
-    expect(end.resources.food.grams + end.resources.waste.grams).toBeLessThan(0.05);
+    expect(end.resources.food.grams).toBeLessThan(0.05);
     expectConserved(start, end);
   });
 
-  it('is conserved through the bed, as waste settles in and leaches back out', () => {
+  it('is conserved through the bed, as waste settles in and rots there', () => {
     const start = produce(cycledBareTank(), (draft) => {
       draft.equipment.substrate.type = 'gravel';
       draft.resources.waste = atRecipe(10, DEFAULT_CONFIG);
@@ -392,47 +393,80 @@ describe('mineral mass', () => {
 });
 
 describe('carbon mass', () => {
-  /** The livestock's hours alone, on the environment each tick settles: what they hold, pass and leave, and the grams they burn. */
-  function livestockHours(start: SimulationState, hours: number): { state: SimulationState; burned: number } {
+  /** Grams of carbon dissolved as CO2. */
+  const dissolvedCarbon = ({ resources }: SimulationState): number => (resources.co2 * resources.water) / C_TO_CO2_MASS_RATIO / 1000;
+  const carbonIn = (state: SimulationState): number => carbonInPools(state) + dissolvedCarbon(state);
+
+  /** No air over the water to trade CO2 with, and none for it to evaporate into. */
+  const SEALED: TunableConfig = { ...DEFAULT_CONFIG, gasExchange: { ...DEFAULT_CONFIG.gasExchange, baseExchangeRate: 0 } };
+  const sealed = (state: SimulationState): SimulationState =>
+    produce(state, (draft) => {
+      draft.equipment.lid.type = 'sealed';
+    });
+
+  /** Real ticks in a sealed tank, and the grams of carbon the hours' spores carried in from outside it. */
+  function sealedHours(start: SimulationState, hours: number): { state: SimulationState; spores: number } {
     let state = start;
-    let burned = 0;
+    let spores = 0;
     for (let hour = 0; hour < hours; hour++) {
-      const livestock = processLivestock(settleEnvironment(state), DEFAULT_CONFIG);
-      const bodies = processBodies(applyEffects(livestock.state, livestock.effects), DEFAULT_CONFIG);
-      state = applyEffects(bodies.state, bodies.effects);
-      burned += livestock.burned + bodies.burned;
+      const { algae } = processFlora(settleEnvironment(state, SEALED), SEALED);
+      spores += CH2O_TO_C_MASS_RATIO * sum(ALGAE_KINDS.map((kind) => algae[kind].spores));
+      state = tick(state, SEALED);
     }
-    return { state, burned };
+    return { state, spores };
   }
 
   const starved = (fish: Fish): Fish => ({ ...fish, budget: { ...fish.budget, reserve: 0 } });
 
-  it('travels intact from food through gut and body, prey, eggs and the dead to the waste, but for what the fish burn', () => {
-    const start = produce(cycledBareTank(), (draft) => {
-      draft.fish = [
-        tetra('a'),
-        tetra('b'),
-        fishRecord({ id: 'old', survivalDraw: 1 }),
-        starved(fishRecord({ id: 'fry', size: 15, health: 0.001 })),
-        fishRecord({ id: 'angel', species: 'angelfish', size: 60, gut: ofFood(0.01) }),
-        holdingEggs(fishRecord({ id: 'mother', species: 'guppy', sex: 'female' }), 2.4),
-      ];
-      draft.clutches = [
-        { id: 'laid', species: 'neon_tetra', eggs: 60, development: 0.5 },
-        { id: 'carried', species: 'guppy', eggs: 8, development: 0.9999, motherId: 'mother' },
-      ];
-      draft.resources.food = ofFood(0.5);
-    });
-    const { state: end, burned } = livestockHours(start, 48);
+  /** Fish feeding, breeding and dying, a planting with a plant dying in it, blooms, and every organic pool, over a gravel bed. */
+  const living = (oxygen: number): SimulationState =>
+    sealed(
+      produce(cycledBareTank(), (draft) => {
+        draft.equipment.substrate = freshSubstrate('gravel', draft.tank.capacity);
+        draft.fish = [
+          tetra('a'),
+          tetra('b'),
+          fishRecord({ id: 'old', survivalDraw: 1 }),
+          starved(fishRecord({ id: 'fry', size: 15, health: 0.001 })),
+          fishRecord({ id: 'angel', species: 'angelfish', size: 60, gut: ofFood(0.01) }),
+          holdingEggs(fishRecord({ id: 'mother', species: 'guppy', sex: 'female' }), 2.4),
+        ];
+        draft.clutches = [
+          { id: 'laid', species: 'neon_tetra', eggs: 60, development: 0.5 },
+          { id: 'carried', species: 'guppy', eggs: 8, development: 0.9999, motherId: 'mother' },
+        ];
+        const doomed = plantRecord({ id: 'doomed', species: 'amazon_sword', size: 50, condition: 0.01 });
+        doomed.budget.reserve = 0;
+        draft.plants = [plantRecord({ id: 'fern', species: 'java_fern', size: 60 }), doomed];
+        for (const kind of ALGAE_KINDS) draft.algae[kind] = bloomAt(draft, kind, 20);
+        draft.resources.food = ofFood(0.5);
+        draft.resources.waste = portion(LEAN, 2);
+        draft.resources.nitrate = 10 * draft.resources.water;
+        draft.resources.phosphate = 1 * draft.resources.water;
+        draft.resources.potassium = 10 * draft.resources.water;
+        draft.resources.iron = 0.2 * draft.resources.water;
+        draft.resources.oxygen = oxygen;
+      })
+    );
 
-    expect(end.fish.map((f) => f.id)).not.toContain('old');
-    expect(end.fish.map((f) => f.id)).not.toContain('fry');
-    expect(end.clutches.find((clutch) => clutch.id === 'laid')!.eggs).toBeLessThan(60);
-    expect(end.resources.food.grams).toBeLessThan(0.5);
-    expect(end.resources.waste.carbon).toBeGreaterThan(0);
-    expect(burned).toBeGreaterThan(0);
-    expect((carbonInPools(end) + burned * BODY.carbon) / carbonInPools(start)).toBeCloseTo(1, 12);
-  });
+  it.each([
+    ['aerated', 8],
+    ['anoxic', 0],
+  ])(
+    'is conserved across whole ticks in a sealed %s tank — fish eating, burning, breeding and dying, the flora fixing, respiring, shedding and dying, every pool rotting and settling — but for the carbon the spores bring in',
+    (_name, oxygen) => {
+      const start = living(oxygen);
+      const { state: end, spores } = sealedHours(start, 48);
+
+      expect(end.fish.map((f) => f.id)).not.toContain('fry');
+      expect(end.plants.map((p) => p.id)).not.toContain('doomed');
+      expect(end.clutches.find((clutch) => clutch.id === 'laid')!.eggs).toBeLessThan(60);
+      expect(end.resources.food.grams).toBeLessThan(start.resources.food.grams);
+      expect(end.equipment.substrate.organicReserve.grams).toBeGreaterThan(start.equipment.substrate.organicReserve.grams);
+      expect(spores).toBeGreaterThan(0);
+      expect((carbonIn(end) - spores) / carbonIn(start)).toBeCloseTo(1, 10);
+    }
+  );
 
   it('travels intact from the flora into what it sheds and what it leaves dead', () => {
     const sword = plantRecord({ id: 'sword', species: 'amazon_sword', size: 50 });
@@ -446,24 +480,94 @@ describe('carbon mass', () => {
     }
   });
 
-  it('travels intact as waste settles into the bed, leaches back out and is stirred up, and leaves with the vacuum in its share', () => {
-    const start = produce(cycledBareTank(), (draft) => {
-      draft.equipment.substrate = freshSubstrate('gravel', draft.tank.capacity);
-      draft.resources.waste = addOrganics(portion(LEAN, 5), ofFood(5));
-    });
-    let settled = start;
-    for (let hour = 0; hour < 48; hour++) settled = settleEnvironment(settled);
+  it('stays in the tank as the bed is stirred up', () => {
+    const { state: settled } = sealedHours(
+      sealed(
+        produce(cycledBareTank(), (draft) => {
+          draft.equipment.substrate = freshSubstrate('gravel', draft.tank.capacity);
+          draft.resources.waste = addOrganics(portion(LEAN, 5), ofFood(5));
+        })
+      ),
+      48
+    );
     const stirred = produce(settled, (draft) => {
       disturbBed(draft, 0.4);
     });
-    const bed = stirred.equipment.substrate.organicReserve;
-    const vacuumed = applyAction(stirred, { type: 'waterChange', amount: 0.3, vacuum: 0.5 }).state;
 
-    expect(settled.equipment.substrate.organicReserve.grams).toBeGreaterThan(start.equipment.substrate.organicReserve.grams);
     expect(stirred.resources.waste.carbon).toBeGreaterThan(settled.resources.waste.carbon);
-    expect(carbonInPools(settled) / carbonInPools(start)).toBeCloseTo(1, 12);
-    expect(carbonInPools(stirred) / carbonInPools(start)).toBeCloseTo(1, 12);
-    expect(carbonInPools(stirred) - carbonInPools(vacuumed)).toBeCloseTo(0.5 * bed.carbon, 12);
+    expect(carbonIn(stirred) / carbonIn(settled)).toBeCloseTo(1, 12);
+  });
+
+  describe('as ledger entries', () => {
+    const { foodCarbonFraction } = DEFAULT_CONFIG.livestock;
+    const inert = sealed(
+      produce(createSimulation({ tankCapacity: 150 }), (draft) => {
+        draft.resources.co2 = 20;
+      })
+    );
+
+    it('takes in exactly the carbon fed', () => {
+      const fed = applyAction(inert, { type: 'feed', amount: 2 }).state;
+      expect(carbonIn(fed) - carbonIn(inert)).toBeCloseTo(2 * foodCarbonFraction, 12);
+    });
+
+    it('trades with the air exactly the CO2 gas exchange moves', () => {
+      const exchanged = gasExchangeSystem
+        .update(settleEnvironment(inert), DEFAULT_CONFIG)
+        .filter((effect) => effect.resource === 'co2')
+        .map((effect) => deltaOf(effect));
+      expect(exchanged).toHaveLength(1);
+      expect(exchanged[0]).toBeLessThan(0);
+      expect(carbonIn(tick(inert)) - carbonIn(inert)).toBeCloseTo(
+        (exchanged[0] * inert.resources.water) / C_TO_CO2_MASS_RATIO / 1000,
+        12
+      );
+    });
+
+    it('takes in exactly the CO2 the injector meters', () => {
+      const injecting = produce(inert, (draft) => {
+        draft.equipment.co2Generator = {
+          ...draft.equipment.co2Generator,
+          enabled: true,
+          bubbleRate: 2,
+          schedule: { startHour: 0, duration: 24 },
+        };
+      });
+      const injected = (2 * CO2_MASS_RATE) / C_TO_CO2_MASS_RATIO / 1000;
+      expect(carbonIn(tick(injecting, SEALED)) - carbonIn(injecting)).toBeCloseTo(injected, 12);
+    });
+
+    it('lets a water change carry out its share of the CO2 and the green water and bring in the tap’s, and the vacuum its share of the mulm', () => {
+      const tank = produce(inert, (draft) => {
+        draft.equipment.substrate = freshSubstrate('gravel', draft.tank.capacity);
+        draft.algae.greenWater = bloomAt(draft, 'greenWater', 30);
+      });
+      const changed = applyAction(tank, { type: 'waterChange', amount: 0.3, vacuum: 0.5 }).state;
+      const greenWater = CH2O_TO_C_MASS_RATIO * floraOrganics(tank.algae.greenWater.budget);
+      const tapIn = (DEFAULT_CONFIG.gasExchange.atmosphericCo2 * 0.3 * tank.resources.water) / C_TO_CO2_MASS_RATIO / 1000;
+      const out = 0.3 * (dissolvedCarbon(tank) + greenWater) + 0.5 * tank.equipment.substrate.organicReserve.carbon;
+
+      expect(carbonIn(tank) - carbonIn(changed)).toBeCloseTo(out - tapIn, 12);
+    });
+
+    it('takes a removed fish, sold fry and a pulled plant out exactly, bodies, guts and broods', () => {
+      const tank = produce(cycledBareTank(), (draft) => {
+        draft.fish = [
+          holdingEggs(fishRecord({ id: 'mother', species: 'guppy', sex: 'female', gut: ofFood(0.01) }), 2.4),
+          fishRecord({ id: 'fry', species: 'guppy', size: 20, gut: ofFood(0.001) }),
+          tetra('adult'),
+        ];
+        draft.clutches = [{ id: 'carried', species: 'guppy', eggs: 12, development: 0.3, motherId: 'mother' }];
+        draft.plants = [plantRecord({ id: 'fern', species: 'java_fern', size: 60 })];
+      });
+      const removed = applyAction(tank, { type: 'removeFish', fishId: 'mother' }).state;
+      const sold = applyAction(tank, { type: 'sellFry' }).state;
+      const pulled = applyAction(tank, { type: 'removePlant', plantId: 'fern' }).state;
+
+      expect(carbonIn(tank) - carbonIn(removed)).toBeCloseTo(livestockOrganics({ fish: [tank.fish[0]], clutches: tank.clutches }).carbon, 12);
+      expect(carbonIn(tank) - carbonIn(sold)).toBeCloseTo(livestockOrganics({ fish: [tank.fish[1]], clutches: [] }).carbon, 12);
+      expect(carbonIn(tank) - carbonIn(pulled)).toBeCloseTo(CH2O_TO_C_MASS_RATIO * floraOrganics(tank.plants[0].budget), 12);
+    });
   });
 });
 
@@ -566,7 +670,7 @@ describe('blooms and their crash', () => {
     expect(peakAmmonia).toBeGreaterThan(bloomed.resources.ammonia);
   });
 
-  it('conserves nitrogen, every mineral and KH net of nitrogen through the blooms, the crash and the die-back’s leach', () => {
+  it('conserves nitrogen, every mineral and KH net of nitrogen through the blooms, the crash and the die-back’s rot', () => {
     for (const state of [bloomed, crashed]) {
       expect(nitrogenInPools(state) / nitrogenInPools(start)).toBeCloseTo(1, 10);
       for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(state, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
@@ -637,7 +741,7 @@ describe('alkalinity around the nitrogen loop', () => {
     );
   });
 
-  it('moves KH exactly as far as the charge on the inorganic nitrogen moves while KH lasts, through gills, decay, growth from the water and the bed, shedding and rot', () => {
+  it('moves KH exactly as far as the charge on the inorganic nitrogen moves while KH lasts, through gills, growth from the water and the bed, shedding and rot', () => {
     const leakedOnly =
       start.equipment.substrate.nutrients.nitrate * (1 - DEFAULT_CONFIG.nutrients.bedLeakRate) ** (LIT_DAYS * 24);
     expect(lit.equipment.substrate.nutrients.nitrate).toBeLessThan(leakedOnly);
@@ -719,11 +823,11 @@ describe('the keeper’s hands on the blooms', () => {
     expect(tissueNitrogen(coated) - tissueNitrogen(changed)).toBeCloseTo(share * greenWater, 9);
   });
 
-  it('keep every gram of a scrub in the tank, as waste and leachate, KH moving back by the charge the leachate’s uptake moved', () => {
+  it('keep every gram of a scrub in the tank as waste, its stores with it and KH untouched', () => {
     const scrubbed = applyAction(coated, { type: 'scrubAlgae' }).state;
     expect(bloomCoverage(scrubbed, 'film')).toBeLessThan(bloomCoverage(coated, 'film'));
     expect(scrubbed.algae.greenWater).toEqual(coated.algae.greenWater);
-    expect(scrubbed.resources.kh).toBeLessThan(coated.resources.kh);
+    expect(scrubbed.resources.kh).toBe(coated.resources.kh);
     expect(nitrogenInPools(scrubbed) / nitrogenInPools(coated)).toBeCloseTo(1, 12);
     expect(carbonInPools(scrubbed) / carbonInPools(coated)).toBeCloseTo(1, 12);
     expect(alkalinityNetOfNitrogen(scrubbed) / alkalinityNetOfNitrogen(coated)).toBeCloseTo(1, 12);
@@ -741,7 +845,7 @@ describe('a plant dying in the dark', () => {
   });
   const end = tick(start);
 
-  it('leaches its stores back, KH moving back by the charge their uptake moved', () => {
+  it('leaves its stores in the waste with its tissue, nitrogen and KH net of it conserved', () => {
     expect(end.plants).toHaveLength(0);
     expect(end.logs.some((log) => log.event === 'plant-died')).toBe(true);
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 12);

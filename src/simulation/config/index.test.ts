@@ -9,7 +9,7 @@ import {
   isSectionModified,
   isConfigModified,
   countModified,
-  decayDefaults,
+  decompositionDefaults,
   nitrogenCycleDefaults,
   gasExchangeDefaults,
   temperatureDefaults,
@@ -27,7 +27,7 @@ import { leaves } from '../tests/leaves.js';
 
 describe('DEFAULT_CONFIG', () => {
   it('uses the correct defaults for each system', () => {
-    expect(DEFAULT_CONFIG.decay).toEqual(decayDefaults);
+    expect(DEFAULT_CONFIG.decomposition).toEqual(decompositionDefaults);
     expect(DEFAULT_CONFIG.nitrogenCycle).toEqual(nitrogenCycleDefaults);
     expect(DEFAULT_CONFIG.gasExchange).toEqual(gasExchangeDefaults);
     expect(DEFAULT_CONFIG.temperature).toEqual(temperatureDefaults);
@@ -46,50 +46,50 @@ describe('cloneConfig', () => {
     const clone = cloneConfig(DEFAULT_CONFIG);
     expect(clone).toEqual(DEFAULT_CONFIG);
     expect(clone).not.toBe(DEFAULT_CONFIG);
-    expect(clone.decay).not.toBe(DEFAULT_CONFIG.decay);
+    expect(clone.decomposition).not.toBe(DEFAULT_CONFIG.decomposition);
   });
 
   it('changes to clone do not affect original', () => {
     const clone = cloneConfig(DEFAULT_CONFIG);
-    clone.decay.q10 = 999;
-    expect(DEFAULT_CONFIG.decay.q10).not.toBe(999);
+    clone.decomposition.q10 = 999;
+    expect(DEFAULT_CONFIG.decomposition.q10).not.toBe(999);
   });
 });
 
 describe('isModified', () => {
   it('returns false for default values', () => {
-    expect(isModified(DEFAULT_CONFIG, 'decay', 'q10')).toBe(false);
+    expect(isModified(DEFAULT_CONFIG, 'decomposition', 'q10')).toBe(false);
     expect(isModified(DEFAULT_CONFIG, 'temperature', 'coolingCoefficient')).toBe(false);
   });
 
   it('returns true for modified values', () => {
     const modified = cloneConfig(DEFAULT_CONFIG);
-    modified.decay.q10 = 3.0;
-    expect(isModified(modified, 'decay', 'q10')).toBe(true);
+    modified.decomposition.q10 = 3.0;
+    expect(isModified(modified, 'decomposition', 'q10')).toBe(true);
   });
 
   it('returns false for other values when one is modified', () => {
     const modified = cloneConfig(DEFAULT_CONFIG);
-    modified.decay.q10 = 3.0;
-    expect(isModified(modified, 'decay', 'baseDecayRate')).toBe(false);
+    modified.decomposition.q10 = 3.0;
+    expect(isModified(modified, 'decomposition', 'anaerobicShare')).toBe(false);
   });
 });
 
 describe('isSectionModified', () => {
   it('returns false for default section', () => {
-    expect(isSectionModified(DEFAULT_CONFIG, 'decay')).toBe(false);
+    expect(isSectionModified(DEFAULT_CONFIG, 'decomposition')).toBe(false);
     expect(isSectionModified(DEFAULT_CONFIG, 'waterChemistry')).toBe(false);
   });
 
   it('returns true when any value in section is modified', () => {
     const modified = cloneConfig(DEFAULT_CONFIG);
-    modified.decay.q10 = 3.0;
-    expect(isSectionModified(modified, 'decay')).toBe(true);
+    modified.decomposition.q10 = 3.0;
+    expect(isSectionModified(modified, 'decomposition')).toBe(true);
   });
 
   it('returns false for other sections when one is modified', () => {
     const modified = cloneConfig(DEFAULT_CONFIG);
-    modified.decay.q10 = 3.0;
+    modified.decomposition.q10 = 3.0;
     expect(isSectionModified(modified, 'temperature')).toBe(false);
   });
 });
@@ -101,7 +101,7 @@ describe('countModified', () => {
 
   it('counts each touched value once, across sections', () => {
     const modified = cloneConfig(DEFAULT_CONFIG);
-    modified.decay.q10 = 3.0;
+    modified.decomposition.q10 = 3.0;
     modified.waterChemistry.calciteDissolutionRate = DEFAULT_CONFIG.waterChemistry.calciteDissolutionRate + 1;
     expect(countModified(modified)).toBe(2);
   });
@@ -121,7 +121,7 @@ describe('isConfigModified', () => {
 
   it('returns true when any value is modified', () => {
     const modified = cloneConfig(DEFAULT_CONFIG);
-    modified.decay.q10 = 3.0;
+    modified.decomposition.q10 = 3.0;
     expect(isConfigModified(modified)).toBe(true);
   });
 });

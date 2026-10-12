@@ -108,30 +108,30 @@ describe('TunablesDrawer', () => {
 
   it('counts what it has moved, section by section and in the badge', () => {
     openDrawer();
-    const decay = expand('Decay');
+    const decomposition = expand('Decomposition');
 
-    fireEvent.change(within(decay).getByLabelText('Q10 Temperature Coefficient'), {
+    fireEvent.change(within(decomposition).getByLabelText('Q10 Temperature Coefficient'), {
       target: { value: '2.5' },
     });
-    fireEvent.change(within(decay).getByLabelText('Reference Temperature'), {
+    fireEvent.change(within(decomposition).getByLabelText('Reference Temperature'), {
       target: { value: '24' },
     });
 
-    expect(within(decay).getByRole('button', { name: /Decay/ }).textContent).toContain('2');
+    expect(within(decomposition).getByRole('button', { name: /Decomposition/ }).textContent).toContain('2');
     expect(badge()).toBe('2');
   });
 
   it('resets one section without touching another, and all of them at once', () => {
     openDrawer();
-    const decay = expand('Decay');
-    fireEvent.change(within(decay).getByLabelText('Q10 Temperature Coefficient'), {
+    const decomposition = expand('Decomposition');
+    fireEvent.change(within(decomposition).getByLabelText('Q10 Temperature Coefficient'), {
       target: { value: '2.5' },
     });
     const plants = expand('Plants');
     fireEvent.change(within(plants).getAllByRole('spinbutton')[0], { target: { value: '0.2' } });
     expect(badge()).toBe('2');
 
-    fireEvent.click(within(section('Decay')).getByRole('button', { name: 'Reset' }));
+    fireEvent.click(within(section('Decomposition')).getByRole('button', { name: 'Reset' }));
     expect(badge()).toBe('1');
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset all' }));
@@ -148,7 +148,7 @@ describe('TunablesDrawer', () => {
       </PersistenceProvider>
     );
 
-    expect(within(section('Decay')).getByLabelText('Q10 Temperature Coefficient')).toBeTruthy();
+    expect(within(section('Decomposition')).getByLabelText('Q10 Temperature Coefficient')).toBeTruthy();
     expect(within(section('Plants')).queryByRole('spinbutton')).toBeNull();
   });
 });
@@ -158,7 +158,7 @@ function Tuned(): React.JSX.Element | null {
   const [tuned, setTuned] = React.useState(false);
 
   React.useEffect(() => {
-    setTunable('decay.q10', 2.5);
+    setTunable('decomposition.q10', 2.5);
     setTuned(true);
   }, [setTunable]);
 

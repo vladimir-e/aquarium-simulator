@@ -27,7 +27,6 @@ import { clutchOrganics, clutchesWithMothers } from '../systems/clutch.js';
 import { loadFish, waterToxins } from '../systems/toxicokinetics.js';
 import { getPpm } from '../resources/index.js';
 import { speciesTau } from './species.js';
-import type { LivestockConfig } from '../config/livestock.js';
 
 export interface LivestockProcessingResult {
   state: SimulationState;
@@ -49,15 +48,9 @@ export function tankPaces(state: Pick<SimulationState, 'fish' | 'resources'>, co
 }
 
 /** What burning `grams` of fish organics does to the water: gill NH3 and minerals in, O2 out, CO2 in. */
-export function burnEffects(
-  grams: number,
-  water: number,
-  config: LivestockConfig,
-  body: Organics,
-  source: string
-): Effect[] {
+export function burnEffects(grams: number, water: number, body: Organics, source: string): Effect[] {
   if (grams <= 0) return [];
-  const burnt = burn(grams, body, config);
+  const burnt = burn(grams, body);
   return [
     ...mintAmmonia(burnt.ammonia, 'active', 'fish-gill-excretion'),
     ...WASTE_NUTRIENTS.map(
@@ -104,7 +97,7 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
   const effects: Effect[] = [
     ...organic('food', scaleOrganics(metabolism.foodConsumed, -1), 'fish-metabolism'),
     ...organic('waste', metabolism.feces, 'fish-metabolism'),
-    ...burnEffects(metabolism.burned, water, livestock, body, 'fish-respiration'),
+    ...burnEffects(metabolism.burned, water, body, 'fish-respiration'),
     ...organic('waste', health.deathWaste, 'fish-death'),
   ];
 

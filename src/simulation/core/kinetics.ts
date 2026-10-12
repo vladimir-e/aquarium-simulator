@@ -1,9 +1,11 @@
+import { sum } from './sum.js';
+
 /**
  * Temperature scaling for biological rates.
  *
  * Q10 is the factor a rate multiplies by per 10 °C: 2 doubles every ten
  * degrees, 3 triples. Every process in the engine that runs on enzymes —
- * food decay, plant respiration, nitrification — scales this way, and each
+ * decomposition, plant respiration, nitrification — scales this way, and each
  * quotes its own coefficient and its own reference temperature against this
  * one function.
  */
@@ -22,6 +24,13 @@ export function arrheniusFactor(temperature: number, arrheniusTemp: number): num
 /** Share of a stock a first-order draw at `rate` per hour takes over the hour: `1 − e^−rate`. */
 export function hourlyDraw(rate: number): number {
   return -Math.expm1(-rate);
+}
+
+/** Shares of a stock several first-order draws running on it together take over the hour: `1 − e^−Σk`, split in proportion to each `k`. */
+export function hourlyDraws(rates: readonly number[]): number[] {
+  const total = sum(rates);
+  const drawn = hourlyDraw(total);
+  return rates.map((rate) => (total > 0 ? (drawn * rate) / total : 0));
 }
 
 /** Share of a steady inflow over the hour that the same draw takes before the hour ends. */

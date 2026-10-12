@@ -15,7 +15,6 @@
  */
 
 import type { Resources, SimulationState } from '../state.js';
-import type { Effect } from '../core/effects.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
 import {
@@ -28,7 +27,6 @@ import {
   type FormVector,
   type NutrientsConfig,
   type NutrientVector,
-  ZERO_FORMS,
 } from '../config/nutrients.js';
 import {
   alkalinityMoved,
@@ -199,20 +197,6 @@ export function uptakeAlkalinity(uptake: FormVector): number {
     alkalinityMoved(uptake.ammonia / MW_NH3, PROTONS_PER_N.ammoniumUptake) +
     alkalinityMoved(uptake.nitrate / MW_NO3, PROTONS_PER_N.nitrateUptake)
   );
-}
-
-/** Stores leached back to the water: every nutrient, its nitrogen as nitrate, and KH moved back by the charge that nitrate's uptake moved. */
-export function leach(leachate: Readonly<NutrientVector>): Effect[] {
-  const effects: Effect[] = [
-    ...NUTRIENTS.map((n): Effect => ({ tier: 'active', resource: n, delta: leachate[n], source: 'leaching' })),
-    {
-      tier: 'active',
-      resource: 'kh',
-      delta: -uptakeAlkalinity({ ...ZERO_FORMS, nitrate: leachate.nitrate }),
-      source: 'leaching',
-    },
-  ];
-  return effects.filter((effect) => effect.delta !== 0);
 }
 
 /**

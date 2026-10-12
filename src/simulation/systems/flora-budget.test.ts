@@ -615,12 +615,11 @@ describe('tissue as organics', () => {
     expect(stepFlora(state, sword, { offered: 2 * sword.pAm, tau: 1, omega: 1, room: 1 }).fluxes.assimilated).toBeGreaterThan(0);
   });
 
-  it.each(KINDS)('leaves everything $name held when it dies: its tissue as waste, its stores to the water', ({ p }) => {
+  it.each(KINDS)('leaves everything $name held as waste when it dies: its tissue, and its stores with it', ({ p }) => {
     const s = flora(p, 1.5, 0.6, 0.4, { offshootBuffer: 0.2 });
-    const { waste, leachate } = remains(s, p);
+    const waste = remains(s, p);
     expectNear(waste.grams, floraOrganics(s));
-    expect(NUTRIENTS.every((n) => near(waste.nutrients[n], p.qMin[n] * s.structure))).toBe(true);
-    expect(leachate).toEqual(s.stores);
+    expect(NUTRIENTS.every((n) => near(waste.nutrients[n], p.qMin[n] * s.structure + s.stores[n]))).toBe(true);
   });
 });
 

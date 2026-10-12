@@ -147,6 +147,30 @@ const DEFINITIONS = [
     band: { green: [2, 18], amber: [1, 25], why: 'community fish are kept from ~3 to 15; soft-water species go lower, livebearers higher' },
   },
   {
+    id: 'waste',
+    label: 'waste',
+    unit: 'g',
+    digits: 2,
+    read: (s): number => s.resources.waste.grams,
+    band: {
+      green: [0, 1],
+      amber: [0, 5],
+      why: 'droppings and shed tissue rot within days; grams standing in the water is a tank left to foul',
+    },
+  },
+  {
+    id: 'mulm',
+    label: 'mulm',
+    unit: 'g',
+    digits: 2,
+    read: (s): number => s.equipment.substrate.organicReserve.grams,
+    band: {
+      green: [0, 10],
+      amber: [0, 40],
+      why: 'a vacuumed bed holds a few grams of mulm; tens of grams is an overfed tank or a bed nobody vacuums',
+    },
+  },
+  {
     id: 'plants',
     label: 'plants',
     unit: '#',

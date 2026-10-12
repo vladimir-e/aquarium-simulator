@@ -21,6 +21,7 @@ import {
   MAX_WATER_ATTENUATION_PER_CM,
   NUTRIENT_FORMS,
   NUTRIENTS,
+  ORGANIC_POOLS,
   TOXINS,
   WASTE_NUTRIENTS,
 } from '../../simulation/config/index.js';
@@ -399,23 +400,20 @@ export const PersistedSimulationSchema = z
 // Tunable Config Schemas
 // ============================================================================
 
-const DecayConfigSchema = z
+const DecompositionConfigSchema = z
   .object({
+    rate: numbersFor(ORGANIC_POOLS, z.number().min(0)),
     q10: z.number(),
     referenceTemp: z.number(),
-    baseDecayRate: z.number(),
-    wasteConversionRatio: z.number(),
-    gasExchangePerGramDecay: z.number(),
     oxygenHalfSaturation: z.number(),
-    substrateLeachRate: z.number(),
-    wasteSettlingRate: z.number(),
+    anaerobicShare: z.number().min(0),
+    settlingRate: z.number().min(0),
     settlingHalfTurnover: z.number(),
   })
   .strict();
 
 const NitrogenCycleConfigSchema = z
   .object({
-    wasteConversionRate: z.number(),
     bacteriaProcessingRate: z.number(),
     seedingRate: z.number(),
     aobGrowthRate: z.number(),
@@ -545,8 +543,6 @@ const LivestockConfigSchema = z
     oxygenHalfSaturation: z.number(),
     foodNitrogenFraction: z.number(),
     foodCarbonFraction: z.number(),
-    oxygenPerGramBurned: z.number().min(0),
-    respiratoryQuotient: z.number(),
     temperatureStressSeverity: z.number(),
     phStressSeverity: z.number(),
     ghStressSeverity: z.number(),
@@ -577,7 +573,7 @@ const LivestockConfigSchema = z
 
 export const TunableConfigSchema = z
   .object({
-    decay: DecayConfigSchema,
+    decomposition: DecompositionConfigSchema,
     nitrogenCycle: NitrogenCycleConfigSchema,
     gasExchange: GasExchangeConfigSchema,
     temperature: TemperatureConfigSchema,

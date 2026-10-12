@@ -59,6 +59,11 @@ export function applyEffects(
 
   return produce(state, (draft) => {
     for (const effect of effects) {
+      if (effect.resource === 'mulm') {
+        const bed = draft.equipment.substrate;
+        bed.organicReserve = addOrganics(bed.organicReserve, effect.delta);
+        continue;
+      }
       if (effect.resource === 'food' || effect.resource === 'waste') {
         draft.resources[effect.resource] = addOrganics(draft.resources[effect.resource], effect.delta);
         continue;

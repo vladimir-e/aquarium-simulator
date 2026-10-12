@@ -148,7 +148,7 @@ describe('createSimulation seeding', () => {
   });
 
   it("sizes a 'cycled' colony on the upkeep its fish burn, owed in any oxygen", () => {
-    const tank = createSimulation(TANK, { fish: [{ species: 'angelfish', count: 6 }] });
+    const tank = createSimulation({ ...TANK, substrate: { type: 'none' } }, { fish: [{ species: 'angelfish', count: 6 }] });
     const colony = (oxygen: number): number => cycledColony({ ...tank, resources: { ...tank.resources, oxygen } }).aob;
 
     expect(colony(1)).toBeGreaterThan(cycledColony({ ...tank, fish: [] }).aob);
@@ -237,7 +237,7 @@ describe('createSimulation seeding', () => {
       }
     });
 
-    it('charges an equivalent of KH per mole of the nitrate its leached organics left, as the nitrogen loop does', () => {
+    it('charges an equivalent of KH per mole of the nitrate its rotted organics left, as the nitrogen loop does', () => {
       for (const type of ['gravel', 'sand'] as const) {
         const { kh } = cycledHardness(type, 5, 8, 100);
         const { nitrate } = cycledWaterNutrients(type, 100);
@@ -325,7 +325,7 @@ describe('createSimulation seeding', () => {
       }
     });
 
-    it('scales with the organics the bed had to leach', () => {
+    it('scales with the organics the bed had to rot', () => {
       const perLitre = (type: 'sand' | 'gravel' | 'aqua_soil'): number => cycledWaterNutrients(type, 1).nitrate;
 
       expect(perLitre('aqua_soil')).toBeGreaterThan(perLitre('gravel'));
@@ -333,7 +333,7 @@ describe('createSimulation seeding', () => {
       expect(perLitre('sand')).toBeGreaterThan(0);
     });
 
-    it('holds a share of what the bed leached and leaked, and never more than a fresh bed had to give', () => {
+    it('holds a share of what the bed rotted and leaked, and never more than a fresh bed had to give', () => {
       const { tankCapacity } = TANK;
       const seeded = createSimulation(TANK, { bacteria: 'cycled' });
       const leached = addOrganics(

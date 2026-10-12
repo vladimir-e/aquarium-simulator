@@ -37,6 +37,7 @@ export type ResourceKey =
   | 'light'
   | 'food'
   | 'waste'
+  | 'mulm'
   | 'ammonia'
   | 'nitrite'
   | 'nitrate'
@@ -50,5 +51,5 @@ export type ResourceKey =
   | 'aob'
   | 'nob';
 
-/** The organic pools: they move by organics, so their grams never move without their content. */
-export type OrganicResourceKey = 'food' | 'waste';
+/** The organic pools, the bed's mulm among them: they move by organics, so their grams never move without their content. */
+export type OrganicResourceKey = 'food' | 'waste' | 'mulm';

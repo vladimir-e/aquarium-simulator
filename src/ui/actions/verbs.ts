@@ -518,7 +518,7 @@ const BARE_NOTE: Partial<Record<VerbId, (state: SimulationState) => string>> = {
           ? `${name} on the glass comes off; what coats ${namePlaces(placesKept(habitat, 'walls', state))} stays, and spreads back over the glass at once.`
           : `${name} is not on the glass — a ${VERB[bloomVerb(kind)].name.toLowerCase()} takes it.`;
       }),
-      'What comes off is loose in the water: its tissue rots there as waste, which a gravel vac takes once it settles, and its stores leach straight out — the nitrate in them takes back the KH its uptake gave, so KH and pH dip with it.',
+      'What comes off is loose in the water: its tissue and its stores rot there as waste, which a gravel vac takes once it settles.',
     ].join(' ');
   },
 };

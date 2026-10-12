@@ -7,6 +7,8 @@ import {
   MW_O2,
   MW_CO2,
   MW_CH2O,
+  MW_C,
+  MW_RESERVE,
   MW_P,
   MW_PO4,
   N_TO_NH3_MASS_RATIO,
@@ -16,7 +18,9 @@ import {
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
   CO2_TO_O2_MASS_RATIO,
-  O2_TO_CO2_MASS_RATIO,
+  C_TO_CO2_MASS_RATIO,
+  C_TO_O2_MASS_RATIO,
+  O2_PER_RESERVE_BURNED,
   O2_PER_NH3_OXIDIZED,
   O2_PER_NO2_OXIDIZED,
 } from './chemistry.js';
@@ -33,10 +37,13 @@ describe('a mass ratio is one mole of the named compound to one mole of the othe
     expect(N_TO_NO3_MASS_RATIO).toBeCloseTo(MW_NO3 / MW_N, 12);
     expect(P_TO_PO4_MASS_RATIO).toBeCloseTo(MW_PO4 / MW_P, 12);
     expect(CO2_TO_CH2O_MASS_RATIO).toBeCloseTo(MW_CH2O / MW_CO2, 12);
+    expect(C_TO_CO2_MASS_RATIO).toBeCloseTo(MW_CO2 / MW_C, 12);
+    expect(C_TO_O2_MASS_RATIO).toBeCloseTo(MW_O2 / MW_C, 12);
   });
 
-  it('reads the same reaction backwards as the reciprocal', () => {
-    expect(CO2_TO_O2_MASS_RATIO * O2_TO_CO2_MASS_RATIO).toBeCloseTo(1, 12);
+  it('oxidises a carbohydrate’s carbon on one mole of oxygen to each mole of CO2 it leaves as', () => {
+    expect(C_TO_O2_MASS_RATIO / MW_O2).toBeCloseTo(C_TO_CO2_MASS_RATIO / MW_CO2, 12);
+    expect(C_TO_O2_MASS_RATIO / CO2_TO_O2_MASS_RATIO).toBeCloseTo(C_TO_CO2_MASS_RATIO, 12);
   });
 
   it('carries every nitrogen atom the whole length of the chain', () => {
@@ -81,7 +88,15 @@ describe('the photosynthetic pair', () => {
       const oxygen = co2 * CO2_TO_O2_MASS_RATIO;
 
       expect(oxygen / MW_O2).toBeCloseTo(co2 / MW_CO2, 12);
-      expect(oxygen * O2_TO_CO2_MASS_RATIO).toBeCloseTo(co2, 10);
     }
+  });
+});
+
+describe('burning a fish’s organics, CH1.8O0.5N0.15 to CO2, NH3 and water', () => {
+  const oxygenMoles = (O2_PER_RESERVE_BURNED * MW_RESERVE) / MW_O2;
+  const waterMoles = (1.8 - 3 * 0.15) / 2;
+
+  it('balances every oxygen atom', () => {
+    expect(0.5 + 2 * oxygenMoles).toBeCloseTo(2 + waterMoles, 12);
   });
 });

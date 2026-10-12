@@ -92,7 +92,7 @@ export function tick(
   const activeEffects = collectSystemEffects(newState, 'active', config);
   newState = applyEffects(newState, activeEffects, config);
 
-  // Tier 3: PASSIVE - Natural processes (decay, nitrogen cycle, gas exchange)
+  // Tier 3: PASSIVE - Natural processes (decomposition, nitrogen cycle, gas exchange)
   const passiveEffects = collectSystemEffects(newState, 'passive', config);
   newState = applyEffects(newState, passiveEffects, config);
 

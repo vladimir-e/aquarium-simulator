@@ -3,7 +3,6 @@ import { produce } from 'immer';
 import {
   calculateBedLeak,
   calculateSubstrateKhUptake,
-  calculateSubstrateLeach,
   freshSubstrate,
   getSubstrateKhReserve,
   getSubstrateNutrients,
@@ -11,24 +10,18 @@ import {
   getSubstrateSurface,
   replaceSubstrate,
   substrateUpdate,
-  wasteSettlingShare,
   SUBSTRATE_ORGANIC_COMPOSITION,
   SUBSTRATE_SURFACE_PER_LITER,
   type Substrate,
   type SubstrateType,
 } from './substrate.js';
 import { createSimulation, type SimulationState } from '../state.js';
-import { decayDefaults } from '../config/decay.js';
 import { waterChemistryDefaults } from '../config/water-chemistry.js';
 import { mapNutrients, NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import type { Effect } from '../core/effects.js';
 import { deltaOf } from '../tests/effects.js';
-import { addOrganics, atRecipe, NO_ORGANICS, portion, scaleOrganics, type Organics } from '../core/organics.js';
+import { atRecipe, NO_ORGANICS, portion, scaleOrganics } from '../core/organics.js';
 import { LEAN, organicsCloseTo } from '../tests/organics.js';
-
-const wasteDeltas = (effects: readonly Effect[]): Organics[] =>
-  effects.flatMap((effect) => (effect.resource === 'waste' ? [effect.delta] : []));
 
 const SUBSTRATES: SubstrateType[] = ['none', 'sand', 'gravel', 'aqua_soil'];
 
@@ -42,7 +35,7 @@ describe('getSubstrateSurface', () => {
 });
 
 describe('getSubstrateOrganicReserve', () => {
-  it('gives a bare bottom nothing to leach', () => {
+  it('gives a bare bottom nothing to rot', () => {
     expect(getSubstrateOrganicReserve('none', 100)).toEqual(NO_ORGANICS);
   });
 
@@ -102,97 +95,24 @@ describe('replaceSubstrate', () => {
   });
 });
 
-describe('calculateSubstrateLeach', () => {
-  const reserve = portion(LEAN, 2);
-
-  it('takes a fixed fraction of what is left, its content in proportion', () => {
-    expect(calculateSubstrateLeach(reserve, decayDefaults)).toEqual(
-      organicsCloseTo(scaleOrganics(reserve, decayDefaults.substrateLeachRate))
-    );
-  });
-
-  it('leaches nothing from an empty reserve', () => {
-    expect(calculateSubstrateLeach(NO_ORGANICS, decayDefaults).grams).toBe(0);
-  });
-
-  it('never releases more than the bed holds, whatever the rate is set to', () => {
-    for (const substrateLeachRate of [1, 2, 500]) {
-      expect(calculateSubstrateLeach(reserve, { ...decayDefaults, substrateLeachRate })).toEqual(reserve);
-    }
-  });
-});
-
 describe('substrateUpdate', () => {
   function soilTank(): SimulationState {
     return createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } });
   }
 
-  it('moves organics out of the bed and into the waste pool, its content pro rata', () => {
-    const reserve = portion(LEAN, 2);
+  it('leaves the organics alone: what the bed holds rots where it lies', () => {
     const state = produce(soilTank(), (draft) => {
-      draft.equipment.substrate.organicReserve = reserve;
+      draft.resources.waste = portion(LEAN, 2);
     });
-    const { state: next, effects } = substrateUpdate(state, decayDefaults);
-    const waste = wasteDeltas(effects);
+    const { state: next, effects } = substrateUpdate(state);
 
-    expect(waste).toEqual([organicsCloseTo(scaleOrganics(reserve, decayDefaults.substrateLeachRate))]);
-    expect(addOrganics(next.equipment.substrate.organicReserve, waste[0])).toEqual(organicsCloseTo(reserve));
-  });
-
-  it('drains a bed that nothing settles into', () => {
-    let state = soilTank();
-    let previous = state.equipment.substrate.organicReserve.grams;
-
-    for (let hour = 0; hour < 24 * 30; hour++) {
-      state = substrateUpdate(state, decayDefaults).state;
-      const reserve = state.equipment.substrate.organicReserve.grams;
-      expect(reserve).toBeLessThanOrEqual(previous);
-      previous = reserve;
-    }
-
-    expect(previous).toBeGreaterThan(0);
-  });
-
-  it('settles its share of standing waste into the bed, its content pro rata', () => {
-    const waste = portion(LEAN, 2);
-    const state = produce(soilTank(), (draft) => {
-      draft.resources.waste = waste;
-    });
-    const { state: next, effects } = substrateUpdate(state, decayDefaults);
-    const settled = effects.find((effect) => effect.source === 'substrate-settling');
-    const before = addOrganics(state.equipment.substrate.organicReserve, waste);
-
-    expect(settled?.delta).toEqual(organicsCloseTo(scaleOrganics(waste, -wasteSettlingShare(state, decayDefaults))));
-    expect(addOrganics(next.equipment.substrate.organicReserve, waste, ...wasteDeltas(effects))).toEqual(
-      organicsCloseTo(before)
-    );
-  });
-
-  it('settles less the harder the water is moving', () => {
-    const at = (flow: number): number =>
-      wasteSettlingShare(
-        produce(soilTank(), (draft) => {
-          draft.resources.flow = flow;
-        }),
-        decayDefaults
-      );
-
-    expect(at(0)).toBe(decayDefaults.wasteSettlingRate);
-    expect(at(400)).toBeLessThan(at(0));
-    expect(at(1600)).toBeLessThan(at(400));
-    expect(at(100 * decayDefaults.settlingHalfTurnover)).toBeCloseTo(at(0) / 2, 12);
-  });
-
-  it('settles nothing without a bed', () => {
-    const bare = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
-      draft.resources.waste = atRecipe(2, DEFAULT_CONFIG);
-    });
-    expect(wasteSettlingShare(bare, decayDefaults)).toBe(0);
+    expect(effects.some((effect) => ['food', 'waste', 'mulm'].includes(effect.resource))).toBe(false);
+    expect(next.equipment.substrate.organicReserve).toBe(state.equipment.substrate.organicReserve);
   });
 
   it('does nothing at all on a bare bottom', () => {
     const state = createSimulation({ tankCapacity: 100 });
-    const result = substrateUpdate(state, decayDefaults);
+    const result = substrateUpdate(state);
 
     expect(result.effects).toEqual([]);
     expect(result.state).toBe(state);
@@ -200,7 +120,7 @@ describe('substrateUpdate', () => {
 
   it('leaks the bed’s nutrients into the water, mg for mg', () => {
     const state = soilTank();
-    const { state: next, effects } = substrateUpdate(state, decayDefaults, waterChemistryDefaults, nutrientsDefaults);
+    const { state: next, effects } = substrateUpdate(state, waterChemistryDefaults, nutrientsDefaults);
     const leaked = calculateBedLeak(state.equipment.substrate.nutrients, nutrientsDefaults);
 
     for (const n of NUTRIENTS) {
@@ -218,20 +138,7 @@ describe('substrateUpdate', () => {
       for (const n of NUTRIENTS) draft.equipment.substrate.nutrients[n] = 0;
     });
 
-    expect(substrateUpdate(spent, decayDefaults).effects).toEqual([]);
-  });
-
-  it('cannot be driven past empty by a rate a debug session tuned above 1', () => {
-    const state = soilTank();
-    const held = state.equipment.substrate.organicReserve;
-    const { state: next, effects } = substrateUpdate(state, {
-      ...decayDefaults,
-      substrateLeachRate: 5,
-    });
-
-    expect(wasteDeltas(effects)).toEqual([held]);
-    expect(next.equipment.substrate.organicReserve).toEqual(NO_ORGANICS);
-    expect(wasteDeltas(substrateUpdate(next, { ...decayDefaults, substrateLeachRate: 5 }).effects)).toEqual([]);
+    expect(substrateUpdate(spent).effects).toEqual([]);
   });
 });
 

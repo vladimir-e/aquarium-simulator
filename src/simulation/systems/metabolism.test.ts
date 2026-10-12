@@ -9,7 +9,7 @@ import { waterStressors } from './fish-health.js';
 import { createSimulation, type Fish } from '../state.js';
 import { NUTRIENTS, WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { DEFAULT_CONFIG, configRange, withTunable } from '../config/index.js';
-import { MW_CO2, MW_NH3, MW_NO3, MW_O2 } from '../core/chemistry.js';
+import { MW_C, MW_CO2, MW_NH3, MW_NO3, O2_PER_RESERVE_BURNED } from '../core/chemistry.js';
 import { NO_ORGANICS, addOrganics, atRecipe, portion, type Organics } from '../core/organics.js';
 import { sum } from '../core/sum.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
@@ -116,16 +116,16 @@ describe('fishPace', () => {
 
 describe('burn', () => {
   it('excretes the body’s nitrogen as NH3 through the gills and its minerals, gram for gram', () => {
-    const burnt = burn(2, body, config);
+    const burnt = burn(2, body);
     expect(burnt.ammonia).toBeCloseTo((2 * body.nutrients.nitrate * MW_NH3) / MW_NO3, 9);
     expect(burnt.ammonia).toBe(gillAmmonia(2, body));
     for (const n of WASTE_NUTRIENTS) expect(burnt.minerals[n]).toBeCloseTo(2 * body.nutrients[n], 12);
   });
 
-  it('breathes oxygenPerGramBurned and exhales the respiratory quotient in moles', () => {
-    const burnt = burn(0.5, body, config);
-    expect(burnt.oxygen).toBeCloseTo(0.5 * config.oxygenPerGramBurned, 9);
-    expect(burnt.co2 / MW_CO2 / (burnt.oxygen / MW_O2)).toBeCloseTo(config.respiratoryQuotient, 12);
+  it('breathes in the oxygen its reserve’s formula takes and breathes its carbon out as CO2', () => {
+    const burnt = burn(0.5, body);
+    expect(burnt.oxygen).toBeCloseTo(0.5 * 1000 * O2_PER_RESERVE_BURNED, 9);
+    expect(burnt.co2 / MW_CO2).toBeCloseTo((0.5 * 1000 * body.carbon) / MW_C, 12);
   });
 });
 

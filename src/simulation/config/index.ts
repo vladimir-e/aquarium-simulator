@@ -5,7 +5,15 @@
  * Used by ConfigContext to provide runtime-mutable configuration.
  */
 
-export { type DecayConfig, decayDefaults, decayConfigMeta } from './decay.js';
+export {
+  ORGANIC_POOLS,
+  mapPools,
+  type PoolVector,
+  type DecompositionConfig,
+  decompositionDefaults,
+  decompositionConfigMeta,
+  rotRateMeta,
+} from './decomposition.js';
 export {
   type NitrogenCycleConfig,
   nitrogenCycleDefaults,
@@ -85,7 +93,12 @@ export {
   ZERO_TOXINS,
 } from './livestock.js';
 
-import { type DecayConfig, decayDefaults, decayConfigMeta } from './decay.js';
+import {
+  type DecompositionConfig,
+  decompositionDefaults,
+  decompositionConfigMeta,
+  rotRateMeta,
+} from './decomposition.js';
 import {
   type NitrogenCycleConfig,
   nitrogenCycleDefaults,
@@ -130,7 +143,7 @@ import { type LivestockConfig, livestockDefaults, livestockConfigMeta, loadRateM
  * Complete tunable configuration for all simulation systems.
  */
 export interface TunableConfig {
-  decay: DecayConfig;
+  decomposition: DecompositionConfig;
   nitrogenCycle: NitrogenCycleConfig;
   gasExchange: GasExchangeConfig;
   temperature: TemperatureConfig;
@@ -147,7 +160,7 @@ export interface TunableConfig {
  * Default values for all tunable configuration.
  */
 export const DEFAULT_CONFIG: TunableConfig = {
-  decay: decayDefaults,
+  decomposition: decompositionDefaults,
   nitrogenCycle: nitrogenCycleDefaults,
   gasExchange: gasExchangeDefaults,
   temperature: temperatureDefaults,
@@ -167,6 +180,7 @@ interface RangedMeta {
 }
 
 type NestedPath =
+  | 'decomposition.rate'
   | 'plants.quotaMin'
   | 'plants.quotaMax'
   | 'nutrients.fertilizerFormula'
@@ -178,7 +192,8 @@ type NestedPath =
 
 const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
   Object.entries({
-    decay: decayConfigMeta,
+    decomposition: decompositionConfigMeta,
+    'decomposition.rate': rotRateMeta,
     nitrogenCycle: nitrogenCycleConfigMeta,
     gasExchange: gasExchangeConfigMeta,
     temperature: temperatureConfigMeta,

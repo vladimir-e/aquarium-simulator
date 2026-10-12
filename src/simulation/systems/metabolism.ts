@@ -10,12 +10,13 @@
  * as structure, brood buffer or burn — maintenance, development, every
  * conversion overhead, repair, and structure a starving fish loses. Every gram
  * burned excretes the fish's nitrogen through the gills as NH3 with its
- * minerals beside it, and breathes `oxygenPerGramBurned` in and its CO2 out.
+ * minerals beside it, breathes in the oxygen its reserve's formula takes, and
+ * breathes its carbon out as CO2.
  */
 
 import type { Fish, Resources } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
-import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
+import { C_TO_CO2_MASS_RATIO, O2_PER_RESERVE_BURNED } from '../core/chemistry.js';
 import { WASTE_NUTRIENTS, type MineralVector } from '../config/nutrients.js';
 import { addOrganics, portion, scaleOrganics, sumOrganics, type Organics } from '../core/organics.js';
 import { sum } from '../core/sum.js';
@@ -66,14 +67,13 @@ export function gillAmmonia(grams: number, body: Organics): number {
   return ammoniaIn(portion(body, grams));
 }
 
-export function burn(grams: number, body: Organics, config: LivestockConfig): Burn {
+export function burn(grams: number, body: Organics): Burn {
   const burnt = portion(body, grams);
-  const oxygen = grams * config.oxygenPerGramBurned;
   return {
     ammonia: ammoniaIn(burnt),
     minerals: Object.fromEntries(WASTE_NUTRIENTS.map((n) => [n, burnt.nutrients[n]])) as MineralVector,
-    oxygen,
-    co2: oxygen * config.respiratoryQuotient * O2_TO_CO2_MASS_RATIO,
+    oxygen: grams * 1000 * O2_PER_RESERVE_BURNED,
+    co2: burnt.carbon * 1000 * C_TO_CO2_MASS_RATIO,
   };
 }
 

@@ -15,14 +15,12 @@ import {
   ammoniaIn,
   colonyRates,
   nobCapacity,
-  wasteMineralised,
 } from '../../simulation/systems/index.js';
 import {
   ALGAE_KINDS,
   addOrganics,
-  calculateSubstrateLeach,
+  decompose,
   scaleOrganics,
-  wasteSettlingShare,
   type Resources,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -31,8 +29,9 @@ import type { NitrogenCycleConfig, TunableConfig } from '../../simulation/config
 import { getPpm } from '../../simulation/resources/index.js';
 import { monodFactor } from '../../simulation/core/kinetics.js';
 import { NH3_TO_NO2_MASS_RATIO } from '../../simulation/core/chemistry.js';
+import type { OrganicResourceKey } from '../../simulation/resources/types.js';
 import type { HourAhead } from './ahead.js';
-import { inflowFrom, mineralisationBase, wasteInflow } from './waste.js';
+import { wasteInflow } from './waste.js';
 
 /**
  * The share of its own ceiling at which a colony counts as having filled it.
@@ -57,11 +56,11 @@ const TRACE_PPM = 0.1;
  * trace cleared over a day. Below it the colonies are turning over less than
  * the keeper's kit could ever show, which is the state an unfed tank fades into
  * — bed spent, both toxins at zero, and nothing left that a feeding would not
- * spike. An unfed tank falls under it as its bed's leach runs down; a fed one
+ * spike. An unfed tank falls under it as its bed's mulm rots down; a fed one
  * stays over it for as long as the ration keeps the colonies turning over.
  *
  * A ppm figure, so it is the same test at every volume for a load that scales
- * with volume, which bed leaching does. A fixed ration does not: the pinch of
+ * with volume, which the bed's rot does. A fixed ration does not: the pinch of
  * food that holds a nano over this floor leaves a stock tank under it.
  */
 const MIN_CLEARANCE_PPM_PER_HOUR = TRACE_PPM / 24;
@@ -114,11 +113,11 @@ export interface Colony {
 }
 
 export interface ConversionRates {
-  /** NH₃ ppm mineralised from standing waste this hour. */
+  /** NH₃ ppm standing waste and the bed's mulm release as they rot this hour. */
   wasteToAmmonia: number;
   /** NH₃ ppm excreted straight through fish gills this hour. */
   gillsToAmmonia: number;
-  /** NH₃ ppm the oxidised share of decaying food releases this hour. */
+  /** NH₃ ppm rotting food releases this hour. */
   foodToAmmonia: number;
   /** NH₃ ppm the plants' stores take up from the water this hour. */
   plantAmmoniaUptake: number;
@@ -209,19 +208,18 @@ export function bacteriaReadout(
   const ceiling = calculateMaxBacteria(r.surface, nc);
   const water = r.water;
 
-  // The AOB stage sees the ammonia the flora left, gill excretion landing
-  // after them in the active tier, and mineralisation, which runs first inside
-  // the passive nitrogen cycle. Decaying food lands in the same passive pass,
-  // so the colony meets it next hour.
+  // The AOB stage sees the ammonia the flora left and gill excretion landing
+  // after them in the active tier. Rot lands in the passive pass beside it, so
+  // the colony meets what the rotting pools release next hour.
   const gills = ahead.gillAmmonia;
-  const food = ahead.foodAmmonia;
+  const rotAmmonia = (pool: OrganicResourceKey): number =>
+    ammoniaIn(decompose(ahead.pools[pool], ahead.decomposition[pool]).rotted);
+  const food = rotAmmonia('food');
   const algae = ALGAE_KINDS.reduce((sum, kind) => sum + ahead.algae[kind].waterUptake.ammonia, 0);
   const flora = ahead.waterUptake.ammonia + algae;
-  const ammoniaProduced = ammoniaIn(
-    wasteMineralised(mineralisationBase(state, config, wasteInflow(state, config, ahead)), nc)
-  );
+  const ammoniaProduced = rotAmmonia('waste') + rotAmmonia('mulm');
   const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
-    r.ammonia - flora + gills + ammoniaProduced,
+    r.ammonia - flora + gills,
     water,
     r.aob,
     r.temperature,
@@ -311,10 +309,10 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
 /**
  * Run the engine's own nitrogen chain forward to find the nitrite peak.
  *
- * Waste inflow, decaying food, biofilm surface, temperature and dissolved
+ * Waste inflow, rotting food, biofilm surface, temperature and dissolved
  * oxygen are held at today's values, so this answers "if nothing else changes"
  * — feeding more, adding fish or a water change all move it. Evaporation and
- * the bed's leaching and settling are not choices: they run every tick whatever
+ * the pools' rot and settling are not choices: they run every tick whatever
  * the keeper does, so the projection carries them.
  *
  * The chain runs alone. Plants and the blooms move the peak either way — growth
@@ -335,9 +333,10 @@ export function projectNitritePeak(
   const aobRates = colonyRates('aob', r.temperature, r.oxygen, nc);
   const nobRates = colonyRates('nob', r.temperature, r.oxygen, nc);
 
-  const steadyInflow = inflowFrom(wasteInflow(state, config, ahead), ['food', 'fish', 'plants', 'algae']);
+  const steadyInflow = addOrganics(...wasteInflow(ahead).sources.map((source) => source.inflow));
   const gills = ahead.gillAmmonia;
-  const food = ahead.foodAmmonia;
+  const shares = ahead.decomposition;
+  const food = decompose(ahead.pools.food, shares.food);
 
   let reserve = state.equipment.substrate.organicReserve;
   let water = r.water;
@@ -354,17 +353,15 @@ export function projectNitritePeak(
     const seeding = calculateSeeding(water, nc);
     water = nextVolume(water, state, config);
 
-    const leached = calculateSubstrateLeach(reserve, config.decay);
-    const settled = scaleOrganics(waste, wasteSettlingShare({ ...state, resources: { ...r, water } }, config.decay));
-    reserve = addOrganics(reserve, settled, scaleOrganics(leached, -1));
-    waste = addOrganics(waste, steadyInflow, leached, scaleOrganics(settled, -1));
+    waste = addOrganics(waste, steadyInflow);
+    const wasteHour = decompose(waste, shares.waste);
+    const mulmHour = decompose(reserve, shares.mulm);
+    waste = addOrganics(waste, scaleOrganics(wasteHour.rotted, -1), scaleOrganics(wasteHour.settled, -1));
+    reserve = addOrganics(reserve, wasteHour.settled, food.settled, scaleOrganics(mulmHour.rotted, -1));
 
-    const mineralised = wasteMineralised(waste, nc);
-    waste = addOrganics(waste, scaleOrganics(mineralised, -1));
-    ammonia += ammoniaIn(mineralised) + gills;
-
-    const oxidised = calculateAmmoniaToNitrite(ammonia, water, aob, r.temperature, r.oxygen, nc);
-    ammonia += food - oxidised.ammoniaConsumed;
+    const seen = ammonia + gills;
+    const oxidised = calculateAmmoniaToNitrite(seen, water, aob, r.temperature, r.oxygen, nc);
+    ammonia = seen + ammoniaIn(addOrganics(food.rotted, wasteHour.rotted, mulmHour.rotted)) - oxidised.ammoniaConsumed;
     nitrite += oxidised.nitriteProduced;
 
     const cleared = calculateNitriteToNitrate(nitrite, water, nob, r.temperature, r.oxygen, nc);

@@ -77,7 +77,7 @@ export function WaterSection({
               <ReadingRows book={book} ids={NITROGEN} onOpen={setReading} />
             </ModuleGroup>
             <BiofilterWidget book={book} />
-            <WasteWidget book={book} config={config} onOpen={setReading} />
+            <WasteWidget book={book} onOpen={setReading} />
           </div>
         </div>
       </ModulePage>

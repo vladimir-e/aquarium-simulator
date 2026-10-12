@@ -40,9 +40,9 @@ describe('useConfig', () => {
   it('writes a constant by the path `config set` names it with', () => {
     const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
-    act(() => result.current.setTunable('decay.wasteConversionRatio', 0.7));
+    act(() => result.current.setTunable('decomposition.anaerobicShare', 0.7));
 
-    expect(result.current.config.decay.wasteConversionRatio).toBe(0.7);
+    expect(result.current.config.decomposition.anaerobicShare).toBe(0.7);
     expect(countModified(result.current.config)).toBe(1);
   });
 
@@ -59,12 +59,12 @@ describe('useConfig', () => {
     const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
     act(() => {
-      result.current.setTunable('decay.wasteConversionRatio', 0.7);
+      result.current.setTunable('decomposition.anaerobicShare', 0.7);
       result.current.setTunable('algae.allelopathySeverity', 5);
     });
-    act(() => result.current.resetSection('decay'));
+    act(() => result.current.resetSection('decomposition'));
 
-    expect(result.current.config.decay).toEqual(DEFAULT_CONFIG.decay);
+    expect(result.current.config.decomposition).toEqual(DEFAULT_CONFIG.decomposition);
     expect(result.current.config.algae.allelopathySeverity).toBe(5);
   });
 
@@ -72,7 +72,7 @@ describe('useConfig', () => {
     const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
     act(() => {
-      result.current.setTunable('decay.wasteConversionRatio', 0.7);
+      result.current.setTunable('decomposition.anaerobicShare', 0.7);
       result.current.setTunable('nutrients.fertilizerFormula.iron', 0.5);
     });
     act(() => result.current.resetAll());

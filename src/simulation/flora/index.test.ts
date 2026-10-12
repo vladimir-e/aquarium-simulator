@@ -226,16 +226,18 @@ describe('processFlora — plants', () => {
     expect(total(result.effects, 'waste', 'plant-shedding')).toBeCloseTo(shed.grams, 12);
   });
 
-  it('removes a plant at condition 0, its remains to waste and its stores to the water', () => {
+  it('removes a plant at condition 0, its remains and its stores to waste', () => {
     const doomed = withBudget(sword({ condition: 0.01 }), { reserve: 0, offshootBuffer: 0 });
     const state = produce(floraTank({ plants: [doomed], ...UNLIT }), (draft) => {
       draft.resources.nitrate = 100 * 1000 * LITRES;
     });
     const result = processFlora(state, config);
+    const [remains] = result.effects.flatMap((e) => (e.resource === 'waste' && e.source === 'plant-death' ? [e.delta] : []));
     expect(result.state.plants).toHaveLength(0);
     expect(result.state.logs.at(-1)!.event).toBe('plant-died');
-    expect(total(result.effects, 'waste', 'plant-death')).toBeGreaterThan(0);
-    expect(total(result.effects, 'phosphate', 'leaching')).toBeGreaterThan(0);
+    expect(remains.nutrients.phosphate).toBeGreaterThan(
+      doomed.budget.structure * plantParams('amazon_sword', config.plants).qMin.phosphate
+    );
   });
 
   it('cuts an offshoot loose when its buffer holds one: its growth form’s offshoot size, appended at age 0', () => {

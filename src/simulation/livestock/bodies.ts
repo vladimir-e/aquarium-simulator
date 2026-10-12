@@ -54,7 +54,7 @@ export function processBodies(state: SimulationState, config: TunableConfig): Bo
     burned = clutches.burned + layBroods(draft) + turnOverMaleBuffers(draft.fish, paces, livestock);
   });
 
-  const effects: Effect[] = burnEffects(burned, newState.resources.water, livestock, body, 'fish-broods');
+  const effects: Effect[] = burnEffects(burned, newState.resources.water, body, 'fish-broods');
   const eggs = portion(body, waste);
   if (waste > 0) effects.push({ tier: 'active', resource: 'waste', delta: eggs, source: 'dead-eggs' });
   return { state: newState, effects, burned, waste: eggs };

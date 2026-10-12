@@ -334,13 +334,8 @@ export function shed(state: FloraState, p: FloraParams, structure: number): { st
   };
 }
 
-/**
- * What a dead unit leaves: its structure at Q_min, with its reserve and buffer,
- * as waste; its stores leached to the water.
- */
-export function remains(state: FloraState, p: FloraParams): { waste: Organics; leachate: NutrientVector } {
-  return {
-    waste: tissueOrganics(p, state.structure, state.reserve + state.offshootBuffer),
-    leachate: { ...state.stores },
-  };
+/** What a dead unit leaves as waste: its structure at Q_min, its reserve and buffer, and its stores with them. */
+export function remains(state: FloraState, p: FloraParams): Organics {
+  const tissue = tissueOrganics(p, state.structure, state.reserve + state.offshootBuffer);
+  return { ...tissue, nutrients: mapNutrients((n) => tissue.nutrients[n] + state.stores[n]) };
 }

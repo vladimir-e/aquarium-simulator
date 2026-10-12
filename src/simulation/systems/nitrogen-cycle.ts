@@ -1,11 +1,10 @@
 /**
- * Nitrogen Cycle System - biological conversion of waste to ammonia to nitrite to nitrate.
+ * Nitrogen Cycle System - biological conversion of ammonia to nitrite to nitrate.
  * Runs in PASSIVE tier.
  *
- * Three stages:
- * 1. Waste → Ammonia (mineralization) - produces mass in mg
- * 2. Ammonia → Nitrite (AOB bacteria) - processes mass in mg
- * 3. Nitrite → Nitrate (NOB bacteria) - processes mass in mg
+ * Two stages, on the ammonia rot and the fish mint:
+ * 1. Ammonia → Nitrite (AOB bacteria) - processes mass in mg
+ * 2. Nitrite → Nitrate (NOB bacteria) - processes mass in mg
  *
  * Storage model: Nitrogen compounds stored as mass (mg).
  * Concentration (ppm) derived as mass/water where a reading needs one.
@@ -44,7 +43,7 @@ import {
   PROTONS_PER_N,
 } from '../core/chemistry.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
-import { scaleOrganics, type Organics } from '../core/organics.js';
+import type { Organics } from '../core/organics.js';
 import { getPpm } from '../resources/index.js';
 import { getPh } from '../core/carbonate.js';
 
@@ -204,8 +203,8 @@ export function calculateColonyFlows(
 }
 
 /**
- * mg of NH₃ minted from organic nitrogen — at the gills, out of decaying food
- * or mineralising waste — as effects, with the KH its proton returns.
+ * mg of NH₃ minted from organic nitrogen — at the gills, or out of a rotting
+ * pool — as effects, with the KH its proton returns.
  */
 export function mintAmmonia(ammonia: number, tier: EffectTier, source: string): Effect[] {
   return [
@@ -224,14 +223,6 @@ export function mineralise(organics: Organics, tier: EffectTier, source: string)
     ...mintAmmonia(ammoniaIn(organics), tier, source),
     ...WASTE_NUTRIENTS.map((nutrient): Effect => ({ tier, resource: nutrient, delta: organics.nutrients[nutrient], source })),
   ];
-}
-
-/** The share of the waste pool mineralised this tick, its content in proportion. */
-export function wasteMineralised(
-  waste: Organics,
-  config: NitrogenCycleConfig = nitrogenCycleDefaults
-): Organics {
-  return scaleOrganics(waste, config.wasteConversionRate);
 }
 
 /**
@@ -477,24 +468,7 @@ export const nitrogenCycleSystem: System = {
     }
 
     // ========================================================================
-    // Stage 1: Waste → Ammonia + minerals (Mineralization)
-    // ========================================================================
-    const mineralised = wasteMineralised(resources.waste, ncConfig);
-    if (mineralised.grams > 0) {
-      effects.push(
-        {
-          tier: 'passive',
-          resource: 'waste',
-          delta: scaleOrganics(mineralised, -1),
-          source: 'nitrogen-cycle-mineralization',
-        },
-        ...mineralise(mineralised, 'passive', 'nitrogen-cycle-mineralization')
-      );
-      currentAmmonia += ammoniaIn(mineralised);
-    }
-
-    // ========================================================================
-    // Stage 2: Ammonia → Nitrite (AOB Bacteria)
+    // Stage 1: Ammonia → Nitrite (AOB Bacteria)
     // Processes ammonia mass (mg), produces nitrite mass (mg).
     // N-mass is conserved; compound mass grows by MW_NO2 / MW_NH3 ≈ 2.702.
     // ========================================================================
@@ -540,7 +514,7 @@ export const nitrogenCycleSystem: System = {
     }
 
     // ========================================================================
-    // Stage 3: Nitrite → Nitrate (NOB Bacteria)
+    // Stage 2: Nitrite → Nitrate (NOB Bacteria)
     // Processes nitrite mass (mg), produces nitrate mass (mg).
     // N-mass is conserved; compound mass grows by MW_NO3 / MW_NO2 ≈ 1.348.
     // ========================================================================

@@ -331,7 +331,7 @@ describe('the seven verbs', () => {
     }
 
     expect(detail(tank(), 'scrubAlgae').note).toContain('clears the glass');
-    expect(detail(tank(), 'scrubAlgae').note).toContain('KH and pH dip');
+    expect(detail(tank(), 'scrubAlgae').note).toContain('rot there as waste');
     expect(detail(tank(), 'topOff').note).toContain('diluted');
   });
 

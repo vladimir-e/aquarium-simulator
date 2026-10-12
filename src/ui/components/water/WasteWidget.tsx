@@ -1,5 +1,4 @@
 import React from 'react';
-import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { ReadingBook, ReadingId } from '../../readings';
 import { wasteSummary } from '../../run';
 import { Widget } from '../ui/Widget';
@@ -8,16 +7,14 @@ import { ReadingRows } from './rows';
 const STANDING: ReadingId[] = ['waste'];
 
 /**
- * The pool the cycle starts in: what stands in the tank, what the four
- * producers put into it each hour, and the terms the engine decays it on.
+ * The pool the cycle starts in: what stands in the tank, what the producers
+ * put into it each hour, and the terms the engine rots food on.
  */
 export function WasteWidget({
   book,
-  config,
   onOpen,
 }: {
   book: ReadingBook;
-  config: TunableConfig;
   onOpen: (id: ReadingId) => void;
 }): React.JSX.Element {
   const { waste } = book;
@@ -25,7 +22,7 @@ export function WasteWidget({
   return (
     <Widget
       title="Waste"
-      footer={<p className="text-[12px] leading-4 text-ink-3">{wasteSummary(waste, config)}</p>}
+      footer={<p className="text-[12px] leading-4 text-ink-3">{wasteSummary(waste)}</p>}
     >
       <ReadingRows book={book} ids={STANDING} onOpen={onOpen} />
 
@@ -42,8 +39,7 @@ export function WasteWidget({
           <span className="text-ink-3">g/h</span>
         </dl>
         <p className="pt-1.5 text-[11px] leading-[14px] text-ink-3">
-          {waste.food.toFixed(2)} g food · {(waste.decayRate * 100).toFixed(1)} %/h decay ·{' '}
-          {(config.decay.wasteConversionRatio * 100).toFixed(0)} % to waste · Q10{' '}
+          {waste.food.toFixed(2)} g food · {(waste.decayRate * 100).toFixed(1)} %/h rot · Q10{' '}
           {waste.q10.toFixed(2)}×
         </p>
       </div>
