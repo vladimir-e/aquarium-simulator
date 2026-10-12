@@ -95,6 +95,8 @@ describe('an entry parsed from its cached pages', () => {
       /^Poecilia_reticulata: .*kJ\/d\.cm\^2/
     );
     expect(guppy((par) => par.replace(/(<TD>p_T<\/TD> <TD>)0/, '$11'))).toThrow(/^Poecilia_reticulata: .*p_T/);
+    expect(guppy((par) => par.replace(/<TR[^>]*> <TD>kap_P<\/TD>.*<\/TR>/, ''))).toThrow(/^Poecilia_reticulata: .*kap_P/);
+    expect(guppy((par) => par.replace(/(<TD>kap_P<\/TD> <TD>)0\.1/, '$10.3'))).toThrow(/^Poecilia_reticulata: .*κ_P/);
   });
 
   it('refuses a row short of its cells by name, not with a TypeError', () => {
@@ -106,13 +108,12 @@ describe('an entry parsed from its cached pages', () => {
     expect(short).not.toThrow(TypeError);
   });
 
-  it('reads only the rows the engine uses: a row it skips may say anything, F_m and κ_P may be missing', () => {
+  it('reads only the rows the engine uses: a row it skips may say anything, F_m may be missing', () => {
     const { entry } = transcribe('Poecilia_reticulata', ({ par, stat }) => ({
-      par: par.replace(/<TR[^>]*> <TD>(F_m|kap_P)<\/TD>.*<\/TR>/g, ''),
+      par: par.replace(/<TR[^>]*> <TD>F_m<\/TD>.*<\/TR>/, ''),
       stat: stat.replace(/(<TD>J_Ci<\/TD> <TD>)[^<]*/, '$1not a number'),
     }));
     expect(entry.parameters).not.toHaveProperty('F_m');
-    expect(entry.parameters).not.toHaveProperty('kap_P');
     expect(entry.implied).toEqual(parse('Poecilia_reticulata').implied);
   });
 

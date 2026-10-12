@@ -19,11 +19,15 @@ export {
 } from './evaporation.js';
 
 export {
-  decaySystem,
-  getTemperatureFactor,
-  decayFraction,
-  calculateDecay,
-} from './decay.js';
+  decompositionSystem,
+  rotPace,
+  poolShares,
+  rotShare,
+  decompose,
+  decomposePools,
+  type PoolShares,
+  type PoolHour,
+} from './decomposition.js';
 
 export { offerCarbon } from './photosynthesis.js';
 
@@ -46,7 +50,6 @@ export {
   calculateSeeding,
   calculateColonyFlows,
   ammoniaIn,
-  wasteMineralised,
   calculateAmmoniaToNitrite,
   calculateNitriteToNitrate,
   aobCapacity,
@@ -71,9 +74,14 @@ export {
 } from './vitality.js';
 
 import type { System } from './types.js';
+import type { EffectTier } from '../core/effects.js';
+import type { SimulationState } from '../state.js';
+import type { TunableConfig } from '../config/index.js';
+import { stockLeft } from '../core/kinetics.js';
+import { sum } from '../core/sum.js';
 import { temperatureDriftSystem } from './temperature-drift.js';
 import { evaporationSystem } from './evaporation.js';
-import { decaySystem } from './decay.js';
+import { decompositionSystem } from './decomposition.js';
 import { nitrogenCycleSystem } from './nitrogen-cycle.js';
 import { gasExchangeSystem } from './gas-exchange.js';
 
@@ -81,7 +89,21 @@ import { gasExchangeSystem } from './gas-exchange.js';
 export const coreSystems: System[] = [
   temperatureDriftSystem,
   evaporationSystem,
-  decaySystem,
+  decompositionSystem,
   nitrogenCycleSystem,
   gasExchangeSystem,
 ];
+
+/**
+ * The oxygen, mg/L, a tier's systems run on: the level all their draws on the
+ * one stock leave the water at as the hour ends, so together they never take
+ * more than it holds. The air draws too, negatively below saturation; what the
+ * tier would give an empty water counts as stock, so every draw read against
+ * it takes nothing from an empty one.
+ */
+export function tierOxygen(state: SimulationState, tier: EffectTier, config: TunableConfig): number {
+  const draws = coreSystems.flatMap((system) => (system.tier === tier && system.oxygenDraw ? [system.oxygenDraw] : []));
+  const drawn = (oxygen: number): number => sum(draws.map((draw) => draw(state, oxygen, config)));
+  const given = -drawn(0);
+  return stockLeft(state.resources.oxygen + given, (oxygen) => drawn(oxygen) + given);
+}

@@ -10,7 +10,7 @@ import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
 import type { Plant } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { CO2_TO_CH2O_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
-import { lightSaturationFactor, monodUptake } from '../core/kinetics.js';
+import { lightSaturationFactor, monodFactor, monodUptake } from '../core/kinetics.js';
 import { plantTraits } from '../plants/species.js';
 import { saturationIrradiance } from './flora.js';
 import { rateUnits } from '../plants/canopy.js';
@@ -40,15 +40,14 @@ describe('offerCarbon', () => {
     return offerCarbon(
       plants.map((p) => plantFixer(p, lightPar, omega, plantsConfig)),
       co2,
-      volume,
-      plantsConfig
+      volume
     );
   }
   const total = (mg: number[]): number => mg.reduce((sum, m) => sum + m, 0);
 
   const metabolic = (p: Plant, size: number): number => rateUnits({ species: p.species, size }) * plantTraits(p.species).growthRate;
 
-  function carbonCapacity(p: Plant, size: number, plantsConfig = plantsDefaults): number {
+  function expectedCapacity(p: Plant, size: number, plantsConfig = plantsDefaults): number {
     return (
       metabolic(p, size) *
       lightSaturationFactor(light, saturationIrradiance(plantTraits(p.species), plantsConfig)) *
@@ -70,22 +69,22 @@ describe('offerCarbon', () => {
     const k = plantsDefaults.lowCo2HalfSaturation;
     for (const co2 of [0.01, 0.5, k, 10, 1e4]) {
       expect(offered([fern], { co2 })[0]).toBeCloseTo(
-        monodUptake(co2 * waterVolume, carbonCapacity(fern, 100), k * waterVolume),
+        monodUptake(co2 * waterVolume, expectedCapacity(fern, 100), k * waterVolume),
         12
       );
     }
   });
 
-  it('pools the carbon draw at the capacity-weighted CO₂ half-saturation, each fixer its own share', () => {
+  it('draws every fixer on its own curve, each read at the CO₂ the hour leaves', () => {
     const fern = plant(100, 'java_fern');
     const monte = plant(100, 'monte_carlo');
-    const [a, b] = [carbonCapacity(fern, 100), carbonCapacity(monte, 100)];
-    const weighted =
-      (a * plantsDefaults.lowCo2HalfSaturation + b * plantsDefaults.highCo2HalfSaturation) / (a + b);
+    const [a, b] = [expectedCapacity(fern, 100), expectedCapacity(monte, 100)];
     const pooled = offered([fern, monte], { co2: 2 });
+    const left = 2 - total(pooled) / waterVolume;
 
-    expect(total(pooled)).toBeCloseTo(monodUptake(2 * waterVolume, a + b, weighted * waterVolume), 12);
-    expect(pooled[0] / pooled[1]).toBeCloseTo(a / b, 12);
+    expect(pooled[0]).toBeCloseTo(a * monodFactor(left, plantsDefaults.lowCo2HalfSaturation), 9);
+    expect(pooled[1]).toBeCloseTo(b * monodFactor(left, plantsDefaults.highCo2HalfSaturation), 9);
+    expect(pooled[0] / pooled[1]).toBeGreaterThan(a / b);
   });
 
   it('never offers all the carbon the water holds, however dense the planting', () => {
@@ -128,7 +127,7 @@ describe('offerCarbon', () => {
     const at = (size: number): number => total(offered([plant(size)], { co2: PLENTIFUL_CO2 }));
     expect(at(80)).toBeCloseTo(2 * at(40), 9);
     const fixer: CarbonFixer = plantFixer(plant(100, 'monte_carlo'), light, 1);
-    expect(fixer.metabolicRateUnits).toBeCloseTo(metabolic(plant(100, 'monte_carlo'), 100), 12);
+    expect(fixer.capacity).toBeCloseTo(expectedCapacity(plant(100, 'monte_carlo'), 100), 12);
   });
 });
 

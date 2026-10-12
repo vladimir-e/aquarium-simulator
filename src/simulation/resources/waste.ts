@@ -4,11 +4,8 @@
 
 import type { ResourceDefinition } from './types.js';
 
-export const WasteResource: ResourceDefinition<'waste'> = {
+export const WasteResource: Pick<ResourceDefinition<'waste'>, 'key' | 'unit' | 'precision'> = {
   key: 'waste',
   unit: 'g',
-  bounds: { min: 0, max: Infinity },
-  defaultValue: 0,
   precision: 2,
-  format: (value: number) => `${value.toFixed(2)}g`,
 };

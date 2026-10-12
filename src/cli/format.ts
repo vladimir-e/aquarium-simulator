@@ -136,7 +136,7 @@ export function renderObserve(session: Session): string {
     `**Other** waste ${round(r.waste.grams, 2)}g · ${ALGAE_KINDS.map(
       (kind) =>
         `${ALGAE[kind].name.toLowerCase()} ${round(bloomCoverage(state, kind), 1)} (condition ${round(state.algae[kind].condition, 0)}%)`
-    ).join(' · ')} · food ${round(r.food, 2)}g`,
+    ).join(' · ')} · food ${round(r.food.grams, 2)}g`,
     '',
     `**Fish (${state.fish.length})** ${
       state.fish.length ? `avg health ${avgFishHealth}%` : '—'

@@ -25,9 +25,7 @@ import {
   getSubstrateNutrients,
   freshSubstrate,
   replaceSubstrate,
-  calculateSubstrateLeach,
   calculateBedLeak,
-  wasteSettlingShare,
   calculateSubstrateKhUptake,
   substrateUpdate,
   type SubstrateType,
@@ -106,9 +104,7 @@ export {
   getSubstrateNutrients,
   freshSubstrate,
   replaceSubstrate,
-  calculateSubstrateLeach,
   calculateBedLeak,
-  wasteSettlingShare,
   calculateSubstrateKhUptake,
   substrateUpdate,
   type SubstrateType,
@@ -185,7 +181,7 @@ export function processEquipment(
   const effects: Effect[] = [];
   let updatedState = state;
 
-  const substrateResult = substrateUpdate(updatedState, config.decay, config.waterChemistry, config.nutrients);
+  const substrateResult = substrateUpdate(updatedState, config.waterChemistry, config.nutrients);
   effects.push(...substrateResult.effects);
   updatedState = substrateResult.state;
 
@@ -212,7 +208,7 @@ export function processEquipment(
   effects.push(...autoDoserResult.effects);
   updatedState = autoDoserResult.state;
 
-  effects.push(...autoFeederUpdate(updatedState));
+  effects.push(...autoFeederUpdate(updatedState, config));
 
   return { state: updatedState, effects };
 }

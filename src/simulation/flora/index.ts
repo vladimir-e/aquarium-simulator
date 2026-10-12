@@ -39,6 +39,7 @@ import {
   landSpores,
   mapKinds,
   coverageOf,
+  sporeFixer,
   sporesBuilt,
   sporesUptake,
   type AlgaeKind,
@@ -50,7 +51,6 @@ import { carbonGases, offerCarbon, photosynthateOf, plantFixer } from '../system
 import {
   drawNutrients,
   ghDrawn,
-  leach,
   nutrientsIn,
   plantFeeder,
   poolDraws,
@@ -157,7 +157,15 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const plantCount = plants.length;
   const kinds = blooms.length;
 
-  // 2. The water and the bed fill every store, and build the spores, at once.
+  // 2. What light and carbon offer every fixer, and every kind's spores, all
+  // drawn on the one CO₂ stock.
+  const offered = offerCarbon(
+    [...flora.map(({ fixer }) => fixer), ...blooms.map(({ spores, traits }) => sporeFixer(spores, traits))],
+    resources.co2,
+    waterVolume
+  ).map(photosynthateOf);
+
+  // 3. The water and the bed fill every store, and build the spores, at once.
   const delivery = drawNutrients(
     [
       ...flora.map(({ budget, p, draws }) => ({ asked: storeRequest(budget, p, tau), draws })),
@@ -166,7 +174,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
     pools
   );
   const sporesFrom = plantCount + kinds;
-  const spores = blooms.map(({ spores, p }, k) => sporesBuilt(spores, delivery.delivered[sporesFrom + k], p));
+  const spores = blooms.map(({ p }, k) => sporesBuilt(offered[sporesFrom + k], delivery.delivered[sporesFrom + k], p));
   const taken = delivery.uptake.map((byPool, i) => {
     if (i < sporesFrom) return byPool;
     const k = i - sporesFrom;
@@ -181,13 +189,7 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   pushDelta('gh', -ghDrawn(nutrientsIn(uptake).nitrate, resources), 'uptake');
   pushDelta('kh', uptakeAlkalinity(uptake), 'uptake');
 
-  // 3–4. What light, carbon and oxygen offer, and each budget's hour on it.
-  const offered = offerCarbon(
-    flora.map(({ fixer }) => fixer),
-    resources.co2,
-    waterVolume,
-    plantsConfig
-  ).map(photosynthateOf);
+  // 4. Each budget's hour on what it is offered.
   const steps = flora.map(({ budget, condition, p, room, stress }, i) => {
     const fed = takeUp(budget, delivery.delivered[i]);
     return stepFlora(fed, p, {
@@ -203,9 +205,12 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   const assimilated = sum(steps.map(({ fluxes }) => fluxes.assimilated));
   const burned = sum(steps.map(({ fluxes }) => totalBurned(fluxes)));
   const fixed = carbonGases(assimilated);
+  const landed = carbonGases(sum(spores.map(({ structure }) => structure)));
   const respired = carbonGases(burned);
   pushDelta('co2', -getPpm(fixed.co2, waterVolume), 'photosynthesis');
   pushDelta('oxygen', getPpm(fixed.oxygen, waterVolume), 'photosynthesis');
+  pushDelta('co2', -getPpm(landed.co2, waterVolume), 'spores');
+  pushDelta('oxygen', getPpm(landed.oxygen, waterVolume), 'spores');
   pushDelta('co2', getPpm(respired.co2, waterVolume), 'respiration');
   pushDelta('oxygen', -getPpm(respired.oxygen, waterVolume), 'respiration');
 
@@ -242,7 +247,6 @@ export function processFlora(state: SimulationState, config: TunableConfig): Flo
   pushWaste(addOrganics(...plantLosses.map((loss) => loss.died)), 'plant-death');
   pushWaste(addOrganics(...bloomLosses.map((loss) => loss.shed)), 'algae-shedding');
   pushWaste(addOrganics(...bloomLosses.map((loss) => loss.died)), 'algae-death');
-  effects.push(...leach(mapNutrients((n) => sum(losses.map((loss) => loss.leachate[n])))));
 
   // 7. A buffer that holds a unit cuts it loose.
   const offshoots = state.plants.map((plant, i) => {

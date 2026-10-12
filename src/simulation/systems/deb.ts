@@ -21,6 +21,7 @@ export interface DebParams extends ReserveParams {
   /** cm/h */
   v: number;
   kappaX: number;
+  kappaP: number;
   kappaR: number;
   /** g/h·cm³ */
   pM: number;
@@ -75,6 +76,7 @@ export const wetMass = (state: DebState, p: DebParams): number =>
 /** An hour's inputs: ω in [0, 1]; healing ≥ 0, grams of reserve to spend on repair at full oxygen. */
 export interface DebHour {
   fromGut: number;
+  reserveYield: number;
   tau: number;
   omega: number;
   stress?: Readonly<DebStress>;
@@ -93,6 +95,8 @@ export interface DebFluxes {
   returned: number;
   assimilated: number;
   feces: number;
+  /** Digested and not built into reserve: the meal's excess, released as it is assimilated. */
+  excreted: number;
   mobilised: number;
   toStructure: number;
   fromStructure: number;
@@ -119,7 +123,7 @@ export function assimilationCeiling(
 
 /** One hour of the budget: τ paces every rate; ω scales {p_Am}, v and healing. */
 export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
-  const { fromGut, tau, omega, stress = NO_STRESS, healing = 0 } = hour;
+  const { fromGut, reserveYield, tau, omega, stress = NO_STRESS, healing = 0 } = hour;
   const { structure: V, reserve: E, maturity: EH, broodBuffer: ER, wearLoad: q, hazard: h } = state;
   const pMStressed = p.pM * stress.maintenance;
   const EGStressed = p.EG * stress.growthCost;
@@ -128,7 +132,8 @@ export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
   const adult = mature(state, p);
 
   const intake = Math.min(fromGut, assimilationCeiling(state, p, hour) / p.kappaX);
-  const assimilated = p.kappaX * intake;
+  const assimilated = reserveYield * intake;
+  const feces = p.kappaP * intake;
   const conductance = omega * p.v;
   const mobilised =
     V > 0
@@ -184,7 +189,8 @@ export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
     fluxes: {
       returned: fromGut - intake,
       assimilated,
-      feces: intake - assimilated,
+      feces,
+      excreted: intake - assimilated - feces,
       mobilised,
       toStructure,
       fromStructure,

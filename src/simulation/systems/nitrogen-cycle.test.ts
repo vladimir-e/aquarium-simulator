@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { deltaOf } from '../tests/effects.js';
-import { addOrganics, atRecipe, NO_ORGANICS, ofComposition, scaleOrganics, type Organics } from '../core/organics.js';
-import { LEAN, organicsCloseTo } from '../tests/organics.js';
+import { atRecipe } from '../core/organics.js';
 import { produce } from 'immer';
 import {
   nitrogenCycleSystem,
@@ -12,7 +11,6 @@ import {
   colonyRates,
   restingColony,
   ammoniaIn,
-  wasteMineralised,
   calculateAmmoniaToNitrite,
   mintAmmonia,
   calculateNitriteToNitrate,
@@ -21,13 +19,13 @@ import {
   nitrifierOxygenFactor,
   nobProcessingRateMultiplier,
 } from './nitrogen-cycle.js';
+import { tierOxygen } from './index.js';
 import {
   CACO3_PER_EQUIVALENT,
   MW_N,
   MW_NH3,
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
-  NO3_TO_NH3_MASS_RATIO,
   O2_PER_NH3_OXIDIZED,
   O2_PER_NO2_OXIDIZED,
 } from '../core/chemistry.js';
@@ -35,9 +33,8 @@ import { createSimulation, type SimulationState } from '../state.js';
 import { type SubstrateType } from '../equipment/substrate.js';
 import { type Effect } from '../core/effects.js';
 import { getPpm, getMassFromPpm } from '../resources/index.js';
-import { DEFAULT_CONFIG, WASTE_NUTRIENTS, type WasteNutrient } from '../config/index.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
 import { AIR_SATURATED_O2, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
-import { ammoniaPerGramOfFood } from '../config/livestock.js';
 
 const REF = nitrogenCycleDefaults.referenceTemp;
 const AMPLE_O2 = 8;
@@ -239,19 +236,6 @@ describe('mintAmmonia', () => {
 
     expect(ammonia).toEqual({ tier: 'active', resource: 'ammonia', delta: 2 * MW_NH3, source: 'fish-gill-excretion' });
     expect(kh).toEqual({ tier: 'active', resource: 'kh', delta: 2 * CACO3_PER_EQUIVALENT, source: 'fish-gill-excretion' });
-  });
-});
-
-describe('wasteMineralised', () => {
-  it('takes nothing from an empty pool', () => {
-    expect(wasteMineralised(NO_ORGANICS).grams).toBe(0);
-  });
-
-  it('takes the waste-conversion share of the pool each tick, its content in proportion', () => {
-    const waste = addOrganics(atRecipe(6, DEFAULT_CONFIG), ofComposition(4, LEAN));
-    expect(wasteMineralised(waste)).toEqual(
-      organicsCloseTo(scaleOrganics(waste, nitrogenCycleDefaults.wasteConversionRate))
-    );
   });
 });
 
@@ -609,9 +593,11 @@ describe('getMassFromPpm', () => {
 });
 
 describe('nitrogenCycleSystem', () => {
+  const passive = (state: SimulationState): Effect[] =>
+    nitrogenCycleSystem.update(state, DEFAULT_CONFIG, tierOxygen(state, 'passive', DEFAULT_CONFIG));
+
   function createTestState(
     overrides: Partial<{
-      waste: Organics;
       ammonia: number;
       nitrite: number;
       nitrate: number;
@@ -627,7 +613,6 @@ describe('nitrogenCycleSystem', () => {
       substrate: { type: overrides.substrate ?? 'none' },
     });
     return produce(state, (draft) => {
-      if (overrides.waste !== undefined) draft.resources.waste = overrides.waste;
       if (overrides.ammonia !== undefined) draft.resources.ammonia = overrides.ammonia;
       if (overrides.nitrite !== undefined) draft.resources.nitrite = overrides.nitrite;
       if (overrides.nitrate !== undefined) draft.resources.nitrate = overrides.nitrate;
@@ -638,95 +623,14 @@ describe('nitrogenCycleSystem', () => {
     });
   }
 
-  const rot = (grams: number): Organics => atRecipe(grams, DEFAULT_CONFIG);
-
   function ppmToMass(ppm: number, water: number = 40): number {
     return getMassFromPpm(ppm, water);
   }
 
-  describe('Waste to Ammonia', () => {
-    it('converts waste to ammonia mass', () => {
-      const state = createTestState({ waste: rot(10), water: 40 });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
-
-      const wasteEffect = effects.find(
-        (e) => e.resource === 'waste' && e.source === 'nitrogen-cycle-mineralization'
-      );
-      const ammoniaEffect = effects.find(
-        (e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-mineralization'
-      );
-
-      expect(wasteEffect).toBeDefined();
-      expect(deltaOf(wasteEffect!)).toBeLessThan(0);
-      expect(ammoniaEffect).toBeDefined();
-      expect(deltaOf(ammoniaEffect!)).toBeGreaterThan(0);
-      expect(deltaOf(ammoniaEffect!)).toBeCloseTo(
-        -deltaOf(wasteEffect!) * ammoniaPerGramOfFood(DEFAULT_CONFIG.livestock),
-        10
-      );
-    });
-
-    it('releases minerals with the ammonia, in the organic matter’s own ratio', () => {
-      const released = (resource: 'ammonia' | WasteNutrient, waste: number): number =>
-        deltaOf(
-          nitrogenCycleSystem
-            .update(createTestState({ waste: rot(waste), water: 40 }), DEFAULT_CONFIG)
-            .find((e) => e.resource === resource && e.source === 'nitrogen-cycle-mineralization')!
-        );
-
-      for (const nutrient of WASTE_NUTRIENTS) {
-        for (const waste of [1, 10, 100]) {
-          expect(released(nutrient, waste) / released('ammonia', waste)).toBeCloseTo(
-            DEFAULT_CONFIG.nutrients.foodMineralContent[nutrient] /
-              ammoniaPerGramOfFood(DEFAULT_CONFIG.livestock),
-            10
-          );
-        }
-      }
-    });
-
-    it('returns KH on the ammonia it mints, so waste carried on to nitrate nets the 3.57 mg CaCO3 per mg N the wastewater texts quote', () => {
-      const effects = nitrogenCycleSystem.update(
-        createTestState({ waste: rot(10), ammonia: ppmToMass(1.0), aob: 100, water: 40 }),
-        DEFAULT_CONFIG
-      );
-      const perNitrogen = (source: string): number => {
-        const delta = (resource: 'kh' | 'ammonia'): number =>
-          deltaOf(effects.find((e) => e.resource === resource && e.source === source)!);
-        return delta('kh') / Math.abs((delta('ammonia') * MW_N) / MW_NH3);
-      };
-      const returned = perNitrogen('nitrogen-cycle-mineralization');
-
-      expect(returned).toBeCloseTo(3.57, 2);
-      expect(returned + perNitrogen('nitrogen-cycle-aob')).toBeCloseTo(-3.57, 2);
-    });
-
-    it('releases what the mineralised share of the pool holds, whatever it was made of', () => {
-      const waste = ofComposition(10, LEAN);
-      const effects = nitrogenCycleSystem.update(createTestState({ waste, water: 40 }), DEFAULT_CONFIG);
-      const released = (resource: 'ammonia' | WasteNutrient): number =>
-        deltaOf(effects.find((e) => e.resource === resource && e.source === 'nitrogen-cycle-mineralization')!);
-      const share = scaleOrganics(waste, nitrogenCycleDefaults.wasteConversionRate);
-
-      expect(released('ammonia')).toBeCloseTo(share.nutrients.nitrate * NO3_TO_NH3_MASS_RATIO, 10);
-      for (const nutrient of WASTE_NUTRIENTS) expect(released(nutrient)).toBeCloseTo(share.nutrients[nutrient], 10);
-    });
-
-    it('produces no ammonia when waste is 0', () => {
-      const state = createTestState({ waste: NO_ORGANICS });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
-
-      const ammoniaEffect = effects.find(
-        (e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-mineralization'
-      );
-      expect(ammoniaEffect).toBeUndefined();
-    });
-  });
-
   describe('AOB Processing', () => {
     it('processes ammonia mass when AOB present', () => {
       const state = createTestState({ ammonia: ppmToMass(1.0), aob: 100 });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+      const effects = passive(state);
 
       const ammoniaEffect = effects.find(
         (e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-aob'
@@ -744,7 +648,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('spends two equivalents of KH per mole of ammonia it oxidises', () => {
       const state = createTestState({ ammonia: ppmToMass(1.0), aob: 100 });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+      const effects = passive(state);
 
       const ammonia = effects.find((e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-aob');
       const kh = effects.filter((e) => e.resource === 'kh');
@@ -755,7 +659,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('does not process ammonia when AOB is 0', () => {
       const state = createTestState({ ammonia: ppmToMass(1.0), aob: 0 });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+      const effects = passive(state);
 
       const ammoniaEffect = effects.find(
         (e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-aob'
@@ -767,7 +671,7 @@ describe('nitrogenCycleSystem', () => {
   describe('NOB Processing', () => {
     it('processes nitrite mass when NOB present', () => {
       const state = createTestState({ nitrite: ppmToMass(1.0), nob: 100 });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+      const effects = passive(state);
 
       const nitriteEffect = effects.find(
         (e) => e.resource === 'nitrite' && e.source === 'nitrogen-cycle-nob'
@@ -785,7 +689,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('does not process nitrite when NOB is 0', () => {
       const state = createTestState({ nitrite: ppmToMass(1.0), nob: 0 });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+      const effects = passive(state);
 
       const nitriteEffect = effects.find(
         (e) => e.resource === 'nitrite' && e.source === 'nitrogen-cycle-nob'
@@ -797,10 +701,7 @@ describe('nitrogenCycleSystem', () => {
   describe('A drained tank', () => {
     const COLONY = 1000;
     const dry = (): Effect[] =>
-      nitrogenCycleSystem.update(
-        createTestState({ ammonia: 100, nitrite: 100, aob: COLONY, nob: COLONY, water: 0 }),
-        DEFAULT_CONFIG
-      );
+      passive(createTestState({ ammonia: 100, nitrite: 100, aob: COLONY, nob: COLONY, water: 0 }));
 
     it('oxidises neither the ammonia nor the nitrite standing in it', () => {
       expect(dry().filter((e) => e.source === 'nitrogen-cycle-aob')).toEqual([]);
@@ -822,8 +723,7 @@ describe('nitrogenCycleSystem', () => {
 
   describe('Seeding', () => {
     const gain = (state: SimulationState, resource: 'aob' | 'nob'): number =>
-      nitrogenCycleSystem
-        .update(state, DEFAULT_CONFIG)
+      passive(state)
         .filter((e) => e.resource === resource && e.source === 'nitrogen-cycle-growth')
         .reduce((sum, e) => sum + deltaOf(e), 0);
 
@@ -871,8 +771,7 @@ describe('nitrogenCycleSystem', () => {
     const ROOMY = 100000;
 
     function growth(resource: 'aob' | 'nob', state: SimulationState): number | undefined {
-      const effect = nitrogenCycleSystem
-        .update(state, DEFAULT_CONFIG)
+      const effect = passive(state)
         .find((e) => e.resource === resource && e.source === 'nitrogen-cycle-growth');
       return effect && deltaOf(effect);
     }
@@ -893,7 +792,7 @@ describe('nitrogenCycleSystem', () => {
       const aob = 100;
       const state = createTestState({ ammonia: aob * nitrogenCycleDefaults.bacteriaProcessingRate, aob, surface: ROOMY });
 
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+      const effects = passive(state);
       const consumed = effects.find(
         (e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-aob'
       )!.delta;
@@ -935,8 +834,7 @@ describe('nitrogenCycleSystem', () => {
 
   describe('Bacteria Death (unconditional maintenance)', () => {
     function death(resource: 'aob' | 'nob', state: SimulationState): number | undefined {
-      const effect = nitrogenCycleSystem
-        .update(state, DEFAULT_CONFIG)
+      const effect = passive(state)
         .find((e) => e.resource === resource && e.source === 'nitrogen-cycle-death');
       return effect && deltaOf(effect);
     }
@@ -970,7 +868,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('caps AOB when surface decreases', () => {
       const state = createTestState({ aob: MAX * 5, surface: SURFACE });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+      const effects = passive(state);
 
       const capEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-surface-cap'
@@ -981,7 +879,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('caps NOB when surface decreases', () => {
       const state = createTestState({ nob: MAX * 5, surface: SURFACE });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+      const effects = passive(state);
 
       const capEffect = effects.find(
         (e) => e.resource === 'nob' && e.source === 'nitrogen-cycle-surface-cap'
@@ -992,7 +890,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('does not cap when under limit', () => {
       const state = createTestState({ aob: MAX / 2, nob: MAX / 2, surface: SURFACE });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+      const effects = passive(state);
 
       const aobCapEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-surface-cap'

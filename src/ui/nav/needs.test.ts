@@ -3,7 +3,7 @@ import { bloomAt } from '../../simulation/tests/blooms.js';
 import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { NITRATE_EDGE, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
-import { applyAction, createSimulation, type SimulationState } from '../../simulation/index.js';
+import { NO_ORGANICS, applyAction, createSimulation, type SimulationState } from '../../simulation/index.js';
 import { getMassFromPpm } from '../../simulation/resources/index.js';
 import { readTank, type ReadingBook } from '../readings';
 import { snapshotFromState } from '../run';
@@ -38,7 +38,7 @@ function withAlerts(
 function stocked(e: number, fish: Partial<Fish> = {}): SimulationState {
   let state = base;
   for (let i = 0; i < 3; i++) state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
-  return { ...state, fish: state.fish.map((f) => ({ ...atReserve(f, e), gut: 0, health: 100, ...fish })) };
+  return { ...state, fish: state.fish.map((f) => ({ ...atReserve(f, e), gut: NO_ORGANICS, health: 100, ...fish })) };
 }
 
 const HUNGRY = 0.6;

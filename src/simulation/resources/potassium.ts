@@ -1,6 +1,6 @@
 /**
  * Potassium resource - K stored as mass in mg.
- * Essential plant macronutrient. Only comes from fertilizer (not fish waste).
+ * Essential plant macronutrient. Comes from fertilizer, the bed, rot and the fish's gills.
  *
  * Display shows derived ppm (mass/water), safe/stress ranges are in ppm.
  */

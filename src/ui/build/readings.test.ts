@@ -11,7 +11,7 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { applyAction } from '../../simulation/actions/index.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, withTunable } from '../../simulation/config/index.js';
 import { bacteriaReadout, colonyCount, readHourAhead } from '../run/index.js';
 import { calculateParAtDepth } from '../../simulation/equipment/light.js';
 import { formatCo2Rate } from '../../simulation/equipment/co2-generator.js';
@@ -835,11 +835,20 @@ describe('deviceHint', () => {
   it('weighs the feeder’s ration against what the fish burn in the water they are in', () => {
     const warm = applyAction(base, { type: 'addFish', species: 'neon_tetra' }).state;
     const cold = { ...warm, resources: { ...warm.resources, temperature: warm.resources.temperature - 10 } };
-    const need = readHourAhead(cold, DEFAULT_CONFIG).ration;
+    const need = readHourAhead(cold, DEFAULT_CONFIG).ration!;
     const multiple = cold.equipment.autoFeeder.amount / need;
 
-    expect(need).toBeLessThan(readHourAhead(warm, DEFAULT_CONFIG).ration);
+    expect(need).toBeLessThan(readHourAhead(warm, DEFAULT_CONFIG).ration!);
     expect(hint('autoFeeder', cold)?.text).toContain(`is ${multiple.toFixed(1)}× what pays the fish's upkeep`);
+  });
+
+  it('asks for a richer food, as the feed verb does, when no amount of the recipe pays the upkeep', () => {
+    const stocked = applyAction(base, { type: 'addFish', species: 'neon_tetra' }).state;
+    const config = withTunable(DEFAULT_CONFIG, 'nutrients.foodMineralContent.phosphate', 0);
+    const ahead = readHourAhead(stocked, config);
+
+    expect(ahead.ration).toBeNull();
+    expect(deviceHint('autoFeeder', { state: stocked, config, ahead, units: 'metric' })?.text).toMatch(/richer food/);
   });
 
   it('tells a roster that cannot digest for want of oxygen from an empty one', () => {

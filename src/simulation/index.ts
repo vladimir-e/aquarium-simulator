@@ -157,8 +157,9 @@ export {
   addOrganics,
   atRecipe,
   foodRecipe,
-  ofComposition,
   scaleOrganics,
+  scarcest,
+  type OrganicElement,
   type Organics,
   type RecipeConfig,
 } from './core/organics.js';
@@ -172,14 +173,19 @@ export {
   coreSystems,
   temperatureDriftSystem,
   evaporationSystem,
-  decaySystem,
+  decompositionSystem,
   calculateTemperatureDrift,
   ambientTemperature,
   calculateEvaporation,
   calculateEvaporationRatePerDay,
-  getTemperatureFactor,
-  decayFraction,
-  calculateDecay,
+  tierOxygen,
+  rotPace,
+  poolShares,
+  rotShare,
+  decompose,
+  decomposePools,
+  type PoolShares,
+  type PoolHour,
   LID_MULTIPLIERS,
   getLidMultiplier,
 } from './systems/index.js';
@@ -224,9 +230,7 @@ export {
   getSubstrateNutrients,
   freshSubstrate,
   replaceSubstrate,
-  calculateSubstrateLeach,
   calculateBedLeak,
-  wasteSettlingShare,
   calculateSubstrateKhUptake,
   substrateUpdate,
   type SubstrateType,
@@ -488,11 +492,19 @@ export {
   predatorWeight,
   preyVulnerability,
 } from './systems/fish-health.js';
-export { fishMass, fishSize, fishOrganics, frySize, eggMass, fishLifeStage, countFry } from './systems/fish-body.js';
+export {
+  fishMass,
+  fishSize,
+  fishOrganics,
+  FISH_COMPOSITION,
+  frySize,
+  eggMass,
+  fishLifeStage,
+  countFry,
+} from './systems/fish-body.js';
 export { readyToBrood, paysTowardBrood } from './systems/brood.js';
 export { clutchMass, clutchesWithMothers } from './systems/clutch.js';
-export { appetite, fullPaceLine, gutCapacity, ration, type Pace } from './systems/digestion.js';
-export { burn, gillAmmonia } from './systems/metabolism.js';
+export { appetite, fullPaceLine, gutCapacity, ration, reserveYield, type Pace } from './systems/digestion.js';
 export type { FishHour } from './systems/metabolism.js';
 export { waterToxins } from './systems/toxicokinetics.js';
 export { mature, type DebState, type DebParams } from './systems/deb.js';

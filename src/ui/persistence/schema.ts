@@ -24,6 +24,7 @@ import {
   TOXINS,
   WASTE_NUTRIENTS,
 } from '../../simulation/config/index.js';
+import { ORGANIC_POOLS } from '../../simulation/resources/index.js';
 import { VERB_IDS, type VerbId } from '../actions/verbs.js';
 import { PERSISTENCE_VERSION } from './types.js';
 import { SPEED_PRESETS, type SpeedPreset } from '../run/speed.js';
@@ -39,6 +40,7 @@ const NutrientVectorSchema = numbersFor(NUTRIENTS);
 const OrganicsSchema = z
   .object({
     grams: z.number().min(0),
+    carbon: z.number().min(0),
     nutrients: numbersFor(NUTRIENTS, z.number().min(0)),
   })
   .strict();
@@ -78,7 +80,7 @@ const ResourcesSchema = z
     light: z.number().min(0),
     lightByHour: z.array(z.number().min(0)).length(24),
     aeration: z.boolean(),
-    food: z.number().min(0),
+    food: OrganicsSchema,
     waste: OrganicsSchema,
     ammonia: z.number().min(0),
     nitrite: z.number().min(0),
@@ -290,7 +292,7 @@ const FishSchema = z
     species: z.enum(FISH_SPECIES),
     health: z.number().min(0).max(100),
     age: z.number().int().min(0),
-    gut: z.number().min(0),
+    gut: OrganicsSchema,
     sex: z.enum(['male', 'female']),
     hardinessOffset: z.number(),
     budget: DebStateSchema,
@@ -398,23 +400,20 @@ export const PersistedSimulationSchema = z
 // Tunable Config Schemas
 // ============================================================================
 
-const DecayConfigSchema = z
+const DecompositionConfigSchema = z
   .object({
+    rate: numbersFor(ORGANIC_POOLS, z.number().min(0)),
     q10: z.number(),
     referenceTemp: z.number(),
-    baseDecayRate: z.number(),
-    wasteConversionRatio: z.number(),
-    gasExchangePerGramDecay: z.number(),
     oxygenHalfSaturation: z.number(),
-    substrateLeachRate: z.number(),
-    wasteSettlingRate: z.number(),
+    anaerobicShare: z.number().min(0),
+    settlingRate: z.number().min(0),
     settlingHalfTurnover: z.number(),
   })
   .strict();
 
 const NitrogenCycleConfigSchema = z
   .object({
-    wasteConversionRate: z.number(),
     bacteriaProcessingRate: z.number(),
     seedingRate: z.number(),
     aobGrowthRate: z.number(),
@@ -543,8 +542,7 @@ const LivestockConfigSchema = z
     digestionRate: z.number(),
     oxygenHalfSaturation: z.number(),
     foodNitrogenFraction: z.number(),
-    oxygenPerGramBurned: z.number().min(0),
-    respiratoryQuotient: z.number(),
+    foodCarbonFraction: z.number(),
     temperatureStressSeverity: z.number(),
     phStressSeverity: z.number(),
     ghStressSeverity: z.number(),
@@ -575,7 +573,7 @@ const LivestockConfigSchema = z
 
 export const TunableConfigSchema = z
   .object({
-    decay: DecayConfigSchema,
+    decomposition: DecompositionConfigSchema,
     nitrogenCycle: NitrogenCycleConfigSchema,
     gasExchange: GasExchangeConfigSchema,
     temperature: TemperatureConfigSchema,

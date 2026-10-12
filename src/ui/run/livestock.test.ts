@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Clutch, Fish, FishHour, SimulationState } from '../../simulation/index.js';
-import { createSimulation, FISH_SPECIES_DATA, fishMass, MAX_STOCKED_SIZE, tick } from '../../simulation/index.js';
+import { NO_ORGANICS, createSimulation, FISH_SPECIES_DATA, fishMass, MAX_STOCKED_SIZE, tick } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import {
@@ -17,7 +17,7 @@ import {
 } from './livestock';
 import { readHourAhead } from './ahead';
 import { projectedTrend } from './status';
-import { FED, atReserve, hungry, starving } from '../test/gut';
+import { FED, atReserve, gutAt, hungry, starving } from '../test/gut';
 import { fishRecord, poisoned } from '../../simulation/tests/fish.js';
 
 function makeFish(overrides: Partial<Fish> & { size?: number } = {}): Fish {
@@ -66,7 +66,7 @@ describe('gutBand', () => {
   });
 
   it('reads the engine: an empty reserve starves, a thin one hungers, a full one is fed', () => {
-    const state = tank([makeFish({ id: 'a' }), starving(makeFish({ id: 'b' })), hungry(makeFish({ id: 'c', gut: 0 }))]);
+    const state = tank([makeFish({ id: 'a' }), starving(makeFish({ id: 'b' })), hungry(makeFish({ id: 'c', gut: NO_ORGANICS }))]);
     expect(bands(state)).toEqual(['fed', 'starving', 'hungry']);
   });
 });
@@ -97,8 +97,8 @@ describe('groupBySpecies', () => {
 
   it('folds adults into per-species rows and excludes fry', () => {
     const fish = [
-      makeFish({ id: 'n1', species: 'neon_tetra', gut: 0.8 * FED }),
-      hungry(makeFish({ id: 'n2', species: 'neon_tetra', gut: 0.1 * FED })),
+      makeFish({ id: 'n1', species: 'neon_tetra', gut: gutAt(0.8) }),
+      hungry(makeFish({ id: 'n2', species: 'neon_tetra', gut: gutAt(0.1) })),
       makeFish({ id: 'g1', species: 'guppy', gut: FED }),
       makeFish({ id: 'f1', species: 'neon_tetra', size: 20, age: 24 }),
     ];
@@ -112,7 +112,7 @@ describe('groupBySpecies', () => {
   });
 
   it('keeps a starving fish visible behind a calm average', () => {
-    const fish = [makeFish({ id: 'a', gut: FED }), starving(makeFish({ id: 'b', gut: 0 }))];
+    const fish = [makeFish({ id: 'a', gut: FED }), starving(makeFish({ id: 'b', gut: NO_ORGANICS }))];
     const [neon] = species(tank(fish));
 
     expect(neon.gut.at).toBeCloseTo(neon.members[0].gut.at / 2, 12);
@@ -168,14 +168,14 @@ describe('groupFry', () => {
 
 describe('the reading behind a fish', () => {
   it('reads a fish across every channel it keeps, not just its condition', () => {
-    const state = tank([starving(makeFish({ id: 'a', health: 100, gut: 0 }))]);
+    const state = tank([starving(makeFish({ id: 'a', health: 100, gut: NO_ORGANICS }))]);
     const [group] = species(state);
 
     expect(group.members[0].reading).toEqual({ status: 'alert', word: 'starving' });
   });
 
   it('reads a starving fish whose benefits still outrun its hunger at the tone the need asks in', () => {
-    const lean = atReserve(makeFish({ id: 'a', health: 100, gut: 0 }), 0.32);
+    const lean = atReserve(makeFish({ id: 'a', health: 100, gut: NO_ORGANICS }), 0.32);
     const [member] = species(tank([lean]))[0].members;
 
     expect(member.sick).toBe(false);
@@ -192,7 +192,7 @@ describe('the reading behind a fish', () => {
     const state = poisoned(
       tank([
         makeFish({ id: 'fish_a_1', health: 100, gut: FED }),
-        starving(makeFish({ id: 'fish_a_2', health: 100, gut: 0 })),
+        starving(makeFish({ id: 'fish_a_2', health: 100, gut: NO_ORGANICS })),
       ]),
       20
     );

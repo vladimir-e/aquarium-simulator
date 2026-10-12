@@ -121,6 +121,11 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
       expect(built.stores.nitrate).toBeCloseTo((p.qMax.nitrate - p.qMin.nitrate) * built.structure, 15);
     });
 
+    it('builds no more than the structure the CO2 offered them', () => {
+      expect(sporesBuilt(0.003, asked(0.01), p).structure).toBeCloseTo(0.003, 15);
+      expect(sporesBuilt(0, asked(0.01), p).structure).toBe(0);
+    });
+
     it('builds nothing, and holds nothing, with a nutrient absent', () => {
       const built = sporesBuilt(0.01, { ...asked(0.01), iron: 0 }, p);
       expect(built.structure).toBe(0);
@@ -149,8 +154,8 @@ describe.each(ALGAE_KINDS)('%s', (kind) => {
       const light = { par: 30, dailyLight: 1, needShare: 1 };
       const fixer = (assimilation: number): CarbonFixer =>
         bloomFixer(bloom, light, 1, { ...NO_STRESS, assimilation }, traits, config.plants);
-      expect(fixer(0.4).metabolicRateUnits).toBeCloseTo(0.4 * fixer(1).metabolicRateUnits, 15);
-      expect({ ...fixer(0.4), metabolicRateUnits: 0 }).toEqual({ ...fixer(1), metabolicRateUnits: 0 });
+      expect(fixer(0.4).capacity / fixer(1).capacity).toBeCloseTo(0.4, 12);
+      expect(fixer(0.4).co2HalfSaturation).toBe(fixer(1).co2HalfSaturation);
     });
   });
 

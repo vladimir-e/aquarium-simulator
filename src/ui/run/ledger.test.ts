@@ -5,11 +5,16 @@ import {
   applyAction,
   bloomParams,
   createSimulation,
+  debParams,
   fillAtDroop,
+  FISH_COMPOSITION,
+  foodRecipe,
   fullDroopFactor,
   getPresetById,
+  NO_ORGANICS,
   plantLightTaken,
   plantParams,
+  reserveYield,
   starvation,
   storeFill,
   tick,
@@ -20,7 +25,7 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { mapNutrients, NUTRIENTS } from '../../simulation/config/index.js';
-import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, withTunable, type TunableConfig } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
 import { bloomCoverage } from '../../simulation/algae/index.js';
@@ -30,6 +35,7 @@ import { LEDGER_DECIMALS, readLedger, type BudgetRow, type Ledger, type LedgerTa
 import { FED, atReserve, starving } from '../test/gut';
 import { projectedTrend } from './status.js';
 import { TRACK_PAST_LINE, WATER_DECIMALS } from './water.js';
+import { NUTRIENT_LABEL } from './flora.js';
 import { fishRecord, holdingEggs, poisoned, saturated } from '../../simulation/tests/fish.js';
 import { spawnsAt } from '../../simulation/systems/brood.js';
 import { fishHardiness, toxinEdges } from '../../simulation/livestock/tolerance.js';
@@ -65,7 +71,7 @@ const reserveOf = (ledger: Ledger): BudgetRow => line(ledger, 'reserve')!;
 
 describe('readLedger', () => {
   it('quotes every factor that prints at the rate the reader’s day is measured in, and no other', () => {
-    const state = tank([starving(makeFish({ id: 'fish_a_1', gut: 0 }))], 20);
+    const state = tank([starving(makeFish({ id: 'fish_a_1', gut: NO_ORGANICS }))], 20);
     const ledger = fishLedger(state);
     const { breakdown } = readHourAhead(state, DEFAULT_CONFIG).fish[0].vitality;
     const shows = (perDay: number): boolean => Number(perDay.toFixed(LEDGER_DECIMALS)) > 0;
@@ -85,7 +91,7 @@ describe('readLedger', () => {
   it('balances: what helps less what hurts is the number it prints', () => {
     for (const state of [
       tank([makeFish({ id: 'fish_a_1' })]),
-      tank([starving(makeFish({ id: 'fish_a_1', gut: 0 }))], 20),
+      tank([starving(makeFish({ id: 'fish_a_1', gut: NO_ORGANICS }))], 20),
     ]) {
       const ledger = fishLedger(state);
       expect(ledger.helps - ledger.hurts).toBeCloseTo(ledger.net, 6);
@@ -93,7 +99,7 @@ describe('readLedger', () => {
   });
 
   it('sorts each column worst-first, so the reason is the top line', () => {
-    const ledger = fishLedger(tank([starving(makeFish({ id: 'fish_a_1', gut: 0 }))], 20));
+    const ledger = fishLedger(tank([starving(makeFish({ id: 'fish_a_1', gut: NO_ORGANICS }))], 20));
     const rates = ledger.hurting.map((factor) => factor.perDay);
 
     expect(rates).toEqual([...rates].sort((a, b) => b - a));
@@ -101,7 +107,6 @@ describe('readLedger', () => {
 
   it('reads a fish’s reserve as its density, in percent, and nothing of stores', () => {
     const ledger = fishLedger(tank([atReserve(makeFish({ id: 'fish_a_1' }), 0.8)]));
-    expect(ledger.budget).toHaveLength(1);
     expect(reserveOf(ledger)).toMatchObject({ label: 'Reserve', text: '80', unit: '% full' });
     expect(reserveOf(ledger).at).toBeCloseTo(0.8, 12);
     expect(ledger.stores).toEqual([]);
@@ -110,9 +115,9 @@ describe('readLedger', () => {
   it('says what the reserve does over the hour: filling, drawing down, healing from reserve, or short of upkeep', () => {
     const lean = atReserve(makeFish({ id: 'fish_a_1' }), 0.9);
     expect(reserveOf(fishLedger(tank([lean]))).note).toBe('filling');
-    expect(reserveOf(fishLedger(tank([{ ...makeFish({ id: 'fish_a_1' }), gut: 0 }]))).note).toBe('drawing down');
+    expect(reserveOf(fishLedger(tank([{ ...makeFish({ id: 'fish_a_1' }), gut: NO_ORGANICS }]))).note).toBe('drawing down');
     expect(reserveOf(fishLedger(tank([makeFish({ id: 'fish_a_1', health: 80 })]))).note).toBe('healing from reserve');
-    expect(reserveOf(fishLedger(tank([starving(makeFish({ id: 'fish_a_1', gut: 0 }))]))).note).toBe('short of upkeep');
+    expect(reserveOf(fishLedger(tank([starving(makeFish({ id: 'fish_a_1', gut: NO_ORGANICS }))]))).note).toBe('short of upkeep');
   });
 
   it('reads a spawning female’s reserve as spawning the hour she lays', () => {
@@ -195,6 +200,21 @@ describe('readLedger', () => {
       status: 'warn',
     });
     expect(line(fishLedger(tank([makeFish({ id: 'fish_a_1' })])), 'load')).toBeUndefined();
+  });
+
+  it('reads how much of the most a meal can build the food builds, and the element a lean food runs out of', () => {
+    const state = tank([makeFish({ id: 'fish_a_1' })]);
+    const lean = withTunable(DEFAULT_CONFIG, 'nutrients.foodMineralContent.phosphate', 10);
+    const p = debParams(state.fish[0].species);
+    const share = reserveYield(foodRecipe(lean), FISH_COMPOSITION, p) / p.kappaX;
+
+    expect(line(fishLedger(state), 'diet')).toMatchObject({ label: 'Diet builds', text: '100', unit: '%', status: 'neutral', note: '' });
+    expect(share).toBeLessThan(1);
+    expect(line(fishLedger(state, 'fish_a_1', lean), 'diet')).toMatchObject({
+      text: String(Math.floor(share * 100)),
+      status: 'warn',
+      note: `limited by ${NUTRIENT_LABEL.phosphate}`,
+    });
   });
 
   describe('for a plant', () => {

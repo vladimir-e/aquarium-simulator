@@ -3,7 +3,7 @@ import { plantRecord, withBudget } from '../../simulation/tests/plant.js';
 import { sizeOf } from '../../simulation/plants/canopy.js';
 import { offshootStructure } from '../../simulation/plants/create-plant.js';
 import type { Clutch, Fish, Plant, SimulationState } from '../../simulation/index.js';
-import { applyAction, createSimulation, fishMass, readPlantLight } from '../../simulation/index.js';
+import { NO_ORGANICS, applyAction, createSimulation, fishMass, readPlantLight } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import { readHourAhead } from './ahead.js';
@@ -59,7 +59,7 @@ function tables(
 
 const roster = [
   makeFish({ id: 'fish_a_1', species: 'neon_tetra' }),
-  hungry(makeFish({ id: 'fish_a_2', species: 'neon_tetra', gut: 0, sex: 'female' })),
+  hungry(makeFish({ id: 'fish_a_2', species: 'neon_tetra', gut: NO_ORGANICS, sex: 'female' })),
   makeFish({ id: 'fish_a_3', species: 'corydoras', size: 90 }),
 ];
 
@@ -119,7 +119,7 @@ describe('rosterTables', () => {
   });
 
   it('reads a fish by its worst channel, so a full-condition fish can still be hungry', () => {
-    const table = tables(tank([starving(makeFish({ id: 'fish_a_1', gut: 0 }))]), ['species-neon_tetra']);
+    const table = tables(tank([starving(makeFish({ id: 'fish_a_1', gut: NO_ORGANICS }))]), ['species-neon_tetra']);
     const individual = table.fish[1] as IndividualRosterRow;
 
     expect(individual.at).toBe(1);
@@ -194,8 +194,8 @@ describe('rosterTables', () => {
   it('reads a group by its hungry members, even at full condition', () => {
     const school = [
       makeFish({ id: 'fish_a_1' }),
-      hungry(makeFish({ id: 'fish_a_2', gut: 0 })),
-      hungry(makeFish({ id: 'fish_a_3', gut: 0 })),
+      hungry(makeFish({ id: 'fish_a_2', gut: NO_ORGANICS })),
+      hungry(makeFish({ id: 'fish_a_3', gut: NO_ORGANICS })),
     ];
     const [group] = tables(tank(school), [], HEALED).fish as SpeciesRosterRow[];
 

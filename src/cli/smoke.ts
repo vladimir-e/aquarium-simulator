@@ -103,7 +103,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
       { ...session, state, history: appendSnapshot(session.history, snapshot(state, session.config)) },
       { path }
     );
-    if (state.resources.food <= 0) throw new Error('feed had no effect');
+    if (state.resources.food.grams <= 0) throw new Error('feed had no effect');
   });
 
   step('tick 48h', () => {
@@ -172,10 +172,10 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     applyAction(session.state, { type: 'scrubAlgae' }, session.config);
   });
 
-  step('config set (nitrogenCycle.wasteConversionRate)', () => {
+  step('config set (decomposition.rate.waste)', () => {
     const session = loadSession({ path });
-    const raised = session.config.nitrogenCycle.wasteConversionRate * 1.1;
-    const next = applyConfigSet(session.config, 'nitrogenCycle.wasteConversionRate', String(raised));
+    const raised = session.config.decomposition.rate.waste * 1.1;
+    const next = applyConfigSet(session.config, 'decomposition.rate.waste', String(raised));
     saveSession({ ...session, config: next }, { path });
     const reloaded = loadSession({ path });
     if (JSON.stringify(reloaded.config) !== JSON.stringify(next)) {

@@ -9,7 +9,8 @@
  */
 
 import { hourlyDraw, monodFactor, monodUptake } from '../core/kinetics.js';
-import { addOrganics, ofComposition, type Organics } from '../core/organics.js';
+import { CH2O_TO_C_MASS_RATIO } from '../core/chemistry.js';
+import { addOrganics, portion, type Organics } from '../core/organics.js';
 import { mapNutrients, NUTRIENTS, ZERO_NUTRIENTS, type Nutrient, type NutrientVector } from '../config/nutrients.js';
 import {
   hourSlices,
@@ -316,8 +317,10 @@ export function buyOffshoot(state: FloraState, p: FloraParams, structure: number
   };
 }
 
+const PHOTOSYNTHATE: Organics = { grams: 1, carbon: CH2O_TO_C_MASS_RATIO, nutrients: ZERO_NUTRIENTS };
+
 const tissueOrganics = (p: FloraParams, structure: number, reserve: number): Organics =>
-  addOrganics(ofComposition(structure, p.qMin), ofComposition(reserve, ZERO_NUTRIENTS));
+  addOrganics(portion({ ...PHOTOSYNTHATE, nutrients: p.qMin }, structure), portion(PHOTOSYNTHATE, reserve));
 
 /**
  * `structure` shed as waste at Q_min, with its reserve at the unit's density;
@@ -331,13 +334,8 @@ export function shed(state: FloraState, p: FloraParams, structure: number): { st
   };
 }
 
-/**
- * What a dead unit leaves: its structure at Q_min, with its reserve and buffer,
- * as waste; its stores leached to the water.
- */
-export function remains(state: FloraState, p: FloraParams): { waste: Organics; leachate: NutrientVector } {
-  return {
-    waste: tissueOrganics(p, state.structure, state.reserve + state.offshootBuffer),
-    leachate: { ...state.stores },
-  };
+/** What a dead unit leaves as waste: its structure at Q_min, its reserve and buffer, and its stores with them. */
+export function remains(state: FloraState, p: FloraParams): Organics {
+  const tissue = tissueOrganics(p, state.structure, state.reserve + state.offshootBuffer);
+  return { ...tissue, nutrients: mapNutrients((n) => tissue.nutrients[n] + state.stores[n]) };
 }

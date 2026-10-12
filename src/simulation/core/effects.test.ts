@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { produce } from 'immer';
 import { applyEffects, type Effect } from './effects.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { getDkh, getGhMass, getKhMass } from '../resources/helpers.js';
+import { ofFood, organicsCloseTo } from '../tests/organics.js';
 
 describe('applyEffects', () => {
   let initialState: SimulationState;
@@ -29,7 +31,7 @@ describe('applyEffects', () => {
     expect(newState.resources.temperature).toBe(27);
   });
 
-  it('applies multiple effects in sequence', () => {
+  it('applies several effects in one batch', () => {
     const effects: Effect[] = [
       { tier: 'immediate', resource: 'temperature', delta: 2, source: 'heater' },
       { tier: 'passive', resource: 'temperature', delta: -0.5, source: 'drift' },
@@ -93,6 +95,35 @@ describe('applyEffects', () => {
       const newState = applyEffects(initialState, effects);
 
       expect(newState.resources.water).toBe(0);
+    });
+  });
+
+  describe('netting', () => {
+    it('applies a batch that nets inside the bounds exactly, wherever one effect alone would cross a bound', () => {
+      const tank = produce(initialState, (draft) => {
+        draft.resources.oxygen = 15;
+        draft.resources.nitrate = 0;
+        draft.resources.water = 95;
+        draft.resources.waste = ofFood(2);
+      });
+      const effects: Effect[] = [
+        { tier: 'passive', resource: 'oxygen', delta: 10, source: 'air' },
+        { tier: 'passive', resource: 'oxygen', delta: -8, source: 'rot' },
+        { tier: 'active', resource: 'nitrate', delta: -5, source: 'uptake' },
+        { tier: 'active', resource: 'nitrate', delta: 8, source: 'excretion' },
+        { tier: 'immediate', resource: 'water', delta: 10, source: 'top-off' },
+        { tier: 'immediate', resource: 'water', delta: -8, source: 'evaporation' },
+        { tier: 'passive', resource: 'waste', delta: ofFood(-5), source: 'rot' },
+        { tier: 'active', resource: 'waste', delta: ofFood(4), source: 'shedding' },
+      ];
+
+      for (const batch of [effects, [...effects].reverse()]) {
+        const after = applyEffects(tank, batch);
+        expect(after.resources.oxygen).toBe(17);
+        expect(after.resources.nitrate).toBe(3);
+        expect(after.resources.water).toBe(97);
+        expect(after.resources.waste).toEqual(organicsCloseTo(ofFood(1)));
+      }
     });
   });
 

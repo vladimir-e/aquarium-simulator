@@ -25,7 +25,7 @@ unchanged, with the message explaining why.
 | Trim | <Badge text="settled" variant="success" /> | An absolute size inside a unit's own range — one plant, one family or the whole planting — and the cut leaves the tank. |
 | Planting by floor | <Badge text="settled" variant="success" /> | A unit goes in when its form's full footprint, whatever its size, fits the floor the planting leaves free. |
 | Water-change shock | <Badge text="missing" variant="danger" /> | A 90 % change costs a fish nothing beyond the temperature, hardness and gases the blend leaves behind. |
-| Substrate vacuuming | <Badge text="settled" variant="success" /> | A water change can vacuum the bed, taking a share of its settled mulm out of the tank. Standing waste in the water column is still left behind. |
+| Substrate vacuuming | <Badge text="settled" variant="success" /> | A water change can vacuum the bed, taking a share of its settled mulm out of the tank. The food and waste standing in the water are left behind. |
 | Config changes as actions | <Badge text="missing" variant="danger" /> | Equipment settings are plain fields the host writes directly. There is no action type, no validation and no log for them inside the engine. |
 
 ## How it works
@@ -52,7 +52,7 @@ diverge the moment their keepers act differently.
 
 | Verb | Input | What it moves | Refused when |
 |---|---|---|---|
-| Feed | grams | `food` up by the amount | non-finite or not positive |
+| Feed | grams | `food` up by the amount, at the food's composition | non-finite or not positive |
 | Top off | — | `water` set to capacity | already at capacity |
 | Water change | a fraction in `(0, 1]`, optionally a vacuum share in `[0, 1]` | see below | either non-finite or outside its range, or the tank is empty |
 | Dose | millilitres | the four nutrient pools, by the fertilizer ratio | non-finite, below the minimum or above the maximum |
@@ -66,10 +66,9 @@ diverge the moment their keepers act differently.
 | Sell fry | — | every fish that reads as fry: short of puberty and under half its grown length. A juvenile — past half but short of puberty — and an adult stay | no fry in the tank |
 
 Trimmed tissue leaves the system outright, its reserve and stores with it —
-the keeper carried it out of the room. Scrubbed film rots in the water as
-waste, a gravel vac taking what has settled into the bed, and its stores leach
-at once — nitrate up, KH down a proton per nitrogen. Green water a water change
-takes leaves with the water.
+the keeper carried it out of the room. Scrubbed film, stores and all, rots in
+the water as waste, a gravel vac taking what has settled into the bed. Green
+water a water change takes leaves with the water.
 
 A refused planting names the floor it lacks — "Not enough floor: 180 cm² free,
 Amazon Sword needs 700" — against the
@@ -88,9 +87,9 @@ what a trim does to a plant.
 | KH | the refill brings `tapKh` per litre, so KH moves toward the tap by the share changed — and pH with it |
 | GH | the same, at `tapGh` |
 | Water | refilled to capacity, so a change is also a top-off |
-| Bed | with a vacuum share, the bed's organic reserve scaled by `1 − vacuum`; off by default |
+| Bed | with a vacuum share, the bed's mulm scaled by `1 − vacuum`; off by default |
 
-What it does **not** touch: standing `waste`, the two bacterial colonies, the
+What it does **not** touch: standing `food` and `waste`, the two bacterial colonies, the
 bed's nutrient store, the film on the surfaces, and the other organisms.
 Without the vac, a change dilutes the products of the nitrogen chain while
 leaving every gram of the material still feeding it.

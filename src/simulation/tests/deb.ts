@@ -14,7 +14,7 @@ export function feastFromHatching(p: DebParams, hours: number, tau = 1): DebStat
   const states: DebState[] = [];
   let state = hatchling(p);
   for (let t = 0; t < hours; t++) {
-    state = stepDeb(state, p, { fromGut: 1, tau, omega: 1 }).state;
+    state = stepDeb(state, p, { fromGut: 1, reserveYield: p.kappaX, tau, omega: 1 }).state;
     states.push(state);
   }
   return states;

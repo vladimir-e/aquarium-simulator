@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { ofFood } from '../../simulation/tests/organics.js';
 import { bloomCoverage } from '../../simulation/algae/index.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
 import { atSize } from '../../simulation/tests/plant.js';
@@ -47,7 +48,7 @@ function fixture(species: FishSpecies[] = ['neon_tetra', 'corydoras', 'betta']):
   state.resources.ammonia = 0.034 * 196.4;
   state.resources.nitrite = 0.412 * 196.4;
   state.resources.nitrate = 18.6 * 196.4;
-  state.resources.food = 0.12;
+  state.resources.food = ofFood(0.12);
   state.algae.greenWater = bloomAt(state, 'greenWater', 12);
   state.algae.film = bloomAt(state, 'film', 47);
 
@@ -191,13 +192,12 @@ describe('preview readings', () => {
     expect(detail(fixture(), 'feed').preview.map((r) => r.key)).toEqual(['food']);
   });
 
-  it('previews a scrub as the film the glass holds coming off, its stores leached with the KH their uptake moved, and nothing else living', () => {
+  it('previews a scrub as the film the glass holds coming off into the waste, and nothing else', () => {
     const state = fixture();
     const rows = detail(state, 'scrubAlgae').preview;
 
     expect(row(rows, 'film').after).toBe((bloomCoverage(state, 'film') - onTheGlass(state).film).toFixed(0));
-    expect(rows.map((r) => r.key)).toEqual(expect.arrayContaining(['waste', 'film']));
-    for (const r of rows) expect(['nitrate', 'phosphate', 'potassium', 'iron', 'kh', 'ph', 'waste', 'film']).toContain(r.key);
+    expect(rows.map((r) => r.key).sort()).toEqual(['film', 'waste']);
   });
 
   it('previews a water change carrying the green water out, and leaving the film', () => {

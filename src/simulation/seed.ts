@@ -7,7 +7,6 @@ import type { Resources, SimulationState } from './state.js';
 import type { FishSex, FishSpecies } from './livestock/species.js';
 import type { PlantSpecies } from './plants/species.js';
 import {
-  calculateSubstrateLeach,
   getSubstrateKhReserve,
   getSubstrateNutrients,
   getSubstrateOrganicReserve,
@@ -16,17 +15,16 @@ import {
 } from './equipment/substrate.js';
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { ammoniaIn, calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
-import { gillAmmonia } from './systems/metabolism.js';
+import { decompose, poolShares } from './systems/decomposition.js';
 import { stepDeb } from './systems/deb.js';
 import { ration } from './systems/digestion.js';
 import { fishParams } from './systems/fish-body.js';
 import { speciesTau } from './livestock/species.js';
 import { sum } from './core/sum.js';
-import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
-import { decayDefaults } from './config/decay.js';
+import { DEFAULT_CONFIG } from './config/index.js';
 import type { PlantsConfig } from './config/plants.js';
 import { mapNutrients, type NutrientVector } from './config/nutrients.js';
-import { scaleOrganics, type Organics } from './core/organics.js';
+import { addOrganics, foodRecipe, portion, scaleOrganics, type Organics } from './core/organics.js';
 import { alkalinityMoved, MW_NO3, NH3_TO_NO2_MASS_RATIO, PROTONS_PER_N } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import { KhResource } from './resources/kh.js';
@@ -121,11 +119,11 @@ const CYCLED_NOB_COVERAGE = 0.01;
  * Share of a fresh bed's organic reserve still in it on day 30 — the same tank
  * age the colony figures above were read at.
  *
- * The leach is a flat fraction of what is left with no substrate term, so this
- * is one curve every bed follows: gravel, aqua soil and sand all sit at 0.115
- * there, and only the grams differ. Rounded down for the reason the colony is
- * rounded up — a scenario that says "cycled" should never be handed a bed
- * still leaching harder than one that waited.
+ * Mulm rots first order on what is left with no substrate term, so this is one
+ * curve every bed follows: at 25 °C in aerated water gravel, aqua soil and sand
+ * all sit near 0.13 there, and only the grams differ. Rounded down for the
+ * reason the colony is rounded up — a scenario that says "cycled" should never
+ * be handed a bed still rotting harder than one that waited.
  */
 const CYCLED_RESERVE_FRACTION = 0.1;
 
@@ -133,23 +131,26 @@ type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
 
 /**
  * mg of ammonia a tick the tank's stock and bed put into the water at rest:
- * every fish assimilating just its upkeep in the water it is in and burning
- * all of it, and the bed leaching what it holds. All the waste either one
- * makes is mineralised in the end, whether or not it settles on the way. Food
- * fed past upkeep is left out — the seed names no feeding to size it by — so
- * under a keeper who feeds more the colony errs small and grows on from the seed.
+ * every fish eating just the ration that pays its upkeep in the water it is
+ * in, and the bed's mulm rotting. A resting fish burns all it keeps, excretes
+ * its meals' excess and passes the rest, so the nitrogen of all it eats reaches
+ * the water, and all the waste it makes rots in the end, whether or not it
+ * settles on the way. Food fed past upkeep is left out — the seed names no
+ * feeding to size it by — so under a keeper who feeds more the colony errs
+ * small and grows on from the seed.
  */
 function restingAmmoniaSupply(state: StockedTank): number {
   const { temperature } = state.resources;
-  const resting = state.fish.map((fish) => {
-    const pace = { tau: speciesTau(fish.species, temperature), omega: 1 };
-    const { owed } = stepDeb(fish.budget, fishParams(fish), { fromGut: 0, ...pace }).fluxes;
-    return { owed, feces: ration(fish, owed) - owed };
-  });
-  const gills = gillAmmonia(sum(resting.map((fish) => fish.owed)), livestockDefaults);
-  const feces = sum(resting.map((fish) => fish.feces));
-  const leached = calculateSubstrateLeach(state.equipment.substrate.organicReserve, decayDefaults);
-  return gills + feces * ammoniaPerGramOfFood(livestockDefaults) + ammoniaIn(leached);
+  const food = foodRecipe(DEFAULT_CONFIG);
+  const eaten = sum(
+    state.fish.map((fish) => {
+      const pace = { tau: speciesTau(fish.species, temperature), omega: 1 };
+      const { owed } = stepDeb(fish.budget, fishParams(fish), { fromGut: 0, reserveYield: 0, ...pace }).fluxes;
+      return ration(fish, owed, food);
+    })
+  );
+  const { rotted } = decompose(state.equipment.substrate.organicReserve, poolShares('mulm', state.resources, state));
+  return ammoniaIn(addOrganics(portion(food, eaten), rotted));
 }
 
 /**
@@ -202,7 +203,7 @@ export function cycledKhReserve(type: SubstrateType, capacity: number): number {
  * Share of what a cycled bed released that is still in the water. Nothing in
  * a plantless, fishless tank consumes nitrate, phosphate, potassium or iron,
  * so a month of release left alone puts 17.5 ppm of nitrate in the water over
- * aqua soil — 10 from the leached organics, 7.5 from the store's leak — but a
+ * aqua soil — 10 from the rotted organics, 7.5 from the store's leak — but a
  * keeper changes water: a fresh soil tank's month keeps 0.28–0.32 of each
  * nutrient under a weekly 30 % change and 0.15–0.19 under a weekly 50 %. A
  * quarter sits between them, rounded to the low side because nitrate is a
@@ -211,15 +212,15 @@ export function cycledKhReserve(type: SubstrateType, capacity: number): number {
  */
 const CYCLED_WATER_RETAINED = 0.25;
 
-/** mg of each nutrient the organics a cycled bed leached left in the water, rotted. */
+/** mg of each nutrient the organics a cycled bed rotted left in the water. */
 function cycledRot(type: SubstrateType, capacity: number): NutrientVector {
-  const leached = scaleOrganics(getSubstrateOrganicReserve(type, capacity), 1 - CYCLED_RESERVE_FRACTION);
-  return scaleOrganics(leached, CYCLED_WATER_RETAINED).nutrients;
+  const rotted = scaleOrganics(getSubstrateOrganicReserve(type, capacity), 1 - CYCLED_RESERVE_FRACTION);
+  return scaleOrganics(rotted, CYCLED_WATER_RETAINED).nutrients;
 }
 
 /**
  * mg of each nutrient a cycled tank of this bed and capacity carries: the
- * organics its bed leached and what its nutrient store leaked, at the share
+ * organics its bed rotted and what its nutrient store leaked, at the share
  * the keeper's changes left.
  */
 export function cycledWaterNutrients(type: SubstrateType, capacity: number): NutrientVector {
@@ -240,7 +241,7 @@ const CYCLED_SOIL_KH_RETAINED = 0.15;
  * mg of CaCO3 of KH and GH a cycled tank of this bed, tap and capacity carries.
  * The bed takes both out in equal measure and stops when either runs dry, so
  * soft tap water caps what it takes at the tap's GH. KH alone also pays for
- * the nitrate the leached organics left, minted and nitrified.
+ * the nitrate the rotted organics left, minted and nitrified.
  */
 export function cycledHardness(
   type: SubstrateType,

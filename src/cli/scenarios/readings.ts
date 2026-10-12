@@ -7,6 +7,7 @@ import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
 import { BLOOM_COVERAGE_LINE } from '../../simulation/alerts/bloom.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/helpers.js';
 import { getPh } from '../../simulation/core/carbonate.js';
+import { MG_PER_G } from '../../simulation/core/chemistry.js';
 import { ALGAE, ALGAE_KINDS, bloomCoverage, type AlgaeKind } from '../../simulation/algae/index.js';
 import { toFahrenheit } from '../units.js';
 import { snakeCase, type SnakeCase } from '../names.js';
@@ -145,6 +146,33 @@ const DEFINITIONS = [
     digits: 1,
     read: (s): number => getDgh(s.resources.gh, s.resources.water),
     band: { green: [2, 18], amber: [1, 25], why: 'community fish are kept from ~3 to 15; soft-water species go lower, livebearers higher' },
+  },
+  {
+    id: 'waste',
+    label: 'waste',
+    unit: 'mg/L',
+    digits: 2,
+    read: (s): number => getPpm(s.resources.waste.grams * MG_PER_G, s.resources.water),
+    band: {
+      green: [0, 10],
+      amber: [0, 50],
+      why: 'droppings and shed tissue rot within days; tens of mg/L standing in the water is a tank left to foul',
+    },
+  },
+  {
+    id: 'mulm',
+    label: 'mulm',
+    unit: 'mg/L',
+    digits: 1,
+    read: (s): number | null =>
+      s.equipment.substrate.type === 'none'
+        ? null
+        : getPpm(s.equipment.substrate.organicReserve.grams * MG_PER_G, s.tank.capacity),
+    band: {
+      green: [0, 100],
+      amber: [0, 500],
+      why: 'a vacuumed bed holds tens of mg of mulm per litre of tank; hundreds is an overfed tank or a bed nobody vacuums',
+    },
   },
   {
     id: 'plants',

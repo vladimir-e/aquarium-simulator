@@ -11,7 +11,7 @@ import { mapForms, mapNutrients, NUTRIENT_OF, NUTRIENTS, type FormVector, type N
 import { calculateTankHeight } from '../core/geometry.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
 import { formHalfSaturations, type Feeder } from '../systems/nutrients.js';
-import type { CarbonFixer } from '../systems/photosynthesis.js';
+import { carbonCapacity, carbonGases, type CarbonFixer } from '../systems/photosynthesis.js';
 import { metabolicRateUnits, saturationIrradiance, TISSUE_PER_RATE_UNIT } from '../systems/flora.js';
 import { floraNutrients, scaleFlora, type FloraParams, type FloraState } from '../systems/flora-budget.js';
 import { NO_STRESS, type DebStress } from '../systems/reserve.js';
@@ -58,11 +58,19 @@ export function bloomFixer(
   plantsConfig: PlantsConfig
 ): CarbonFixer {
   return {
-    metabolicRateUnits: stress.assimilation * bloomRateUnits(bloom.budget.structure, traits),
-    lightResponse: lightSaturationFactor(light.par, saturationIrradiance(traits, plantsConfig)),
-    omega,
+    capacity: carbonCapacity(
+      stress.assimilation * bloomRateUnits(bloom.budget.structure, traits),
+      lightSaturationFactor(light.par, saturationIrradiance(traits, plantsConfig)),
+      omega,
+      plantsConfig
+    ),
     co2HalfSaturation: traits.co2HalfSaturation,
   };
+}
+
+/** A bloom's spores as photosynthesis reads them: as much CO₂ as `structure` grams of them are built of, on the bloom's own curve. */
+export function sporeFixer(structure: number, traits: AlgaeTraits): CarbonFixer {
+  return { capacity: carbonGases(structure).co2, co2HalfSaturation: traits.co2HalfSaturation };
 }
 
 /** Rate units of thriving plant per litre of water: the dose of their exudates. */
@@ -96,16 +104,13 @@ export function habitatGain(
 }
 
 /**
- * The spores the water built over the hour, out of `structure` grams of spore
- * asked at Q_min: as much as the scarcest nutrient delivered built, their
+ * The spores the water built over the hour, out of the `structure` grams the
+ * CO₂ offered them: as much as the scarcest nutrient delivered built, their
  * stores what the rest delivered past that, up to full. A spore lands unfed:
  * its reserve is what it fixes once it lands.
  */
 export function sporesBuilt(structure: number, delivered: Readonly<NutrientVector>, p: FloraParams): FloraState {
-  const built = Math.min(
-    structure,
-    ...NUTRIENTS.map((n) => (p.qMin[n] > 0 ? delivered[n] / p.qMin[n] : structure))
-  );
+  const built = Math.min(structure, ...NUTRIENTS.map((n) => (p.qMin[n] > 0 ? delivered[n] / p.qMin[n] : structure)));
   return {
     structure: built,
     reserve: 0,

@@ -15,14 +15,14 @@ import { debParams, FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig, ToxinVector } from '../config/livestock.js';
 import type { TunableConfig } from '../config/index.js';
 import { createLog } from '../core/logging.js';
-import { atRecipe, NO_ORGANICS, type Organics } from '../core/organics.js';
+import { addOrganics, NO_ORGANICS, portion, type Organics } from '../core/organics.js';
 import { hourlyDraw } from '../core/kinetics.js';
 import { drawId } from '../core/rng.js';
 import { sum } from '../core/sum.js';
 import { hatchling, organics } from '../systems/deb.js';
 import { brood, readyToBrood } from '../systems/brood.js';
 import { shareOut, swallow, type Pace } from '../systems/digestion.js';
-import { eggMass, eggOrganics, fishMass } from '../systems/fish-body.js';
+import { eggMass, eggOrganics, FISH_COMPOSITION, fishMass } from '../systems/fish-body.js';
 import { predatorWeight } from '../systems/fish-health.js';
 import { fishHardiness, speciesHardiness } from './tolerance.js';
 import { developmentRate, eggHarmRate, eggPredationRate, settleClutch } from '../systems/clutch.js';
@@ -53,14 +53,8 @@ export function processBodies(state: SimulationState, config: TunableConfig): Bo
     burned = clutches.burned + layBroods(draft) + turnOverMaleBuffers(draft.fish, paces, livestock);
   });
 
-  const effects: Effect[] = burnEffects(
-    burned,
-    newState.resources.water,
-    livestock,
-    config.nutrients.foodMineralContent,
-    'fish-broods'
-  );
-  const eggs = atRecipe(waste, config);
+  const effects: Effect[] = burnEffects(burned, newState.resources.water, 'fish-broods');
+  const eggs = portion(FISH_COMPOSITION, waste);
   if (waste > 0) effects.push({ tier: 'active', resource: 'waste', delta: eggs, source: 'dead-eggs' });
   return { state: newState, effects, burned, waste: eggs };
 }
@@ -108,7 +102,7 @@ function tendClutches(
   }
   const swallowed = swallow(draft.fish, paces, shares);
   draft.fish.forEach((fish, i) => {
-    fish.gut += swallowed.taken[i];
+    fish.gut = addOrganics(fish.gut, portion(FISH_COMPOSITION, swallowed.taken[i]));
   });
   waste += swallowed.overflow;
 

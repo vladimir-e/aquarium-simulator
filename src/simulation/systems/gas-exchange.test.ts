@@ -158,7 +158,7 @@ describe('gasExchangeSystem', () => {
       temperature: 25,
       flow: 500,
     });
-    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
+    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG, state.resources.oxygen);
 
     const o2Effect = effects.find((e) => e.resource === 'oxygen');
     expect(o2Effect).toBeDefined();
@@ -172,7 +172,7 @@ describe('gasExchangeSystem', () => {
       co2: 10.0,
       flow: 500,
     });
-    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
+    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG, state.resources.oxygen);
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
     expect(co2Effect).toBeDefined();
@@ -186,7 +186,7 @@ describe('gasExchangeSystem', () => {
       co2: 2.0,
       flow: 500,
     });
-    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
+    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG, state.resources.oxygen);
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
     expect(co2Effect).toBeDefined();
@@ -201,7 +201,7 @@ describe('gasExchangeSystem', () => {
       temperature: 25,
       flow: 500,
     });
-    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
+    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG, state.resources.oxygen);
 
     effects.forEach((e) => {
       expect(Math.abs(deltaOf(e))).toBeLessThan(0.01);
@@ -220,8 +220,8 @@ describe('gasExchangeSystem', () => {
       capacity: 100,
     });
 
-    const lowFlowEffects = gasExchangeSystem.update(lowFlowState, DEFAULT_CONFIG);
-    const highFlowEffects = gasExchangeSystem.update(highFlowState, DEFAULT_CONFIG);
+    const lowFlowEffects = gasExchangeSystem.update(lowFlowState, DEFAULT_CONFIG, lowFlowState.resources.oxygen);
+    const highFlowEffects = gasExchangeSystem.update(highFlowState, DEFAULT_CONFIG, highFlowState.resources.oxygen);
 
     const lowO2Delta = deltaOrZero(lowFlowEffects.find((e) => e.resource === 'oxygen'));
     const highO2Delta = deltaOrZero(highFlowEffects.find((e) => e.resource === 'oxygen'));
@@ -241,8 +241,8 @@ describe('gasExchangeSystem', () => {
       flow: 500,
     });
 
-    const coldEffects = gasExchangeSystem.update(coldState, DEFAULT_CONFIG);
-    const hotEffects = gasExchangeSystem.update(hotState, DEFAULT_CONFIG);
+    const coldEffects = gasExchangeSystem.update(coldState, DEFAULT_CONFIG, coldState.resources.oxygen);
+    const hotEffects = gasExchangeSystem.update(hotState, DEFAULT_CONFIG, hotState.resources.oxygen);
 
     const coldO2Delta = deltaOrZero(coldEffects.find((e) => e.resource === 'oxygen'));
     const hotO2Delta = deltaOrZero(hotEffects.find((e) => e.resource === 'oxygen'));
@@ -258,7 +258,7 @@ describe('gasExchangeSystem', () => {
       flow: 0,
       aeration: false,
     });
-    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
+    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG, state.resources.oxygen);
 
     const o2Effect = effects.find((e) => e.source === 'gas-exchange-o2');
     const co2Effect = effects.find((e) => e.source === 'gas-exchange-co2');
@@ -283,7 +283,7 @@ describe('gasExchangeSystem', () => {
       flow: 0,
       aeration: false,
     });
-    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
+    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG, state.resources.oxygen);
 
     expect(effects.length).toBe(0);
   });
@@ -295,7 +295,7 @@ describe('gasExchangeSystem', () => {
         flow: 0,
         aeration: true,
       });
-      const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
+      const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG, state.resources.oxygen);
 
       const directO2Effect = effects.find((e) => e.source === 'aeration-direct-o2');
       expect(directO2Effect).toBeDefined();
@@ -309,7 +309,7 @@ describe('gasExchangeSystem', () => {
         flow: 0,
         aeration: true,
       });
-      const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
+      const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG, state.resources.oxygen);
 
       const directO2Effect = effects.find((e) => e.source === 'aeration-direct-o2');
       expect(directO2Effect).toBeUndefined();
@@ -327,8 +327,8 @@ describe('gasExchangeSystem', () => {
         aeration: true,
       });
 
-      const noAerationEffects = gasExchangeSystem.update(noAerationState, DEFAULT_CONFIG);
-      const aerationEffects = gasExchangeSystem.update(aerationState, DEFAULT_CONFIG);
+      const noAerationEffects = gasExchangeSystem.update(noAerationState, DEFAULT_CONFIG, noAerationState.resources.oxygen);
+      const aerationEffects = gasExchangeSystem.update(aerationState, DEFAULT_CONFIG, aerationState.resources.oxygen);
 
       const noAerationO2 = deltaOrZero(noAerationEffects.find((e) => e.source === 'gas-exchange-o2'));
       const aerationO2 = deltaOrZero(aerationEffects.find((e) => e.source === 'gas-exchange-o2'));
@@ -348,8 +348,8 @@ describe('gasExchangeSystem', () => {
         aeration: true,
       });
 
-      const noAerationEffects = gasExchangeSystem.update(noAerationState, DEFAULT_CONFIG);
-      const aerationEffects = gasExchangeSystem.update(aerationState, DEFAULT_CONFIG);
+      const noAerationEffects = gasExchangeSystem.update(noAerationState, DEFAULT_CONFIG, noAerationState.resources.oxygen);
+      const aerationEffects = gasExchangeSystem.update(aerationState, DEFAULT_CONFIG, aerationState.resources.oxygen);
 
       const noAerationCO2 = deltaOrZero(noAerationEffects.find((e) => e.source === 'gas-exchange-co2'));
       const aerationCO2 = deltaOrZero(aerationEffects.find((e) => e.source === 'gas-exchange-co2'));

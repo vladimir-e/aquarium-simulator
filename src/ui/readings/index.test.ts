@@ -175,9 +175,9 @@ describe('readTank', () => {
     const { byId } = read(stocked());
 
     expect(byId.ammonia.fills.map((flow) => flow.label)).toEqual([
-      'Waste mineralising',
+      'Waste and mulm rotting',
       'Fish gills',
-      'Food decaying',
+      'Food rotting',
     ]);
     expect(byId.ammonia.drains.map((flow) => flow.label)).toEqual(['AOB oxidising', 'Plants feeding', 'Algae feeding']);
     expect(byId.ammonia.net).toMatch(/^[+−]\d+\.\d{4} ppm\/h$/);

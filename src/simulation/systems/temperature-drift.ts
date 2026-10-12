@@ -53,7 +53,7 @@ export function calculateTemperatureDrift(
   return drift;
 }
 
-export const temperatureDriftSystem: System = {
+export const temperatureDriftSystem = {
   id: 'temperature-drift',
   tier: 'immediate',
 
@@ -78,4 +78,4 @@ export const temperatureDriftSystem: System = {
       },
     ];
   },
-};
+} satisfies System;
