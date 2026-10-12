@@ -404,9 +404,9 @@ describe('the seven verbs', () => {
     const cold = produce(warm, (draft) => {
       draft.resources.temperature -= 10;
     });
-    const need = readHourAhead(cold, DEFAULT_CONFIG).ration;
+    const need = readHourAhead(cold, DEFAULT_CONFIG).ration!;
 
-    expect(need).toBeLessThan(readHourAhead(warm, DEFAULT_CONFIG).ration);
+    expect(need).toBeLessThan(readHourAhead(warm, DEFAULT_CONFIG).ration!);
     expect(detail(cold, 'feed').meta).toBe(`8 fish need ${need.toFixed(FoodResource.precision)} g a day`);
   });
 
@@ -433,7 +433,7 @@ describe('the seven verbs', () => {
     const config = withTunable(DEFAULT_CONFIG, 'nutrients.foodMineralContent.phosphate', 0);
     const ahead = readHourAhead(stocked, config);
 
-    expect(ahead.ration).toBe(Infinity);
+    expect(ahead.ration).toBeNull();
     expect(verbDetail('feed', { state: stocked, settings: DEFAULT_SETTINGS, units: 'metric', config, ahead }).meta).toBe(
       '1 fish needs a richer food'
     );

@@ -1,6 +1,6 @@
 /**
  * Ammonia resource - NH3 stored as mass in mg.
- * Highly toxic to fish. Produced by waste decomposition,
+ * Highly toxic to fish. Produced by rot and the fish's gills,
  * consumed by AOB bacteria in the nitrogen cycle.
  *
  * Display shows derived ppm (mass/water), safe/stress ranges are in ppm.

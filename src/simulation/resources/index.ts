@@ -7,7 +7,7 @@
  */
 
 export type { OrganicResourceKey, ResourceDefinition, ResourceKey } from './types.js';
-export { isOrganicPool, ORGANIC_POOLS } from './types.js';
+export { isOrganicPool, mapPools, ORGANIC_POOLS } from './types.js';
 
 // Mass-stored solute helpers (mass <-> ppm, mass <-> dKH / dGH)
 export { getPpm, getMassFromPpm, getDkh, getKhMass, getDgh, getGhMass } from './helpers.js';

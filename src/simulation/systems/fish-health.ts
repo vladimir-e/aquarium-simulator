@@ -36,7 +36,7 @@ import { getPlantPower } from './plant-power.js';
 import { sum } from '../core/sum.js';
 import { addOrganics, NO_ORGANICS, portion, type Organics } from '../core/organics.js';
 import { pointsHealed, starvation, wellFed } from './reserve.js';
-import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
+import { FISH_COMPOSITION, fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
 import type { FishHour } from './metabolism.js';
 import {
   fishHardiness,
@@ -65,7 +65,6 @@ export interface HealthInput {
   plants: Plant[];
   tankCapacity: number;
   config: LivestockConfig;
-  body: Organics;
   carried: readonly number[];
 }
 
@@ -305,7 +304,7 @@ function damageShare(vitality: VitalityResult, key: string): number {
  * One hour of health for every fish its budget ran for: `fish` as the hour
  * found them, `hours` their budgets' hours and `fed` them fed after. A fish
  * dies when its health reaches 0 or its survival falls below its draw. What it
- * leaves — its body and the brood it carried, made of `body`, and its gut —
+ * leaves — its body and the brood it carried, and its gut —
  * its predators eat in the share of its damage they did, by their weight on
  * it and as far as their guts have room; the rest is waste. `carried` is the
  * grams of brood each carries.
@@ -318,7 +317,6 @@ export function processHealth({
   plants,
   tankCapacity,
   config,
-  body,
   carried,
 }: HealthInput): HealthResult {
   const deadFishNames: string[] = [];
@@ -338,7 +336,7 @@ export function processHealth({
 
   fed.forEach((f, i) => {
     if (!dies[i]) return;
-    const remains = addOrganics(portion(body, fishOrganics(f) + carried[i]), f.gut);
+    const remains = addOrganics(portion(FISH_COMPOSITION, fishOrganics(f) + carried[i]), f.gut);
     const weights = living.map((j) => predatorWeight(masses[j], masses[i]));
     const surviving = predatorMass[i] > 0 ? Math.min(1, sum(weights) / predatorMass[i]) : 0;
     const share = damageShare(vitalities[i], 'hunted') * surviving;

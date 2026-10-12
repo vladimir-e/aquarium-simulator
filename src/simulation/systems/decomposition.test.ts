@@ -8,12 +8,11 @@ import { C_TO_CO2_MASS_RATIO, C_TO_O2_MASS_RATIO, MW_N, MW_NH3, MW_NO3 } from '.
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { addOrganics, NO_ORGANICS, portion, scaleOrganics, type Organics } from '../core/organics.js';
 import { sum } from '../core/sum.js';
-import { applyEffects, type Effect } from '../core/effects.js';
+import { applyEffects, organicPool, type Effect } from '../core/effects.js';
 import { LEAN, ofFood, organicsCloseTo } from '../tests/organics.js';
 import {
   decompose,
   decompositionSystem,
-  organicPool,
   poolShares,
   rotPace,
   rotRates,

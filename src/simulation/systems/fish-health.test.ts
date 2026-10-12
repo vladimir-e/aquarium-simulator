@@ -111,7 +111,7 @@ const asked = (fish: Fish, pace: Pace, config = livestockDefaults): number =>
 
 /** A fish's hour of budget on a full reserve and an empty gut, repairing what it asks. */
 const hourOf = (fish: Fish, config = AGELESS): FishHour =>
-  liveHour(fish, REFERENCE, asked(fish, REFERENCE, config), config, FISH_COMPOSITION);
+  liveHour(fish, REFERENCE, asked(fish, REFERENCE, config), config);
 
 /** A fish's vitality in this water, carrying the water's toxin levels as its load unless it names one. */
 function vitality(
@@ -161,7 +161,6 @@ function health(
     plants,
     tankCapacity: 100,
     config,
-    body: FISH_COMPOSITION,
     carried,
   });
 }
@@ -730,7 +729,7 @@ describe('repair', () => {
     const fish = fishRecord({ health: 60 });
     expect(vitality({ ...fish, budget: { ...fish.budget, reserve: 0 } }, {}, { config: HEALING }).breakdown.healed).toBe(0);
     const record = fishRecord(fish);
-    const breathless = liveHour(record, { ...REFERENCE, omega: 0 }, asked(record, REFERENCE, HEALING), HEALING, FISH_COMPOSITION);
+    const breathless = liveHour(record, { ...REFERENCE, omega: 0 }, asked(record, REFERENCE, HEALING), HEALING);
     const v = computeFishVitality(record, breathless, makeResources(), [], 100, 100, HEALING, 0);
     expect(v.breakdown.healed).toBe(0);
   });

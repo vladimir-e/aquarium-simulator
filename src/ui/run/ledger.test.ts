@@ -35,6 +35,7 @@ import { LEDGER_DECIMALS, readLedger, type BudgetRow, type Ledger, type LedgerTa
 import { FED, atReserve, starving } from '../test/gut';
 import { projectedTrend } from './status.js';
 import { TRACK_PAST_LINE, WATER_DECIMALS } from './water.js';
+import { NUTRIENT_LABEL } from './flora.js';
 import { fishRecord, holdingEggs, poisoned, saturated } from '../../simulation/tests/fish.js';
 import { spawnsAt } from '../../simulation/systems/brood.js';
 import { fishHardiness, toxinEdges } from '../../simulation/livestock/tolerance.js';
@@ -106,7 +107,6 @@ describe('readLedger', () => {
 
   it('reads a fish’s reserve as its density, in percent, and nothing of stores', () => {
     const ledger = fishLedger(tank([atReserve(makeFish({ id: 'fish_a_1' }), 0.8)]));
-    expect(ledger.budget.map((row) => row.key)).toEqual(['reserve', 'diet']);
     expect(reserveOf(ledger)).toMatchObject({ label: 'Reserve', text: '80', unit: '% full' });
     expect(reserveOf(ledger).at).toBeCloseTo(0.8, 12);
     expect(ledger.stores).toEqual([]);
@@ -213,7 +213,7 @@ describe('readLedger', () => {
     expect(line(fishLedger(state, 'fish_a_1', lean), 'diet')).toMatchObject({
       text: String(Math.floor(share * 100)),
       status: 'warn',
-      note: 'limited by phosphate',
+      note: `limited by ${NUTRIENT_LABEL.phosphate}`,
     });
   });
 

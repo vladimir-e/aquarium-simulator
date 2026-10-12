@@ -47,7 +47,7 @@ describe('offerCarbon', () => {
 
   const metabolic = (p: Plant, size: number): number => rateUnits({ species: p.species, size }) * plantTraits(p.species).growthRate;
 
-  function carbonCapacity(p: Plant, size: number, plantsConfig = plantsDefaults): number {
+  function expectedCapacity(p: Plant, size: number, plantsConfig = plantsDefaults): number {
     return (
       metabolic(p, size) *
       lightSaturationFactor(light, saturationIrradiance(plantTraits(p.species), plantsConfig)) *
@@ -69,7 +69,7 @@ describe('offerCarbon', () => {
     const k = plantsDefaults.lowCo2HalfSaturation;
     for (const co2 of [0.01, 0.5, k, 10, 1e4]) {
       expect(offered([fern], { co2 })[0]).toBeCloseTo(
-        monodUptake(co2 * waterVolume, carbonCapacity(fern, 100), k * waterVolume),
+        monodUptake(co2 * waterVolume, expectedCapacity(fern, 100), k * waterVolume),
         12
       );
     }
@@ -78,7 +78,7 @@ describe('offerCarbon', () => {
   it('draws every fixer on its own curve, each read at the CO₂ the hour leaves', () => {
     const fern = plant(100, 'java_fern');
     const monte = plant(100, 'monte_carlo');
-    const [a, b] = [carbonCapacity(fern, 100), carbonCapacity(monte, 100)];
+    const [a, b] = [expectedCapacity(fern, 100), expectedCapacity(monte, 100)];
     const pooled = offered([fern, monte], { co2: 2 });
     const left = 2 - total(pooled) / waterVolume;
 
@@ -127,7 +127,7 @@ describe('offerCarbon', () => {
     const at = (size: number): number => total(offered([plant(size)], { co2: PLENTIFUL_CO2 }));
     expect(at(80)).toBeCloseTo(2 * at(40), 9);
     const fixer: CarbonFixer = plantFixer(plant(100, 'monte_carlo'), light, 1);
-    expect(fixer.capacity).toBeCloseTo(carbonCapacity(plant(100, 'monte_carlo'), 100), 12);
+    expect(fixer.capacity).toBeCloseTo(expectedCapacity(plant(100, 'monte_carlo'), 100), 12);
   });
 });
 

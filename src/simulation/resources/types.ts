@@ -56,6 +56,10 @@ export const ORGANIC_POOLS = ['food', 'waste', 'mulm'] as const;
 /** The organic pools, the bed's mulm among them: they move by organics, so their grams never move without their content. */
 export type OrganicResourceKey = (typeof ORGANIC_POOLS)[number];
 
+export function mapPools<T>(value: (pool: OrganicResourceKey) => T): Record<OrganicResourceKey, T> {
+  return Object.fromEntries(ORGANIC_POOLS.map((pool) => [pool, value(pool)])) as Record<OrganicResourceKey, T>;
+}
+
 export function isOrganicPool(resource: ResourceKey): resource is OrganicResourceKey {
   return (ORGANIC_POOLS as readonly ResourceKey[]).includes(resource);
 }

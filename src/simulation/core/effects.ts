@@ -40,14 +40,18 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-/** Adds organics to a pool where the tank holds it: food and waste in the water, mulm in the bed. */
+/** A pool where the tank holds it: food and waste in the water, mulm in the bed. */
+export function organicPool(
+  tank: Pick<SimulationState, 'resources' | 'equipment'>,
+  pool: OrganicResourceKey
+): Organics {
+  return pool === 'mulm' ? tank.equipment.substrate.organicReserve : tank.resources[pool];
+}
+
 function addToPool(draft: SimulationState, pool: OrganicResourceKey, delta: Organics): void {
-  if (pool === 'mulm') {
-    const bed = draft.equipment.substrate;
-    bed.organicReserve = addOrganics(bed.organicReserve, delta);
-  } else {
-    draft.resources[pool] = addOrganics(draft.resources[pool], delta);
-  }
+  const added = addOrganics(organicPool(draft, pool), delta);
+  if (pool === 'mulm') draft.equipment.substrate.organicReserve = added;
+  else draft.resources[pool] = added;
 }
 
 /**

@@ -76,7 +76,7 @@ export const wetMass = (state: DebState, p: DebParams): number =>
 /** An hour's inputs: ω in [0, 1]; healing ≥ 0, grams of reserve to spend on repair at full oxygen. */
 export interface DebHour {
   fromGut: number;
-  reserveYield?: number;
+  reserveYield: number;
   tau: number;
   omega: number;
   stress?: Readonly<DebStress>;
@@ -123,7 +123,7 @@ export function assimilationCeiling(
 
 /** One hour of the budget: τ paces every rate; ω scales {p_Am}, v and healing. */
 export function stepDeb(state: DebState, p: DebParams, hour: DebHour): DebStep {
-  const { fromGut, reserveYield = p.kappaX, tau, omega, stress = NO_STRESS, healing = 0 } = hour;
+  const { fromGut, reserveYield, tau, omega, stress = NO_STRESS, healing = 0 } = hour;
   const { structure: V, reserve: E, maturity: EH, broodBuffer: ER, wearLoad: q, hazard: h } = state;
   const pMStressed = p.pM * stress.maintenance;
   const EGStressed = p.EG * stress.growthCost;

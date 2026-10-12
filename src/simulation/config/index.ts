@@ -6,7 +6,6 @@
  */
 
 export {
-  mapPools,
   type DecompositionConfig,
   decompositionDefaults,
   decompositionConfigMeta,

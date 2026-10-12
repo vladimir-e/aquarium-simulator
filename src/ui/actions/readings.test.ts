@@ -192,13 +192,12 @@ describe('preview readings', () => {
     expect(detail(fixture(), 'feed').preview.map((r) => r.key)).toEqual(['food']);
   });
 
-  it('previews a scrub as the film the glass holds coming off, its stores leached with the KH their uptake moved, and nothing else living', () => {
+  it('previews a scrub as the film the glass holds coming off into the waste, and nothing else', () => {
     const state = fixture();
     const rows = detail(state, 'scrubAlgae').preview;
 
     expect(row(rows, 'film').after).toBe((bloomCoverage(state, 'film') - onTheGlass(state).film).toFixed(0));
-    expect(rows.map((r) => r.key)).toEqual(expect.arrayContaining(['waste', 'film']));
-    for (const r of rows) expect(['nitrate', 'phosphate', 'potassium', 'iron', 'kh', 'ph', 'waste', 'film']).toContain(r.key);
+    expect(rows.map((r) => r.key).sort()).toEqual(['film', 'waste']);
   });
 
   it('previews a water change carrying the green water out, and leaving the film', () => {

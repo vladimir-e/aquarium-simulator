@@ -47,7 +47,10 @@ export interface Upbringing {
   hours: number;
 }
 
-/** A fish fed without limit at `temperatureC` from hatching until it reaches `target` size, its buffer spent every hour. */
+/**
+ * A fish fed without limit on a food that builds all a meal can, at `temperatureC` from hatching until it reaches
+ * `target` size, its buffer spent every hour.
+ */
 export function raise(species: FishSpecies, target: number, temperatureC: number): Upbringing {
   if (!isStockableSize(species, target)) throw new RangeError(unstockableSizeMessage(species));
   const p = debParams(species);
@@ -56,7 +59,7 @@ export function raise(species: FishSpecies, target: number, temperatureC: number
   while (size(budget, p) < target) {
     const fromGut = appetite({ species, budget }, pace);
     survival *= Math.exp(-budget.hazard);
-    budget = { ...stepDeb(budget, p, { fromGut, ...pace }).state, broodBuffer: 0 };
+    budget = { ...stepDeb(budget, p, { fromGut, reserveYield: p.kappaX, ...pace }).state, broodBuffer: 0 };
     hours++;
   }
   return { budget, survival, hours };

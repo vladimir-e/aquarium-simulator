@@ -15,7 +15,6 @@ import {
   RESERVE_TO_N_MASS_RATIO,
   RESERVE_TO_P_MASS_RATIO,
 } from '../core/chemistry.js';
-import { nutrientsDefaults } from '../config/nutrients.js';
 import type { Organics } from '../core/organics.js';
 import { hatchling, mature, organics, size, wetMass, type DebParams } from './deb.js';
 
@@ -33,8 +32,9 @@ export const fishOrganics = (fish: Body): number => organics(fish.budget, fishPa
 
 /**
  * What a gram of a fish, its eggs and its brood is made of, one composition
- * for every species: its reserve's carbon, nitrogen and phosphorus, and the
- * default flake's potassium and iron.
+ * for every species: its reserve's carbon, nitrogen and phosphorus, and its
+ * potassium and iron carried along at the default flake's ratio — a whole fish
+ * runs higher in K, but that isn't what limits a fed fish.
  */
 export const FISH_COMPOSITION: Organics = {
   grams: 1,
@@ -42,8 +42,8 @@ export const FISH_COMPOSITION: Organics = {
   nutrients: {
     nitrate: RESERVE_TO_N_MASS_RATIO * N_TO_NO3_MASS_RATIO * MG_PER_G,
     phosphate: RESERVE_TO_P_MASS_RATIO * P_TO_PO4_MASS_RATIO * MG_PER_G,
-    potassium: nutrientsDefaults.foodMineralContent.potassium,
-    iron: nutrientsDefaults.foodMineralContent.iron,
+    potassium: 8,
+    iron: 0.2,
   },
 };
 

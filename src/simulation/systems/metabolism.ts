@@ -1,19 +1,9 @@
 /**
  * Fish metabolism: each hour every gut digests, every fish's energy budget
- * runs on what it digested at its species' pace, and every fish eats.
- *
- * Mass accounting
- * ---------------
- * Of what the budget takes from the gut, κ_P passes undigested as feces at the
- * meal's composition. The rest builds reserve at the fish's own composition —
- * κ_X of the meal at most, less where the meal's scarcest element runs out —
- * and whatever it digested and did not build is the meal's excess, excreted
- * as it is assimilated: its nitrogen through the gills as NH3 with its
- * minerals beside it, its carbon respired. Reserve leaves only as structure,
- * brood buffer or burn — maintenance, development, every conversion overhead,
- * repair, and structure a starving fish loses. Every gram burned excretes the
- * fish's nitrogen and minerals the same way, breathes in the oxygen its
- * reserve's formula takes, and breathes its carbon out as CO2.
+ * runs on what it digested at its species' pace, and every fish eats. Of what
+ * the budget takes, feces leave at the meal's composition, reserve builds at
+ * the fish's, and the rest is the meal's excess; the excess and every gram
+ * burned leave through the gills and the breath (`excrete`, `burn`).
  */
 
 import type { Fish, Resources } from '../state.js';
@@ -26,7 +16,7 @@ import { speciesTau } from '../livestock/species.js';
 import { fishHardiness, toxinEFolds } from '../livestock/tolerance.js';
 import { stepDeb, type DebFluxes } from './deb.js';
 import { NO_STRESS, oxygenPace, totalBurned, type DebStress } from './reserve.js';
-import { fishParams } from './fish-body.js';
+import { FISH_COMPOSITION, fishParams } from './fish-body.js';
 import { digest, gutRoom, reserveYield, shareCapped, type Pace } from './digestion.js';
 import { ammoniaIn } from './nitrogen-cycle.js';
 
@@ -94,12 +84,12 @@ export interface FishHour {
 }
 
 /** An hour of one fish's budget on what its gut digests, `healing` the grams of repair it asks of its reserve. */
-export function liveHour(fish: Fish, pace: Pace, healing: number, config: LivestockConfig, body: Organics): FishHour {
+export function liveHour(fish: Fish, pace: Pace, healing: number, config: LivestockConfig): FishHour {
   const p = fishParams(fish);
   const digested = digest(fish.gut, pace.tau, config);
   const { state, fluxes } = stepDeb(fish.budget, p, {
     fromGut: digested.grams,
-    reserveYield: reserveYield(digested, body, p),
+    reserveYield: reserveYield(digested, FISH_COMPOSITION, p),
     ...pace,
     healing,
   });
@@ -116,7 +106,11 @@ export function liveHour(fish: Fish, pace: Pace, healing: number, config: Livest
     pace,
     digested,
     feces,
-    excreted: sumOrganics(taken, scaleOrganics(feces, -1), scaleOrganics(portion(body, fluxes.assimilated), -1)),
+    excreted: sumOrganics(
+      taken,
+      scaleOrganics(feces, -1),
+      scaleOrganics(portion(FISH_COMPOSITION, fluxes.assimilated), -1)
+    ),
     fluxes,
   };
 }
@@ -144,10 +138,9 @@ export function processMetabolism(
   paces: readonly Pace[],
   healing: readonly number[],
   water: Pick<Resources, 'food'>,
-  config: LivestockConfig,
-  body: Organics
+  config: LivestockConfig
 ): MetabolismResult {
-  const hours = fish.map((f, i) => liveHour(f, paces[i], healing[i], config, body));
+  const hours = fish.map((f, i) => liveHour(f, paces[i], healing[i], config));
   const rooms = hours.map((hour) => gutRoom(hour.fish, hour.pace));
   const eaten = shareCapped(rooms, rooms, water.food.grams).taken.map((grams) => portion(water.food, grams));
   return {

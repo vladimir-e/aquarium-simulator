@@ -31,7 +31,7 @@ import type { NitrogenCycleConfig, TunableConfig } from '../../simulation/config
 import { getPpm } from '../../simulation/resources/index.js';
 import { monodFactor } from '../../simulation/core/kinetics.js';
 import { NH3_TO_NO2_MASS_RATIO } from '../../simulation/core/chemistry.js';
-import type { OrganicResourceKey } from '../../simulation/resources/types.js';
+import type { OrganicResourceKey } from '../../simulation/resources/index.js';
 import type { HourAhead } from './ahead.js';
 import { wasteInflow } from './waste.js';
 

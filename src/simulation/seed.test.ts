@@ -253,13 +253,13 @@ describe('createSimulation seeding', () => {
       const { tankCapacity } = TANK;
       const ghShort = environment.tapGh - getDgh(resources.gh, resources.water);
       const khShort = environment.tapKh - getDkh(resources.kh, resources.water);
-      const leached = (type: SubstrateType): number =>
+      const rotted = (type: SubstrateType): number =>
         getSubstrateOrganicReserve(type, tankCapacity).grams - cycledReserve(type, tankCapacity).grams;
       const gravelSpent = 5 - getDkh(cycledHardness('gravel', 5, 8, tankCapacity).kh, tankCapacity);
 
       expect(resources.gh).toBe(cycledHardness('aqua_soil', 5, 8, tankCapacity).gh);
       expect(ghShort).toBeGreaterThan(0);
-      expect(khShort - ghShort).toBeCloseTo((gravelSpent * leached('aqua_soil')) / leached('gravel'), 10);
+      expect(khShort - ghShort).toBeCloseTo((gravelSpent * rotted('aqua_soil')) / rotted('gravel'), 10);
     });
 
     it('takes no more KH than the tap has GH to give up alongside it', () => {
@@ -336,7 +336,7 @@ describe('createSimulation seeding', () => {
     it('holds a share of what the bed rotted and leaked, and never more than a fresh bed had to give', () => {
       const { tankCapacity } = TANK;
       const seeded = createSimulation(TANK, { bacteria: 'cycled' });
-      const leached = addOrganics(
+      const rotted = addOrganics(
         getSubstrateOrganicReserve('aqua_soil', tankCapacity),
         scaleOrganics(cycledReserve('aqua_soil', tankCapacity), -1)
       ).nutrients;
@@ -345,8 +345,8 @@ describe('createSimulation seeding', () => {
       for (const n of NUTRIENTS) {
         const water = seeded.resources[n];
         const bed = seeded.equipment.substrate.nutrients[n];
-        const released = fresh[n] + leached[n] - bed;
-        expect(water + bed).toBeLessThanOrEqual(fresh[n] + leached[n]);
+        const released = fresh[n] + rotted[n] - bed;
+        expect(water + bed).toBeLessThanOrEqual(fresh[n] + rotted[n]);
         expect(water).toBeGreaterThan(0);
         expect(water / released).toBeGreaterThan(0);
         expect(water / released).toBeLessThan(1);

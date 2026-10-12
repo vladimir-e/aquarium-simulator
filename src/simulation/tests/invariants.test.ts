@@ -50,7 +50,6 @@ function run(state: SimulationState, hours: number, config = DEFAULT_CONFIG): Si
   return running;
 }
 
-
 /** The organic matter the fish hold: their budgets and every clutch, laid or carried, at their composition, and their guts. */
 function livestockOrganics({ fish, clutches }: Pick<SimulationState, 'fish' | 'clutches'>): Organics {
   const bodies = sum(fish.map(fishOrganics)) + sum(clutches.map(clutchOrganics));

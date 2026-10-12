@@ -48,12 +48,12 @@ export function processBodies(state: SimulationState, config: TunableConfig): Bo
   let burned = 0;
   const newState = produce(state, (draft) => {
     const paces = tankPaces(draft, config);
-    const clutches = tendClutches(draft, livestock, paces, FISH_COMPOSITION);
+    const clutches = tendClutches(draft, livestock, paces);
     waste = clutches.waste;
     burned = clutches.burned + layBroods(draft) + turnOverMaleBuffers(draft.fish, paces, livestock);
   });
 
-  const effects: Effect[] = burnEffects(burned, newState.resources.water, FISH_COMPOSITION, 'fish-broods');
+  const effects: Effect[] = burnEffects(burned, newState.resources.water, 'fish-broods');
   const eggs = portion(FISH_COMPOSITION, waste);
   if (waste > 0) effects.push({ tier: 'active', resource: 'waste', delta: eggs, source: 'dead-eggs' });
   return { state: newState, effects, burned, waste: eggs };
@@ -63,8 +63,7 @@ export function processBodies(state: SimulationState, config: TunableConfig): Bo
 function tendClutches(
   draft: SimulationState,
   config: LivestockConfig,
-  paces: readonly Pace[],
-  body: Organics
+  paces: readonly Pace[]
 ): { waste: number; burned: number } {
   if (draft.clutches.length === 0) return { waste: 0, burned: 0 };
 
@@ -103,7 +102,7 @@ function tendClutches(
   }
   const swallowed = swallow(draft.fish, paces, shares);
   draft.fish.forEach((fish, i) => {
-    fish.gut = addOrganics(fish.gut, portion(body, swallowed.taken[i]));
+    fish.gut = addOrganics(fish.gut, portion(FISH_COMPOSITION, swallowed.taken[i]));
   });
   waste += swallowed.overflow;
 

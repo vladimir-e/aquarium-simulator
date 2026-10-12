@@ -4,12 +4,8 @@
  * into the bed.
  */
 
-import { ORGANIC_POOLS, type OrganicResourceKey } from '../resources/types.js';
+import type { OrganicResourceKey } from '../resources/types.js';
 import type { VectorMeta } from './nutrients.js';
-
-export function mapPools<T>(value: (pool: OrganicResourceKey) => T): Record<OrganicResourceKey, T> {
-  return Object.fromEntries(ORGANIC_POOLS.map((pool) => [pool, value(pool)])) as Record<OrganicResourceKey, T>;
-}
 
 export interface DecompositionConfig {
   /** First-order rate each pool rots at, per hour, at the reference temperature in oxygenated water. */

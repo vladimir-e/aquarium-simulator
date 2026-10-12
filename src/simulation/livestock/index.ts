@@ -60,8 +60,8 @@ function releaseEffects(released: Release, water: number, source: string): Effec
   ];
 }
 
-export function burnEffects(grams: number, water: number, body: Organics, source: string): Effect[] {
-  return releaseEffects(burn(grams, body), water, source);
+export function burnEffects(grams: number, water: number, source: string): Effect[] {
+  return releaseEffects(burn(grams, FISH_COMPOSITION), water, source);
 }
 
 export function excretionEffects(excess: Organics, water: number, source: string): Effect[] {
@@ -81,7 +81,7 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
   );
   const paces = tankPaces({ ...state, fish }, config);
   const healing = fish.map((f, i) => repairAsked(f.budget, fishParams(f), f.health, paces[i].tau, livestock));
-  const metabolism = processMetabolism(fish, paces, healing, state.resources, livestock, FISH_COMPOSITION);
+  const metabolism = processMetabolism(fish, paces, healing, state.resources, livestock);
 
   const carried = new Map<string, number>();
   for (const clutch of state.clutches) {
@@ -96,7 +96,6 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
     plants: state.plants,
     tankCapacity: state.tank.capacity,
     config: livestock,
-    body: FISH_COMPOSITION,
     carried: state.fish.map((f) => carried.get(f.id) ?? 0),
   });
 
@@ -106,7 +105,7 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
     ...organic('food', scaleOrganics(metabolism.foodConsumed, -1), 'fish-metabolism'),
     ...organic('waste', metabolism.feces, 'fish-metabolism'),
     ...excretionEffects(metabolism.excreted, water, 'fish-digestion'),
-    ...burnEffects(metabolism.burned, water, FISH_COMPOSITION, 'fish-respiration'),
+    ...burnEffects(metabolism.burned, water, 'fish-respiration'),
     ...organic('waste', health.deathWaste, 'fish-death'),
   ];
 

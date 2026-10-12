@@ -9,7 +9,6 @@
 import {
   ALGAE_KINDS,
   addOrganics,
-  organicPool,
   rotPace,
   rotShare,
   type Organics,
@@ -36,7 +35,7 @@ export interface WasteInflowReadout {
   sources: WasteSource[];
 }
 
-/** One organic pool's hour: the shares of it that rot and settle, and the O₂ its rot takes, mg/L. */
+/** One organic pool's hour: the grams it meets, the shares of them that rot and settle, and the O₂ its rot takes, mg/L. */
 export interface PoolRot {
   key: OrganicResourceKey;
   label: string;
@@ -92,15 +91,15 @@ export function wasteInflow(ahead: HourAhead): WasteInflowReadout {
   return { perHour, sources };
 }
 
-function poolRot(state: SimulationState, ahead: HourAhead, pool: OrganicResourceKey): PoolRot {
-  const { shares, oxygen } = ahead.rot[pool];
+function poolRot(ahead: HourAhead, pool: OrganicResourceKey): PoolRot {
+  const { met, shares, oxygen } = ahead.rot[pool];
   return {
     key: pool,
     label: POOL_LABEL[pool],
-    grams: organicPool(state, pool).grams,
+    grams: met.grams,
     rots: rotShare(shares),
     settles: shares.settling,
-    oxygen: getPpm(oxygen, state.resources.water),
+    oxygen: getPpm(oxygen, ahead.water),
   };
 }
 
@@ -118,7 +117,7 @@ export function wasteReadout(
     rotted: waste.rotted.grams,
     settled: waste.settled.grams,
     lost: rotShare(waste.shares) + waste.shares.settling,
-    pools: ORGANIC_POOLS.filter((pool) => bed || pool !== 'mulm').map((pool) => poolRot(state, ahead, pool)),
+    pools: ORGANIC_POOLS.filter((pool) => bed || pool !== 'mulm').map((pool) => poolRot(ahead, pool)),
     q10: rotPace(r.temperature, config.decomposition),
   };
 }

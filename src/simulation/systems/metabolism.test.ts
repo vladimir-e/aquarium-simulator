@@ -110,7 +110,7 @@ describe('fishPace', () => {
 
     const gut = ofFood(gutCapacity(guppy, cleanPace));
     const assimilated = (fish: Fish, pace: Pace): number =>
-      liveHour({ ...fish, gut }, pace, 0, config, FISH_COMPOSITION).fluxes.assimilated;
+      liveHour({ ...fish, gut }, pace, 0, config).fluxes.assimilated;
     expect(assimilated(loaded, loadedPace)).toBeLessThan(assimilated(guppy, cleanPace));
   });
 });
@@ -151,7 +151,7 @@ describe('liveHour', () => {
   it('closes its ledger in grams, carbon and every nutrient: gut and body before are gut and body after, feces, excretion and burn', () => {
     const guts = [fed, preyed, rich, poor, { ...fed, gut: portion(LEAN, 0.003) }, { ...fed, gut: NO_ORGANICS }];
     for (const fish of [...guts, { ...fed, health: 40 }]) {
-      const hour = liveHour(fish, REFERENCE, 1e-5, config, FISH_COMPOSITION);
+      const hour = liveHour(fish, REFERENCE, 1e-5, config);
       expect(hour.feces.grams).toBeCloseTo(hour.fluxes.feces, 15);
       expect(hour.excreted.grams).toBeCloseTo(hour.fluxes.excreted, 15);
       expect(addOrganics(held(hour.fish), hour.feces, hour.excreted, portion(FISH_COMPOSITION, totalBurned(hour.fluxes)))).toEqual(
@@ -162,7 +162,7 @@ describe('liveHour', () => {
 
   it('passes κ_P of what it takes at the meal’s own composition', () => {
     for (const fish of [fed, preyed, rich, poor]) {
-      const hour = liveHour(fish, REFERENCE, 0, config, FISH_COMPOSITION);
+      const hour = liveHour(fish, REFERENCE, 0, config);
       const taken = hour.digested.grams - hour.fluxes.returned;
       expect(hour.fluxes.feces).toBeCloseTo(fishParams(fish).kappaP * taken, 15);
       expect(hour.feces).toEqual(organicsCloseTo(portion(hour.digested, hour.fluxes.feces), 15));
@@ -170,7 +170,7 @@ describe('liveHour', () => {
   });
 
   it('builds κ_X of a meal richer than its body in every element and excretes the excess of each at the meal', () => {
-    const hour = liveHour(rich, REFERENCE, 0, config, FISH_COMPOSITION);
+    const hour = liveHour(rich, REFERENCE, 0, config);
     const taken = hour.digested.grams - hour.fluxes.returned;
     expect(hour.fluxes.assimilated).toBeCloseTo(fishParams(rich).kappaX * taken, 15);
     for (const amount of elementsOf(hour.excreted)) expect(amount).toBeGreaterThan(0);
@@ -179,8 +179,8 @@ describe('liveHour', () => {
   it('builds less of a meal leaner in any one element, all of that element kept and the others excreted', () => {
     for (const e of ELEMENTS) {
       const fish = { ...fed, gut: portion(meal(1.5, e, 0.5), 0.003) };
-      const hour = liveHour(fish, REFERENCE, 0, config, FISH_COMPOSITION);
-      const whole = liveHour({ ...fish, gut: portion(meal(1.5), 0.003) }, REFERENCE, 0, config, FISH_COMPOSITION);
+      const hour = liveHour(fish, REFERENCE, 0, config);
+      const whole = liveHour({ ...fish, gut: portion(meal(1.5), 0.003) }, REFERENCE, 0, config);
       expect(hour.fluxes.assimilated).toBeLessThan(whole.fluxes.assimilated);
       ELEMENTS.forEach((other) =>
         other === e
@@ -204,7 +204,7 @@ describe('liveHour', () => {
         const tuned = withTunable(DEFAULT_CONFIG, path, value);
         for (const species of Object.keys(FISH_SPECIES_DATA) as FishSpecies[]) {
           const fish = fishRecord({ species, gut: atRecipe(gutCapacity(fishRecord({ species }), REFERENCE), tuned) });
-          const hour = liveHour(fish, REFERENCE, 0, tuned.livestock, FISH_COMPOSITION);
+          const hour = liveHour(fish, REFERENCE, 0, tuned.livestock);
           expect(hour.feces.grams).toBeGreaterThan(0);
           for (const amount of [...elementsOf(hour.feces), ...elementsOf(hour.excreted)]) {
             expect(amount).toBeGreaterThanOrEqual(-1e-15);
@@ -215,14 +215,14 @@ describe('liveHour', () => {
   });
 
   it('digests at τ and hands the gut back what the budget could not take up', () => {
-    const hour = liveHour(fed, REFERENCE, 0, config, FISH_COMPOSITION);
+    const hour = liveHour(fed, REFERENCE, 0, config);
     expect(hour.fish.gut.grams).toBeCloseTo(fed.gut.grams - hour.digested.grams + hour.fluxes.returned, 15);
-    expect(liveHour(fed, { ...REFERENCE, tau: 2 }, 0, config, FISH_COMPOSITION).digested.grams).toBeGreaterThan(hour.digested.grams);
+    expect(liveHour(fed, { ...REFERENCE, tau: 2 }, 0, config).digested.grams).toBeGreaterThan(hour.digested.grams);
   });
 
   it('ages an hour and keeps exp(−h) of its survival', () => {
     const old = { ...fed, budget: { ...fed.budget, hazard: 1e-3 }, survival: 0.8 };
-    const hour = liveHour(old, REFERENCE, 0, config, FISH_COMPOSITION);
+    const hour = liveHour(old, REFERENCE, 0, config);
     expect(hour.fish.age).toBe(101);
     expect(hour.fish.survival).toBeCloseTo(0.8 * Math.exp(-1e-3), 15);
   });
@@ -236,7 +236,7 @@ describe('processMetabolism', () => {
   const paces = [REFERENCE, REFERENCE];
 
   it('returns nothing for no fish', () => {
-    expect(processMetabolism([], [], [], { food: ofFood(1) }, config, FISH_COMPOSITION)).toEqual({
+    expect(processMetabolism([], [], [], { food: ofFood(1) }, config)).toEqual({
       hours: [],
       updatedFish: [],
       foodConsumed: NO_ORGANICS,
@@ -247,25 +247,25 @@ describe('processMetabolism', () => {
   });
 
   it('fills every gut while the food lasts', () => {
-    const result = processMetabolism(school, paces, [0, 0], { food: ofFood(10) }, config, FISH_COMPOSITION);
+    const result = processMetabolism(school, paces, [0, 0], { food: ofFood(10) }, config);
     result.updatedFish.forEach((f) => expect(f.gut.grams).toBeCloseTo(gutCapacity(f, REFERENCE), 15));
   });
 
   it('serves short food in proportion to the room in each gut, so every fish fills the same share of it', () => {
     const food = 1e-4;
-    const result = processMetabolism(school, paces, [0, 0], { food: ofFood(food) }, config, FISH_COMPOSITION);
+    const result = processMetabolism(school, paces, [0, 0], { food: ofFood(food) }, config);
     const rooms = result.hours.map((hour) => gutRoom(hour.fish, REFERENCE));
     expect(result.foodConsumed).toEqual(organicsCloseTo(ofFood(food), 15));
     expect(result.updatedFish[1].gut.grams / rooms[1]).toBeCloseTo(result.updatedFish[0].gut.grams / rooms[0], 9);
   });
 
   it('eats nothing with nothing in the water', () => {
-    expect(processMetabolism(school, paces, [0, 0], { food: NO_ORGANICS }, config, FISH_COMPOSITION).foodConsumed).toEqual(NO_ORGANICS);
+    expect(processMetabolism(school, paces, [0, 0], { food: NO_ORGANICS }, config).foodConsumed).toEqual(NO_ORGANICS);
   });
 
   it('passes the hours’ feces, excretion and burn', () => {
     const fed = school.map((f) => ({ ...f, gut: ofFood(0.01) }));
-    const result = processMetabolism(fed, paces, [0, 0], { food: NO_ORGANICS }, config, FISH_COMPOSITION);
+    const result = processMetabolism(fed, paces, [0, 0], { food: NO_ORGANICS }, config);
     expect(result.feces).toEqual(organicsCloseTo(addOrganics(...result.hours.map((hour) => hour.feces)), 15));
     expect(result.feces.grams).toBeCloseTo(sum(result.hours.map((hour) => hour.fluxes.feces)), 15);
     expect(result.excreted).toEqual(organicsCloseTo(addOrganics(...result.hours.map((hour) => hour.excreted)), 15));
@@ -274,7 +274,7 @@ describe('processMetabolism', () => {
   });
 
   it('passes nothing the hour a meal is eaten: its waste comes out as it digests', () => {
-    const result = processMetabolism(school, paces, [0, 0], { food: ofFood(10) }, config, FISH_COMPOSITION);
+    const result = processMetabolism(school, paces, [0, 0], { food: ofFood(10) }, config);
     expect(result.feces).toEqual(NO_ORGANICS);
   });
 });

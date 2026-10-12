@@ -82,7 +82,7 @@ describe('reserveYield', () => {
 describe('ration', () => {
   const fish = guppy(50);
   const p = debParams('guppy');
-  const { owed } = stepDeb(fish.budget, p, { fromGut: 0, ...REFERENCE }).fluxes;
+  const { owed } = stepDeb(fish.budget, p, { fromGut: 0, reserveYield: 0, ...REFERENCE }).fluxes;
   const flake = foodRecipe(DEFAULT_CONFIG);
   const lean = foodRecipe(withTunable(DEFAULT_CONFIG, 'livestock.foodCarbonFraction', 0.4));
 

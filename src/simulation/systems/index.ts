@@ -25,7 +25,6 @@ export {
   rotShare,
   decompose,
   decomposePools,
-  organicPool,
   type PoolShares,
   type PoolHour,
 } from './decomposition.js';

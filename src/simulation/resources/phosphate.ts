@@ -1,6 +1,6 @@
 /**
  * Phosphate resource - PO4 stored as mass in mg.
- * Essential plant macronutrient. Comes from fish waste decay and fertilizer.
+ * Essential plant macronutrient. Comes from fertilizer, the bed, rot and the fish's gills.
  *
  * Display shows derived ppm (mass/water), safe/stress ranges are in ppm.
  */

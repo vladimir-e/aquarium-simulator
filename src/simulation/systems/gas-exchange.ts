@@ -91,23 +91,33 @@ export function calculateAerationFactor(aeration: boolean, multiplier: number): 
   return aeration ? multiplier : 1.0;
 }
 
+interface SurfaceFactors {
+  aeration: number;
+  flow: number;
+}
+
+function surfaceFactors({ resources, tank }: SimulationState, config: GasExchangeConfig): SurfaceFactors {
+  return {
+    aeration: calculateAerationFactor(resources.aeration, config.aerationExchangeMultiplier),
+    flow: calculateFlowFactor(resources.flow, tank.capacity, config),
+  };
+}
+
 /**
  * mg/L of O2 the air gives the water over the hour on water the hour leaves at
  * `oxygen` mg/L: across the surface toward saturation, and out of the bubbles
  * while aerating, which never carry it past saturation.
  */
-function oxygenGiven(state: SimulationState, oxygen: number, config: TunableConfig): { surface: number; bubbles: number } {
-  const { resources, tank } = state;
-  const geConfig = config.gasExchange;
-  const saturation = calculateO2Saturation(resources.temperature, geConfig);
+function oxygenGiven(
+  { resources }: SimulationState,
+  oxygen: number,
+  config: GasExchangeConfig,
+  factors: SurfaceFactors
+): { surface: number; bubbles: number } {
+  const saturation = calculateO2Saturation(resources.temperature, config);
   return {
-    surface: calculateGasExchange(
-      oxygen,
-      saturation,
-      geConfig.baseExchangeRate * calculateAerationFactor(resources.aeration, geConfig.aerationExchangeMultiplier),
-      calculateFlowFactor(resources.flow, tank.capacity, geConfig)
-    ),
-    bubbles: resources.aeration ? Math.min(geConfig.aerationDirectO2, Math.max(0, saturation - oxygen)) : 0,
+    surface: calculateGasExchange(oxygen, saturation, config.baseExchangeRate * factors.aeration, factors.flow),
+    bubbles: resources.aeration ? Math.min(config.aerationDirectO2, Math.max(0, saturation - oxygen)) : 0,
   };
 }
 
@@ -116,16 +126,18 @@ export const gasExchangeSystem = {
   tier: 'passive',
 
   oxygenDraw(state: SimulationState, oxygen: number, config: TunableConfig): number {
-    const { surface, bubbles } = oxygenGiven(state, oxygen, config);
+    const geConfig = config.gasExchange;
+    const { surface, bubbles } = oxygenGiven(state, oxygen, geConfig, surfaceFactors(state, geConfig));
     return -(surface + bubbles);
   },
 
   update(state: SimulationState, config: TunableConfig, oxygen: number): Effect[] {
     const effects: Effect[] = [];
-    const { resources, tank } = state;
+    const { resources } = state;
     const geConfig = config.gasExchange;
+    const factors = surfaceFactors(state, geConfig);
 
-    const { surface, bubbles } = oxygenGiven(state, oxygen, config);
+    const { surface, bubbles } = oxygenGiven(state, oxygen, geConfig, factors);
     if (surface !== 0) {
       effects.push({ tier: 'passive', resource: 'oxygen', delta: surface, source: 'gas-exchange-o2' });
     }
@@ -135,16 +147,15 @@ export const gasExchangeSystem = {
 
     // CO2 exchange: move toward atmospheric equilibrium
     // Aeration increases CO2 off-gassing (bad for planted tanks!)
-    const aerationFactor = calculateAerationFactor(resources.aeration, geConfig.aerationExchangeMultiplier);
     const co2AerationFactor = resources.aeration
-      ? aerationFactor * geConfig.aerationCo2OffgasMultiplier
+      ? factors.aeration * geConfig.aerationCo2OffgasMultiplier
       : 1.0;
 
     const co2Delta = calculateGasExchange(
       resources.co2,
       geConfig.atmosphericCo2,
       geConfig.baseExchangeRate * co2AerationFactor,
-      calculateFlowFactor(resources.flow, tank.capacity, geConfig)
+      factors.flow
     );
 
     if (co2Delta !== 0) {

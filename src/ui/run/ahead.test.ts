@@ -11,7 +11,6 @@ import {
   processBodies,
   processFlora,
   processLivestock,
-  rotShare,
   tick,
   type Fish,
   type SimulationState,
@@ -19,7 +18,8 @@ import {
 import { settleEnvironment } from '../../simulation/tick.js';
 import { deltaOf } from '../../simulation/tests/effects.js';
 import { spawnsAt } from '../../simulation/systems/brood.js';
-import { DEFAULT_CONFIG, mapPools } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { mapPools } from '../../simulation/resources/index.js';
 import { holdingEggs } from '../../simulation/tests/fish.js';
 import { readHourAhead } from './ahead.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
@@ -186,8 +186,7 @@ describe('readHourAhead', () => {
 
     const readsTheRot = (state: SimulationState, next: SimulationState): void => {
       const { rot } = readHourAhead(state, config);
-      const met = mapPools((pool) => rot[pool].rotted.grams / rotShare(rot[pool].shares));
-      const left = mapPools((pool) => met[pool] - rot[pool].rotted.grams - rot[pool].settled.grams);
+      const left = mapPools((pool) => rot[pool].met.grams - rot[pool].rotted.grams - rot[pool].settled.grams);
       expect(next.resources.food.grams).toBeCloseTo(left.food, 12);
       expect(next.resources.waste.grams).toBeCloseTo(left.waste, 12);
       expect(next.equipment.substrate.organicReserve.grams).toBeCloseTo(

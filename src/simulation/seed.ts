@@ -145,7 +145,8 @@ function restingAmmoniaSupply(state: StockedTank): number {
   const eaten = sum(
     state.fish.map((fish) => {
       const pace = { tau: speciesTau(fish.species, temperature), omega: 1 };
-      return ration(fish, stepDeb(fish.budget, fishParams(fish), { fromGut: 0, ...pace }).fluxes.owed, food);
+      const { owed } = stepDeb(fish.budget, fishParams(fish), { fromGut: 0, reserveYield: 0, ...pace }).fluxes;
+      return ration(fish, owed, food);
     })
   );
   const { rotted } = decompose(state.equipment.substrate.organicReserve, poolShares('mulm', state.resources, state));

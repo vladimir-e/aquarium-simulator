@@ -38,9 +38,9 @@ import {
   type AlgaeHabitat,
   type AlgaeKind,
   type BloomRemoval,
-  type Element,
   type Light,
   type LightPath,
+  type OrganicElement,
   type Organics,
   type SimulationState,
   type ToxinVector,
@@ -428,13 +428,7 @@ function loadRows(fish: Fish, water: ToxinVector): BudgetRow[] {
   }));
 }
 
-const DIET_ELEMENT: Record<Element, string> = {
-  carbon: 'carbon',
-  nitrate: 'nitrogen',
-  phosphate: 'phosphate',
-  potassium: 'potassium',
-  iron: 'iron',
-};
+const ELEMENT_LABEL: Record<OrganicElement, string> = { carbon: 'C', ...NUTRIENT_LABEL };
 
 function dietRow(fish: Fish, food: Organics): BudgetRow {
   const p = debParams(fish.species);
@@ -448,7 +442,7 @@ function dietRow(fish: Fish, food: Organics): BudgetRow {
     at: null,
     band: null,
     status: limited ? 'warn' : 'neutral',
-    note: limited ? `limited by ${DIET_ELEMENT[scarcest(food, FISH_COMPOSITION)]}` : '',
+    note: limited ? `limited by ${ELEMENT_LABEL[scarcest(food, FISH_COMPOSITION)]}` : '',
   };
 }
 

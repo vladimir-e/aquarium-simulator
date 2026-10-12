@@ -72,7 +72,7 @@ describe('processLivestock', () => {
 
   it('turns a burn or a meal’s excess into gill ammonia, minerals, an oxygen draw and CO2', () => {
     for (const effects of [
-      burnEffects(0.01, 100, FISH_COMPOSITION, 'x'),
+      burnEffects(0.01, 100, 'x'),
       excretionEffects(portion(FISH_COMPOSITION, 0.01), 100, 'x'),
     ]) {
       expect(effects.map((e) => e.resource)).toEqual(

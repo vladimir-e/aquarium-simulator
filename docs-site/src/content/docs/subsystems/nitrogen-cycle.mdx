@@ -19,7 +19,7 @@ to keep earning.
 | Mechanic | Status | Why |
 |---|---|---|
 | Three-stage chain | <Badge text="settled" variant="success" /> | Compound mass converts through the molecular weights in `src/simulation/core/`; no tunable restates one. |
-| Ammonia source | <Badge text="settled" variant="success" /> | Every organic pool rots — food and waste in the water, the bed's mulm where it lies — releasing what its composition holds, rather than a flat ambient constant. |
+| Ammonia source | <Badge text="settled" variant="success" /> | Every organic pool rots — food and waste in the water, the bed's mulm where it lies — releasing what its composition holds. |
 | Processing capacity | <Badge text="settled" variant="success" /> | Population × per-cell throughput × warmth × air, with no volume term — the same colony clears the same mass in a nano and a 300 L. |
 | Substrate limitation | <Badge text="settled" variant="success" /> | Monod on total ammonia for AOB and on nitrite for NOB, so a cycled tank holds hundredths of a ppm and a pulse stands until the colony works it down. |
 | Colony growth and decay | <Badge text="settled" variant="success" /> | Logistic growth scaled by utilization; unconditional maintenance decay on a 21-day half-life. |
@@ -230,10 +230,10 @@ holds, Q10 on temperature, aerobic on a Monod of the oxygen there is, and a
 slow anaerobic path, `anaerobicShare` of the pace, taking over as the oxygen
 runs out. What rots releases what the pool is made of — its nitrogen as
 ammonia, its phosphorus, potassium and iron to the water, its carbon as CO₂.
-Food and waste also settle into the
-bed as mulm, fastest in still water and halving at `settlingHalfTurnover` tank
-turnovers an hour; a bare bottom holds none. Every pool moves its content with
-its grams, so the nitrogen in the bed is the nitrogen that left the water.
+Food and waste also settle into the bed as mulm, fastest in still water and
+halving at `settlingHalfTurnover` tank turnovers an hour; a bare bottom holds
+none. Every pool moves its content with its grams, so the nitrogen in the bed
+is the nitrogen that left the water.
 
 | Pool | Where | Half-life, 25 °C, oxygenated |
 |---|---|---|
@@ -270,14 +270,15 @@ as waste, and that share of the bed's biofilm is scraped off.
 | Swapping the bed | all of it — the colony on it goes out with it and the new bed brings a fresh reserve |
 
 A release lifts the concentration the colony works against, so it stands as a
-bump until worked down. An established bed holds only its mulm, so rescaping a
-cycled tank shows as a small, brief bump; digging up most of the bed at once
-shows more. An inert bed holds less mulm than soil does, so its colony grows to
-a smaller load, but it cycles on the same seeding clock. A `'cycled'` seed skips
-the clock: each guild opens at the population where growth on its resting load
-meets decay, never below a fishless month's share of the ceiling. That load
-counts the ration that pays the fish's upkeep, not food fed past it, so a
-tank whose keeper feeds more grows its colony on from the seed.
+bump until worked down. An established bed holds days to weeks of the tank's
+waste as mulm, so rescaping a cycled tank shows as a bump, and digging up most
+of the bed at once as a larger one. An inert bed holds less mulm than soil
+does, so its colony grows to a smaller load, but it cycles on the same seeding
+clock. A `'cycled'` seed skips the clock: each guild opens at the population
+where growth on its resting load meets decay, never below a fishless month's
+share of the ceiling. That load counts the ration that pays the fish's upkeep,
+not food fed past it, so a tank whose keeper feeds more grows its colony on
+from the seed.
 
 ## Key tunables
 

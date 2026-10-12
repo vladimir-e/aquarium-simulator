@@ -14,7 +14,7 @@ import type { FloraParams } from '../systems/flora-budget.js';
 import { plantTraits, type PlantSpecies } from '../plants/species.js';
 import { ALGAE, type AlgaeKind } from '../algae/traits.js';
 
-type Composition = Pick<PlantsConfig, 'quotaMin' | 'quotaMax' | 'storeFillDays'>;
+type Quotas = Pick<PlantsConfig, 'quotaMin' | 'quotaMax' | 'storeFillDays'>;
 
 const NUTRIENT_PER_ELEMENT: Readonly<NutrientVector> = {
   nitrate: N_TO_NO3_MASS_RATIO,
@@ -29,7 +29,7 @@ const inEngineUnits = (quota: Readonly<NutrientVector>): NutrientVector =>
 function floraParams(
   { growthRate }: Pick<FloraTraits, 'growthRate'>,
   kappa: number,
-  { quotaMin, quotaMax, storeFillDays }: Composition,
+  { quotaMin, quotaMax, storeFillDays }: Quotas,
   plantsConfig: PlantsConfig,
   vigour = 0
 ): FloraParams {

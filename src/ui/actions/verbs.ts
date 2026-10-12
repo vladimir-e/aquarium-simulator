@@ -351,7 +351,7 @@ function rungsFor(
         rung: (amount) => ({
           value: amount,
           label: `${amount} g`,
-          hint: ration > 0 ? daysOfFood(amount / ration) : '—',
+          hint: ration !== null && ration > 0 ? daysOfFood(amount / ration) : '—',
           disabled: false,
         }),
       };
@@ -465,7 +465,7 @@ function meta(
 
   switch (id) {
     case 'feed': {
-      const need = Number.isFinite(ahead.ration) ? `${grams(ahead.ration)} a day` : 'a richer food';
+      const need = ahead.ration === null ? 'a richer food' : `${grams(ahead.ration)} a day`;
       const mouths =
         state.fish.length === 0
           ? 'no fish to feed'

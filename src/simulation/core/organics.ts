@@ -47,6 +47,7 @@ export function portion(pool: Organics, grams: number): Organics {
   return scaleOrganics(pool, pool.grams > 0 ? grams / pool.grams : 0);
 }
 
+/** Flows netted exactly, a negative one's every element with it. */
 export function sumOrganics(...flows: readonly Organics[]): Organics {
   return {
     grams: sum(flows.map((flow) => flow.grams)),
@@ -57,16 +58,18 @@ export function sumOrganics(...flows: readonly Organics[]): Organics {
 
 export const ELEMENTS = ['carbon', ...NUTRIENTS] as const;
 
-export type Element = (typeof ELEMENTS)[number];
+export type OrganicElement = (typeof ELEMENTS)[number];
 
-export function elements(pool: Organics): Record<Element, number> {
+export function elements(pool: Organics): Record<OrganicElement, number> {
   return { carbon: pool.carbon, ...pool.nutrients };
 }
 
-function sufficiency(pool: Organics, of: Organics): Record<Element, number> {
+function sufficiency(pool: Organics, of: Organics): Record<OrganicElement, number> {
   const held = elements(pool);
   const needed = elements(of);
-  return Object.fromEntries(ELEMENTS.map((e) => [e, needed[e] > 0 ? held[e] / needed[e] : Infinity])) as Record<Element, number>;
+  return Object.fromEntries(
+    ELEMENTS.map((e) => [e, needed[e] > 0 ? held[e] / needed[e] : Infinity])
+  ) as Record<OrganicElement, number>;
 }
 
 /** Grams of `of`'s composition the carbon and nutrients `pool` holds can build, its scarcest element ruling. */
@@ -75,11 +78,12 @@ export function buildable(pool: Organics, of: Organics): number {
 }
 
 /** The element `pool` runs out of first building `of`'s composition. */
-export function scarcest(pool: Organics, of: Organics): Element {
+export function scarcest(pool: Organics, of: Organics): OrganicElement {
   const held = sufficiency(pool, of);
   return ELEMENTS.reduce((least, e) => (held[e] < held[least] ? e : least));
 }
 
+/** Pools summed into one: no element held below zero, and nothing held at no grams. */
 export function addOrganics(...pools: readonly Organics[]): Organics {
   const total = sumOrganics(...pools);
   if (total.grams <= 0) return NO_ORGANICS;

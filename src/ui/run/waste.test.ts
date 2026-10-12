@@ -171,14 +171,14 @@ describe('wasteReadout', () => {
       draft.resources.waste = rot(1);
     });
     const readout = readoutOf(state);
-    const { rot: hours } = readHourAhead(state, config);
+    const { rot: hours, water } = readHourAhead(state, config);
 
     expect(readout.pools.map((entry) => entry.key)).toEqual(['food', 'waste', 'mulm']);
     for (const entry of readout.pools) {
       expect(entry.oxygen).toBeGreaterThan(0);
-      expect(entry.oxygen).toBeCloseTo(hours[entry.key].oxygen / state.resources.water, 12);
+      expect(entry.oxygen).toBeCloseTo(hours[entry.key].oxygen / water, 12);
+      expect(entry.grams).toBe(hours[entry.key].met.grams);
     }
-    expect(pool(readout, 'mulm')!.grams).toBe(state.equipment.substrate.organicReserve.grams);
   });
 
   it('holds no mulm without a bed, and settles nothing into one', () => {
