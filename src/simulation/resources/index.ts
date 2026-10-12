@@ -6,7 +6,7 @@
  * previously scattered across state.ts and effects.ts.
  */
 
-export type { OrganicResourceKey, ResourceDefinition, ResourceKey } from './types.js';
+export type { OrganicResourceKey, ResourceDefinition, ResourceKey, ScalarResourceKey } from './types.js';
 export { isOrganicPool, mapPools, ORGANIC_POOLS } from './types.js';
 
 // Mass-stored solute helpers (mass <-> ppm, mass <-> dKH / dGH)
@@ -34,7 +34,7 @@ export { AobResource } from './aob.js';
 export { NobResource } from './nob.js';
 
 // Import for registry
-import type { OrganicResourceKey, ResourceDefinition, ResourceKey } from './types.js';
+import type { ResourceDefinition, ResourceKey, ScalarResourceKey } from './types.js';
 import { TemperatureResource } from './temperature.js';
 import { WaterResource } from './water.js';
 import { SurfaceResource } from './surface.js';
@@ -57,7 +57,7 @@ import { NobResource } from './nob.js';
  * Registry of every scalar resource indexed by key.
  * Provides type-safe access to resource metadata.
  */
-export const ResourceRegistry: Record<Exclude<ResourceKey, OrganicResourceKey>, ResourceDefinition<ResourceKey>> = {
+export const ResourceRegistry: Record<ScalarResourceKey, ResourceDefinition<ResourceKey>> = {
   water: WaterResource,
   temperature: TemperatureResource,
   surface: SurfaceResource,

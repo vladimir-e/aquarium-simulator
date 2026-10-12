@@ -7,9 +7,16 @@
 
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
-import { isOrganicPool, ResourceRegistry, type OrganicResourceKey, type ResourceKey } from '../resources/index.js';
+import {
+  isOrganicPool,
+  ResourceRegistry,
+  type OrganicResourceKey,
+  type ResourceKey,
+  type ScalarResourceKey,
+} from '../resources/index.js';
 import type { TunableConfig } from '../config/index.js';
 import { addOrganics, type Organics } from './organics.js';
+import { sum } from './sum.js';
 
 // Re-export ResourceKey for convenience
 export type { ResourceKey };
@@ -26,8 +33,6 @@ interface EffectOn<R extends ResourceKey, D> {
   /** What produced this effect (for debugging/logging) */
   source: string;
 }
-
-type ScalarResourceKey = Exclude<ResourceKey, OrganicResourceKey>;
 
 type ScalarEffect = EffectOn<ScalarResourceKey, number>;
 
@@ -98,8 +103,7 @@ export function applyEffects(
     }
     for (const [resource, deltas] of byResource(effects.filter(isScalarEffect))) {
       const { min, max } = bounds(draft, resource);
-      const netted = deltas.reduce((value, delta) => value + delta, draft.resources[resource]);
-      draft.resources[resource] = clamp(netted, min, max);
+      draft.resources[resource] = clamp(sum([draft.resources[resource], ...deltas]), min, max);
     }
   });
 }

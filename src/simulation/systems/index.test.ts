@@ -64,9 +64,11 @@ describe('tierOxygen', () => {
         draft.resources.oxygen = start;
       });
       const oxygen = tierOxygen(tank, 'passive', config);
-      const after = applyEffects(tank, passive.flatMap((system) => system.update(tank, config, oxygen)));
       expect(oxygen).toBeGreaterThan(0);
-      expect(after.resources.oxygen).toBeCloseTo(oxygen, 9);
+      for (const systems of [passive, [...passive].reverse()]) {
+        const after = applyEffects(tank, systems.flatMap((system) => system.update(tank, config, oxygen)));
+        expect(after.resources.oxygen).toBeCloseTo(oxygen, 9);
+      }
     }
   });
 

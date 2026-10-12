@@ -85,12 +85,13 @@ import { decompositionSystem } from './decomposition.js';
 import { nitrogenCycleSystem } from './nitrogen-cycle.js';
 import { gasExchangeSystem } from './gas-exchange.js';
 
+/** All core systems in the simulation */
 export const coreSystems: System[] = [
   temperatureDriftSystem,
   evaporationSystem,
-  gasExchangeSystem,
   decompositionSystem,
   nitrogenCycleSystem,
+  gasExchangeSystem,
 ];
 
 /**
