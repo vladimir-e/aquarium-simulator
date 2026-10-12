@@ -85,7 +85,6 @@ import { decompositionSystem } from './decomposition.js';
 import { nitrogenCycleSystem } from './nitrogen-cycle.js';
 import { gasExchangeSystem } from './gas-exchange.js';
 
-/** All core systems in the simulation, in the order their effects land: the air's oxygen before the draws it supports. */
 export const coreSystems: System[] = [
   temperatureDriftSystem,
   evaporationSystem,

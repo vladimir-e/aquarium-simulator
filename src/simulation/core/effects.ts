@@ -27,17 +27,35 @@ interface EffectOn<R extends ResourceKey, D> {
   source: string;
 }
 
+type ScalarResourceKey = Exclude<ResourceKey, OrganicResourceKey>;
+
+type ScalarEffect = EffectOn<ScalarResourceKey, number>;
+
 type OrganicEffect = EffectOn<OrganicResourceKey, Organics>;
 
-export type Effect = EffectOn<Exclude<ResourceKey, OrganicResourceKey>, number> | OrganicEffect;
+export type Effect = ScalarEffect | OrganicEffect;
 
 const isOrganicEffect = (effect: Effect): effect is OrganicEffect => isOrganicPool(effect.resource);
 
-/**
- * Clamps a value between min and max (inclusive).
- */
+const isScalarEffect = (effect: Effect): effect is ScalarEffect => !isOrganicEffect(effect);
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function bounds(tank: SimulationState, resource: ScalarResourceKey): { min: number; max: number } {
+  const { min, max } = ResourceRegistry[resource].bounds;
+  return { min, max: resource === 'water' ? tank.tank.capacity : max };
+}
+
+function byResource<R extends ResourceKey, D>(effects: readonly EffectOn<R, D>[]): Map<R, D[]> {
+  const deltas = new Map<R, D[]>();
+  for (const { resource, delta } of effects) {
+    const held = deltas.get(resource);
+    if (held) held.push(delta);
+    else deltas.set(resource, [delta]);
+  }
+  return deltas;
 }
 
 /** A pool where the tank holds it: food and waste in the water, mulm in the bed. */
@@ -48,15 +66,16 @@ export function organicPool(
   return pool === 'mulm' ? tank.equipment.substrate.organicReserve : tank.resources[pool];
 }
 
-function addToPool(draft: SimulationState, pool: OrganicResourceKey, delta: Organics): void {
-  const added = addOrganics(organicPool(draft, pool), delta);
+function addToPool(draft: SimulationState, pool: OrganicResourceKey, deltas: readonly Organics[]): void {
+  const added = addOrganics(organicPool(draft, pool), ...deltas);
   if (pool === 'mulm') draft.equipment.substrate.organicReserve = added;
   else draft.resources[pool] = added;
 }
 
 /**
- * Applies a list of effects to the simulation state.
- * Returns a new state object (immutable).
+ * Applies a batch of effects, each resource's deltas netted across the batch
+ * before its bounds hold it, so no effect's place in the batch decides what the
+ * stock ends at. Returns a new state object (immutable).
  *
  * @param state - Current simulation state
  * @param effects - Effects to apply
@@ -74,113 +93,13 @@ export function applyEffects(
   }
 
   return produce(state, (draft) => {
-    for (const effect of effects) {
-      if (isOrganicEffect(effect)) {
-        addToPool(draft, effect.resource, effect.delta);
-        continue;
-      }
-      const resource = ResourceRegistry[effect.resource];
-
-      switch (effect.resource) {
-        case 'water':
-          draft.resources.water = clamp(
-            draft.resources.water + effect.delta,
-            resource.bounds.min,
-            draft.tank.capacity
-          );
-          break;
-        case 'temperature':
-          draft.resources.temperature = clamp(
-            draft.resources.temperature + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'ammonia':
-          draft.resources.ammonia = clamp(
-            draft.resources.ammonia + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'nitrite':
-          draft.resources.nitrite = clamp(
-            draft.resources.nitrite + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'nitrate':
-          draft.resources.nitrate = clamp(
-            draft.resources.nitrate + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'oxygen':
-          draft.resources.oxygen = clamp(
-            draft.resources.oxygen + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'co2':
-          draft.resources.co2 = clamp(
-            draft.resources.co2 + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'kh':
-          draft.resources.kh = clamp(
-            draft.resources.kh + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'gh':
-          draft.resources.gh = clamp(
-            draft.resources.gh + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'aob':
-          draft.resources.aob = clamp(
-            draft.resources.aob + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'nob':
-          draft.resources.nob = clamp(
-            draft.resources.nob + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'phosphate':
-          draft.resources.phosphate = clamp(
-            draft.resources.phosphate + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'potassium':
-          draft.resources.potassium = clamp(
-            draft.resources.potassium + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'iron':
-          draft.resources.iron = clamp(
-            draft.resources.iron + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-      }
+    for (const [pool, deltas] of byResource(effects.filter(isOrganicEffect))) {
+      addToPool(draft, pool, deltas);
+    }
+    for (const [resource, deltas] of byResource(effects.filter(isScalarEffect))) {
+      const { min, max } = bounds(draft, resource);
+      const netted = deltas.reduce((value, delta) => value + delta, draft.resources[resource]);
+      draft.resources[resource] = clamp(netted, min, max);
     }
   });
 }

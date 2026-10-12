@@ -55,6 +55,21 @@ describe('tierOxygen', () => {
     }
   });
 
+  it('lands the water on the solve however near the bound it starts, the air’s credit netted against the draws', () => {
+    for (const start of [8, 14, 18, 20]) {
+      const tank = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
+        draft.resources.flow = 1000;
+        draft.resources.aeration = true;
+        draft.resources.food = ofFood(100);
+        draft.resources.oxygen = start;
+      });
+      const oxygen = tierOxygen(tank, 'passive', config);
+      const after = applyEffects(tank, passive.flatMap((system) => system.update(tank, config, oxygen)));
+      expect(oxygen).toBeGreaterThan(0);
+      expect(after.resources.oxygen).toBeCloseTo(oxygen, 9);
+    }
+  });
+
   it('holds a steady tank where it stands: where the air gives what the draws take, they read the level the water holds', () => {
     const tank = fouled(5, 0);
     let low = 0;
