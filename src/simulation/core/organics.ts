@@ -7,7 +7,7 @@
  */
 
 import { nitratePerGramOfFood, type LivestockConfig } from '../config/livestock.js';
-import { mapNutrients, ZERO_NUTRIENTS, type NutrientsConfig, type NutrientVector } from '../config/nutrients.js';
+import { mapNutrients, NUTRIENTS, ZERO_NUTRIENTS, type NutrientsConfig, type NutrientVector } from '../config/nutrients.js';
 import { sum } from './sum.js';
 
 export interface Organics {
@@ -53,6 +53,15 @@ export function sumOrganics(...flows: readonly Organics[]): Organics {
     carbon: sum(flows.map((flow) => flow.carbon)),
     nutrients: mapNutrients((n) => sum(flows.map((flow) => flow.nutrients[n]))),
   };
+}
+
+/** Grams of `of`'s composition the carbon and nutrients `pool` holds can build, its scarcest element ruling. */
+export function buildable(pool: Organics, of: Organics): number {
+  const shares = [
+    [pool.carbon, of.carbon],
+    ...NUTRIENTS.map((n) => [pool.nutrients[n], of.nutrients[n]]),
+  ].map(([held, needed]) => (needed > 0 ? held / needed : Infinity));
+  return of.grams * Math.min(...shares);
 }
 
 export function addOrganics(...pools: readonly Organics[]): Organics {

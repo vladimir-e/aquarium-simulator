@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { addOrganics, atRecipe, foodRecipe, NO_ORGANICS, portion, scaleOrganics, sumOrganics } from './organics.js';
+import { addOrganics, atRecipe, buildable, foodRecipe, NO_ORGANICS, portion, scaleOrganics, sumOrganics } from './organics.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { NUTRIENTS, WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { MW_N, MW_NO3 } from './chemistry.js';
@@ -75,5 +75,24 @@ describe('organics', () => {
     expect(sumOrganics(lean, food).nutrients.nitrate).toBeLessThan(0);
     for (const n of NUTRIENTS) expect(sumOrganics(lean, food).nutrients[n]).toBe(lean.nutrients[n] + food.nutrients[n]);
     expect(addOrganics(lean, food).nutrients.nitrate).toBe(0);
+  });
+});
+
+describe('buildable', () => {
+  const food = foodRecipe(DEFAULT_CONFIG);
+
+  it('builds as many grams of a composition as the pool’s scarcest element holds, and that composition’s own grams of itself', () => {
+    const shares = [LEAN.carbon / food.carbon, ...NUTRIENTS.map((n) => LEAN.nutrients[n] / food.nutrients[n])];
+    expect(buildable(portion(LEAN, 3), food)).toBeCloseTo(3 * Math.min(...shares), 12);
+    expect(buildable(portion(food, 2), food)).toBeCloseTo(2, 12);
+  });
+
+  it('counts only the elements the composition carries', () => {
+    const ironless = { ...food, nutrients: { ...food.nutrients, iron: 0 } };
+    expect(buildable(ironless, ironless)).toBeCloseTo(1, 12);
+  });
+
+  it('builds nothing of nothing', () => {
+    expect(buildable(NO_ORGANICS, food)).toBe(0);
   });
 });

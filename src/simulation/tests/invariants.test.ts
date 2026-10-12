@@ -11,7 +11,16 @@ import { applyAction } from '../actions/index.js';
 import { DEFAULT_CONFIG, configRange, withTunable, type TunableConfig } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { mapNutrients, NUTRIENTS, WASTE_NUTRIENTS, type NutrientVector, type WasteNutrient } from '../config/nutrients.js';
-import { CACO3_PER_EQUIVALENT, CH2O_TO_C_MASS_RATIO, C_TO_CO2_MASS_RATIO, MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
+import {
+  CACO3_PER_EQUIVALENT,
+  CH2O_TO_C_MASS_RATIO,
+  C_TO_CO2_MASS_RATIO,
+  MW_N,
+  MW_NH3,
+  MW_NO2,
+  MW_NO3,
+  RESERVE_TO_N_MASS_RATIO,
+} from '../core/chemistry.js';
 import { ALGAE_KINDS, bloomCoverage } from '../algae/index.js';
 import { bloomParams, plantParams } from '../flora/params.js';
 import { floraNutrients, floraOrganics, type FloraState } from '../systems/flora-budget.js';
@@ -311,7 +320,6 @@ describe('a lone female fasting to her death', () => {
 });
 
 describe('the fish as ledger entries', () => {
-  const { foodNitrogenFraction: n } = DEFAULT_CONFIG.livestock;
   const nitrogenOf = (state: Pick<SimulationState, 'fish' | 'clutches'>): number =>
     nitrogenOfNitrate(livestockOrganics(state).nutrients.nitrate);
   const tank = produce(cycledBareTank(), (draft) => {
@@ -332,7 +340,10 @@ describe('the fish as ledger entries', () => {
     expect(stocked.fish).toHaveLength(tank.fish.length + 1);
     expect(nitrogenInPools(stocked) - nitrogenInPools(tank)).toBeCloseTo(nitrogenOf({ fish: [arrived], clutches: [] }), 15);
     const body = stockedBody('angelfish', 40);
-    expect(nitrogenOf({ fish: [arrived], clutches: [] })).toBeCloseTo(fishOrganics({ species: 'angelfish', budget: body.budget }) * n, 15);
+    expect(nitrogenOf({ fish: [arrived], clutches: [] })).toBeCloseTo(
+      fishOrganics({ species: 'angelfish', budget: body.budget }) * RESERVE_TO_N_MASS_RATIO,
+      15
+    );
   });
 
   it('take a removed fish’s body, brood buffer, gut and carried brood out as an output, exactly', () => {
@@ -456,6 +467,29 @@ describe('carbon mass', () => {
       expect(end.resources.food.grams).toBeLessThan(start.resources.food.grams);
       expect(end.equipment.substrate.organicReserve.grams).toBeGreaterThan(start.equipment.substrate.organicReserve.grams);
       expect(carbonIn(end) / carbonIn(start)).toBeCloseTo(1, 10);
+    }
+  );
+
+  it.each([
+    ['leaner', 0.03, 5],
+    ['richer', 0.12, 100],
+  ])(
+    'is conserved with nitrogen and every mineral as fish eat a recipe %s in nitrogen and phosphorus than their bodies',
+    (_name, nitrogen, phosphate) => {
+      const config = withTunable(withTunable(SEALED, 'livestock.foodNitrogenFraction', nitrogen), 'nutrients.foodMineralContent.phosphate', phosphate);
+      const start = sealed(
+        produce(cycledBareTank(), (draft) => {
+          draft.fish = [tetra('a'), fishRecord({ id: 'angel', species: 'angelfish', size: 40 })];
+          draft.resources.food = atRecipe(0.5, config);
+        })
+      );
+      const end = run(start, 48, config);
+
+      expect(end.fish).toHaveLength(2);
+      expect(end.resources.food.grams).toBeLessThan(start.resources.food.grams);
+      expect(carbonIn(end) / carbonIn(start)).toBeCloseTo(1, 10);
+      expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 10);
+      for (const n of WASTE_NUTRIENTS) expect(mineralsInPools(end, n) / mineralsInPools(start, n)).toBeCloseTo(1, 10);
     }
   );
 

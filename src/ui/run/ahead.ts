@@ -12,6 +12,7 @@ import {
   bloomCoverage,
   dailyLightIntegral,
   decomposePools,
+  excrete,
   fishComposition,
   gillAmmonia,
   mapKinds,
@@ -137,7 +138,8 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),
     shedding: flora.shedding,
     fishWaste: addOrganics(livestock.feces, bodies.waste),
-    gillAmmonia: gillAmmonia(livestock.burned + bodies.burned, fishComposition(config)),
+    gillAmmonia:
+      gillAmmonia(livestock.burned + bodies.burned, fishComposition(config)) + excrete(livestock.excreted).ammonia,
     ration: TICKS_PER_DAY * sum(livestock.hours.map((hour) => ration(hour.fish, hour.fluxes.owed))),
     oxygen,
     rot: decomposePools(passive, oxygen, config.decomposition),

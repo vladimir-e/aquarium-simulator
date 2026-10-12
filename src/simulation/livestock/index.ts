@@ -13,7 +13,7 @@ import type { SimulationState } from '../state.js';
 import type { Effect } from '../core/effects.js';
 import type { TunableConfig } from '../config/index.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
-import { burn, fishPace, processMetabolism, type FishHour } from '../systems/metabolism.js';
+import { burn, excrete, fishPace, processMetabolism, type Burn, type FishHour } from '../systems/metabolism.js';
 import { processHealth } from '../systems/fish-health.js';
 import { repairAsked } from '../systems/reserve.js';
 import { fishComposition, fishParams } from '../systems/fish-body.js';
@@ -37,6 +37,7 @@ export interface LivestockProcessingResult {
   /** Each fish's vitality this tick, in `state.fish` order, the dead included */
   vitalities: VitalityResult[];
   feces: Organics;
+  excreted: Organics;
   /** Grams of organics their budgets burned. */
   burned: number;
 }
@@ -47,22 +48,32 @@ export function tankPaces(state: Pick<SimulationState, 'fish' | 'resources'>, co
   return state.fish.map((fish) => fishPace(fish, state.resources, saturation, config.livestock));
 }
 
-/** What burning `grams` of fish organics does to the water: gill NH3 and minerals in, O2 out, CO2 in. */
-export function burnEffects(grams: number, water: number, body: Organics, source: string): Effect[] {
-  if (grams <= 0) return [];
-  const burnt = burn(grams, body);
+/** What a fish's burn or excretion does to the water: gill NH3 and minerals in, O2 out, CO2 in. */
+function releaseEffects(released: Burn, water: number, source: string): Effect[] {
   return [
-    ...mintAmmonia(burnt.ammonia, 'active', 'fish-gill-excretion'),
+    ...mintAmmonia(released.ammonia, 'active', 'fish-gill-excretion'),
     ...WASTE_NUTRIENTS.map(
-      (nutrient): Effect => ({ tier: 'active', resource: nutrient, delta: burnt.minerals[nutrient], source: 'fish-gill-excretion' })
+      (nutrient): Effect => ({ tier: 'active', resource: nutrient, delta: released.minerals[nutrient], source: 'fish-gill-excretion' })
     ),
-    { tier: 'active', resource: 'oxygen', delta: -getPpm(burnt.oxygen, water), source },
-    { tier: 'active', resource: 'co2', delta: getPpm(burnt.co2, water), source },
+    { tier: 'active', resource: 'oxygen', delta: -getPpm(released.oxygen, water), source },
+    { tier: 'active', resource: 'co2', delta: getPpm(released.co2, water), source },
   ];
 }
 
+/** What burning `grams` of fish organics does to the water. */
+export function burnEffects(grams: number, water: number, body: Organics, source: string): Effect[] {
+  return grams > 0 ? releaseEffects(burn(grams, body), water, source) : [];
+}
+
+/** What a meal's excess does to the water as it is assimilated. */
+export function excretionEffects(excess: Organics, water: number, source: string): Effect[] {
+  return excess.grams > 0 ? releaseEffects(excrete(excess), water, source) : [];
+}
+
 export function processLivestock(state: SimulationState, config: TunableConfig): LivestockProcessingResult {
-  if (state.fish.length === 0) return { state, effects: [], hours: [], vitalities: [], feces: NO_ORGANICS, burned: 0 };
+  if (state.fish.length === 0) {
+    return { state, effects: [], hours: [], vitalities: [], feces: NO_ORGANICS, excreted: NO_ORGANICS, burned: 0 };
+  }
 
   const livestock = config.livestock;
   const water = state.resources.water;
@@ -97,6 +108,7 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
   const effects: Effect[] = [
     ...organic('food', scaleOrganics(metabolism.foodConsumed, -1), 'fish-metabolism'),
     ...organic('waste', metabolism.feces, 'fish-metabolism'),
+    ...excretionEffects(metabolism.excreted, water, 'fish-digestion'),
     ...burnEffects(metabolism.burned, water, body, 'fish-respiration'),
     ...organic('waste', health.deathWaste, 'fish-death'),
   ];
@@ -115,6 +127,7 @@ export function processLivestock(state: SimulationState, config: TunableConfig):
     hours: metabolism.hours,
     vitalities: health.vitalities,
     feces: metabolism.feces,
+    excreted: metabolism.excreted,
     burned: metabolism.burned,
   };
 }

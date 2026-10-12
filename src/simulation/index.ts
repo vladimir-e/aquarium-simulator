@@ -504,7 +504,7 @@ export {
 export { readyToBrood, paysTowardBrood } from './systems/brood.js';
 export { clutchMass, clutchesWithMothers } from './systems/clutch.js';
 export { appetite, fullPaceLine, gutCapacity, ration, type Pace } from './systems/digestion.js';
-export { burn, gillAmmonia } from './systems/metabolism.js';
+export { burn, excrete, gillAmmonia } from './systems/metabolism.js';
 export type { FishHour } from './systems/metabolism.js';
 export { waterToxins } from './systems/toxicokinetics.js';
 export { mature, type DebState, type DebParams } from './systems/deb.js';

@@ -133,6 +133,7 @@ const PRIMARY_UNITS = {
   T_A: 'K',
   p_Am: 'J/d.cm^2',
   kap_X: '-',
+  kap_P: '-',
   v: 'cm/d',
   kap: '-',
   kap_R: '-',
@@ -146,7 +147,7 @@ const PRIMARY_UNITS = {
   s_G: '-',
 } as const;
 
-const OPTIONAL_PRIMARY_UNITS = { F_m: 'l/d.cm^2', kap_P: '-' } as const;
+const OPTIONAL_PRIMARY_UNITS = { F_m: 'l/d.cm^2' } as const;
 
 const IMPLIED_UNITS = { E_0: 'J', a_b: 'd', a_p: 'd', Ww_b: 'g', Ww_i: 'g' } as const;
 

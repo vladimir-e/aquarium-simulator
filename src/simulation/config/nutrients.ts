@@ -1,8 +1,7 @@
 /**
  * Nutrients tunable configuration: what the fertilizer and a root tab carry,
  * how fast the bed gives its store up to the water, how hard each species
- * leans on a pool, and the minerals in a gram of food — and of the fish made
- * of it.
+ * leans on a pool, and the minerals in a gram of food.
  */
 
 import type { NutrientDemand } from '../plants/species.js';
@@ -76,8 +75,8 @@ export interface NutrientsConfig {
    */
   demand: Record<NutrientDemand, NutrientVector>;
   /**
-   * mg of each mineral in a gram of food, and in the fish made of it. Its
-   * nitrogen is `livestock.foodNitrogenFraction`.
+   * mg of each mineral in a gram of food; a gram of fish carries its potassium
+   * and iron. Its nitrogen is `livestock.foodNitrogenFraction`.
    */
   foodMineralContent: MineralVector;
 }
@@ -125,10 +124,11 @@ export const nutrientsDefaults: NutrientsConfig = {
     high: { nitrate: 1, phosphate: 1, potassium: 1, iron: 1 },
   },
 
-  // Against its 5 % N, fish food carries N:P ≈ 7 by mass (~20 mg PO₄/g) —
-  // Redfield — about 1 % K and a few hundred ppm Fe.
+  // A flake carries 1.2 % P (37 mg PO₄/g), N:P ≈ 7 by mass against its 8 %
+  // N, about 1 % K and a few hundred ppm Fe. Built at κ_X a fish's reserve
+  // needs 32 mg PO₄ of each gram it eats; the 90 % it digests carries 33.
   foodMineralContent: {
-    phosphate: 20,
+    phosphate: 37,
     potassium: 8,
     iron: 0.2,
   },

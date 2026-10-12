@@ -83,6 +83,7 @@ const starvingJuvenile = fish(0.3 * Lm, 0.5, { maturity: animal.EHp / 2 });
 
 const regimes: { name: string; from: DebState; hour: DebHour }[] = [
   { name: 'feasting', from: hatchling(animal), hour: atReference(FEAST) },
+  { name: 'feasting on a lean meal', from: hatchling(animal), hour: { ...atReference(FEAST), quality: 0.4 } },
   { name: 'fasting', from: stateAt(3 * YEAR), hour: atReference(0) },
   {
     name: 'stressed, paced and healing',
@@ -116,7 +117,7 @@ describe.each(lives)(
     it('closes the ledger every hour', () => {
       const open = hours.findIndex(({ before, state, fluxes }) => {
         const stored = organics(state, animal) - organics(before, animal);
-        const gap = hour.fromGut - fluxes.returned - (stored + totalBurned(fluxes) + fluxes.feces);
+        const gap = hour.fromGut - fluxes.returned - (stored + totalBurned(fluxes) + fluxes.feces + fluxes.excreted);
         return Math.abs(gap) > Math.max(1e-15, 1e-12 * (fluxes.assimilated + fluxes.mobilised));
       });
       expect(open).toBe(-1);
@@ -150,19 +151,31 @@ describe('the hour', () => {
     expectNear(ceiling(0.4, { ...base, stress: { ...NO_STRESS, assimilation: 0.5 } }), 0.5 * ceiling(0.4, base));
   });
 
-  it('assimilates κ_X of what it takes from the gut, up to its ceiling, and returns the rest', () => {
+  it('assimilates κ_X of what it takes from the gut, up to its ceiling, passes κ_P, excretes the rest and returns what it did not take', () => {
     const s = fish(0.5, 0.6);
     const hour = { tau: 1.3, omega: 0.8 };
     const ceiling = assimilationCeiling(s, animal, hour);
+    const taken = ceiling / animal.kappaX;
 
-    const scarce = stepDeb(s, animal, { ...hour, fromGut: ceiling }).fluxes;
-    expectNear(scarce.assimilated, animal.kappaX * ceiling);
-    expectNear(scarce.feces, (1 - animal.kappaX) * ceiling);
+    const scarce = stepDeb(s, animal, { ...hour, fromGut: taken }).fluxes;
+    expectNear(scarce.assimilated, ceiling);
+    expectNear(scarce.feces, animal.kappaP * taken);
+    expectNear(scarce.excreted, (1 - animal.kappaX - animal.kappaP) * taken);
     expect(scarce.returned).toBe(0);
 
-    const plenty = stepDeb(s, animal, { ...hour, fromGut: 100 * ceiling }).fluxes;
+    const plenty = stepDeb(s, animal, { ...hour, fromGut: 100 * taken }).fluxes;
     expectNear(plenty.assimilated, ceiling);
-    expectNear(plenty.returned, 100 * ceiling - ceiling / animal.kappaX);
+    expectNear(plenty.returned, 99 * taken);
+  });
+
+  it('assimilates a meal’s quality of κ_X, eats and passes as much, and excretes what it does not build', () => {
+    const s = fish(0.5, 0.6);
+    const whole = stepDeb(s, animal, atReference(FEAST)).fluxes;
+    const lean = stepDeb(s, animal, { ...atReference(FEAST), quality: 0.3 }).fluxes;
+    expectNear(lean.assimilated, 0.3 * whole.assimilated);
+    expect(lean.returned).toBe(whole.returned);
+    expect(lean.feces).toBe(whole.feces);
+    expectNear(lean.excreted, whole.excreted + 0.7 * whole.assimilated);
   });
 
   it('never mobilises more reserve than it holds', () => {
@@ -207,9 +220,10 @@ describe('the hour', () => {
 
   it('burns nothing negative anywhere in the domain, so no input mints mass', () => {
     const s = fish(0.6, 0.9, { broodBuffer: 20 * E0 });
-    const domain = product([0, 1], [1, 3], [1, 3], [1, 3], [0, 1], [0, 1e-6]).map(
-      ([assimilation, maintenance, growthCost, eggCost, omega, healing]): DebHour => ({
+    const domain = product([0, 1], [1, 3], [1, 3], [1, 3], [0, 1], [0, 1e-6], [0, 1]).map(
+      ([assimilation, maintenance, growthCost, eggCost, omega, healing, quality]): DebHour => ({
         fromGut: FEAST,
+        quality,
         tau: 1,
         omega,
         healing,
@@ -217,9 +231,9 @@ describe('the hour', () => {
       })
     );
     const minting = domain.findIndex(({ stress, ...hour }) => {
-      const { burned } = stepDeb(s, animal, { ...hour, stress }).fluxes;
+      const { burned, excreted } = stepDeb(s, animal, { ...hour, stress }).fluxes;
       const { overhead } = layEggs(s, animal, eggsReady(s, animal, stress), stress);
-      return Object.values(burned).some((grams) => grams < 0) || overhead < 0;
+      return Object.values(burned).some((grams) => grams < 0) || excreted < 0 || overhead < 0;
     });
     expect(minting).toBe(-1);
   });

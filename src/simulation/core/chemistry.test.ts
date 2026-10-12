@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  MW_C,
   MW_N,
   MW_NH3,
   MW_NO2,
@@ -20,6 +21,8 @@ import {
   C_TO_CO2_MASS_RATIO,
   C_TO_O2_MASS_RATIO,
   O2_PER_RESERVE_BURNED,
+  RESERVE_TO_C_MASS_RATIO,
+  RESERVE_TO_N_MASS_RATIO,
   O2_PER_NH3_OXIDIZED,
   O2_PER_NO2_OXIDIZED,
 } from './chemistry.js';
@@ -95,5 +98,9 @@ describe('burning a fish’s organics, CH1.8O0.5N0.15 to CO2, NH3 and water', ()
 
   it('balances every oxygen atom', () => {
     expect(0.5 + 2 * oxygenMoles).toBeCloseTo(2 + waterMoles, 12);
+  });
+
+  it('carries 0.15 moles of nitrogen to each of carbon', () => {
+    expect(RESERVE_TO_N_MASS_RATIO / MW_N / (RESERVE_TO_C_MASS_RATIO / MW_C)).toBeCloseTo(0.15, 12);
   });
 });

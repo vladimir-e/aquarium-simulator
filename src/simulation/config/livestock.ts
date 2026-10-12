@@ -36,14 +36,7 @@ export interface LivestockConfig {
   // Metabolism
   /** Dissolved O2 (mg/L) at which a fish's oxygen pace ω is half what saturated water gives. */
   oxygenHalfSaturation: number;
-  /**
-   * Fraction of digested food mass that is nitrogen (g N / g food).
-   *
-   * Typical aquarium flake/pellet food is 35–50 % protein, protein is
-   * ≈16 % N by mass, giving 5.6–8 % N in food. 0.05 is a conservative
-   * floor. Waste is food that went uneaten or undigested, and a fish is made
-   * of what it ate, so both carry the same fraction.
-   */
+  /** Grams of nitrogen in a gram of food (g N / g food). */
   foodNitrogenFraction: number;
   /** Grams of carbon in a gram of food (g C / g food). */
   foodCarbonFraction: number;
@@ -133,10 +126,13 @@ export const livestockDefaults: LivestockConfig = {
   // tension, which for warm-water teleosts sits around 1–2 mg/L; half its
   // saturated pace at 1.0 puts the taper across that band.
   oxygenHalfSaturation: 1.0,
-  // 5 % N in food — conservative; typical flake is 6–8 % N.
-  foodNitrogenFraction: 0.05,
+  // A flake labelled 45–48 % crude protein as fed is about half protein dry,
+  // and protein is 16 % N. Built at κ_X a fish's reserve needs 7.0 % of each
+  // gram it eats; the 90 % it digests carries 7.2 %.
+  foodNitrogenFraction: 0.08,
   // A flake on a dry basis: about half protein, a tenth fat, a quarter
-  // carbohydrate and a tenth ash comes to 0.45–0.47 g C/g.
+  // carbohydrate and a tenth ash comes to 0.45–0.47 g C/g. The reserve needs
+  // 0.40 of each gram; the 90 % digested carries 0.405.
   foodCarbonFraction: 0.45,
 
   // Stressor severities
@@ -249,8 +245,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     key: 'foodCarbonFraction',
     label: 'Food C Fraction',
     unit: 'g C/g food',
-    // Above κ_X × reserve carbon (0.8 × 0.503 ≈ 0.40), under which a fish's feces would carry negative carbon.
-    min: 0.42,
+    min: 0.4,
     max: 0.52,
     step: 0.01,
   },

@@ -7,8 +7,15 @@
 import type { Fish } from '../state.js';
 import type { FishLifeStage, FishSpecies } from '../livestock/species.js';
 import { debParams } from '../livestock/species.js';
-import { RESERVE_TO_C_MASS_RATIO } from '../core/chemistry.js';
-import { foodRecipe, type Organics, type RecipeConfig } from '../core/organics.js';
+import {
+  MG_PER_G,
+  MW_PO4,
+  MW_RESERVE,
+  N_TO_NO3_MASS_RATIO,
+  RESERVE_TO_C_MASS_RATIO,
+  RESERVE_TO_N_MASS_RATIO,
+} from '../core/chemistry.js';
+import type { Organics, RecipeConfig } from '../core/organics.js';
 import { hatchling, mature, organics, size, wetMass, type DebParams } from './deb.js';
 
 type Body = Pick<Fish, 'species' | 'budget'>;
@@ -23,9 +30,29 @@ export const fishSize = (fish: Body): number => size(fish.budget, fishParams(fis
 /** Grams of organic matter its body holds: structure, reserve and brood buffer. */
 export const fishOrganics = (fish: Body): number => organics(fish.budget, fishParams(fish));
 
-/** What a gram of a fish, its eggs and its brood is made of: the carbon of its reserve, and the nutrients of food's current recipe. */
-export function fishComposition(config: RecipeConfig): Organics {
-  return { ...foodRecipe(config), carbon: RESERVE_TO_C_MASS_RATIO };
+/**
+ * Moles of phosphorus a C-mole of reserve carries: N:P 15, soft tissue's. A
+ * whole fish runs 2.5–3 % P dry, most of it in a skeleton the reserve does not
+ * build.
+ */
+const RESERVE_P_PER_C = 0.01;
+
+/**
+ * What a gram of a fish, its eggs and its brood is made of, one composition
+ * for every species: its reserve's carbon, nitrogen and phosphorus, and food's
+ * potassium and iron.
+ */
+export function fishComposition({ nutrients }: Pick<RecipeConfig, 'nutrients'>): Organics {
+  return {
+    grams: 1,
+    carbon: RESERVE_TO_C_MASS_RATIO,
+    nutrients: {
+      nitrate: RESERVE_TO_N_MASS_RATIO * N_TO_NO3_MASS_RATIO * MG_PER_G,
+      phosphate: (RESERVE_P_PER_C * MW_PO4 * MG_PER_G) / MW_RESERVE,
+      potassium: nutrients.foodMineralContent.potassium,
+      iron: nutrients.foodMineralContent.iron,
+    },
+  };
 }
 
 /** Grams of organic matter an egg is laid with: E_0. */

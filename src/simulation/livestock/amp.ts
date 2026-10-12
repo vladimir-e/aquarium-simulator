@@ -9,7 +9,7 @@ interface Primaries {
   /** l/d·cm² */
   F_m?: number;
   kap_X: number;
-  kap_P?: number;
+  kap_P: number;
   /** cm/d */
   v: number;
   kap: number;
@@ -101,7 +101,7 @@ export interface AmpEntry {
  */
 export type AmpReading = Pick<
   Primaries,
-  'p_Am' | 'v' | 'kap' | 'kap_X' | 'kap_R' | 'p_M' | 'k_J' | 'E_G' | 'E_Hb' | 'E_Hp' | 'h_a' | 's_G' | 'T_A'
+  'p_Am' | 'v' | 'kap' | 'kap_X' | 'kap_P' | 'kap_R' | 'p_M' | 'k_J' | 'E_G' | 'E_Hb' | 'E_Hp' | 'h_a' | 's_G' | 'T_A'
 > &
   Omit<Body, 'd_E'> & { E_0: number; L_b: number; s_M: number };
 
@@ -262,6 +262,9 @@ export function readEntry(e: AmpParameters): AmpReading {
   if (e.d_E !== e.d_V) {
     throw new RangeError(`d_E ${e.d_E} differs from d_V ${e.d_V}: the engine weighs reserve as structure`);
   }
+  if (e.kap_X + e.kap_P > 1) {
+    throw new RangeError(`κ_X ${e.kap_X} and κ_P ${e.kap_P} sum past 1: reserve and feces would outweigh the food`);
+  }
   const { L_b } = birth(e);
   const s_M = accelerationFactor(e, L_b);
   return {
@@ -269,6 +272,7 @@ export function readEntry(e: AmpParameters): AmpReading {
     v: e.v * s_M,
     kap: e.kap,
     kap_X: e.kap_X,
+    kap_P: e.kap_P,
     kap_R: e.kap_R,
     p_M: e.p_M,
     k_J: e.k_J,
@@ -297,6 +301,7 @@ export function fromAmP(e: AmpReading): DebParams {
     v: e.v / HOURS_PER_DAY,
     kappa: e.kap,
     kappaX: e.kap_X,
+    kappaP: e.kap_P,
     kappaR: e.kap_R,
     kappaG: (e.mu_V * e.d_V) / (e.w_V * e.E_G),
     pM: (e.p_M * gramsPerJoule) / HOURS_PER_DAY,

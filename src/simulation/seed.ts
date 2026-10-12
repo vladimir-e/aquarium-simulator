@@ -132,12 +132,12 @@ type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
 /**
  * mg of ammonia a tick the tank's stock and bed put into the water at rest:
  * every fish eating just the ration that pays its upkeep in the water it is
- * in, and the bed's mulm rotting. A resting fish burns all it keeps and passes
- * the rest, so the nitrogen of all it eats reaches the water, and all the
- * waste it makes rots in the end, whether or not it settles on the way. Food
- * fed past upkeep is left out — the seed names no feeding to size it by — so
- * under a keeper who feeds more the colony errs small and grows on from the
- * seed.
+ * in, and the bed's mulm rotting. A resting fish burns all it keeps, excretes
+ * its meals' excess and passes the rest, so the nitrogen of all it eats reaches
+ * the water, and all the waste it makes rots in the end, whether or not it
+ * settles on the way. Food fed past upkeep is left out — the seed names no
+ * feeding to size it by — so under a keeper who feeds more the colony errs
+ * small and grows on from the seed.
  */
 function restingAmmoniaSupply(state: StockedTank): number {
   const { temperature } = state.resources;
