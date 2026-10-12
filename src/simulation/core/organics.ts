@@ -63,11 +63,21 @@ export function elements(pool: Organics): Record<Element, number> {
   return { carbon: pool.carbon, ...pool.nutrients };
 }
 
-/** Grams of `of`'s composition the carbon and nutrients `pool` holds can build, its scarcest element ruling. */
-export function buildable(pool: Organics, of: Organics): number {
+function sufficiency(pool: Organics, of: Organics): Record<Element, number> {
   const held = elements(pool);
   const needed = elements(of);
-  return of.grams * Math.min(...ELEMENTS.map((e) => (needed[e] > 0 ? held[e] / needed[e] : Infinity)));
+  return Object.fromEntries(ELEMENTS.map((e) => [e, needed[e] > 0 ? held[e] / needed[e] : Infinity])) as Record<Element, number>;
+}
+
+/** Grams of `of`'s composition the carbon and nutrients `pool` holds can build, its scarcest element ruling. */
+export function buildable(pool: Organics, of: Organics): number {
+  return of.grams * Math.min(...Object.values(sufficiency(pool, of)));
+}
+
+/** The element `pool` runs out of first building `of`'s composition. */
+export function scarcest(pool: Organics, of: Organics): Element {
+  const held = sufficiency(pool, of);
+  return ELEMENTS.reduce((least, e) => (held[e] < held[least] ? e : least));
 }
 
 export function addOrganics(...pools: readonly Organics[]): Organics {

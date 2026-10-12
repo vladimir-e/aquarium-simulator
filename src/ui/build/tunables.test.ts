@@ -75,6 +75,22 @@ describe('tunableSections', () => {
     ]);
   });
 
+  it('splits decomposition into what paces every rot, each pool’s rate, and settling', () => {
+    const decomposition = sections().find((section) => section.key === 'decomposition')!;
+    const paths = (fields: { path: string }[]): string[] => fields.map((field) => field.path);
+
+    expect(paths(decomposition.fields)).toEqual([
+      'decomposition.q10',
+      'decomposition.referenceTemp',
+      'decomposition.oxygenHalfSaturation',
+      'decomposition.anaerobicShare',
+    ]);
+    expect(decomposition.groups.map((group) => [group.label, paths(group.fields)])).toEqual([
+      ['Rot rates', ['decomposition.rate.food', 'decomposition.rate.waste', 'decomposition.rate.mulm']],
+      ['Settling', ['decomposition.settlingRate', 'decomposition.settlingHalfTurnover']],
+    ]);
+  });
+
   it('carries the range a leaf declares, and none where the engine declares none', () => {
     const list = sections();
     const optics = list.find((section) => section.key === 'optics')!;

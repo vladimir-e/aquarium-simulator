@@ -114,14 +114,24 @@ describe('WaterSection', () => {
     expect(within(biofilter).getByText(/The cycle alone peaks nitrite at|No nitrite peak within/)).toBeTruthy();
   });
 
-  it('names every waste source on an unstocked soil tank', () => {
+  it('names every waste source, and every pool that rots, on an unstocked soil tank', () => {
     renderWater(bare(createSimulation({ tankCapacity: 200, substrate: { type: 'aqua_soil' } })));
 
     const waste = group('Waste');
     for (const label of ['Fish', 'Plants', 'Algae']) {
       expect(within(waste).getByText(label)).toBeTruthy();
     }
-    expect(within(waste).getByText(/%\/h rot · Q10/)).toBeTruthy();
+    expect(within(waste).getAllByRole('rowheader').map((cell) => cell.textContent)).toEqual(['Food', 'Waste', 'Mulm']);
+    expect(within(waste).getByRole('columnheader', { name: 'O₂ mg/L/h' })).toBeTruthy();
+    expect(within(waste).getByText(/settle into the bed as mulm · Q10/)).toBeTruthy();
+  });
+
+  it('rots food and waste in the water alone over a bare bottom', () => {
+    renderWater();
+
+    const waste = group('Waste');
+    expect(within(waste).getAllByRole('rowheader').map((cell) => cell.textContent)).toEqual(['Food', 'Waste']);
+    expect(within(waste).getByText(/no bed to settle into · Q10/)).toBeTruthy();
   });
 
   it('prints a flow arm under its own precision as none rather than a signed zero', () => {

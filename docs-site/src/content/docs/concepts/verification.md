@@ -38,7 +38,7 @@ The test suite pins what holds regardless of tuning:
 |---|---|
 | Formula | A function computes what it says |
 | Scaling | Doubling capacity doubles flow |
-| Conservation | Nitrogen and minerals survive NH₃ → NO₂ → NO₃ and plant tissue |
+| Conservation | Carbon, nitrogen and every mineral close across rot, the nitrogen chain, every body and the gases |
 | Soundness | No reading goes NaN or infinite |
 | Determinism | The same seed runs the same life |
 

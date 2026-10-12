@@ -9,12 +9,14 @@
 import {
   ALGAE_KINDS,
   addOrganics,
+  organicPool,
   rotPace,
   rotShare,
   type Organics,
   type SimulationState,
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
+import { getPpm, ORGANIC_POOLS, type OrganicResourceKey } from '../../simulation/resources/index.js';
 import type { HourAhead } from './ahead.js';
 
 export type WasteSourceKey = 'fish' | 'plants' | 'algae';
@@ -34,6 +36,16 @@ export interface WasteInflowReadout {
   sources: WasteSource[];
 }
 
+/** One organic pool's hour: the shares of it that rot and settle, and the O₂ its rot takes, mg/L. */
+export interface PoolRot {
+  key: OrganicResourceKey;
+  label: string;
+  grams: number;
+  rots: number;
+  settles: number;
+  oxygen: number;
+}
+
 export interface WasteReadout extends WasteInflowReadout {
   /** Waste standing in the tank, grams. */
   standing: number;
@@ -43,13 +55,17 @@ export interface WasteReadout extends WasteInflowReadout {
   settled: number;
   /** Share of the pool the hour's rot and settling take together. */
   lost: number;
-  /** Food waiting to rot, grams. */
-  food: number;
-  /** Fraction of standing food that rots this hour, at this temperature and oxygen. */
-  foodRotShare: number;
+  /** Every pool the tank holds: food and waste in the water, and mulm while it has a bed. */
+  pools: PoolRot[];
   /** Q10 temperature multiplier on rot. */
   q10: number;
 }
+
+const POOL_LABEL: Record<OrganicResourceKey, string> = {
+  food: 'Food',
+  waste: 'Waste',
+  mulm: 'Mulm',
+};
 
 const LABEL: Record<WasteSourceKey, string> = {
   fish: 'Fish',
@@ -76,21 +92,33 @@ export function wasteInflow(ahead: HourAhead): WasteInflowReadout {
   return { perHour, sources };
 }
 
+function poolRot(state: SimulationState, ahead: HourAhead, pool: OrganicResourceKey): PoolRot {
+  const { shares, oxygen } = ahead.rot[pool];
+  return {
+    key: pool,
+    label: POOL_LABEL[pool],
+    grams: organicPool(state, pool).grams,
+    rots: rotShare(shares),
+    settles: shares.settling,
+    oxygen: getPpm(oxygen, state.resources.water),
+  };
+}
+
 export function wasteReadout(
   state: SimulationState,
   config: TunableConfig,
   ahead: HourAhead
 ): WasteReadout {
   const r = state.resources;
-  const { waste, food } = ahead.rot;
+  const { waste } = ahead.rot;
+  const bed = state.equipment.substrate.type !== 'none';
   return {
     ...wasteInflow(ahead),
     standing: r.waste.grams,
     rotted: waste.rotted.grams,
     settled: waste.settled.grams,
     lost: rotShare(waste.shares) + waste.shares.settling,
-    food: r.food.grams,
-    foodRotShare: rotShare(food.shares),
+    pools: ORGANIC_POOLS.filter((pool) => bed || pool !== 'mulm').map((pool) => poolRot(state, ahead, pool)),
     q10: rotPace(r.temperature, config.decomposition),
   };
 }
@@ -115,5 +143,6 @@ export function wasteSummary(readout: WasteReadout): string {
         ? 'falling to'
         : 'holding at';
 
-  return `Producing ${readout.perHour.toFixed(3)} g/h against ${readout.rotted.toFixed(3)} g/h rotting — standing waste is ${drift} ${level.toFixed(3)} g.`;
+  const leaving = readout.rotted + readout.settled;
+  return `Producing ${readout.perHour.toFixed(3)} g/h against ${leaving.toFixed(3)} g/h rotting and settling — standing waste is ${drift} ${level.toFixed(3)} g.`;
 }

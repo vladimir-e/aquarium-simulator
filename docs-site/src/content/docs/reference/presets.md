@@ -11,7 +11,7 @@ of an empty box. Five ship with the engine, and `planted` is the default.
 
 | Preset | The tank it represents | What it demonstrates |
 |---|---|---|
-| Bare Tank | 40 L with nothing in it: no heater, no filter, no light, no substrate, bare glass | The uncycled floor. No colony, no bed to leach from, and no surface beyond the glass — so the tank drifts to room temperature and stays chemically inert until something is added to it |
+| Bare Tank | 40 L with nothing in it: no heater, no filter, no light, no substrate, bare glass | The uncycled floor. No colony, no bed to rot, and no surface beyond the glass — so the tank drifts to room temperature and stays chemically inert until something is added to it |
 | Betta Cube | 20 L nano, sponge filter, gravel, mesh lid, a low fixture on an 8 h day, heated to 26 °C in a 22 °C room off 18 °C tap | A small heated tank against a cold room. Low volume is the point: the same milligram reads several times higher here, and a water change swings the temperature the heater then has to pay back |
 | Planted Tank | 40 L, canister, aqua soil, no lid, no heater, a bright fixture on a 12 h day, CO₂ injected on a 10 h schedule at the 20–30 mg/L a drop checker reads green, auto top-off on | The high-tech planted case, and an unheated one. CO₂ on a schedule swings pH across the day; an open top evaporates and the ATO answers it |
 | Balanced Community | 150 L, canister, aqua soil, heated to 27 °C, moderate light on a 10 h day, seven hardscape items | A large, well-equipped tank at rest. Volume and biofilter surface both scale up, so the same husbandry mistake reads far smaller here than in the cube |
@@ -37,11 +37,11 @@ readings that fit it. Hardscape starts as bought.
 | Stock | Seeded to |
 |---|---|
 | AOB and NOB | The colony the seeded fish and the bed sustain at rest, never less than a month-old fishless colony's share of the surface ceiling — so a preset, which stocks nothing, opens on that share |
-| Substrate organic reserve | The share of a fresh bed still unleached on day 30 |
+| Substrate organic reserve | The share of a fresh bed's mulm still unrotted on day 30 |
 | Substrate KH reserve | The share of a fresh soil bed's buffer left on day 30 |
-| KH | The tap's, or a fraction of it over aqua soil, less an equivalent per mole of the nitrate the bed's leached organics left |
+| KH | The tap's, or a fraction of it over aqua soil, less an equivalent per mole of the nitrate the bed's rotted organics left |
 | GH | The tap's, less whatever KH the soil took — the bed takes both alike, and no more than the tap's GH |
-| Nitrate, phosphate, potassium, iron | What a month of the bed's leaching and leak leaves behind, discounted for the water changes a keeper would have done |
+| Nitrate, phosphate, potassium, iron | What a month of the bed's rot and leak leaves behind, discounted for the water changes a keeper would have done |
 
 A tank seeded this way is handed the outcome, not a shortcut through the
 mechanism: the tick loop takes it from there, and nothing catches up afterward.

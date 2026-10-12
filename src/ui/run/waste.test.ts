@@ -7,6 +7,7 @@ import {
   wasteLevel,
   wasteReadout,
   wasteSummary,
+  type PoolRot,
   type WasteInflowReadout,
   type WasteReadout,
 } from './waste';
@@ -152,16 +153,42 @@ describe('wasteReadout', () => {
     expect(readoutOf(state).q10).toBeCloseTo(config.decomposition.q10, 10);
   });
 
-  it('reads the share of food the next tick actually rots, at any oxygen', () => {
+  const pool = (readout: WasteReadout, key: PoolRot['key']): PoolRot | undefined =>
+    readout.pools.find((entry) => entry.key === key);
+
+  it('reads the share of food the next tick actually rots and settles, at any oxygen', () => {
     for (const oxygen of [0, 0.2, 2, 8]) {
       const state = fed(oxygen);
-      const rotted = state.resources.food.grams - tick(state, config).resources.food.grams;
-      expect(readoutOf(state).foodRotShare * state.resources.food.grams).toBeCloseTo(rotted, 10);
+      const lost = state.resources.food.grams - tick(state, config).resources.food.grams;
+      const food = pool(readoutOf(state), 'food')!;
+      expect((food.rots + food.settles) * state.resources.food.grams).toBeCloseTo(lost, 10);
     }
   });
 
+  it('reads the oxygen each pool’s rot takes, which together the tick draws for rot', () => {
+    const state = produce(soilTank(), (draft) => {
+      draft.resources.food = rot(2);
+      draft.resources.waste = rot(1);
+    });
+    const readout = readoutOf(state);
+    const { rot: hours } = readHourAhead(state, config);
+
+    expect(readout.pools.map((entry) => entry.key)).toEqual(['food', 'waste', 'mulm']);
+    for (const entry of readout.pools) {
+      expect(entry.oxygen).toBeGreaterThan(0);
+      expect(entry.oxygen).toBeCloseTo(hours[entry.key].oxygen / state.resources.water, 12);
+    }
+    expect(pool(readout, 'mulm')!.grams).toBe(state.equipment.substrate.organicReserve.grams);
+  });
+
+  it('holds no mulm without a bed, and settles nothing into one', () => {
+    const readout = readoutOf(fed(8));
+    expect(pool(readout, 'mulm')).toBeUndefined();
+    expect(readout.pools.every((entry) => entry.settles === 0)).toBe(true);
+  });
+
   it('falls with the oxygen to the slower anaerobic pace, which rots on in anoxic water', () => {
-    const rateAt = (oxygen: number): number => readoutOf(fed(oxygen)).foodRotShare;
+    const rateAt = (oxygen: number): number => pool(readoutOf(fed(oxygen)), 'food')!.rots;
     expect(rateAt(0)).toBeGreaterThan(0);
     expect(rateAt(0)).toBeLessThan(rateAt(0.2));
     expect(rateAt(0.2)).toBeLessThan(rateAt(2));

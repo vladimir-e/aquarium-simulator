@@ -128,6 +128,14 @@ describe('TunableConfigSchema', () => {
     expect(TunableConfigSchema.safeParse(partial).success).toBe(false);
   });
 
+  it('rejects the v37 config, decay in place of decomposition', () => {
+    const decay = { q10: 2, referenceTemp: 25, baseDecayRate: 0.05, wasteConversionRatio: 0.4 };
+    const v37 = Object.fromEntries(
+      Object.entries(DEFAULT_CONFIG).map(([key, section]) => (key === 'decomposition' ? ['decay', decay] : [key, section]))
+    );
+    expect(TunableConfigSchema.safeParse(v37).success).toBe(false);
+  });
+
   it('rejects extra keys in sections', () => {
     const withExtra = {
       ...DEFAULT_CONFIG,
@@ -640,8 +648,7 @@ describe('PersistedStateSchema', () => {
     [19, 'the oxygen term every consumer carries'],
     [31, 'the size death threshold'],
     [33, 'satiation, before the gut'],
-    [37, 'organics without their carbon'],
-    [38, 'decay before the decomposition law'],
+    [37, 'organics without their composition'],
   ];
 
   it('rejects every prior version, so no save survives a breaking bump', () => {

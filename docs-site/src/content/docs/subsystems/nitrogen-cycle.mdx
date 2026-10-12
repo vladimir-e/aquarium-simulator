@@ -1,38 +1,38 @@
 ---
 title: Nitrogen cycle
-description: Waste to ammonia to nitrite to nitrate — two bacterial guilds, an oxygen bill at every step, and a colony the tank has to keep earning.
+description: Rot to ammonia to nitrite to nitrate — one law for every organic pool, two bacterial guilds, an oxygen bill at every step, and a colony the tank has to keep earning.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
 
 ## What it models
 
-Waste becomes ammonia, ammonia becomes nitrite, nitrite becomes nitrate. Two
-bacterial guilds run the last two stages, and both pay for the reaction in
-dissolved oxygen — 4.57 mg of O₂ per mg of nitrogen carried the whole way, three
-quarters of it on the first step. The colonies grow on the work they actually do
-and fade on a maintenance clock that never stops, so a biofilter is a stock the
-tank has to keep earning.
+Organic matter rots to ammonia, ammonia becomes nitrite, nitrite becomes
+nitrate. Two bacterial guilds run the last two stages, and both pay in dissolved
+oxygen — 4.57 mg of O₂ per mg of nitrogen carried the whole way, three quarters
+of it on the first step. The colonies grow on the work they actually do and fade
+on a maintenance clock that never stops, so a biofilter is a stock the tank has
+to keep earning.
 
 ## Status
 
 | Mechanic | Status | Why |
 |---|---|---|
 | Three-stage chain | <Badge text="settled" variant="success" /> | Compound mass converts through the molecular weights in `src/simulation/core/`; no tunable restates one. |
-| Ammonia source | <Badge text="settled" variant="success" /> | A physical bed reserve — filled by settling waste, drained by leaching — rather than a flat ambient constant. |
+| Ammonia source | <Badge text="settled" variant="success" /> | Every organic pool rots — food and waste in the water, the bed's mulm where it lies — releasing what its composition holds, rather than a flat ambient constant. |
 | Processing capacity | <Badge text="settled" variant="success" /> | Population × per-cell throughput × warmth × air, with no volume term — the same colony clears the same mass in a nano and a 300 L. |
 | Substrate limitation | <Badge text="settled" variant="success" /> | Monod on total ammonia for AOB and on nitrite for NOB, so a cycled tank holds hundredths of a ppm and a pulse stands until the colony works it down. |
 | Colony growth and decay | <Badge text="settled" variant="success" /> | Logistic growth scaled by utilization; unconditional maintenance decay on a 21-day half-life. |
 | Oxygen limitation | <Badge text="settled" variant="success" /> | Monod on both guilds, NOB's half-saturation nearly 4× AOB's — which is where standing nitrite comes from. |
 | Temperature | <Badge text="settled" variant="success" /> | One Q10 factor across oxidation, growth and decay, because they are one metabolism. |
 | Guild seeding | <Badge text="settled" variant="success" /> | A trickle per litre of water that never stops, so a guild is always present and grows the moment it has feedstock — no concentration gate. |
-| Mineralization rate | <Badge text="scaffolding" variant="caution" /> | A flat fraction of standing waste with no temperature and no oxygen term, in the one aerobic step of the chain that has neither. |
+| Rot | <Badge text="settled" variant="success" /> | One first-order law for every pool, each at its own rate: Q10 on temperature, a Monod on the oxygen there is, and a slow anaerobic path that runs without it. |
 | Ammonia's other consumers | <Badge text="settled" variant="success" /> | Plants and the blooms take ammonia into their stores, from what the colony left; the colony works on what they leave and the hour's arrivals. |
-| N mass conservation | <Badge text="settled" variant="success" /> | Water, organics, the bed's store and every body — plant and bloom tissue and stores, fish, their guts and their clutches — conserve N per atom, whichever form it was taken in. It enters only as food, fertilizer, root tabs and stocked fish and plants, and leaves only with water changes and the fish and plants taken out. |
+| N mass conservation | <Badge text="settled" variant="success" /> | Water, organics, the bed's store and every body — plant and bloom tissue and stores, fish, their guts and their clutches — conserve N per atom, whichever form it was taken in. It enters only as food, fertilizer, root tabs and stocked fish and plants, and leaves only with water changes, the gravel vac and the fish and plants taken out. |
 | Colony sizing on inert beds | <Badge text="settled" variant="success" /> | A colony grows to the load it is fed, not to the surface under it, so an inert bed's smaller surface lowers the ceiling without setting the cycling clock. |
-| Cycled seed | <Badge text="settled" variant="success" /> | A `'cycled'` colony is the one the tank's load sustains at rest — its fish assimilating their upkeep and burning all of it, and its bed's leach — floored at a fishless month's share of the surface ceiling. A seeded colony already clears its resting load at the trace line, so a stocked setup opens without a spike; food fed past upkeep is outside that load, so an overfed tank's colony grows on from the seed. |
+| Cycled seed | <Badge text="settled" variant="success" /> | A `'cycled'` colony is the one the tank's load sustains at rest — its fish eating the ration that pays their upkeep, and its bed's mulm rotting — floored at a fishless month's share of the surface ceiling. A seeded colony already clears its resting load at the trace line, so a stocked setup opens without a spike; food fed past upkeep is outside that load, so an overfed tank's colony grows on from the seed. |
 | Nitrogen alerts | <Badge text="settled" variant="success" /> | Free NH₃, nitrite and nitrate alert at the shared `*_EDGE`s, the lines every fish's own edge is read off. |
-| Bed disturbance | <Badge text="scaffolding" variant="caution" /> | Lifting hardscape stirs one slot's share of the bed per piece, and uprooting a plant its own patch: that share of the reserve comes loose as waste and its biofilm is scraped off. The bed holds only about a day of the tank's waste, so a rescape shows as a small, short blip. |
+| Bed disturbance | <Badge text="scaffolding" variant="caution" /> | Lifting hardscape stirs one slot's share of the bed per piece, and uprooting a plant its own patch: that share of the mulm comes loose as waste and its biofilm is scraped off. The bed holds days to weeks of the tank's waste, so a rescape shows as a bump the colony works down. |
 | Denitrification | <Badge text="missing" variant="danger" /> | Nitrate has no biological sink. It leaves only through plant growth and water changes, so an unplanted tank accumulates it without bound. |
 | Nitrification acidity | <Badge text="settled" variant="success" /> | Stoichiometric: the 2 H⁺ each NH₄⁺ releases spend two equivalents of KH, 7.14 mg CaCO₃ per mg of nitrogen, against the one ammonia took up as it was minted — the account is on [Water & gases](/subsystems/water-and-gases/#kh-and-ph). A tank that nitrifies without water changes loses its buffer and its pH. |
 
@@ -42,7 +42,7 @@ tank has to keep earning.
 
 | Stage | Reaction | Run by |
 |---|---|---|
-| 1 · Mineralization | waste (g) → NH₃ + PO₄ + K + Fe (mg) | No organism. A flat fraction of standing waste, at the N, P, K and Fe content it carries. |
+| 1 · Rot | food, waste, mulm (g) → NH₃ + PO₄ + K + Fe (mg) + CO₂ | Decomposers, first order on each pool at what it holds — see [where the ammonia comes from](#where-the-ammonia-comes-from) |
 | 2 · Ammonia oxidation | NH₄⁺ + 1.5 O₂ → NO₂⁻ + 2 H⁺ + H₂O | AOB, saturating on what is dissolved |
 | 3 · Nitrite oxidation | NO₂⁻ + 0.5 O₂ → NO₃⁻ | NOB, saturating on what is dissolved |
 
@@ -67,18 +67,20 @@ separately. A tank that cannot run the reaction does not pay for it.
 
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
-| `waste` | Food decay, fish feces, fish death, plant and bloom shedding and die-back, scrubbed film, substrate leaching | Mineralization to ammonia; settling into the bed | g |
-| `ammonia` | Mineralization; fish gill excretion; the oxidised share of decaying food | Plant and bloom growth, from what the colony left; AOB oxidation; water change removes proportional mass | mg |
-| `phosphate` · `potassium` · `iron` | Mineralization, at `foodMineralContent` beside the ammonia; fish excretion; the oxidised share of decaying food; fertilizer dosing; the bed's leak | Plant and bloom growth; water change | mg |
+| `food` | Feeding, at the food's composition | Fish eating; rot; settling into the bed | g |
+| `waste` | Fish feces, dead fish and eggs, plant and bloom shedding and die-back, scrubbed film, a disturbed bed | Rot; settling into the bed | g |
+| mulm | Food and waste settling; a fresh bed's own organics | Rot; a gravel vac; disturbance, back into `waste` | g |
+| `ammonia` | Rot; fish gill excretion — a meal's excess and every gram burned | Plant and bloom growth, from what the colony left; AOB oxidation; water change removes proportional mass | mg |
+| `phosphate` · `potassium` · `iron` | Rot, at what each pool holds; fish excretion; fertilizer dosing; the bed's leak | Plant and bloom growth; water change | mg |
 | `nitrite` | AOB oxidation, × 2.702 | NOB oxidation; water change | mg |
 | `nitrate` | NOB oxidation, × 1.348; fertilizer dosing; the bed's leak | Plant and bloom growth, for the nitrogen ammonia leaves; water change | mg |
 | `aob` | Seeding trickle; logistic growth on utilization | Maintenance decay; surface-area cap | units of 10⁶ cells |
 | `nob` | Seeding trickle; logistic growth on utilization | Maintenance decay; surface-area cap | units of 10⁶ cells |
-| `oxygen` | Gas exchange, elsewhere | 2.819 mg per mg NH₃ and 0.348 mg per mg NO₂⁻ oxidised | mg/L |
+| `oxygen` | Gas exchange, elsewhere | Aerobic rot, 32/12 of the carbon it oxidises; 2.819 mg per mg NH₃ and 0.348 mg per mg NO₂⁻ oxidised | mg/L |
 
-`waste` has exactly one drain. A water change dilutes the three nitrogen
-compounds but leaves waste untouched, and no filter, vacuum or action removes
-it.
+A water change dilutes the three nitrogen compounds but leaves the food and
+waste standing in the water; only a gravel vac takes organic matter out, and
+only the mulm in the bed.
 
 ### Storage is mass, not concentration
 
@@ -180,6 +182,9 @@ at infinite oxygen. The three nitrifier rates divide the shortfall back out, so
 what a tank at air saturation reproduces is the quoted 20 h doubling rather than
 the 20.7 h an uncorrected constant would give.
 
+Both guilds read their oxygen where the hour leaves it, once rot, both
+oxidations and the air have drawn on the one stock together
+([Water & gases](/subsystems/water-and-gases/#ordering-within-the-tick)).
 The ratio between the two guilds runs from `1.000` at air saturation to `0.364`
 at 0.10 mg/L. That gap is the whole story of standing nitrite: a tank short of
 air goes on oxidising its ammonia long after it has stopped clearing the nitrite
@@ -196,8 +201,9 @@ moving the water to 90.1 % on a canister, an air pump and a powerhead.
 Plants and the blooms take their nitrogen as ammonia first
 ([Plants](/subsystems/plants/#uptake)), and they run in the living tier,
 before the cycle: each hour they draw on what the colony left, and the colony
-meets what they leave beside the hour's excretion and mineralization. Each side
-draws through its own end-of-tick Monod, so neither overdraws the stock.
+meets what they leave beside the hour's gill excretion; what rots lands beside
+the colony's work and meets it the next hour. Each side draws through its own
+end-of-tick Monod, so neither overdraws the stock.
 
 Flora take ammonia only as their stores lack it, so beside a stocked tank's load
 they are a small drain — about 1 % in a community tank with a few easy plants,
@@ -219,17 +225,29 @@ while the utilization the colony rests at does not move.
 
 ### Where the ammonia comes from
 
-The bed. Its organic reserve is a living store: a fresh substrate starts with a
-fixed amount per litre, a fraction of whatever it holds leaches back out as
-waste each tick, and a share of the tank's standing waste settles into it as
-mulm. Settling is fastest in still water and halves at `settlingHalfTurnover`
-tank turnovers an hour, since flow keeps particles suspended; a bare bottom
-holds nothing. Settling and leaching move grams of waste gram for gram, so the
-nitrogen in the bed is the nitrogen that left the water.
+Rot and the fish. Every organic pool rots on one law: first order on what it
+holds, Q10 on temperature, aerobic on a Monod of the oxygen there is, and a
+slow anaerobic path, `anaerobicShare` of the pace, taking over as the oxygen
+runs out. What rots releases what the pool is made of — its nitrogen as
+ammonia, its phosphorus, potassium and iron to the water, its carbon as CO₂.
+Food and waste also settle into the
+bed as mulm, fastest in still water and halving at `settlingHalfTurnover` tank
+turnovers an hour; a bare bottom holds none. Every pool moves its content with
+its grams, so the nitrogen in the bed is the nitrogen that left the water.
 
-A fresh bed's reserve tapers to where settling balances the leach, roughly a
-day of the tank's waste production. A water change can vacuum the bed, taking
-a share of the reserve out of the tank.
+| Pool | Where | Half-life, 25 °C, oxygenated |
+|---|---|---|
+| `food` | The water | ~14 h |
+| `waste` | The water | ~1.5 d |
+| mulm | The bed | ~10 d |
+
+A fish excretes the rest at its gills: a meal's nitrogen past what its reserve
+builds, and every gram of reserve it burns
+([Livestock](/subsystems/livestock/#the-ledger)) — so a richer food makes more
+ammonia.
+
+A fresh bed's mulm rots down until what settles in balances what rots. A water
+change can vacuum the bed, taking a share of its mulm out of the tank.
 
 | Substrate | Colony surface | Organic reserve |
 |---|---|---|
@@ -239,9 +257,9 @@ a share of the reserve out of the tank.
 | `aqua_soil` | `1200` cm²/L | `0.05` g/L |
 
 Surface and reserve are separate properties of the same bed: surface is the
-colony ceiling, reserve is the ammonia source.
+colony ceiling, the reserve is mulm, rotting.
 
-Digging into the bed stirs a share of it: that share of the reserve comes loose
+Digging into the bed stirs a share of it: that share of the mulm comes loose
 as waste, and that share of the bed's biofilm is scraped off.
 
 | Move | Share of the bed disturbed |
@@ -254,18 +272,18 @@ as waste, and that share of the bed's biofilm is scraped off.
 A release lifts the concentration the colony works against, so it stands as a
 bump until worked down. An established bed holds only its mulm, so rescaping a
 cycled tank shows as a small, brief bump; digging up most of the bed at once
-shows more. An inert bed leaches less than soil does, so its colony grows to a
-smaller load, but it cycles on the same seeding clock. A `'cycled'` seed skips
+shows more. An inert bed holds less mulm than soil does, so its colony grows to
+a smaller load, but it cycles on the same seeding clock. A `'cycled'` seed skips
 the clock: each guild opens at the population where growth on its resting load
 meets decay, never below a fishless month's share of the ceiling. That load
-counts the fish assimilating their upkeep, not food fed past it, so a
+counts the ration that pays the fish's upkeep, not food fed past it, so a
 tank whose keeper feeds more grows its colony on from the seed.
 
 ## Key tunables
 
 The tunables are listed in the reference under
-[Nitrogen cycle](/reference/tunables/#nitrogen-cycle), and the bed's leach and
-settling under [Decay](/reference/tunables/#decay).
+[Nitrogen cycle](/reference/tunables/#nitrogen-cycle), and rot and settling
+under [Decomposition](/reference/tunables/#decomposition).
 
 | Constant | Meaning | Value |
 |---|---|---|
@@ -275,13 +293,13 @@ settling under [Decay](/reference/tunables/#decay).
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Water & gases](/subsystems/water-and-gases/) | `oxygen` — sets both guilds' oxygen Monod factor, and with it their oxidation and growth | `oxygen` — the derived draw of both oxidation steps; `kh`, returned as mineralisation mints ammonia and spent by ammonia oxidation |
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen`, where the hour leaves it — rot's aerobic share and both guilds' oxidation and growth | `oxygen` — rot's draw and both oxidation steps'; `co2`, the carbon rot oxidises; `kh`, returned as rot mints ammonia and spent by ammonia oxidation |
 | [Environment](/subsystems/environment/) | `water` for ppm and the submerged gate, `temperature` for the Q10 factor | — |
-| [Equipment](/subsystems/equipment/) | `surface` — the colony ceiling, from filter media, substrate, hardscape and glass | `waste` — settles into the substrate's organic reserve and leaches back out of it |
-| [Livestock](/subsystems/livestock/) | — | Fish write `ammonia` and the minerals directly through gill excretion, and `waste` as feces and dead bodies |
-| [Plants](/subsystems/plants/) | — | Plants draw `ammonia` first and `nitrate` for the rest, with `phosphate`, `potassium` and `iron`, into their stores — the ammonia from what the colony left — and hand tissue back as `waste` when it is shed or dies, their stores as nitrate and the rest when they die |
-| [Algae](/subsystems/algae/) | — | Each bloom draws the same forms from the water as plants do, ammonia first, and its shed, dead and scrubbed tissue comes back as `waste`, a die-back's and a scrub's stores as nitrate and the rest; green water a water change takes leaves the tank |
-| [Actions](/subsystems/actions/) | — | A water change removes `ammonia`, `nitrite` and `nitrate` mass proportionally, and a gravel vac a share of the bed's reserve; dosing adds `nitrate`; uprooting a plant disturbs the bed |
+| [Equipment](/subsystems/equipment/) | `surface` — the colony ceiling, from filter media, substrate, hardscape and glass; the bed's mulm, rotting where it lies | Food and waste settle into the bed as mulm |
+| [Livestock](/subsystems/livestock/) | — | Fish eat `food`, write `ammonia` and the minerals through gill excretion, and `waste` as feces, dead bodies and dead eggs |
+| [Plants](/subsystems/plants/) | — | Plants draw `ammonia` first and `nitrate` for the rest, with `phosphate`, `potassium` and `iron`, into their stores — the ammonia from what the colony left — and hand tissue back as `waste` when it is shed or dies, a dead plant's stores with it |
+| [Algae](/subsystems/algae/) | — | Each bloom draws the same forms from the water as plants do, ammonia first, and its shed, dead and scrubbed tissue comes back as `waste`, a die-back's and a scrub's stores with it; green water a water change takes leaves the tank |
+| [Actions](/subsystems/actions/) | — | Feeding adds `food`; a water change removes `ammonia`, `nitrite` and `nitrate` mass proportionally, and a gravel vac a share of the bed's mulm; dosing adds `nitrate`; uprooting a plant disturbs the bed |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Free NH₃ > 0.02 ppm, nitrite > 0.5 ppm and nitrate > 80 ppm each raise an alert once per crossing |
 
 ## Source

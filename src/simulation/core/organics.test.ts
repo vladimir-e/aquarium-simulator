@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { addOrganics, atRecipe, buildable, foodRecipe, NO_ORGANICS, portion, scaleOrganics, sumOrganics } from './organics.js';
+import {
+  addOrganics,
+  atRecipe,
+  buildable,
+  ELEMENTS,
+  foodRecipe,
+  NO_ORGANICS,
+  portion,
+  scaleOrganics,
+  scarcest,
+  sumOrganics,
+} from './organics.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { NUTRIENTS, WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { MW_N, MW_NO3 } from './chemistry.js';
@@ -94,5 +105,25 @@ describe('buildable', () => {
 
   it('builds nothing of nothing', () => {
     expect(buildable(NO_ORGANICS, food)).toBe(0);
+  });
+});
+
+describe('scarcest', () => {
+  const food = foodRecipe(DEFAULT_CONFIG);
+
+  it('names the element whose shortfall rules what the pool builds', () => {
+    const short = (cut: (typeof ELEMENTS)[number]): typeof food =>
+      cut === 'carbon'
+        ? { ...food, carbon: food.carbon / 2 }
+        : { ...food, nutrients: { ...food.nutrients, [cut]: food.nutrients[cut] / 2 } };
+    for (const e of ELEMENTS) {
+      expect(scarcest(short(e), food)).toBe(e);
+      expect(buildable(short(e), food)).toBeCloseTo(0.5, 12);
+    }
+  });
+
+  it('passes over an element the composition does not carry', () => {
+    const ironless = { ...food, nutrients: { ...food.nutrients, iron: 0 } };
+    expect(scarcest(portion(food, 1), ironless)).not.toBe('iron');
   });
 });

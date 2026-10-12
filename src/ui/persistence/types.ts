@@ -25,13 +25,12 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
- * v39: One decomposition law for every organic pool. `TunableConfig` trades
- *      `decay` for `decomposition`; `NitrogenCycleConfig` drops
- *      `wasteConversionRate`, and `LivestockConfig` `oxygenPerGramBurned` and
- *      `respiratoryQuotient`.
- * v38: Organic matter carries its carbon. `Organics` gains `carbon`, grams of
+ * v38: Organic matter has a composition. `Organics` gains `carbon`, grams of
  *      it; `Resources.food` and `Fish.gut` become organics, food at the recipe
- *      it was fed at; `LivestockConfig` gains `foodCarbonFraction`.
+ *      it was fed at. `TunableConfig` trades `decay` for `decomposition`;
+ *      `NitrogenCycleConfig` drops `wasteConversionRate`, and
+ *      `LivestockConfig` trades `oxygenPerGramBurned` and
+ *      `respiratoryQuotient` for `foodCarbonFraction`.
  * v37: A fish carries its toxin loads. `Fish` gains `load` — free NH₃,
  *      nitrite and nitrate in ppm — and `LivestockConfig` gains `loadRate`
  *      and `loadAssimilationSeverity`.
@@ -300,7 +299,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 39;
+export const PERSISTENCE_VERSION = 38;
 
 /**
  * Storage key for the unified persisted state.

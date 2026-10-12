@@ -25,8 +25,8 @@ young that hatch.
 | Energy budget | <Badge text="settled" variant="success" /> | Add-my-Pet parameters, converted once to grams and hours; every species reaches its entry's implied weight, puberty, hatch and lifespan. |
 | Pace | <Badge text="settled" variant="success" /> | Arrhenius on each species' T_A; oxygen scales only the supply side. Temperature has no falling limb past the optimum yet. |
 | The gut | <Badge text="settled" variant="success" /> | One stock, holding a day of the fish's appetite — its assimilation ceiling — digested first order. |
-| Mass ledger | <Badge text="settled" variant="success" /> | Feces, burn, bodies and eggs close against food; every gram burned excretes the food's recipe. |
-| Body composition | <Badge text="scaffolding" variant="caution" /> | Every pool holds the food's recipe; per-pool composition is the stoichiometry work. |
+| Mass ledger | <Badge text="settled" variant="success" /> | Feces, the meal's excess, burn, bodies and eggs close against food element by element: carbon, nitrogen and every mineral. |
+| Body composition | <Badge text="settled" variant="success" /> | One composition for every fish, egg and brood — Add-my-Pet's reserve for carbon and nitrogen, phosphorus at N:P 15 — against food's own: a meal builds reserve only as far as its scarcest element. |
 | Stress hooks | <Badge text="scaffolding" variant="caution" /> | The load drives assimilation's; the maintenance, growth and egg multipliers exist and nothing drives them yet. |
 | Serving | <Badge text="settled" variant="success" /> | Every fish eats at once; short food splits in proportion to the room in each gut. |
 | Toxin loads | <Badge text="settled" variant="success" /> | GUTS-RED: one load per toxin in the water's ppm, following the water at the toxin's dominant rate. |
@@ -40,7 +40,7 @@ young that hatch.
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge; damage starts at the edge. |
 | Clutches | <Badge text="settled" variant="success" /> | A stock of eggs thinned by water harm and predation, developing at the species' age at birth under τ. |
 | Predation | <Badge text="settled" variant="success" /> | A damage rate on any fish short of grown length from the larger fish per litre; kills are eaten. |
-| Colonies | <Badge text="missing" variant="danger" /> | Snails and shrimp do not exist; uneaten food only decays. |
+| Colonies | <Badge text="missing" variant="danger" /> | Snails and shrimp do not exist; uneaten food only rots. |
 | General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only band per species, one pooled GH rather than calcium and magnesium. |
 | Dissolved CO₂ | <Badge text="missing" variant="danger" /> | Fish carry no carbon stressor. |
 
@@ -82,7 +82,7 @@ factor (1 at 20 °C) and ω the oxygen pace:
 | Flux | Per hour |
 |---|---|
 | Assimilation ceiling | `{p_Am} × L² × τ × ω`, lowered by the fish's [load](#the-load) |
-| Assimilated | `κ_X ×` what the gut offers, up to the ceiling; the rest of the offer returns to the gut |
+| Assimilated | the meal's [reserve yield](#the-ledger) × what it takes of the gut's offer, `ceiling / κ_X` at most; the rest of the offer returns to the gut |
 | Mobilised | `E × (ω·v·[E_G]·L² + [p_M]·V) × τ / ([E_G]·V + κ·E)` |
 | Maintenance | `[p_M] × V × τ`, paid from the soma share `κ × mobilised` |
 | Growth | what the soma share leaves, at `[E_G]` a cm³; the overhead `1 − κ_G` is burned |
@@ -108,16 +108,31 @@ full reserves.
 
 ### The ledger
 
-Digested food splits κ_X to reserve and the rest to feces, which carry the
-food's nitrogen and minerals to the waste pool. Reserve leaves only as
-structure, buffer or burn: maintenance, maturity upkeep and development, every
-conversion overhead, repair, and structure a starving fish loses. Every gram
-burned breathes `oxygenPerGramBurned` of O₂, exhales CO₂ at the respiratory
-quotient, and excretes the food's nitrogen as gill ammonia with its minerals
-beside it. A cm³ of structure holds `κ_G × [E_G]` grams. Eggs hold `E_0`; what
-an embryo spends reaching its hatchling is burned at hatching. A stocked fish
-brings its body in; a removed or sold one takes its body, gut and carried brood
-out; a dead one leaves them all.
+A fish is made of one composition and its food of another:
+
+| A gram of | Carbon | Nitrogen | Phosphorus | Potassium · iron |
+|---|---|---|---|---|
+| Fish — body, eggs, brood | `0.503` g, CH₁.₈O₀.₅N₀.₁₅ | `0.088` g | `0.013` g, at N:P 15 | the default flake's |
+| The default flake | `0.45` g | `0.08` g | `0.012` g | `8` · `0.2` mg |
+
+Of the food the budget takes, κ_P passes undigested as feces, at the meal's
+composition, to the waste pool. The rest builds reserve at the fish's own —
+its reserve yield, κ_X of the meal at most and less where the meal's scarcest
+element runs out. What it digested and did not build is the meal's excess,
+excreted as it is assimilated: its nitrogen as gill ammonia with its minerals
+beside it, its carbon breathed out as CO₂. A food richer in nitrogen than the
+fish makes more ammonia; one leaner in any element builds less reserve a gram,
+so the ration that pays upkeep grows. The default flake builds at κ_X, carbon
+its closest element.
+
+Reserve leaves only as structure, buffer or burn: maintenance, maturity upkeep
+and development, every conversion overhead, repair, and structure a starving
+fish loses. Every gram burned draws the `1.456` g of O₂ its reserve's formula
+takes, breathes its carbon out as CO₂, and excretes its nitrogen as gill ammonia
+with its minerals beside it. A cm³ of structure holds `κ_G × [E_G]` grams. Eggs
+hold `E_0`; what an embryo spends reaching its hatchling is burned at hatching.
+A stocked fish brings its body in; a removed or sold one takes its body, gut and
+carried brood out; a dead one leaves them all.
 
 ### Stocks
 
@@ -126,7 +141,7 @@ The fish's own stocks; what it reads and writes in the tank is under [Seams](#se
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
 | `health` | Benefits; repair paid from reserve | Stressors | %, normal at 100 |
-| `gut` | Eating, up to a day of appetite; what the budget hands back; eggs and fry it eats | Digestion, first order | g |
+| `gut` | Eating, up to a day of appetite; what the budget hands back; eggs and fry it eats | Digestion, first order | g, with what it ate |
 | `budget.structure` | Growth | A shortfall the buffer cannot pay | cm³ |
 | `budget.reserve` | Assimilation | Mobilisation; repair | g |
 | `budget.maturity` | The maturity share, until puberty | Unpaid maturity upkeep, short of puberty | g |
@@ -276,9 +291,10 @@ Every hour two competing first-order losses thin it and one rate develops it:
 | Predation | `eggPredationRate × exposure × predator mass / water`, every fish by the grams it outweighs an egg; none on a carried brood |
 | Development | `τ / incubation`, the species' age at birth at 20 °C |
 
-At development 1 each whole egg left hatches; the part egg goes to waste.
-Eggs the water kills go to waste; eaten eggs go into the eaters' guts by the
-grams each outweighs an egg, as room allows, the rest to waste.
+At development 1 each whole egg left hatches; the part egg goes to waste. Eggs
+the water kills go to waste, at the fish's composition; eaten eggs go into the
+eaters' guts by the grams each outweighs an egg, as room allows, the rest to
+waste.
 
 | Species | Mode | Clutch | Exposure | Male share |
 |---|---|---|---|---|
@@ -297,20 +313,21 @@ reaches a laid clutch. A carried brood dies or leaves the tank with its mother.
 Health reaching zero, or survival falling under the fish's threshold, removes
 it. A death the survival threshold fired, or mostly of age damage, is logged as
 old age; one mostly of starvation as starved; one mostly of predators as eaten.
-Its remains — body, gut and any carried brood — rot to waste, less the share
-its surviving predators eat: their share of its dying hour's damage, into their
-guts by weight as room allows.
+Its remains — body and any carried brood at the fish's composition, and its gut
+— go to waste, less the share its surviving predators eat: their share of its
+dying hour's damage, into their guts by weight as room allows.
 
 ## Key tunables
 
-The tunables are listed in the reference under [Livestock](/reference/tunables/#livestock).
+The tunables are listed in the reference under [Livestock](/reference/tunables/#livestock),
+the food's minerals under [Nutrients](/reference/tunables/#nutrients).
 
 ## Seams
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, which each fish's loads follow and a laid clutch reads past its edge | `ammonia`, `phosphate`, `potassium` and `iron` through the gills on every gram burned; `waste` as feces, dead bodies and dead eggs |
-| [Water & gases](/subsystems/water-and-gases/) | `oxygen` against saturation as the oxygen pace ω, a stressor and a benefit; pH, from `co2` and `kh`, and `gh`, as tolerance bands | `oxygen` drawn and `co2` exhaled on every gram burned, `kh` returned on the gill ammonia |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, which each fish's loads follow and a laid clutch reads past its edge | `food` eaten; `ammonia`, `phosphate`, `potassium` and `iron` through the gills on every gram burned and a meal's excess; `waste` as feces, dead bodies and dead eggs |
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen` against saturation as the oxygen pace ω, a stressor and a benefit; pH, from `co2` and `kh`, and `gh`, as tolerance bands | `oxygen` drawn and `co2` exhaled on every gram burned and a meal's excess, `kh` returned on the gill ammonia |
 | [Environment](/subsystems/environment/) | `temperature` as a tolerance band and through each species' Arrhenius factor; `water` for every ppm and the water-level stressor | — |
 | [Equipment](/subsystems/equipment/) | `flow`, divided by standing water into a turnover; `food` the feeder drops | — |
 | [Plants](/subsystems/plants/) | Plant power — the shelter benefit, saturating | — |

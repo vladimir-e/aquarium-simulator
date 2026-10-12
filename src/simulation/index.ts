@@ -154,12 +154,16 @@ export type { Effect, EffectTier } from './core/effects.js';
 export { applyEffects } from './core/effects.js';
 export {
   NO_ORGANICS,
+  ELEMENTS,
   addOrganics,
   atRecipe,
+  buildable,
   foodRecipe,
   portion,
   scaleOrganics,
+  scarcest,
   sumOrganics,
+  type Element,
   type Organics,
   type RecipeConfig,
 } from './core/organics.js';
@@ -184,6 +188,7 @@ export {
   rotShare,
   decompose,
   decomposePools,
+  organicPool,
   type PoolShares,
   type PoolHour,
   LID_MULTIPLIERS,
@@ -504,7 +509,7 @@ export {
 } from './systems/fish-body.js';
 export { readyToBrood, paysTowardBrood } from './systems/brood.js';
 export { clutchMass, clutchesWithMothers } from './systems/clutch.js';
-export { appetite, fullPaceLine, gutCapacity, ration, type Pace } from './systems/digestion.js';
+export { appetite, fullPaceLine, gutCapacity, ration, reserveYield, type Pace } from './systems/digestion.js';
 export { burn } from './systems/metabolism.js';
 export type { FishHour } from './systems/metabolism.js';
 export { waterToxins } from './systems/toxicokinetics.js';

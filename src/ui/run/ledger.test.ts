@@ -5,12 +5,16 @@ import {
   applyAction,
   bloomParams,
   createSimulation,
+  debParams,
   fillAtDroop,
+  FISH_COMPOSITION,
+  foodRecipe,
   fullDroopFactor,
   getPresetById,
   NO_ORGANICS,
   plantLightTaken,
   plantParams,
+  reserveYield,
   starvation,
   storeFill,
   tick,
@@ -21,7 +25,7 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { mapNutrients, NUTRIENTS } from '../../simulation/config/index.js';
-import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, withTunable, type TunableConfig } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
 import { bloomCoverage } from '../../simulation/algae/index.js';
@@ -102,7 +106,7 @@ describe('readLedger', () => {
 
   it('reads a fish’s reserve as its density, in percent, and nothing of stores', () => {
     const ledger = fishLedger(tank([atReserve(makeFish({ id: 'fish_a_1' }), 0.8)]));
-    expect(ledger.budget).toHaveLength(1);
+    expect(ledger.budget.map((row) => row.key)).toEqual(['reserve', 'diet']);
     expect(reserveOf(ledger)).toMatchObject({ label: 'Reserve', text: '80', unit: '% full' });
     expect(reserveOf(ledger).at).toBeCloseTo(0.8, 12);
     expect(ledger.stores).toEqual([]);
@@ -196,6 +200,21 @@ describe('readLedger', () => {
       status: 'warn',
     });
     expect(line(fishLedger(tank([makeFish({ id: 'fish_a_1' })])), 'load')).toBeUndefined();
+  });
+
+  it('reads how much of the most a meal can build the food builds, and the element a lean food runs out of', () => {
+    const state = tank([makeFish({ id: 'fish_a_1' })]);
+    const lean = withTunable(DEFAULT_CONFIG, 'nutrients.foodMineralContent.phosphate', 10);
+    const p = debParams(state.fish[0].species);
+    const share = reserveYield(foodRecipe(lean), FISH_COMPOSITION, p) / p.kappaX;
+
+    expect(line(fishLedger(state), 'diet')).toMatchObject({ label: 'Diet builds', text: '100', unit: '%', status: 'neutral', note: '' });
+    expect(share).toBeLessThan(1);
+    expect(line(fishLedger(state, 'fish_a_1', lean), 'diet')).toMatchObject({
+      text: String(Math.floor(share * 100)),
+      status: 'warn',
+      note: 'limited by phosphate',
+    });
   });
 
   describe('for a plant', () => {
