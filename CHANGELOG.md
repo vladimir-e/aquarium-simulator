@@ -11,7 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Organic matter has a composition** (#TBD) - food, waste, mulm and bodies carry their carbon and nutrients and rot on one law; fish excrete their diet's excess; breaking (v38).
+- **Organic matter has a composition** (#79) - food, waste, mulm and bodies carry their carbon and nutrients and rot on one law; fish excrete their diet's excess; breaking (v38).
 - **Fish carry toxin loads** (#78) - a per-toxin load follows the water at its dominant rate; health and appetite read it, a hatchling carries its clutch's; breaking (v37).
 - **Flora run on energy budgets** (#77) - plants and blooms grow on a reserve and Droop nutrient stores, starve on reserve in the dark; breaking (v36).
 - **Organic matter carries its nutrients** (#77) - waste and the bed's mulm keep the N, P, K and Fe of what made them; breaking: waste is Organics.
