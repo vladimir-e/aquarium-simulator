@@ -43,8 +43,8 @@ cut loose at its form's size. Low condition sheds tissue.
 | Carbon limitation | <Badge text="settled" variant="success" /> | Monod on dissolved CO₂, half rate at the species' carbon-need half-saturation. It scales photosynthesis and the CO₂ income channel, and never damages: a carbon-short plant fixes and grows less. |
 | Tolerance bands | <Badge text="settled" variant="success" /> | Temperature and pH earn most at the band's centre and nothing at its edge, where damage starts from zero: net is continuous across every edge. |
 | Shaded by the blooms | <Badge text="settled" variant="success" /> | Through light alone: green water in the column darkens a leaf by the depth above it, film coats every leaf at its coverage ([Light](/subsystems/light/#the-blooms)). A bloom costs a plant photosynthate — never a damage of its own. |
-| Composition | <Badge text="settled" variant="success" /> | Tissue carries Q_min of each nutrient, the culture floors of the macrophyte literature, and its stores run to Q_max; every species shares one composition, far under food's recipe. |
-| Plant nutrient loop | <Badge text="settled" variant="success" /> | A plant holds what it took up, in tissue and stores; shed and dead tissue returns as waste at Q_min, and a dead plant's stores leach. N, P, K and Fe are conserved by construction. |
+| Composition | <Badge text="settled" variant="success" /> | Tissue and reserve are carbohydrate, CH₂O, and tissue carries Q_min of each nutrient, the culture floors of the macrophyte literature; its stores run to Q_max. Every species shares one composition, far under food's. |
+| Plant nutrient loop | <Badge text="settled" variant="success" /> | A plant holds what it took up, in tissue and stores; shed tissue returns as waste at Q_min, a dead plant's stores with it, and rots back to the water. Carbon, N, P, K and Fe are conserved by construction. |
 | General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small draw beside the nitrate that tissue never returns — waste carries no calcium. Calcium has no store, so soft water stresses a plant but never starves it. |
 
 ## How it works
@@ -116,11 +116,11 @@ stands taller than the water.
 ### Photosynthesis
 
 Each plant's carbon capacity is its leaf in rate units at its growth rate, times
-the light response at its mean leaf and its oxygen pace. The planting draws on
-the dissolved CO₂ together, through one Monod at the capacity-weighted mean of
-its half-saturations, so a dense planting slows its own draw and never takes
-the water's last milligram. Species differ in how much carbon they need to run
-near their ceiling, not in a floor that kills:
+the light response at its mean leaf and its oxygen pace. The planting, the
+blooms and their spores draw on the dissolved CO₂ together, each on its own
+Monod read at the CO₂ the hour leaves, so a dense planting slows its own draw
+and never takes the water's last milligram. Species differ in how much carbon
+they need to run near their ceiling, not in a floor that kills:
 
 | CO₂ need | On 4 mg/L | On 25 mg/L |
 |---|---|---|
@@ -160,13 +160,13 @@ draws oxygen with the lamps on.
 | `budget.structure` | Growth | Shedding; maintenance nothing else pays; trimming | g — `size` is it over a grown unit's |
 | `budget.reserve` | Photosynthesis, up to full | Maintenance, growth, the plantlet's buffer, repair | g |
 | `budget.offshootBuffer` | The reserve's other share | A plantlet cut loose; maintenance the release leaves unpaid | g of plantlet |
-| `budget.stores` | Uptake from the water and the bed | Growth and a plantlet cut loose, at Q_min; leaching at death | mg of each nutrient |
+| `budget.stores` | Uptake from the water and the bed | Growth and a plantlet cut loose, at Q_min; into `waste` at death | mg of each nutrient |
 | `condition` | Benefits; repair paid from the reserve | Stressors | %, normal at 100 |
 | `oxygen` · `co2` | Photosynthesis · respiration | Respiration · photosynthesis | mg/L |
-| `ammonia` | Fish and mineralized waste, elsewhere | The stores' nitrogen, before nitrate's, from what the colony left; AOB oxidation, elsewhere | mg, as NH₃ |
-| `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; the bed's leak; a dead plant's stores; nitrification for NO₃, and mineralized waste and fish excretion for the rest, elsewhere | The stores — nitrate only for the nitrogen ammonia leaves | mg |
+| `ammonia` | Fish and rot, elsewhere | The stores' nitrogen, before nitrate's, from what the colony left; AOB oxidation, elsewhere | mg, as NH₃ |
+| `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; the bed's leak; nitrification for NO₃, and rot and fish excretion for the rest, elsewhere | The stores — nitrate only for the nitrogen ammonia leaves | mg |
 | The bed's `nutrients` | Aqua soil and root tabs ([Equipment](/subsystems/equipment/#the-bed)) | Root feeders' stores; the leak | mg |
-| `waste` | Shed tissue and plant death, at Q_min with its reserve | Mineralization, elsewhere | g, with its content |
+| `waste` | Shed tissue, at Q_min with its reserve; a dead plant, stores and all | Rot and settling, elsewhere | g, with its content |
 
 A plant is planted fed and stocked, as a shop sells it: its reserve full, every
 store full, nothing toward a plantlet, at full condition.
@@ -244,10 +244,11 @@ out per ammonia, one in per nitrate
 
 ### Composition
 
-Tissue is the organic matter it rots into, carrying Q_min of each nutrient —
-the subsistence quota, the culture floors of the macrophyte literature — and the
-stores hold what is taken up above it, up to Q_max. Food's 5 % nitrogen is a
-macrophyte's luxury top; a plant's floor is a fraction of it.
+Tissue is the organic matter it rots into: carbohydrate, `0.40` g of carbon a
+gram, carrying Q_min of each nutrient — the subsistence quota, the culture
+floors of the macrophyte literature — and the stores hold what is taken up above
+it, up to Q_max. Food's 8 % nitrogen is past a macrophyte's luxury top; a
+plant's floor is a fraction of it.
 
 | | N | P | K | Fe |
 |---|---|---|---|---|
@@ -393,9 +394,8 @@ the water.
 
 A plant dies at condition 0, as a fish does, and leaves the array. Its tissue,
 reserve and plantlet's buffer become waste, so a melting sword fouls the water
-more than a carpet patch of the same size; its stores leach straight to the
-water, nitrogen as nitrate, and KH falls by the proton per nitrogen that
-nitrate's uptake took.
+more than a carpet patch of the same size, and its stores go with them, so what
+it took up comes back as ammonia and minerals as that waste rots.
 
 ## Key tunables
 
@@ -414,8 +414,8 @@ and the canopy's own constant, `leafAttenuationPerLai`, under
 | Neighbour | Read | Written |
 |---|---|---|
 | [Light](/subsystems/light/) | `light` and `lightByHour`, read at each plant's own height through the canopy: PAR at the mean leaf drives photosynthesis, and the day's light there reads against its rated day; PAR at the crown top charges the light-high stressor | Every unit's crown, which shades the plants below it |
-| [Water & gases](/subsystems/water-and-gases/) | `co2` for the carbon Monod, `oxygen` for the oxygen pace, pH and `gh` for the tolerance bands | `oxygen` and `co2`, both directions, on one carbon yield; `gh` drawn with the nutrients; `kh` by the form their nitrogen comes in, and back as a dead plant's stores leach |
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia` and `nitrate`, and the `phosphate`, `potassium` and `iron` mineralized beside the ammonia | `ammonia` first and `nitrate` for the rest, with the other three, into the stores — the ammonia from what the colony left; `waste` from shedding and death; a dead plant's stores back to the water |
+| [Water & gases](/subsystems/water-and-gases/) | `co2` for the carbon Monod, `oxygen` for the oxygen pace, pH and `gh` for the tolerance bands | `oxygen` and `co2`, both directions, on one carbon yield; `gh` drawn with the nutrients; `kh` by the form their nitrogen comes in |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia` and `nitrate`, and the `phosphate`, `potassium` and `iron` rot releases beside the ammonia | `ammonia` first and `nitrate` for the rest, with the other three, into the stores — the ammonia from what the colony left; `waste` from shedding and death, a dead plant's stores with it |
 | [Environment](/subsystems/environment/) | `temperature` for the Q10 on every rate of the budget, `water` for every ppm, the box's depth and floor | — |
 | [Equipment](/subsystems/equipment/) | `substrate.nutrients` — the bed's store, for root feeders | The same store, drawn down as root feeders' stores fill |
 | [Algae](/subsystems/algae/) | The light the blooms take at each leaf, as the hour starts — green water by the depth above it, film as a coat; each bloom's share of the pooled uptake and of the CO₂ | Plant power per litre, whose exudates lower a bloom's assimilation ceiling; the canopy over the floor, film's light there |

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  MW_C,
   MW_N,
   MW_NH3,
   MW_NO2,
@@ -7,6 +8,7 @@ import {
   MW_O2,
   MW_CO2,
   MW_CH2O,
+  MW_RESERVE,
   MW_P,
   MW_PO4,
   N_TO_NH3_MASS_RATIO,
@@ -16,7 +18,12 @@ import {
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
   CO2_TO_O2_MASS_RATIO,
-  O2_TO_CO2_MASS_RATIO,
+  C_TO_CO2_MASS_RATIO,
+  C_TO_O2_MASS_RATIO,
+  O2_PER_RESERVE_BURNED,
+  RESERVE_TO_C_MASS_RATIO,
+  RESERVE_TO_N_MASS_RATIO,
+  RESERVE_TO_P_MASS_RATIO,
   O2_PER_NH3_OXIDIZED,
   O2_PER_NO2_OXIDIZED,
 } from './chemistry.js';
@@ -35,8 +42,9 @@ describe('a mass ratio is one mole of the named compound to one mole of the othe
     expect(CO2_TO_CH2O_MASS_RATIO).toBeCloseTo(MW_CH2O / MW_CO2, 12);
   });
 
-  it('reads the same reaction backwards as the reciprocal', () => {
-    expect(CO2_TO_O2_MASS_RATIO * O2_TO_CO2_MASS_RATIO).toBeCloseTo(1, 12);
+  it('oxidises a carbohydrate’s carbon on one mole of oxygen to each mole of CO2 it leaves as', () => {
+    expect(C_TO_O2_MASS_RATIO / MW_O2).toBeCloseTo(C_TO_CO2_MASS_RATIO / MW_CO2, 12);
+    expect(C_TO_O2_MASS_RATIO / CO2_TO_O2_MASS_RATIO).toBeCloseTo(C_TO_CO2_MASS_RATIO, 12);
   });
 
   it('carries every nitrogen atom the whole length of the chain', () => {
@@ -81,7 +89,23 @@ describe('the photosynthetic pair', () => {
       const oxygen = co2 * CO2_TO_O2_MASS_RATIO;
 
       expect(oxygen / MW_O2).toBeCloseTo(co2 / MW_CO2, 12);
-      expect(oxygen * O2_TO_CO2_MASS_RATIO).toBeCloseTo(co2, 10);
     }
+  });
+});
+
+describe('burning a fish’s organics, CH1.8O0.5N0.15 to CO2, NH3 and water', () => {
+  const oxygenMoles = (O2_PER_RESERVE_BURNED * MW_RESERVE) / MW_O2;
+  const waterMoles = (1.8 - 3 * 0.15) / 2;
+
+  it('balances every oxygen atom', () => {
+    expect(0.5 + 2 * oxygenMoles).toBeCloseTo(2 + waterMoles, 12);
+  });
+
+  it('carries 0.15 moles of nitrogen to each of carbon', () => {
+    expect(RESERVE_TO_N_MASS_RATIO / MW_N / (RESERVE_TO_C_MASS_RATIO / MW_C)).toBeCloseTo(0.15, 12);
+  });
+
+  it('carries 0.01 moles of phosphorus to each of carbon', () => {
+    expect(RESERVE_TO_P_MASS_RATIO / MW_P / (RESERVE_TO_C_MASS_RATIO / MW_C)).toBeCloseTo(0.01, 12);
   });
 });

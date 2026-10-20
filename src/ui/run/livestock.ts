@@ -73,7 +73,7 @@ export function fishGut(fish: Fish, hour: FishHour, sick: boolean, config: Lives
   const word = gutBand(fish, hour);
   const capacity = gutCapacity(fish, hour.pace);
   return {
-    at: capacity > 0 ? Math.min(1, fish.gut / capacity) : 0,
+    at: capacity > 0 ? Math.min(1, fish.gut.grams / capacity) : 0,
     band: { from: fullPaceLine(hour.pace.tau, config), to: 1 },
     status: gutStatus(word, sick),
     word,

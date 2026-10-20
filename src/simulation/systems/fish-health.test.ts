@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NO_ORGANICS } from '../core/organics.js';
+import { NO_ORGANICS, addOrganics, portion, scaleOrganics, type Organics } from '../core/organics.js';
 import {
   computeFishVitality,
   preyVulnerability,
@@ -9,7 +9,7 @@ import {
   processHealth,
 } from './fish-health.js';
 import { NO_STRESS, repairAsked, repairPrice, starvation } from './reserve.js';
-import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
+import { FISH_COMPOSITION, fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
 import type { VitalityResult } from './vitality.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { hourlyDraw } from '../core/kinetics.js';
@@ -24,6 +24,7 @@ import {
   type Alert,
 } from '../alerts/index.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
+import { ofFood, organicsCloseTo } from '../tests/organics.js';
 import { getGhMass } from '../resources/helpers.js';
 import {
   FREE_AMMONIA_EDGE,
@@ -77,7 +78,7 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
     light: 0,
     lightByHour: new Array(24).fill(0),
     aeration: true,
-    food: 1,
+    food: ofFood(1),
     waste: NO_ORGANICS,
     ammonia: 0,
     nitrite: 0,
@@ -152,16 +153,16 @@ function health(
   config = AGELESS
 ): ReturnType<typeof processHealth> {
   const hours = fish.map((f) => hourOf(f, config));
-  return processHealth(
+  return processHealth({
     fish,
     hours,
-    hours.map((hour) => hour.fish),
-    makeResources(resources),
+    fed: hours.map((hour) => hour.fish),
+    resources: makeResources(resources),
     plants,
-    100,
+    tankCapacity: 100,
     config,
-    carried
-  );
+    carried,
+  });
 }
 
 interface Circulating {
@@ -490,9 +491,9 @@ describe('plant-presence benefit', () => {
 
 describe('processHealth', () => {
   /** What a fish leaves dead after the hour: its body and gut as the hour leaves them. */
-  const remainsOf = (fish: Fish): number => {
+  const remainsOf = (fish: Fish): Organics => {
     const { fish: after } = hourOf(fish);
-    return fishOrganics(after) + after.gut;
+    return addOrganics(portion(FISH_COMPOSITION, fishOrganics(after)), after.gut);
   };
 
   it('recovers health in ideal conditions, capped at 100', () => {
@@ -503,14 +504,15 @@ describe('processHealth', () => {
   it('kills a fish whose health reaches 0 and leaves its whole body and its gut as waste', () => {
     const small = fishRecord({ health: 1, size: 40 });
     const big = fishRecord({ health: 1, size: 80 });
-    const fed = fishRecord({ health: 1, size: 40, gut: 0.001 });
+    const fed = fishRecord({ health: 1, size: 40, gut: ofFood(0.001) });
     const [light, heavy, full] = [small, big, fed].map((fish) => health([fish], { oxygen: 0 }));
 
     expect(light.survivingFish).toHaveLength(0);
     expect(light.deadFishNames).toHaveLength(1);
-    expect(light.deathWaste).toBeCloseTo(remainsOf(small), 15);
-    expect(heavy.deathWaste).toBeCloseTo(remainsOf(big), 15);
-    expect(full.deathWaste).toBeCloseTo(remainsOf(fed), 15);
+    expect(light.deathWaste).toEqual(organicsCloseTo(remainsOf(small), 12));
+    expect(heavy.deathWaste).toEqual(organicsCloseTo(remainsOf(big), 12));
+    expect(full.deathWaste).toEqual(organicsCloseTo(remainsOf(fed), 12));
+    expect(full.deathWaste.carbon).toBeGreaterThan(light.deathWaste.carbon);
   });
 
   it('kills a fish of old age when its survival falls below its draw, at any health', () => {
@@ -536,7 +538,7 @@ describe('processHealth', () => {
     const result = health([]);
     expect(result.survivingFish).toHaveLength(0);
     expect(result.deadFishNames).toHaveLength(0);
-    expect(result.deathWaste).toBe(0);
+    expect(result.deathWaste).toEqual(NO_ORGANICS);
   });
 
   it('processes each fish independently', () => {
@@ -548,11 +550,11 @@ describe('processHealth', () => {
   });
 
   it('returns the whole of every dead body, its buffer, its gut and its brood', () => {
-    const grown = fishRecord({ id: 'dying', health: 0.001, gut: 0.001, sex: 'female' });
+    const grown = fishRecord({ id: 'dying', health: 0.001, gut: ofFood(0.001), sex: 'female' });
     const dying = { ...grown, budget: { ...grown.budget, broodBuffer: 0.002 } };
     const result = health([dying], { oxygen: 0 }, [], [0.003]);
-    expect(result.deathWaste).toBeCloseTo(remainsOf(dying) + 0.003, 15);
-    expect(remainsOf(dying)).toBeGreaterThan(remainsOf(grown) + 0.0019);
+    expect(result.deathWaste).toEqual(organicsCloseTo(addOrganics(remainsOf(dying), portion(FISH_COMPOSITION, 0.003)), 12));
+    expect(remainsOf(dying).grams).toBeGreaterThan(remainsOf(grown).grams + 0.0019);
   });
 });
 
@@ -600,38 +602,38 @@ describe('predation', () => {
   });
 
   it('feeds what a fry it kills leaves to the larger fish by their weight on it, instead of the rot', () => {
-    const prey = { ...fry, health: 0.001, gut: 0.00002 };
+    const prey = { ...fry, health: 0.001, gut: ofFood(0.00002) };
     const big = angel('big', 40);
     const bigger = angel('bigger', 70);
     const tiny = fishRecord({ id: 'tiny', size: 14 });
     const result = health([prey, big, bigger, tiny]);
     const hours = [prey, big, bigger, tiny].map((f) => hourOf(f));
-    const remains = fishOrganics(hours[0].fish) + hours[0].fish.gut;
+    const remains = addOrganics(portion(FISH_COMPOSITION, fishOrganics(hours[0].fish)), hours[0].fish.gut);
 
     const guts = new Map(result.survivingFish.map((f) => [f.id, f.gut]));
+    const gained = (id: string, i: number): Organics => addOrganics(guts.get(id)!, scaleOrganics(hours[i].fish.gut, -1));
     expect(guts.has('fry')).toBe(false);
-    expect(result.deathWaste).toBeCloseTo(0, 15);
-    expect(guts.get('big')! - hours[1].fish.gut + guts.get('bigger')! - hours[2].fish.gut).toBeCloseTo(remains, 12);
+    expect(result.deathWaste.grams).toBeCloseTo(0, 15);
+    expect(addOrganics(gained('big', 1), gained('bigger', 2))).toEqual(organicsCloseTo(remains, 12));
     const outweighs = (i: number): number => fishMass([prey, big, bigger][i]) - fishMass(prey);
-    expect((guts.get('bigger')! - hours[2].fish.gut) / (guts.get('big')! - hours[1].fish.gut)).toBeCloseTo(
-      outweighs(2) / outweighs(1),
-      10
-    );
-    expect(guts.get('tiny')).toBe(hours[3].fish.gut);
+    expect(gained('bigger', 2).grams / gained('big', 1).grams).toBeCloseTo(outweighs(2) / outweighs(1), 10);
+    expect(guts.get('tiny')).toEqual(hours[3].fish.gut);
     expect(result.deadFishNames[0]).toContain('eaten');
   });
 
   it('feeds a predator only as far as its gut has room, the rest to waste', () => {
     const prey = { ...fry, health: 0.001 };
     const hungry = angel('hungry', 60);
-    const stuffed = { ...hungry, gut: 2 * gutCapacity(hungry, REFERENCE) };
-    const remains = fishOrganics(hourOf(prey).fish);
+    const stuffed = { ...hungry, gut: ofFood(2 * gutCapacity(hungry, REFERENCE)) };
+    const remains = portion(FISH_COMPOSITION, fishOrganics(hourOf(prey).fish));
 
     const empty = health([prey, hungry]);
-    expect(empty.survivingFish[0].gut - hourOf(hungry).fish.gut).toBeCloseTo(remains, 15);
+    expect(addOrganics(empty.survivingFish[0].gut, scaleOrganics(hourOf(hungry).fish.gut, -1))).toEqual(
+      organicsCloseTo(remains, 12)
+    );
     const full = health([prey, stuffed]);
-    expect(full.survivingFish[0].gut).toBe(hourOf(stuffed).fish.gut);
-    expect(full.deathWaste).toBeCloseTo(remains, 15);
+    expect(full.survivingFish[0].gut).toEqual(hourOf(stuffed).fish.gut);
+    expect(full.deathWaste).toEqual(organicsCloseTo(remains, 12));
   });
 
   it('feeds the brood an eaten mother carried to her predators with her', () => {
@@ -641,8 +643,8 @@ describe('predation', () => {
     const bare = health([mother, predator]);
     const carrying = health([mother, predator], {}, [], [brood, 0]);
 
-    const gained = carrying.survivingFish[0].gut - bare.survivingFish[0].gut;
-    expect(gained + carrying.deathWaste - bare.deathWaste).toBeCloseTo(brood, 15);
+    const gained = carrying.survivingFish[0].gut.grams - bare.survivingFish[0].gut.grams;
+    expect(gained + carrying.deathWaste.grams - bare.deathWaste.grams).toBeCloseTo(brood, 15);
     expect(gained).toBeGreaterThan(0.9 * brood);
   });
 
@@ -655,11 +657,11 @@ describe('predation', () => {
     expect(result.survivingFish.map((f) => f.id)).toEqual(['surviving']);
     const hunted = stressorAmount(result.vitalities[0], 'hunted') / result.vitalities[0].breakdown.damageRate;
     const [preyAfter, dyingAfter, survivorAfter] = [prey, dying, surviving].map((f) => hourOf(f).fish);
-    const remains = fishOrganics(preyAfter) + preyAfter.gut;
-    const gained = result.survivingFish[0].gut - survivorAfter.gut;
+    const remains = fishOrganics(preyAfter) + preyAfter.gut.grams;
+    const gained = result.survivingFish[0].gut.grams - survivorAfter.gut.grams;
     expect(hunted).toBeGreaterThan(0);
     expect(gained).toBeCloseTo((hunted / 2) * remains, 12);
-    expect(gained + result.deathWaste).toBeCloseTo(remains + fishOrganics(dyingAfter) + dyingAfter.gut, 12);
+    expect(gained + result.deathWaste.grams).toBeCloseTo(remains + fishOrganics(dyingAfter) + dyingAfter.gut.grams, 12);
   });
 
   it('leaves a fry to rot when nothing larger survives to eat it', () => {
@@ -668,7 +670,9 @@ describe('predation', () => {
     const result = health([prey, predator], { oxygen: 0 });
     expect(result.survivingFish).toHaveLength(0);
     const after = [prey, predator].map((f) => hourOf(f).fish);
-    expect(result.deathWaste).toBeCloseTo(after.reduce((sum, f) => sum + fishOrganics(f) + f.gut, 0), 12);
+    expect(result.deathWaste).toEqual(
+      organicsCloseTo(addOrganics(...after.map((f) => addOrganics(portion(FISH_COMPOSITION, fishOrganics(f)), f.gut))), 12)
+    );
   });
 });
 

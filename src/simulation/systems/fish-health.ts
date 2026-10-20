@@ -34,8 +34,9 @@ import { TOXIN_LABEL, type LivestockConfig, type ToxinVector } from '../config/l
 import { shareOut, swallow, type Pace } from './digestion.js';
 import { getPlantPower } from './plant-power.js';
 import { sum } from '../core/sum.js';
+import { addOrganics, NO_ORGANICS, portion, type Organics } from '../core/organics.js';
 import { pointsHealed, starvation, wellFed } from './reserve.js';
-import { fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
+import { FISH_COMPOSITION, fishMass, fishOrganics, fishParams, fishSize } from './fish-body.js';
 import type { FishHour } from './metabolism.js';
 import {
   fishHardiness,
@@ -56,11 +57,22 @@ import {
   type VitalityResult,
 } from './vitality.js';
 
+export interface HealthInput {
+  fish: readonly Fish[];
+  hours: readonly FishHour[];
+  fed: readonly Fish[];
+  resources: Resources;
+  plants: Plant[];
+  tankCapacity: number;
+  config: LivestockConfig;
+  carried: readonly number[];
+}
+
 export interface HealthResult {
   survivingFish: Fish[];
   deadFishNames: string[];
   /** Waste the dead leave: their bodies, their guts and the broods they carried, less what the survivors ate */
-  deathWaste: number;
+  deathWaste: Organics;
   /** Each fish's vitality this tick, in the order handed in, the dead included */
   vitalities: VitalityResult[];
 }
@@ -292,22 +304,23 @@ function damageShare(vitality: VitalityResult, key: string): number {
  * One hour of health for every fish its budget ran for: `fish` as the hour
  * found them, `hours` their budgets' hours and `fed` them fed after. A fish
  * dies when its health reaches 0 or its survival falls below its draw. What it
- * leaves — its body, its gut and the brood it carried, all in grams of organic
- * matter — its predators eat in the share of its damage they did, by their
- * weight on it and as far as their guts have room; the rest is waste.
+ * leaves — its body and the brood it carried, and its gut —
+ * its predators eat in the share of its damage they did, by their weight on
+ * it and as far as their guts have room; the rest is waste. `carried` is the
+ * grams of brood each carries.
  */
-export function processHealth(
-  fish: readonly Fish[],
-  hours: readonly FishHour[],
-  fed: readonly Fish[],
-  resources: Resources,
-  plants: Plant[],
-  tankCapacity: number,
-  config: LivestockConfig,
-  carried: readonly number[]
-): HealthResult {
+export function processHealth({
+  fish,
+  hours,
+  fed,
+  resources,
+  plants,
+  tankCapacity,
+  config,
+  carried,
+}: HealthInput): HealthResult {
   const deadFishNames: string[] = [];
-  let deathWaste = 0;
+  let deathWaste: Organics = NO_ORGANICS;
   const waterVolume = resources.water;
   const masses = fish.map(fishMass);
   const predatorMass = predatorMasses(masses);
@@ -323,17 +336,20 @@ export function processHealth(
 
   fed.forEach((f, i) => {
     if (!dies[i]) return;
-    const remains = fishOrganics(f) + f.gut + carried[i];
+    const remains = addOrganics(portion(FISH_COMPOSITION, fishOrganics(f) + carried[i]), f.gut);
     const weights = living.map((j) => predatorWeight(masses[j], masses[i]));
     const surviving = predatorMass[i] > 0 ? Math.min(1, sum(weights) / predatorMass[i]) : 0;
     const share = damageShare(vitalities[i], 'hunted') * surviving;
 
-    const eaten = shareOut(weights, share * remains);
+    const eaten = shareOut(weights, share * remains.grams);
     const swallowed = swallow(survivingFish, survivorPaces, eaten.taken);
     survivingFish.forEach((survivor, j) => {
-      survivor.gut += swallowed.taken[j];
+      survivor.gut = addOrganics(survivor.gut, portion(remains, swallowed.taken[j]));
     });
-    deathWaste += (1 - share) * remains + eaten.overflow + swallowed.overflow;
+    deathWaste = addOrganics(
+      deathWaste,
+      portion(remains, (1 - share) * remains.grams + eaten.overflow + swallowed.overflow)
+    );
 
     const cause =
       oldAge[i] || damageShare(vitalities[i], 'age') > 0.5

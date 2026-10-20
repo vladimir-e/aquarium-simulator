@@ -47,7 +47,7 @@ function dispatch(state: SimulationState, action: Action, config: TunableConfig)
     case 'topOff':
       return topOff(state);
     case 'feed':
-      return feed(state, action);
+      return feed(state, action, config);
     case 'scrubAlgae':
       return scrubAlgae(state, config.plants);
     case 'waterChange':

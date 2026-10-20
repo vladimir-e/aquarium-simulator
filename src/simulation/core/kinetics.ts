@@ -1,9 +1,11 @@
+import { sum } from './sum.js';
+
 /**
  * Temperature scaling for biological rates.
  *
  * Q10 is the factor a rate multiplies by per 10 °C: 2 doubles every ten
  * degrees, 3 triples. Every process in the engine that runs on enzymes —
- * food decay, plant respiration, nitrification — scales this way, and each
+ * decomposition, plant respiration, nitrification — scales this way, and each
  * quotes its own coefficient and its own reference temperature against this
  * one function.
  */
@@ -22,6 +24,13 @@ export function arrheniusFactor(temperature: number, arrheniusTemp: number): num
 /** Share of a stock a first-order draw at `rate` per hour takes over the hour: `1 − e^−rate`. */
 export function hourlyDraw(rate: number): number {
   return -Math.expm1(-rate);
+}
+
+/** Shares of a stock several first-order draws running on it together take over the hour: `1 − e^−Σk`, split in proportion to each `k`. */
+export function hourlyDraws(rates: readonly number[]): number[] {
+  const total = sum(rates);
+  const drawn = hourlyDraw(total);
+  return rates.map((rate) => (total > 0 ? (drawn * rate) / total : 0));
 }
 
 /** Share of a steady inflow over the hour that the same draw takes before the hour ends. */
@@ -73,6 +82,51 @@ export function monodUptake(stock: number, capacity: number, halfSaturation: num
   const b = halfSaturation + stock + capacity;
   const root = (2 * capacity * stock) / (b + Math.sqrt(Math.max(0, b * b - 4 * capacity * stock)));
   return Math.min(stock, capacity, root);
+}
+
+const ROOT_TOLERANCE = 1e-12;
+const ROOT_STEPS = 100;
+
+/**
+ * The stock several consumers leave over one tick, each drawing on it with
+ * its own curve read where the tick ends, the way `monodUptake` reads one:
+ * the root of `left = stock − draw(left)`, `draw` their total at that level.
+ *
+ * Every draw has to rise with the stock, take nothing from an empty one, and
+ * run continuous down to it. Then the stock less the draw at any level lies
+ * across the root from that level, so each reading bounds the root on both
+ * sides. A draw that jumps at zero — a Monod curve at K = 0 — has no root once
+ * it asks more than the stock holds, and the search lands on the empty stock,
+ * where nobody draws anything.
+ *
+ * The search steps by secant while the bracket closes fast and halves it when
+ * it doesn't, and returns its lower edge, where the draws never sum past the
+ * stock.
+ */
+export function stockLeft(stock: number, draw: (left: number) => number): number {
+  let low = 0;
+  let high = stock;
+  let probe = stock;
+  let last: { probe: number; excess: number } | null = null;
+  for (let step = 0; step < ROOT_STEPS && high - low > stock * ROOT_TOLERANCE; step++) {
+    const width = high - low;
+    const excess = stock - probe - draw(probe);
+    const mirror = probe + excess;
+    if (excess >= 0) {
+      low = probe;
+      high = Math.min(high, mirror);
+    } else {
+      high = probe;
+      low = Math.max(low, mirror);
+    }
+    const secant =
+      last === null || last.excess === excess
+        ? mirror
+        : probe - (excess * (probe - last.probe)) / (excess - last.excess);
+    last = { probe, excess };
+    probe = high - low <= width / 2 && secant >= low && secant <= high ? secant : (low + high) / 2;
+  }
+  return low;
 }
 
 /**

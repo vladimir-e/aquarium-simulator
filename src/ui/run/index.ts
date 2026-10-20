@@ -72,6 +72,7 @@ export {
 export {
   wasteReadout,
   wasteSummary,
+  type PoolRot,
   type WasteReadout,
   type WasteSource,
   type WasteSourceKey,

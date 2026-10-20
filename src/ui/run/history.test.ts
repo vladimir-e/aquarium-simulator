@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { ofFood } from '../../simulation/tests/organics.js';
 import { bloomAt } from '../../simulation/tests/blooms.js';
 import { produce } from 'immer';
 import {
@@ -32,7 +33,7 @@ describe('snapshotFromState', () => {
       d.resources.oxygen = 7.5;
       d.resources.co2 = 18;
       d.resources.temperature = 24.5;
-      d.resources.food = 0.3;
+      d.resources.food = ofFood(0.3);
       d.algae.greenWater = bloomAt(d, 'greenWater', 4);
       d.algae.film = bloomAt(d, 'film', 9);
     });

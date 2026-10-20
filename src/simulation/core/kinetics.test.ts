@@ -2,12 +2,14 @@ import { describe, it, expect } from 'vitest';
 import {
   arrheniusFactor,
   hourlyDraw,
+  hourlyDraws,
   hourlyInflowDraw,
   lightSaturationFactor,
   meanOfExp,
   monodFactor,
   monodUptake,
   q10Factor,
+  stockLeft,
 } from './kinetics.js';
 
 describe('q10Factor', () => {
@@ -38,6 +40,26 @@ describe('arrheniusFactor', () => {
       const rise = Math.log(arrheniusFactor(b, TA)) - Math.log(arrheniusFactor(a, TA));
       expect(rise / (reciprocal(b) - reciprocal(a))).toBeCloseTo(-TA, 6);
     }
+  });
+});
+
+describe('hourlyDraws', () => {
+  it('draws a lone rate as hourlyDraw does', () => {
+    for (const rate of [0.01, 0.7, 12]) {
+      expect(hourlyDraws([rate])[0]).toBeCloseTo(hourlyDraw(rate), 15);
+    }
+  });
+
+  it('gives a rate of nothing no share, and nothing to anything when every rate is nothing', () => {
+    expect(hourlyDraws([0.3, 0, 0.2])[1]).toBe(0);
+    expect(hourlyDraws([0, 0, 0])).toEqual([0, 0, 0]);
+  });
+
+  it('takes together what their summed rate takes, split in proportion to each', () => {
+    const rates = [0.05, 0.4, 2];
+    const shares = hourlyDraws(rates);
+    expect(shares.reduce((a, b) => a + b, 0)).toBeCloseTo(hourlyDraw(rates.reduce((a, b) => a + b, 0)), 15);
+    expect(shares[2] / shares[0]).toBeCloseTo(rates[2] / rates[0], 12);
   });
 });
 
@@ -152,6 +174,49 @@ describe('monodUptake', () => {
   it('draws nothing from an empty stock or with no capacity', () => {
     expect(monodUptake(0, 1, 0.5)).toBe(0);
     expect(monodUptake(1, 0, 0.5)).toBe(0);
+  });
+});
+
+describe('stockLeft', () => {
+  const monod = (capacity: number, k: number) => (left: number): number => capacity * monodFactor(left, k);
+
+  it('leaves what monodUptake leaves of a stock one Monod consumer draws on', () => {
+    for (const [stock, capacity, k] of [
+      [1, 0.2, 0.5],
+      [10, 3, 0.5],
+      [0.01, 50, 2],
+    ]) {
+      expect(stock - stockLeft(stock, monod(capacity, k))).toBeCloseTo(monodUptake(stock, capacity, k), 10);
+    }
+  });
+
+  it('settles where the stock less what every consumer draws there is what is left', () => {
+    const draws = [monod(4, 0.2), monod(9, 1.1), (left: number): number => 0.3 * left];
+    const draw = (left: number): number => draws.reduce((total, d) => total + d(left), 0);
+    const left = stockLeft(8, draw);
+    expect(left).toBeGreaterThan(0);
+    expect(left + draw(left)).toBeCloseTo(8, 9);
+  });
+
+  it('never lets the consumers draw past the stock, however hungry they are', () => {
+    for (const capacity of [0.1, 10, 1e6]) {
+      const draw = monod(capacity, 0.3);
+      const left = stockLeft(2, draw);
+      expect(left).toBeGreaterThanOrEqual(0);
+      expect(draw(left)).toBeLessThanOrEqual(2 - left);
+    }
+  });
+
+  it('leaves an empty stock empty', () => {
+    expect(stockLeft(0, monod(5, 0.2))).toBe(0);
+  });
+
+  it('settles on a stock too small for its tolerance to resolve', () => {
+    for (const stock of [Number.MIN_VALUE, 1e-310]) {
+      const left = stockLeft(stock, monod(1e6, 0.3));
+      expect(left).toBeGreaterThanOrEqual(0);
+      expect(left).toBeLessThanOrEqual(stock);
+    }
   });
 });
 

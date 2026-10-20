@@ -7,16 +7,14 @@
 import type { Plant } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { mapNutrients, type NutrientVector } from '../config/nutrients.js';
-import { CO2_TO_CH2O_MASS_RATIO, N_TO_NO3_MASS_RATIO, P_TO_PO4_MASS_RATIO } from '../core/chemistry.js';
+import { CO2_TO_CH2O_MASS_RATIO, MG_PER_G, N_TO_NO3_MASS_RATIO, P_TO_PO4_MASS_RATIO } from '../core/chemistry.js';
 import { HOURS_PER_DAY } from '../core/clock.js';
 import { TISSUE_PER_RATE_UNIT, type FloraTraits } from '../systems/flora.js';
 import type { FloraParams } from '../systems/flora-budget.js';
 import { plantTraits, type PlantSpecies } from '../plants/species.js';
 import { ALGAE, type AlgaeKind } from '../algae/traits.js';
 
-type Composition = Pick<PlantsConfig, 'quotaMin' | 'quotaMax' | 'storeFillDays'>;
-
-const MG_PER_G = 1000;
+type Quotas = Pick<PlantsConfig, 'quotaMin' | 'quotaMax' | 'storeFillDays'>;
 
 const NUTRIENT_PER_ELEMENT: Readonly<NutrientVector> = {
   nitrate: N_TO_NO3_MASS_RATIO,
@@ -31,7 +29,7 @@ const inEngineUnits = (quota: Readonly<NutrientVector>): NutrientVector =>
 function floraParams(
   { growthRate }: Pick<FloraTraits, 'growthRate'>,
   kappa: number,
-  { quotaMin, quotaMax, storeFillDays }: Composition,
+  { quotaMin, quotaMax, storeFillDays }: Quotas,
   plantsConfig: PlantsConfig,
   vigour = 0
 ): FloraParams {

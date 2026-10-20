@@ -334,7 +334,7 @@ const READINGS: Reading[] = [
   {
     key: 'food',
     label: 'Food',
-    read: ({ state }) => state.resources.food,
+    read: ({ state }) => state.resources.food.grams,
     unit: () => 'g',
     display: same,
     decimals: FoodResource.precision,

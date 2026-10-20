@@ -10,7 +10,7 @@
  *   the threshold it drew at creation.
  */
 
-import { N_TO_NH3_MASS_RATIO, N_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
+import { N_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
 import type { VectorMeta } from './nutrients.js';
 
 /** What a fish loads from the water: free NH₃, nitrite as NO₂⁻ and nitrate as NO₃⁻. */
@@ -36,23 +36,10 @@ export interface LivestockConfig {
   // Metabolism
   /** Dissolved O2 (mg/L) at which a fish's oxygen pace ω is half what saturated water gives. */
   oxygenHalfSaturation: number;
-  /**
-   * Fraction of digested food mass that is nitrogen (g N / g food).
-   *
-   * Typical aquarium flake/pellet food is 35–50 % protein, protein is
-   * ≈16 % N by mass, giving 5.6–8 % N in food. 0.05 is a conservative
-   * floor. Waste is food that went uneaten or undigested, and a fish is made
-   * of what it ate, so both carry the same fraction.
-   */
+  /** Grams of nitrogen in a gram of food (g N / g food). */
   foodNitrogenFraction: number;
-  /** mg of O2 a gram of organics a fish burns takes. */
-  oxygenPerGramBurned: number;
-  /**
-   * Moles of CO2 exhaled per mole of O2 consumed. A *molar* ratio, as the
-   * literature defines it — converting it to a mass takes the molar step
-   * through `O2_TO_CO2_MASS_RATIO`.
-   */
-  respiratoryQuotient: number;
+  /** Grams of carbon in a gram of food (g C / g food). */
+  foodCarbonFraction: number;
 
   // Stressor severities (damage per hour per unit deviation)
   /** Health damage per °C outside safe temperature range */
@@ -139,12 +126,12 @@ export const livestockDefaults: LivestockConfig = {
   // tension, which for warm-water teleosts sits around 1–2 mg/L; half its
   // saturated pace at 1.0 puts the taper across that band.
   oxygenHalfSaturation: 1.0,
-  // 5 % N in food — conservative; typical flake is 6–8 % N.
-  foodNitrogenFraction: 0.05,
-  // Burning AmP's reserve, CH1.8O0.5N0.15 at 23.9 g/mol, to CO2, water and
-  // ammonia takes 1.09 mol O2 a C-mole.
-  oxygenPerGramBurned: 1450,
-  respiratoryQuotient: 0.8, // textbook mixed-diet value
+  // A flake labelled 45–48 % crude protein as fed is about half protein dry,
+  // and protein is 16 % N.
+  foodNitrogenFraction: 0.08,
+  // A flake on a dry basis: about half protein, a tenth fat, a quarter
+  // carbohydrate and a tenth ash comes to 0.45–0.47 g C/g.
+  foodCarbonFraction: 0.45,
 
   // Stressor severities
   // Per °C outside the species' temperatureRange, scaled by (1 − hardiness).
@@ -219,12 +206,7 @@ export const livestockDefaults: LivestockConfig = {
   preyVulnerabilityExponent: 4,
 };
 
-/** mg of NH₃ a gram of food yields once mineralized. */
-export function ammoniaPerGramOfFood(config: LivestockConfig): number {
-  return config.foodNitrogenFraction * N_TO_NH3_MASS_RATIO * 1000;
-}
-
-/** mg of NO₃ the same gram's nitrogen makes once it is nitrate. */
+/** mg of NO₃ a gram of food's nitrogen makes once it is nitrate. */
 export function nitratePerGramOfFood(config: LivestockConfig): number {
   return config.foodNitrogenFraction * N_TO_NO3_MASS_RATIO * 1000;
 }
@@ -257,8 +239,14 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     max: 0.12,
     step: 0.005,
   },
-  { key: 'oxygenPerGramBurned', label: 'O2 per Gram Burned', unit: 'mg O2/g', min: 500, max: 2500, step: 50 },
-  { key: 'respiratoryQuotient', label: 'Respiratory Quotient', unit: '', min: 0.5, max: 1.2, step: 0.1 },
+  {
+    key: 'foodCarbonFraction',
+    label: 'Food C Fraction',
+    unit: 'g C/g food',
+    min: 0.4,
+    max: 0.52,
+    step: 0.01,
+  },
   // Stressor severities
   {
     key: 'temperatureStressSeverity',

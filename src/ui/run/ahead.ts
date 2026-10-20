@@ -9,11 +9,10 @@
 import {
   addOrganics,
   applyEffects,
-  atRecipe,
   bloomCoverage,
-  calculateDecay,
   dailyLightIntegral,
-  gillAmmonia,
+  decomposePools,
+  foodRecipe,
   mapKinds,
   processBodies,
   processFlora,
@@ -21,19 +20,22 @@ import {
   processLivestock,
   ration,
   readyToBrood,
+  tierOxygen,
   type AlgaeKind,
   type BloomHour,
+  type Effect,
   type FishHour,
   type FloraFluxes,
   type FloraState,
   type Organics,
   type PlantLight,
+  type PoolHour,
   type SimulationState,
   type VitalityResult,
 } from '../../simulation/index.js';
 import { settleEnvironment } from '../../simulation/tick.js';
 import type { FormVector, TunableConfig } from '../../simulation/config/index.js';
-import { ammoniaPerGramOfFood } from '../../simulation/config/livestock.js';
+import type { OrganicResourceKey } from '../../simulation/resources/index.js';
 import { sum } from '../../simulation/core/sum.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 
@@ -77,15 +79,24 @@ export interface HourAhead {
   fishWaste: Organics;
   /** mg of NH₃ the fish excrete through their gills. */
   gillAmmonia: number;
-  /** Grams of food a day that would pay the fish's upkeep at the hour's pace. */
-  ration: number;
-  /** Waste decaying food leaves, off what the fish have not eaten. */
-  foodWaste: Organics;
-  /** mg of NH₃ the oxidised share of that food releases straight into the water. */
-  foodAmmonia: number;
+  /** Grams of food a day that would pay the fish's upkeep at the hour's pace; null when no amount of it would. */
+  ration: number | null;
+  /** Litres of water the hour's rot and nitrifiers meet. */
+  water: number;
+  /** Dissolved O₂, mg/L, the hour's rot and nitrifiers run on. */
+  oxygen: number;
+  /** What the hour's decomposition does to each organic pool as it meets it, the fish fed and the hour's waste shed. */
+  rot: Record<OrganicResourceKey, PoolHour>;
   /** mg of each form the plants' stores take up from the water. */
   waterUptake: FormVector;
 }
+
+const gillAmmonia = (effects: readonly Effect[]): number =>
+  sum(
+    effects.flatMap((effect) =>
+      effect.resource === 'ammonia' && effect.source === 'fish-gill-excretion' ? [effect.delta] : []
+    )
+  );
 
 export function readHourAhead(state: SimulationState, config: TunableConfig): HourAhead {
   const settled = settleEnvironment(state, config);
@@ -103,9 +114,10 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
   const budded = new Set(
     planted.plants.filter((plant) => !standing.has(plant.id)).map((plant) => plant.parentId)
   );
-  const water = applyEffects(bodies.state, bodies.effects, config).resources;
-  const decayed = calculateDecay(water.food, water.temperature, water.oxygen, config.decay);
-  const wasteShare = config.decay.wasteConversionRatio;
+  const passive = applyEffects(bodies.state, bodies.effects, config);
+  const oxygen = tierOxygen(passive, 'passive', config);
+  const food = foodRecipe(config);
+  const daily = TICKS_PER_DAY * sum(livestock.hours.map((hour) => ration(hour.fish, hour.fluxes.owed, food)));
 
   return {
     plants: state.plants.map((plant, i) => ({
@@ -136,10 +148,11 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     dailyLight: dailyLightIntegral(settled.resources.lightByHour),
     shedding: flora.shedding,
     fishWaste: addOrganics(livestock.feces, bodies.waste),
-    gillAmmonia: gillAmmonia(livestock.burned + bodies.burned, config.livestock),
-    ration: TICKS_PER_DAY * sum(livestock.hours.map((hour) => ration(hour.fish, hour.fluxes.owed))),
-    foodWaste: atRecipe(decayed * wasteShare, config),
-    foodAmmonia: decayed * (1 - wasteShare) * ammoniaPerGramOfFood(config.livestock),
+    gillAmmonia: gillAmmonia([...livestock.effects, ...bodies.effects]),
+    ration: Number.isFinite(daily) ? daily : null,
+    water: passive.resources.water,
+    oxygen,
+    rot: decomposePools(passive, oxygen, config.decomposition),
     waterUptake: flora.waterUptake,
   };
 }

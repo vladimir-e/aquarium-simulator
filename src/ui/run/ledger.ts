@@ -13,7 +13,9 @@ import {
   bloomParams,
   debParams,
   droopLimits,
+  FISH_COMPOSITION,
   fillAtDroop,
+  foodRecipe,
   fullDroopFactor,
   offshootShare,
   offshootStructure,
@@ -21,6 +23,8 @@ import {
   plantLightTaken,
   unitParams,
   REMOVED_BY,
+  reserveYield,
+  scarcest,
   starvation,
   storeFill,
   TOXINS,
@@ -36,6 +40,8 @@ import {
   type BloomRemoval,
   type Light,
   type LightPath,
+  type OrganicElement,
+  type Organics,
   type SimulationState,
   type ToxinVector,
   type VitalityBreakdown,
@@ -396,6 +402,7 @@ function fishLedger(
         unit: '% of appetite',
         status: 'warn',
       }),
+      dietRow(fish, foodRecipe(config)),
     ],
     stores: [],
     load: loadRows(hour.fish, waterToxins(state.resources)),
@@ -419,6 +426,24 @@ function loadRows(fish: Fish, water: ToxinVector): BudgetRow[] {
     status: fish.load[t] > edges[t] ? 'alert' : 'ok',
     note: `water ${water[t].toFixed(WATER_DECIMALS[t])}`,
   }));
+}
+
+const ELEMENT_LABEL: Record<OrganicElement, string> = { carbon: 'C', ...NUTRIENT_LABEL };
+
+function dietRow(fish: Fish, food: Organics): BudgetRow {
+  const p = debParams(fish.species);
+  const share = reserveYield(food, FISH_COMPOSITION, p) / p.kappaX;
+  const limited = share < 1;
+  return {
+    key: 'diet',
+    label: 'Diet builds',
+    text: String(sharePercent(share)),
+    unit: '%',
+    at: null,
+    band: null,
+    status: limited ? 'warn' : 'neutral',
+    note: limited ? `limited by ${ELEMENT_LABEL[scarcest(food, FISH_COMPOSITION)]}` : '',
+  };
 }
 
 /** What the reserve does over the hour, named by what draws on it or that it fills. */

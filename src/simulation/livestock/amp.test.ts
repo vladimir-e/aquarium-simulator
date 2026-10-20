@@ -79,6 +79,7 @@ const inSourceUnits = (e: AmpReading): Scalable => ({
   v: e.v,
   kappa: e.kap,
   kappaX: e.kap_X,
+  kappaP: e.kap_P,
   kappaR: e.kap_R,
   pM: e.p_M,
   kJ: e.k_J,
@@ -109,6 +110,7 @@ function dimensionless(p: Scalable): Record<string, number> {
     sG: p.sG,
     kappa: p.kappa,
     kappaX: p.kappaX,
+    kappaP: p.kappaP,
     kappaR: p.kappaR,
     delM: p.delM,
   };

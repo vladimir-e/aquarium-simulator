@@ -4,7 +4,7 @@
 
 ## Scenarios
 
-`npm run scenarios` runs every setup tank headless on a keeper's schedule and prints its readings at days 1, 7, 30, 90 and 300, each graded green/amber/red against a plausibility band. A run is 90 days by default and any length with `--days`; the final day is always sampled.
+`npm run scenarios` runs every setup tank headless on a keeper's schedule and prints its readings at days 1, 7, 30, 90 and 300, each graded green/amber/red against a plausibility band. A run is 90 days by default and any length with `--days`; the final day is always sampled. Beside the water chemistry, `waste` reads the organic waste standing in the water and `mulm` what the bed holds, both in mg/L — mulm per litre of tank, `—` over a bare bottom.
 
 ```bash
 npm run scenarios                                  # every setup, 90 days

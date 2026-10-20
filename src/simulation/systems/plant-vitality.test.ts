@@ -39,7 +39,7 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
     light: 40,
     lightByHour: litDay(40, 8),
     aeration: true,
-    food: 0,
+    food: NO_ORGANICS,
     waste: NO_ORGANICS,
     ammonia: 0,
     nitrite: 0,

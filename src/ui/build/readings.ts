@@ -480,9 +480,11 @@ export function deviceHint(
       return muted(
         state.fish.length === 0
           ? 'No fish to eat it — what it drops rots in the water.'
-          : ahead.fish.some((fish) => fish.hour.pace.omega > 0)
-            ? `A day's ration of ${formatFeed(fed)} is ${(fed / ahead.ration).toFixed(1)}× what pays the fish's upkeep.`
-            : 'Without oxygen the fish cannot digest — what they eat sits in their guts.'
+          : !ahead.fish.some((fish) => fish.hour.pace.omega > 0)
+            ? 'Without oxygen the fish cannot digest — what they eat sits in their guts.'
+            : ahead.ration === null
+              ? "No amount of this food pays the fish's upkeep — they need a richer food."
+              : `A day's ration of ${formatFeed(fed)} is ${(fed / ahead.ration).toFixed(1)}× what pays the fish's upkeep.`
       );
     }
     case 'biofilter':

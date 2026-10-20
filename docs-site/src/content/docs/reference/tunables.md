@@ -8,7 +8,7 @@ that reads it. All of them live in `src/simulation/config/`, addressed as
 `section.key`.
 
 Every tunable declares its own metadata alongside its default — a label, a unit,
-a spinner step and, for everything but nine nitrogen-cycle leaves, a
+a spinner step and, for everything but eight nitrogen-cycle leaves, a
 `min`/`max`. Two writers consult that range: the CLI refuses a `config set`
 outside it, and the tunables drawer holds its field to it. The save path does
 not — its bounds are hand-written per leaf and mostly assert shape rather than
@@ -21,8 +21,8 @@ and the config layer cannot reach it.
 
 | Section | Path prefix | Governs |
 |---|---|---|
-| Decay | `decay.` | Food to waste, waste to ammonia, and the bed's leach |
-| Nitrogen cycle | `nitrogenCycle.` | The three-stage chain and the two nitrifier guilds |
+| Decomposition | `decomposition.` | How fast food, waste and the bed's mulm rot, what temperature and oxygen do to it, and how fast food and waste settle into the bed |
+| Nitrogen cycle | `nitrogenCycle.` | Ammonia to nitrite to nitrate, and the two nitrifier guilds |
 | Gas exchange | `gasExchange.` | O₂ and CO₂ across the surface, and what aeration does to both |
 | Temperature | `temperature.` | Drift toward the room, scaled by tank size |
 | Evaporation | `evaporation.` | Water lost per day, and how warmth accelerates it |
@@ -31,31 +31,28 @@ and the config layer cannot reach it.
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, the energy budget and stores, harm, income, shedding |
 | Nutrients | `nutrients.` | Fertilizer formula, root tab, the bed's leak, half-saturations, demand tiers, minerals in food |
-| Livestock | `livestock.` | Feeding, pace, burn, toxin loads, health and repair, broods, death |
+| Livestock | `livestock.` | The food's carbon and nitrogen, feeding, pace, toxin loads, health and repair, broods, death |
 
 The values themselves are not repeated here. They move when the model is
 recalibrated, and the file that holds each one carries the reference it was read
 off — which is the part that makes a number checkable.
 
-## Decay
+## Decomposition
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `q10` | Factor every decay rate multiplies by per 10 °C | — |
-| `referenceTemp` | Temperature the base rate is quoted at | °C |
-| `baseDecayRate` | Share of standing food that decomposes per hour — a Monod maximum | /hr |
-| `wasteConversionRatio` | Share of decaying food that becomes solid waste; the rest releases its N and minerals straight to the water | — |
-| `gasExchangePerGramDecay` | Oxygen the decomposers demand per gram oxidised; their CO₂ derives from it | mg O₂/g |
-| `oxygenHalfSaturation` | Dissolved O₂ at which decomposition runs at half rate | mg/L |
-| `substrateLeachRate` | Share of the bed's remaining organic reserve released per hour | /hr |
-| `wasteSettlingRate` | Share of standing waste settling into the bed per hour in still water | /hr |
+| `rate.food` · `.waste` · `.mulm` | First-order rate each pool rots at, at the reference temperature in oxygenated water — the aerobic path's Monod maximum | /hr |
+| `q10` | Factor every rot rate multiplies by per 10 °C | — |
+| `referenceTemp` | Temperature the rot rates are quoted at | °C |
+| `oxygenHalfSaturation` | Dissolved O₂ at which the aerobic path runs at half rate | mg/L |
+| `anaerobicShare` | The anaerobic path's pace in water with no oxygen, as a share of the aerobic | of aerobic |
+| `settlingRate` | First-order rate food and standing waste settle into the bed in still water | /hr |
 | `settlingHalfTurnover` | Tank turnovers per hour at which flow halves settling | turnovers/hr |
 
 ## Nitrogen cycle
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `wasteConversionRate` | Share of standing waste mineralized to ammonia per tick | /tick |
 | `bacteriaProcessingRate` | Ammonia one bacteria unit oxidises per tick — the Monod maximum, at saturating ammonia and oxygen | mg/unit/tick |
 | `seedingRate` | Nitrifiers settling into the tank per litre of water per tick, each guild | units/L/tick |
 | `aobGrowthRate` | AOB per-capita growth at full utilization — ln 2 over the guild's doubling time | /tick |
@@ -70,7 +67,7 @@ off — which is the part that makes a number checkable.
 | `nobNitriteHalfSaturation` | Nitrite, as NO₂⁻, at which NOB oxidise at half rate | ppm |
 
 The four half-saturation constants are measured concentrations and carry a range.
-The nine leaves above them were never given bounds, so a writer that asks
+The eight leaves above them were never given bounds, so a writer that asks
 gets nothing back. A test asserts exactly that split, so the gap is stated
 rather than discovered.
 
@@ -199,7 +196,7 @@ Every severity is pre-hardiness: a species' hardiness scales each by
 | `bedLeakRate` | Share of each nutrient the bed holds that leaks into the water per hour | /hr |
 | `halfSaturation.ammonia` · `.nitrate` · `.phosphate` · `.potassium` · `.iron` | The ppm of each form — total ammonia as NH₃ — at which a full-demand plant's stores get half what they ask of its nutrient | ppm |
 | `demand.low.*` · `demand.medium.*` · `demand.high.*` | Each tier's share of the full need, per nutrient; scales the half-saturation of every form the nutrient comes in, ammonia's by nitrate's | — |
-| `foodMineralContent.phosphate` · `.potassium` · `.iron` | Minerals in a gram of food, and in the fish made of it | mg/g |
+| `foodMineralContent.phosphate` · `.potassium` · `.iron` | Minerals in a gram of food; its nitrogen and carbon are under Livestock | mg/g |
 
 ## Livestock
 
@@ -209,9 +206,8 @@ A fish's energy budget — growth, reserve, maturity, brood buffer, ageing — c
 |---|---|---|
 | `digestionRate` | First-order rate a gut digests at, at 20 °C; the species' Arrhenius factor paces it | /hr |
 | `oxygenHalfSaturation` | Dissolved O₂ at which a fish's oxygen pace ω — its assimilation ceiling and energy conductance — is half what saturated water gives | mg/L |
-| `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, mineralized as waste, or burned by a fish | g N/g food |
-| `oxygenPerGramBurned` | Oxygen a fish breathes per gram of organics its budget burns | mg O₂/g |
-| `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |
+| `foodNitrogenFraction` | Nitrogen in a gram of food | g N/g food |
+| `foodCarbonFraction` | Carbon in a gram of food | g C/g food |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per °C, pH unit or dGH outside the species' tolerable band | %/unit/hr |
 | `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own tolerance edge, which hardiness moves out — the toxins on its load, free NH₃ not total ammonia; oxygen counts e-folds under | %/e-fold/hr |
 | `loadRate.ammonia` · `.nitrite` · `.nitrate` | Dominant rate a fish of 1 cm structural length loads and clears each toxin at, at 20 °C; its Arrhenius factor paces it and its length divides it | /hr |
@@ -242,7 +238,8 @@ can move them at runtime.
 | Plant species | Per species: growth rate, growth form, hardiness, CO₂ requirement, nutrient demand tier, and the PAR band it tolerates, whose low end sets its `Ik` and its rated day |
 | Growth forms | Per form: what one full unit is — its height and how height grows with size, its footprint, its leaf area index — the share of its food it draws through its roots, and its plantlet's size and name |
 | Filters | Per type: biological surface, target turnover, flow ceiling, tank-size ceiling, and whether it is air-driven |
-| Substrates | Per type: colony surface per litre, and the organic and KH reserves and the nutrient charge a fresh bed holds per litre |
+| Substrates | Per type: colony surface per litre, and the organic and KH reserves and the nutrient charge a fresh bed holds per litre; what a fresh bag's organics are made of, one composition for every type |
+| Fish composition | What a gram of every fish, egg and brood is made of: Add-my-Pet's reserve for carbon and nitrogen, phosphorus at N:P 15, the default flake's potassium and iron |
 | Hardscape | Per type: colony surface, and the tannins a fresh piece carries |
 | Lids | Per type: the multiplier applied to evaporation |
 | Fixtures and pumps | The catalog of ratings a device can be built with — heater wattages, light PAR ratings, powerhead flow rates, CO₂ bubble rates, doser amounts |

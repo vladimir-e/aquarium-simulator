@@ -1,6 +1,6 @@
 /**
  * Iron resource - Fe stored as mass in mg.
- * Essential plant micronutrient. Only comes from fertilizer (not fish waste).
+ * Essential plant micronutrient. Comes from fertilizer, the bed, rot and the fish's gills.
  * Represents all micronutrients for simplified model.
  *
  * Display shows derived ppm (mass/water), safe/stress ranges are in ppm.

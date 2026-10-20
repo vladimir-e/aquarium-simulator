@@ -63,7 +63,7 @@ export function snapshot(state: SimulationState, config: TunableConfig): History
       flow: r.flow,
       light: r.light,
       aeration: r.aeration,
-      food: r.food,
+      food: r.food.grams,
       waste: r.waste.grams,
       ammonia: r.ammonia,
       nitrite: r.nitrite,

@@ -52,7 +52,7 @@ describe('scrubAlgae', () => {
     expect(scrubAlgae(withAlgae(30, 90), config).state.algae.greenWater).toEqual(withAlgae(30, 90).algae.greenWater);
   });
 
-  it('leaves what it takes in the water: its tissue and reserve as waste at Q_min, its stores leached', () => {
+  it('leaves what it takes in the water as waste: its tissue at Q_min, its reserve and its stores', () => {
     const state = withAlgae(80, 40);
     const scrubbed = scrubAlgae(state, config).state;
     const film = (s: SimulationState): number => s.algae.film.budget.structure + s.algae.film.budget.reserve;
@@ -61,11 +61,12 @@ describe('scrubAlgae', () => {
 
     expect(scrubbed.resources.waste.grams).toBeCloseTo(state.resources.waste.grams + film(state) - film(scrubbed), 12);
     for (const n of NUTRIENTS) {
-      expect(scrubbed.resources.waste.nutrients[n]).toBeCloseTo(state.resources.waste.nutrients[n] + p.qMin[n] * scraped, 12);
-      expect(scrubbed.resources[n] - state.resources[n]).toBeCloseTo(
-        state.algae.film.budget.stores[n] - scrubbed.algae.film.budget.stores[n],
+      const stores = state.algae.film.budget.stores[n] - scrubbed.algae.film.budget.stores[n];
+      expect(scrubbed.resources.waste.nutrients[n]).toBeCloseTo(
+        state.resources.waste.nutrients[n] + p.qMin[n] * scraped + stores,
         12
       );
+      expect(scrubbed.resources[n]).toBe(state.resources[n]);
     }
     expect(bloomsTissue(scrubbed)).toBeLessThan(bloomsTissue(state));
   });

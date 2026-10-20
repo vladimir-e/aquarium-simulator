@@ -6,7 +6,8 @@
  * previously scattered across state.ts and effects.ts.
  */
 
-export type { ResourceDefinition, ResourceKey } from './types.js';
+export type { OrganicResourceKey, ResourceDefinition, ResourceKey, ScalarResourceKey } from './types.js';
+export { isOrganicPool, mapPools, ORGANIC_POOLS } from './types.js';
 
 // Mass-stored solute helpers (mass <-> ppm, mass <-> dKH / dGH)
 export { getPpm, getMassFromPpm, getDkh, getKhMass, getDgh, getGhMass } from './helpers.js';
@@ -33,14 +34,12 @@ export { AobResource } from './aob.js';
 export { NobResource } from './nob.js';
 
 // Import for registry
-import type { ResourceDefinition, ResourceKey } from './types.js';
+import type { ResourceDefinition, ResourceKey, ScalarResourceKey } from './types.js';
 import { TemperatureResource } from './temperature.js';
 import { WaterResource } from './water.js';
 import { SurfaceResource } from './surface.js';
 import { FlowResource } from './flow.js';
 import { LightResource } from './light.js';
-import { FoodResource } from './food.js';
-import { WasteResource } from './waste.js';
 import { AmmoniaResource } from './ammonia.js';
 import { NitriteResource } from './nitrite.js';
 import { NitrateResource } from './nitrate.js';
@@ -55,17 +54,15 @@ import { AobResource } from './aob.js';
 import { NobResource } from './nob.js';
 
 /**
- * Registry of all resources indexed by key.
+ * Registry of every scalar resource indexed by key.
  * Provides type-safe access to resource metadata.
  */
-export const ResourceRegistry: Record<ResourceKey, ResourceDefinition<ResourceKey>> = {
+export const ResourceRegistry: Record<ScalarResourceKey, ResourceDefinition<ResourceKey>> = {
   water: WaterResource,
   temperature: TemperatureResource,
   surface: SurfaceResource,
   flow: FlowResource,
   light: LightResource,
-  food: FoodResource,
-  waste: WasteResource,
   ammonia: AmmoniaResource,
   nitrite: NitriteResource,
   nitrate: NitrateResource,

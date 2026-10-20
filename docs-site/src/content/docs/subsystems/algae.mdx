@@ -37,14 +37,14 @@ wear its coverage but are not habitat.
 | Condition and budget | <Badge text="settled" variant="success" /> | The shared vitality step on the plants' budget at κ = 1, repair paid from its reserve. |
 | Income | <Badge text="settled" variant="success" /> | The plants' three channels, full on a full reserve and full stores. |
 | Growth | <Badge text="settled" variant="success" /> | Maintenance first, then tissue at the Droop limit through the crowding taper — the share of its habitat still empty — day and night. |
-| Spores | <Badge text="settled" variant="success" /> | Immigration at a constant rate per kind, built from the water, so an empty tank is never closed to either. |
+| Spores | <Badge text="settled" variant="success" /> | Immigration at a constant rate per kind, built of the water's CO₂ and nutrients, so an empty tank is never closed to either while its water holds carbon. |
 | Two kinds | <Badge text="settled" variant="success" /> | Two trait records on one path. Green water is the sprinter: a lit, fed day about doubles it, but it needs richer water. Film is the stayer: a third of the pace, so it takes a week or two to show, but efficient on lean water. |
 | Habitats | <Badge text="settled" variant="success" /> | A water change carries green water out with the water; a lifted piece of hardscape takes its share of the film, and a swapped bed the floor's, arriving bare. |
 | Nutrients | <Badge text="settled" variant="success" /> | Its own Q_min and Q_max, filled from the water alone in one draw with every plant: no feeder is served before another. |
 | Nitrogen form | <Badge text="settled" variant="success" /> | Ammonia first and nitrate for the rest, on each kind's affinities: film takes nitrate about as readily as a plant. |
-| Carbon and oxygen | <Badge text="settled" variant="success" /> | The plants' photosynthesis and burn on one CO₂ stock, its tissue rated at the plants' relation and run at its growth rate. |
+| Carbon and oxygen | <Badge text="settled" variant="success" /> | The plants' photosynthesis and burn on one CO₂ stock, its tissue rated at the plants' relation and run at its growth rate; its spores draw the CO₂ they are built of beside every fixer. |
 | Allelopathy | <Badge text="settled" variant="success" /> | Thriving plant leaf per litre lowers every kind's assimilation ceiling, with no threshold — a stress on its budget, not a harm, standing for every way a planting suppresses algae that the model doesn't resolve. |
-| Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape; condition 0 kills what is left. Tissue returns as waste at Q_min and a die-back's stores leach; a die-back that showed is logged. |
+| Shedding and death | <Badge text="settled" variant="success" /> | The plants' shape; condition 0 kills what is left. Tissue returns as waste at Q_min, a die-back's stores with it; a die-back that showed is logged. |
 | Scrubbing | <Badge text="scaffolding" variant="caution" /> | Coverage is one figure, so the scrubbed glass refills from the floor and the hardscape at once — see [Actions](/subsystems/actions/). |
 | Light taken | <Badge text="settled" variant="success" /> | Light, not damage — Beer–Lambert on its coverage. |
 | Film on the leaves | <Badge text="scaffolding" variant="caution" /> | One coverage over the habitat, worn by every leaf alike: a months-old leaf carries no more than last week's, so film costs a light-hungry plant more than a slow one. |
@@ -88,12 +88,13 @@ back twice over: they draw on the same water and cut what it fixes.
 
 ### Spores
 
-Spores are the bloom's immigration, asked of the water each hour at
-`sporeRate` through the taper and built at Q_min in the same pooled draw as
-every store, so water short of a nutrient builds fewer. They land unfed —
-tissue and stores, no reserve — once the bloom's losses are taken, joining a
-standing bloom at its condition. Only an empty bloom, died back or never stood,
-starts afresh from them at 100.
+Spores are the bloom's immigration, asked each hour at `sporeRate` through the
+taper. They are built of CO₂, drawn on the bloom's own curve in the one draw
+every fixer makes, and at Q_min in the same pooled draw as every store — so
+water short of carbon or a nutrient builds fewer, and a tank with no CO₂ grows
+no spores. They land unfed — tissue and stores, no reserve — once the bloom's
+losses are taken, joining a standing bloom at its condition. Only an empty
+bloom, died back or never stood, starts afresh from them at 100.
 
 ### Light
 
@@ -108,11 +109,11 @@ shaded plant fixes less, and starves only once its reserve can no longer pay.
 
 ### Gases and nutrients
 
-Its tissue is organic matter at its kind's Q_min. A gram of it is the same rate
+Its tissue is carbohydrate at its kind's Q_min. A gram of it is the same rate
 units a gram of leaf is, run at the kind's growth rate, so a dense bloom strips
-CO₂ by day and draws oxygen down by night. Shed and dead tissue goes back as waste,
-and a die-back's stores leach to the water, nitrogen as nitrate — so a crashing
-bloom lifts nitrate at once and spikes ammonia as it rots.
+CO₂ by day and draws oxygen down by night. Shed and dead tissue goes back as
+waste, a die-back's stores with it — so a crashing bloom spikes ammonia as it
+rots.
 
 Each kind takes its nitrogen as the plants do — ammonia first, nitrate for what
 ammonia leaves — on its own affinities. A cycled tank's trace of ammonia and a
@@ -122,10 +123,9 @@ tank, an overfed one, a melt — meets most of it. A thinly planted, brightly li
 tank can go green even when maintained, on leaner water than a well-planted one
 keeps clear.
 
-A scrub takes the walls' share of the film: its tissue and reserve into the
-water as waste, and its stores leached straight to it, so KH dips by the proton
-per nitrogen that nitrate's uptake took. A water change takes its share of the
-green water out, stores and all.
+A scrub takes the walls' share of the film into the water as waste, tissue,
+reserve and stores. A water change takes its share of the green water out,
+stores and all.
 
 ### Blackouts
 
@@ -166,10 +166,10 @@ holds each kind's traits, defined beside the plant species.
 |---|---|---|
 | [Plants](/subsystems/plants/) | Thriving leaf per litre, and the canopy over the floor, as the hour starts | The light each kind takes from every leaf; a share of every pooled uptake and of the CO₂ |
 | [Light](/subsystems/light/) | The mean PAR over each habitat, and the day of it | Green water's coverage, in the water's extinction; film's, the coat on every leaf |
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | NH₃ and NO₃, PO₄, K and Fe, as the water holds them | Stores and spores filled, the ammonia from what the colony left; shed, dead and scrubbed tissue in as waste; a die-back's and a scrub's stores back to the water |
-| [Water & gases](/subsystems/water-and-gases/) | CO₂, O₂, temperature, pH | CO₂ fixed and O₂ released by day, burned day and night; KH moved by the form its nitrogen comes in, and back as its stores leach |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | NH₃ and NO₃, PO₄, K and Fe, as the water holds them | Stores and spores filled, the ammonia from what the colony left; shed, dead and scrubbed tissue in as waste, a die-back's and a scrub's stores with it |
+| [Water & gases](/subsystems/water-and-gases/) | CO₂, O₂, temperature, pH | CO₂ fixed and O₂ released by day, its spores' too, burned day and night; KH moved by the form its nitrogen comes in |
 | [Equipment](/subsystems/equipment/) | The hardscape's surface, part of film's habitat | A swapped bed takes the floor's share of film; a piece set down thins its coverage, one lifted takes its share |
-| [Actions](/subsystems/actions/) | — | A water change takes its share of the green water out of the tank; a scrub takes the film on the glass into the waste and its stores into the water |
+| [Actions](/subsystems/actions/) | — | A water change takes its share of the green water out of the tank; a scrub takes the film on the glass, stores and all, into the waste |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Each kind raises its own alert once per crossing of its level; an `algae-died` entry per die-back of a bloom that showed, naming the kind and stating the coverage it took |
 
 ## Source

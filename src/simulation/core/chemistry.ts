@@ -10,6 +10,10 @@
  * reaction that carries one mole of X to one mole of Y.
  */
 
+export const MG_PER_G = 1000;
+
+/** Elemental carbon (g/mol). */
+export const MW_C = 12.01;
 /** Elemental nitrogen (g/mol). */
 export const MW_N = 14.01;
 /** Ammonia (g/mol). */
@@ -24,6 +28,8 @@ export const MW_O2 = 32.0;
 export const MW_CO2 = 44.01;
 /** Carbohydrate, CH2O: photosynthate as a budget counts it (g/mol). */
 export const MW_CH2O = 30.03;
+/** Add-my-Pet's reserve, CH1.8O0.5N0.15: a fish's organics as its budget counts them (g per C-mole). */
+export const MW_RESERVE = 23.9;
 /** Elemental phosphorus (g/mol). */
 export const MW_P = 30.97;
 /** Phosphate, PO4³⁻ (g/mol). */
@@ -48,17 +54,39 @@ export const NO3_TO_NH3_MASS_RATIO = MW_NH3 / MW_NO3;
 
 /**
  * ≈ 0.727. 6CO2 + 6H2O → C6H12O6 + 6O2 is 1:1 in moles, so a gram of CO2 fixed
- * releases 32/44 of a gram of oxygen. Aerobic respiration and decay run the same
- * reaction backwards at the same ratio.
+ * releases 32/44 of a gram of oxygen. Respiration runs the same reaction
+ * backwards at the same ratio.
  */
 export const CO2_TO_O2_MASS_RATIO = MW_O2 / MW_CO2;
-/** ≈ 1.375 — the same 1:1 reaction read from the oxygen side. */
-export const O2_TO_CO2_MASS_RATIO = MW_CO2 / MW_O2;
+/** ≈ 3.664. The CO2 a gram of organic carbon leaves as once oxidised. */
+export const C_TO_CO2_MASS_RATIO = MW_CO2 / MW_C;
+/** ≈ 2.664. The oxygen oxidising a gram of carbohydrate's carbon takes, CH2O + O2 → CO2 + H2O. */
+export const C_TO_O2_MASS_RATIO = MW_O2 / MW_C;
 /**
  * ≈ 0.682. CO2 + H2O → CH2O + O2, per gram of CO2: the photosynthate it fixes
  * into, and respiration burns back out of.
  */
 export const CO2_TO_CH2O_MASS_RATIO = MW_CH2O / MW_CO2;
+/** ≈ 0.400. The carbon in a gram of plant or algal tissue, reserve or buffer. */
+export const CH2O_TO_C_MASS_RATIO = MW_C / MW_CH2O;
+const RESERVE_N_PER_C = 0.15;
+/**
+ * N:P 15, soft tissue's. A whole fish runs 2.5–3 % P dry, most of it in a
+ * skeleton the reserve does not build.
+ */
+const RESERVE_P_PER_C = 0.01;
+
+/** ≈ 0.503. The carbon in a gram of a fish's organics. */
+export const RESERVE_TO_C_MASS_RATIO = MW_C / MW_RESERVE;
+/** ≈ 0.088. The nitrogen in a gram of a fish's organics. */
+export const RESERVE_TO_N_MASS_RATIO = (RESERVE_N_PER_C * MW_N) / MW_RESERVE;
+/** ≈ 0.013. The phosphorus in a gram of a fish's organics. */
+export const RESERVE_TO_P_MASS_RATIO = (RESERVE_P_PER_C * MW_P) / MW_RESERVE;
+/**
+ * ≈ 1.456. CH1.8O0.5N0.15 + 1.0875 O2 → CO2 + 0.15 NH3 + 0.675 H2O: the oxygen
+ * burning a gram of a fish's organics takes, C + (H − 3N)/4 − O/2 moles a C-mole.
+ */
+export const O2_PER_RESERVE_BURNED = ((1 + (1.8 - 3 * RESERVE_N_PER_C) / 4 - 0.5 / 2) * MW_O2) / MW_RESERVE;
 
 /**
  * ≈ 2.819. NH4⁺ + 1.5 O2 → NO2⁻ + 2H⁺ + H2O, read per gram of ammonia. Per

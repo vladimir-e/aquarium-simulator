@@ -10,7 +10,6 @@ import type { PlantsConfig } from '../config/plants.js';
 import { getPh } from '../core/carbonate.js';
 import { monodFactor, q10Factor } from '../core/kinetics.js';
 import { parHoursToDli } from '../equipment/light.js';
-import { ZERO_NUTRIENTS, type NutrientVector } from '../config/nutrients.js';
 import { NO_ORGANICS, type Organics } from '../core/organics.js';
 import {
   droopFactor,
@@ -96,16 +95,13 @@ export interface FloraLoss {
   shed: Organics;
   /** Its remains, where it died. */
   died: Organics;
-  /** mg of each nutrient its stores leached to the water, where it died. */
-  leachate: NutrientVector;
 }
 
 /** Low condition sheds its `shedShare` of the structure, and condition 0 kills what is left. */
 export function loseFlora(state: FloraState, p: FloraParams, condition: number, plantsConfig: PlantsConfig): FloraLoss {
   const shedding = shed(state, p, shedShare(condition, plantsConfig) * state.structure);
-  if (condition > 0) return { survivor: shedding.state, shed: shedding.waste, died: NO_ORGANICS, leachate: ZERO_NUTRIENTS };
-  const left = remains(shedding.state, p);
-  return { survivor: null, shed: shedding.waste, died: left.waste, leachate: left.leachate };
+  if (condition > 0) return { survivor: shedding.state, shed: shedding.waste, died: NO_ORGANICS };
+  return { survivor: null, shed: shedding.waste, died: remains(shedding.state, p) };
 }
 
 /** One feeder's hour, as the channels a plant and a bloom share read it. */

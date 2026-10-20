@@ -41,9 +41,10 @@ mass by standing water before handing the effect over.
 | A clamp | A rate that only stays sane because something truncated it is wrong just below the truncation too | A response shape that cannot overdraw the stock it reads |
 | A special case | A branch for one species, one tank size or one preset is an admission the model doesn't hold, carried as code instead of fixed | A term that produces the special case as an ordinary output |
 
-The resource layer does hold each stock inside declared physical bounds. That is
-a floor under the arithmetic, not a mechanism — a mechanic that relies on it to
-stay sane is a defect the bound is hiding.
+The resource layer does hold each stock inside declared physical bounds, on what
+a step's transfers net to, so the order they arrive in never decides what a stock
+holds. That is a floor under the arithmetic, not a mechanism — a mechanic that
+relies on it to stay sane is a defect the bound is hiding.
 
 ## Monod is the default answer
 

@@ -5,7 +5,7 @@
 import { produce } from 'immer';
 import type { SimulationState } from './state.js';
 import { applyEffects, type Effect, type EffectTier } from './core/effects.js';
-import { coreSystems } from './systems/index.js';
+import { coreSystems, tierOxygen } from './systems/index.js';
 import { processEquipment, writePassiveResources } from './equipment/index.js';
 import { processFlora } from './flora/index.js';
 import { processLivestock } from './livestock/index.js';
@@ -21,15 +21,8 @@ function collectSystemEffects(
   tier: EffectTier,
   config: TunableConfig
 ): Effect[] {
-  const effects: Effect[] = [];
-
-  for (const system of coreSystems) {
-    if (system.tier === tier) {
-      effects.push(...system.update(state, config));
-    }
-  }
-
-  return effects;
+  const oxygen = tierOxygen(state, tier, config);
+  return coreSystems.filter((system) => system.tier === tier).flatMap((system) => system.update(state, config, oxygen));
 }
 
 /**
@@ -92,7 +85,7 @@ export function tick(
   const activeEffects = collectSystemEffects(newState, 'active', config);
   newState = applyEffects(newState, activeEffects, config);
 
-  // Tier 3: PASSIVE - Natural processes (decay, nitrogen cycle, gas exchange)
+  // Tier 3: PASSIVE - Natural processes
   const passiveEffects = collectSystemEffects(newState, 'passive', config);
   newState = applyEffects(newState, passiveEffects, config);
 

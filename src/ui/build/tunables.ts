@@ -10,7 +10,7 @@ import {
   DEFAULT_CONFIG,
   algaeConfigMeta,
   configRange,
-  decayConfigMeta,
+  decompositionConfigMeta,
   evaporationConfigMeta,
   fertilizerFormulaMeta,
   rootTabMeta,
@@ -27,6 +27,7 @@ import {
   plantsConfigMeta,
   quotaMinMeta,
   quotaMaxMeta,
+  rotRateMeta,
   temperatureConfigMeta,
   tunableAt,
   type ConfigRange,
@@ -123,12 +124,17 @@ const PLANTS = grouped(plantsConfigMeta, [
   { label: 'Shedding', keys: ['maxSheddingRate'] },
 ]);
 
+const DECOMPOSITION = grouped(decompositionConfigMeta, [
+  { path: 'rate', label: 'Rot rates', meta: rotRateMeta },
+  { label: 'Settling', keys: ['settlingRate', 'settlingHalfTurnover'] },
+]);
+
 const OPTICS = grouped(opticsConfigMeta, [
   { label: 'Blooms', keys: ['algaeAttenuationPerCm', 'algaeCoatOpticalDepth'] },
 ]);
 
 const SECTIONS: readonly SectionSpec[] = [
-  { key: 'decay', label: 'Decay', meta: decayConfigMeta },
+  { key: 'decomposition', label: 'Decomposition', ...DECOMPOSITION },
   { key: 'nitrogenCycle', label: 'Nitrogen cycle', meta: nitrogenCycleConfigMeta },
   { key: 'gasExchange', label: 'Gas exchange', meta: gasExchangeConfigMeta },
   { key: 'temperature', label: 'Temperature', meta: temperatureConfigMeta },

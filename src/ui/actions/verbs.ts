@@ -351,7 +351,7 @@ function rungsFor(
         rung: (amount) => ({
           value: amount,
           label: `${amount} g`,
-          hint: ration > 0 ? daysOfFood(amount / ration) : '—',
+          hint: ration !== null && ration > 0 ? daysOfFood(amount / ration) : '—',
           disabled: false,
         }),
       };
@@ -465,12 +465,13 @@ function meta(
 
   switch (id) {
     case 'feed': {
+      const need = ahead.ration === null ? 'a richer food' : `${grams(ahead.ration)} a day`;
       const mouths =
         state.fish.length === 0
           ? 'no fish to feed'
-          : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'needs' : 'need'} ${grams(ahead.ration)} a day`;
-      return state.resources.food > 0
-        ? `${mouths} · ${grams(state.resources.food)} still in the water`
+          : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'needs' : 'need'} ${need}`;
+      return state.resources.food.grams > 0
+        ? `${mouths} · ${grams(state.resources.food.grams)} still in the water`
         : mouths;
     }
     case 'waterChange': {
@@ -518,7 +519,7 @@ const BARE_NOTE: Partial<Record<VerbId, (state: SimulationState) => string>> = {
           ? `${name} on the glass comes off; what coats ${namePlaces(placesKept(habitat, 'walls', state))} stays, and spreads back over the glass at once.`
           : `${name} is not on the glass — a ${VERB[bloomVerb(kind)].name.toLowerCase()} takes it.`;
       }),
-      'What comes off is loose in the water: its tissue rots there as waste, which a gravel vac takes once it settles, and its stores leach straight out — the nitrate in them takes back the KH its uptake gave, so KH and pH dip with it.',
+      'What comes off is loose in the water: its tissue and its stores rot there as waste, which a gravel vac takes once it settles.',
     ].join(' ');
   },
 };

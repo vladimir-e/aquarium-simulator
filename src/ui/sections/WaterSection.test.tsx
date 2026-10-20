@@ -6,7 +6,7 @@ import { group, renderStage, row } from '../test/stage';
 import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { createSimulation } from '../../simulation/index.js';
-import { nutrientReadings } from '../run';
+import { nutrientReadings, readHourAhead } from '../run';
 
 afterEach(cleanup);
 
@@ -114,14 +114,25 @@ describe('WaterSection', () => {
     expect(within(biofilter).getByText(/The cycle alone peaks nitrite at|No nitrite peak within/)).toBeTruthy();
   });
 
-  it('names every waste source, substrate included, on an unstocked soil tank', () => {
-    renderWater(bare(createSimulation({ tankCapacity: 200, substrate: { type: 'aqua_soil' } })));
+  it('names every waste source, and every pool that rots, on an unstocked soil tank', () => {
+    const state = createSimulation({ tankCapacity: 200, substrate: { type: 'aqua_soil' } });
+    renderWater(bare(state));
 
     const waste = group('Waste');
-    for (const label of ['Food decay', 'Fish', 'Plants', 'Substrate']) {
+    for (const label of ['Fish', 'Plants', 'Algae']) {
       expect(within(waste).getByText(label)).toBeTruthy();
     }
-    expect(within(waste).getByText(/%\/h decay · .+ % to waste · Q10/)).toBeTruthy();
+    expect(within(waste).getAllByRole('rowheader').map((cell) => cell.textContent)).toEqual(['Food', 'Waste', 'Mulm']);
+    const mulm = within(waste).getByRole('rowheader', { name: 'Mulm' }).closest('tr')!;
+    const { met } = readHourAhead(state, DEFAULT_CONFIG).rot.mulm;
+    expect(within(mulm).getByText(met.grams.toFixed(3))).toBeTruthy();
+  });
+
+  it('rots food and waste in the water alone over a bare bottom', () => {
+    renderWater();
+
+    const waste = group('Waste');
+    expect(within(waste).getAllByRole('rowheader').map((cell) => cell.textContent)).toEqual(['Food', 'Waste']);
   });
 
   it('prints a flow arm under its own precision as none rather than a signed zero', () => {

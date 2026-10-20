@@ -3,15 +3,14 @@
  *
  * Every bloom loses what coats the glass walls: the walls' share of its
  * tissue. What the rest of its habitat holds stays, and spreads back over the
- * glass at once. What comes off is dead and loose in the water: its tissue and
- * reserve as waste, which rots there and which a gravel vac takes once it has
- * settled into the bed, and its stores leached straight to the water.
+ * glass at once. What comes off is dead and loose in the water: its tissue,
+ * reserve and stores as waste, which rots there and which a gravel vac takes
+ * once it has settled into the bed.
  */
 
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
-import { mapNutrients } from '../config/nutrients.js';
 import {
   ALGAE,
   ALGAE_KINDS,
@@ -25,11 +24,9 @@ import {
 } from '../algae/index.js';
 import { bloomParams } from '../flora/params.js';
 import { remains, scaleFlora } from '../systems/flora-budget.js';
-import { leach } from '../systems/nutrients.js';
 import { applyEffects, type Effect } from '../core/effects.js';
 import { createLog } from '../core/logging.js';
 import { addOrganics } from '../core/organics.js';
-import { sum } from '../core/sum.js';
 import type { ActionResult } from './types.js';
 
 /** Each kind's coverage times the walls' share of its habitat — what a scrub takes off. */
@@ -63,11 +60,7 @@ export function scrubAlgae(state: SimulationState, plantsConfig: PlantsConfig): 
     }
   });
 
-  const leachate = mapNutrients((n) => sum(scrubbed.map((left) => left.leachate[n])));
-  const effects: Effect[] = [
-    { tier: 'active', resource: 'waste', delta: addOrganics(...scrubbed.map(({ waste }) => waste)), source: 'scrub' },
-    ...leach(leachate),
-  ];
+  const effects: Effect[] = [{ tier: 'active', resource: 'waste', delta: addOrganics(...scrubbed), source: 'scrub' }];
   const removed = scraped.map((kind) => `${glass[kind].toFixed(1)} ${ALGAE[kind].name.toLowerCase()}`);
   return { state: applyEffects(newState, effects), message: `Scrubbed the glass: removed ${removed.join(', ')}` };
 }

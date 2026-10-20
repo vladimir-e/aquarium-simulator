@@ -15,6 +15,7 @@ import { hatchling, mature, size } from '../systems/deb.js';
 import { wellFed } from '../systems/reserve.js';
 import { frySize } from '../systems/fish-body.js';
 import { ZERO_TOXINS } from '../config/livestock.js';
+import { NO_ORGANICS } from '../core/organics.js';
 
 const SPECIES = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
 const stock = (o: Partial<Parameters<typeof stockFish>[0]> = {}): ReturnType<typeof stockFish> =>
@@ -89,7 +90,7 @@ describe('a hatched fish', () => {
   it('is its species’ hatchling, aged 0 with its whole cohort alive and an empty gut', () => {
     const fry = hatch();
     expect(fry.budget).toEqual(hatchling(debParams('corydoras')));
-    expect([fry.age, fry.survival, fry.gut]).toEqual([0, 1, 0]);
+    expect([fry.age, fry.survival, fry.gut]).toEqual([0, 1, NO_ORGANICS]);
   });
 });
 
